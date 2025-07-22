@@ -1,5 +1,22 @@
 # V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning
 
+### Modifications
+
+Run echo classification pipeline.
+```
+OUT_DIR=./out torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_0.clean.dedup.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 2048
+```
+
+Run echo classification pipeline.
+```
+OUT_DIR=./out torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_1.clean.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 2048
+```
+
+```
+OUT_DIR=./out torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_2.clean.dedup.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 2048
+```
+
+
 ### [Meta FAIR](https://ai.meta.com/research/)
 
 Mahmoud Assran∗, Adrien Bardes∗, David Fan∗, Quentin Garrido∗, Russell Howes∗, Mojtaba

@@ -9,6 +9,10 @@ import pathlib
 import warnings
 from logging import getLogger
 
+## MODIFICATION: Import boto3 for S3 access and io to handle byte streams
+import boto3
+import io
+
 import numpy as np
 import pandas as pd
 import torch
@@ -113,7 +117,9 @@ def make_videodataset(
 
 
 class VideoDataset(torch.utils.data.Dataset):
-    """Video classification dataset."""
+    """
+    Video classification dataset that efficiently streams data from S3.
+    """
 
     def __init__(
         self,
@@ -145,6 +151,10 @@ class VideoDataset(torch.utils.data.Dataset):
         self.duration = duration
         self.fps = fps
 
+        # Initialize s3_client to None. It will be created on-demand in each worker process
+        # to prevent pickling errors with multiprocessing.
+        self.s3_client = None
+        
         if sum([v is not None for v in (fps, duration, frame_step)]) != 1:
             raise ValueError(f"Must specify exactly one of either {fps=}, {duration=}, or {frame_step=}.")
 
@@ -155,88 +165,91 @@ class VideoDataset(torch.utils.data.Dataset):
             self.dataset_fpcs = [frames_per_clip for _ in data_paths]
         else:
             if len(dataset_fpcs) != len(data_paths):
-                raise ValueError("Frames per clip not properly specified for NFS data paths")
+                raise ValueError("Frames per clip not properly specified for data paths")
             self.dataset_fpcs = dataset_fpcs
 
         if VideoReader is None:
             raise ImportError('Unable to import "decord" which is required to read videos.')
 
-        # Load video paths and labels
+        # Load video paths and labels from the annotation file(s)
         samples, labels = [], []
         self.num_samples_per_dataset = []
         for data_path in self.data_paths:
-
-            if data_path[-4:] == ".csv":
+            if data_path.endswith(".csv"):
                 try:
                     data = pd.read_csv(data_path, header=None, delimiter=" ")
                 except pd.errors.ParserError:
-                    # In image captioning datasets where we have space, we use :: as delimiter.
                     data = pd.read_csv(data_path, header=None, delimiter="::")
-                samples += list(data.values[:, 0])
-                labels += list(data.values[:, 1])
-                num_samples = len(data)
-                self.num_samples_per_dataset.append(num_samples)
-
-            elif data_path[-4:] == ".npy":
-                data = np.load(data_path, allow_pickle=True)
-                data = list(map(lambda x: repr(x)[1:-1], data))
-                samples += data
-                labels += [0] * len(data)
-                num_samples = len(data)
+                samples.extend(list(data.values[:, 0]))
+                labels.extend(list(data.values[:, 1]))
                 self.num_samples_per_dataset.append(len(data))
-
+            elif data_path.endswith(".npy"):
+                data = np.load(data_path, allow_pickle=True)
+                data = [repr(x)[1:-1] for x in data]
+                samples.extend(data)
+                labels.extend([0] * len(data))
+                self.num_samples_per_dataset.append(len(data))
+                
         self.per_dataset_indices = ConcatIndices(self.num_samples_per_dataset)
 
-        # [Optional] Weights for each sample to be used by downstream
-        # weighted video sampler
         self.sample_weights = None
         if self.datasets_weights is not None:
             self.sample_weights = []
             for dw, ns in zip(self.datasets_weights, self.num_samples_per_dataset):
-                self.sample_weights += [dw / ns] * ns
+                self.sample_weights.extend([dw / ns] * ns)
 
         self.samples = samples
         self.labels = labels
 
     def __getitem__(self, index):
-        sample = self.samples[index]
+        """
+        Main method to fetch a sample. Retries with a new random sample if loading fails.
+        """
         loaded_sample = False
-        # Keep trying to load videos until you find a valid sample
         while not loaded_sample:
-            if not isinstance(sample, str):
-                logger.warning("Invalid sample.")
+            sample_path = self.samples[index]
+            if not isinstance(sample_path, str):
+                logger.warning("Invalid sample path.")
             else:
-                if sample.split(".")[-1].lower() in ("jpg", "png", "jpeg"):
+                is_image = sample_path.split(".")[-1].lower() in ("jpg", "png", "jpeg")
+                if is_image:
                     loaded_sample = self.get_item_image(index)
                 else:
                     loaded_sample = self.get_item_video(index)
-
+            
             if not loaded_sample:
-                index = np.random.randint(self.__len__())
-                sample = self.samples[index]
+                # If loading fails, get a new random index and try again
+                warnings.warn(f"Retrying with new sample, failed to load: {self.samples[index]}")
+                index = np.random.randint(len(self))
 
         return loaded_sample
 
     def get_item_video(self, index):
-        sample = self.samples[index]
+        """
+        Handles the logic for loading and processing a single video sample.
+        """
+        # Lazily initialize the S3 client in the worker process
+        if self.s3_client is None:
+            self.s3_client = boto3.client("s3")
+
+        sample_uri = self.samples[index]
         dataset_idx, _ = self.per_dataset_indices[index]
         frames_per_clip = self.dataset_fpcs[dataset_idx]
 
-        buffer, clip_indices = self.loadvideo_decord(sample, frames_per_clip)  # [T H W 3]
-        loaded_video = len(buffer) > 0
-        if not loaded_video:
-            return
-
-        # Label/annotations for video
+        buffer, clip_indices = self.loadvideo_decord(sample_uri, frames_per_clip)
+        
+        # Explicitly check for None to see if loading failed.
+        # This avoids the "ambiguous truth value" error with NumPy arrays.
+        if buffer is None:
+            return False 
+        
         label = self.labels[index]
 
         def split_into_clips(video):
-            """Split video into a list of clips"""
             fpc = frames_per_clip
             nc = self.num_clips
             return [video[i * fpc : (i + 1) * fpc] for i in range(nc)]
 
-        # Parse video into frames & apply data augmentations
         if self.shared_transform is not None:
             buffer = self.shared_transform(buffer)
         buffer = split_into_clips(buffer)
@@ -244,130 +257,127 @@ class VideoDataset(torch.utils.data.Dataset):
             buffer = [self.transform(clip) for clip in buffer]
 
         return buffer, label, clip_indices
-
+    
     def get_item_image(self, index):
-        sample = self.samples[index]
+        """
+        Handles the logic for loading and processing a single image sample.
+        """
+        # Lazily initialize the S3 client in the worker process
+        if self.s3_client is None:
+            self.s3_client = boto3.client("s3")
+
+        sample_uri = self.samples[index]
         dataset_idx, _ = self.per_dataset_indices[index]
         fpc = self.dataset_fpcs[dataset_idx]
-
+        
         try:
-            image_tensor = torchvision.io.read_image(path=sample, mode=torchvision.io.ImageReadMode.RGB)
-        except Exception:
-            return
+            if not sample_uri.startswith("s3://"):
+                raise ValueError(f"Image path is not a valid S3 URI: {sample_uri}")
+            
+            bucket_name, key = sample_uri.replace("s3://", "").split("/", 1)
+            response = self.s3_client.get_object(Bucket=bucket_name, Key=key)
+            image_bytes = response['Body'].read()
+            image_tensor = torchvision.io.decode_image(torch.from_numpy(np.frombuffer(image_bytes, np.uint8)), mode=torchvision.io.ImageReadMode.RGB)
+        except Exception as e:
+            logger.warning(f"Failed to load image {sample_uri}: {e}")
+            return False
+
         label = self.labels[index]
         clip_indices = [np.arange(start=0, stop=fpc, dtype=np.int32)]
-
-        # Expanding the input image [3, H, W] ==> [T, 3, H, W]
         buffer = image_tensor.unsqueeze(dim=0).repeat((fpc, 1, 1, 1))
-        buffer = buffer.permute((0, 2, 3, 1))  # [T, 3, H, W] ==> [T H W 3]
+        buffer = buffer.permute((0, 2, 3, 1))
 
         if self.shared_transform is not None:
-            # Technically we can have only transform, doing this just for the sake of consistency with videos.
             buffer = self.shared_transform(buffer)
-
         if self.transform is not None:
             buffer = [self.transform(buffer)]
 
         return buffer, label, clip_indices
 
-    def loadvideo_decord(self, sample, fpc):
-        """Load video content using Decord"""
-
-        fname = sample
-        if not os.path.exists(fname):
-            warnings.warn(f"video path not found {fname=}")
-            return [], None
-
-        _fsize = os.path.getsize(fname)
-        if _fsize > self.filter_long_videos:
-            warnings.warn(f"skipping long video of size {_fsize=} (bytes)")
-            return [], None
-
+    def loadvideo_decord(self, sample_uri, fpc):
+        """
+        Load video content efficiently from an S3 URI using Decord.
+        Returns (None, None) on any failure.
+        """
+        # Safeguard: Ensure the path is a valid S3 URI before proceeding.
+        if not sample_uri.startswith("s3://"):
+            warnings.warn(f"Skipping invalid path. Expected an S3 URI (s3://...) but got: {sample_uri}")
+            return None, None
+    
         try:
-            vr = VideoReader(fname, num_threads=-1, ctx=cpu(0))
-        except Exception:
-            return [], None
+            bucket_name, key = sample_uri.replace("s3://", "").split("/", 1)
+            
+            # Get object metadata to check size without downloading the file
+            response = self.s3_client.head_object(Bucket=bucket_name, Key=key)
+            _fsize = response['ContentLength']
 
+            if _fsize > self.filter_long_videos:
+                warnings.warn(f"Skipping long video {sample_uri} of size {_fsize} bytes")
+                return None, None
+
+            # Stream the video file from S3 into an in-memory buffer
+            video_object = self.s3_client.get_object(Bucket=bucket_name, Key=key)
+            video_bytes = io.BytesIO(video_object['Body'].read())
+            
+            # Open the in-memory buffer with VideoReader
+            vr = VideoReader(video_bytes, num_threads=-1, ctx=cpu(0))
+
+        except Exception as e:
+            warnings.warn(f"Failed to load video {sample_uri}. Error: {e}")
+            return None, None
+            
         fstp = self.frame_step
         if self.duration is not None or self.fps is not None:
             try:
                 video_fps = math.ceil(vr.get_avg_fps())
             except Exception as e:
                 logger.warning(e)
+                video_fps = 30 # Default if FPS can't be read
 
             if self.duration is not None:
-                assert self.fps is None
                 fstp = int(self.duration * video_fps / fpc)
             else:
-                assert self.duration is None
                 fstp = video_fps // self.fps
-
-        assert fstp is not None and fstp > 0
+        
+        fstp = max(1, fstp)
         clip_len = int(fpc * fstp)
 
         if self.filter_short_videos and len(vr) < clip_len:
-            warnings.warn(f"skipping video of length {len(vr)}")
-            return [], None
+            warnings.warn(f"Skipping short video {sample_uri} of length {len(vr)}")
+            return None, None
 
-        vr.seek(0)  # Go to start of video before sampling frames
-
-        # Partition video into equal sized segments and sample each clip
-        # from a different segment
+        vr.seek(0)
         partition_len = len(vr) // self.num_clips
-
         all_indices, clip_indices = [], []
-        for i in range(self.num_clips):
 
+        for i in range(self.num_clips):
             if partition_len > clip_len:
-                # If partition_len > clip len, then sample a random window of
-                # clip_len frames within the segment
                 end_indx = clip_len
                 if self.random_clip_sampling:
                     end_indx = np.random.randint(clip_len, partition_len)
                 start_indx = end_indx - clip_len
-                indices = np.linspace(start_indx, end_indx, num=fpc)
-                indices = np.clip(indices, start_indx, end_indx - 1).astype(np.int64)
-                # --
+                indices = np.linspace(start_indx, end_indx, num=fpc, dtype=np.int64)
+                indices = np.clip(indices, start_indx, end_indx - 1)
                 indices = indices + i * partition_len
             else:
-                # If partition overlap not allowed and partition_len < clip_len
-                # then repeatedly append the last frame in the segment until
-                # we reach the desired clip length
                 if not self.allow_clip_overlap:
-                    indices = np.linspace(0, partition_len, num=partition_len // fstp)
-                    indices = np.concatenate(
-                        (
-                            indices,
-                            np.ones(fpc - partition_len // fstp) * partition_len,
-                        )
-                    )
-                    indices = np.clip(indices, 0, partition_len - 1).astype(np.int64)
-                    # --
+                    indices = np.linspace(0, partition_len, num=partition_len // fstp, dtype=np.int64)
+                    indices = np.concatenate((indices, np.ones(fpc - len(indices), dtype=np.int64) * (partition_len-1)))
+                    indices = np.clip(indices, 0, partition_len - 1)
                     indices = indices + i * partition_len
-
-                # If partition overlap is allowed and partition_len < clip_len
-                # then start_indx of segment i+1 will lie within segment i
                 else:
-                    sample_len = min(clip_len, len(vr)) - 1
-                    indices = np.linspace(0, sample_len, num=sample_len // fstp)
-                    indices = np.concatenate(
-                        (
-                            indices,
-                            np.ones(fpc - sample_len // fstp) * sample_len,
-                        )
-                    )
-                    indices = np.clip(indices, 0, sample_len - 1).astype(np.int64)
-                    # --
+                    sample_len = min(clip_len, len(vr))
+                    indices = np.linspace(0, sample_len-1, num=fpc, dtype=np.int64)
                     clip_step = 0
-                    if len(vr) > clip_len:
-                        clip_step = (len(vr) - clip_len) // (self.num_clips - 1)
+                    if len(vr) > clip_len and self.num_clips > 1:
+                       clip_step = (len(vr) - clip_len) // (self.num_clips - 1)
                     indices = indices + i * clip_step
-
+            
             clip_indices.append(indices)
             all_indices.extend(list(indices))
 
         buffer = vr.get_batch(all_indices).asnumpy()
         return buffer, clip_indices
-
+    
     def __len__(self):
         return len(self.samples)

@@ -7,10 +7,6 @@ import os
 
 # -- FOR DISTRIBUTED TRAINING ENSURE ONLY 1 DEVICE VISIBLE PER PROCESS
 try:
-    # -- WARNING: IF DOING DISTRIBUTED TRAINING ON A NON-SLURM CLUSTER, MAKE
-    # --          SURE TO UPDATE THIS TO GET LOCAL-RANK ON NODE, OR ENSURE
-    # --          THAT YOUR JOBS ARE LAUNCHED WITH ONLY 1 DEVICE VISIBLE
-    # --          TO EACH PROCESS
     os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["SLURM_LOCALID"]
 except Exception:
     pass
@@ -19,6 +15,8 @@ import copy
 import gc
 import random
 import time
+import io
+import boto3
 
 import numpy as np
 import torch
@@ -33,6 +31,8 @@ from src.masks.multiseq_multiblock3d import MaskCollator
 from src.masks.utils import apply_masks
 from src.utils.distributed import init_distributed
 from src.utils.logging import AverageMeter, CSVLogger, get_logger, gpu_timer
+from src.utils.checkpoint_loader import robust_checkpoint_loader
+
 
 # --
 log_timings = True
@@ -51,14 +51,29 @@ torch.backends.cudnn.benchmark = True
 logger = get_logger(__name__, force=True)
 
 
-def main(args, resume_preempt=False):
-    # ----------------------------------------------------------------------- #
-    #  PASSED IN PARAMS FROM CONFIG FILE
-    # ----------------------------------------------------------------------- #
+def prune_local_checkpoints(folder, max_to_keep=10):
+    try:
+        all_checkpoints = [f for f in os.listdir(folder) if f.startswith('e') and f.endswith('.pt')]
+        if len(all_checkpoints) > max_to_keep:
+            all_checkpoints.sort(key=lambda x: int(x[1:-3]))
+            checkpoints_to_delete = all_checkpoints[:-max_to_keep]
+            logger.info(f"Pruning local checkpoints. Keeping {max_to_keep}, deleting {len(checkpoints_to_delete)}.")
+            for ckpt_name in checkpoints_to_delete:
+                full_path = os.path.join(folder, ckpt_name)
+                try:
+                    os.remove(full_path)
+                except Exception as e:
+                    logger.error(f"Failed to delete old checkpoint {full_path}: {e}")
+    except Exception as e:
+        logger.error(f"Failed to prune checkpoints in folder {folder}: {e}")
 
+
+def main(args, resume_preempt=False):
     # -- META
     folder = args.get("folder")
     cfgs_meta = args.get("meta")
+    s3_checkpoint_uri = cfgs_meta.get("s3_checkpoint_uri", None)
+    checkpoints_to_keep = cfgs_meta.get("checkpoints_to_keep", 10)
     load_model = cfgs_meta.get("load_checkpoint") or resume_preempt
     r_file = cfgs_meta.get("read_checkpoint", None)
     seed = cfgs_meta.get("seed", _GLOBAL_SEED)
@@ -129,6 +144,8 @@ def main(args, resume_preempt=False):
 
     # -- OPTIMIZATION
     cfgs_opt = args.get("optimization")
+    force_load_pretrain = cfgs_opt.get("force_load_pretrain", False)
+    anneal_ckpt_path = cfgs_opt.get("anneal_ckpt", None)
     ipe = cfgs_opt.get("ipe", None)
     ipe_scale = cfgs_opt.get("ipe_scale", 1.0)
     wd = float(cfgs_opt.get("weight_decay"))
@@ -141,9 +158,7 @@ def main(args, resume_preempt=False):
     ema = cfgs_opt.get("ema")
     betas = cfgs_opt.get("betas", (0.9, 0.999))
     eps = cfgs_opt.get("eps", 1.0e-8)
-    # ----------------------------------------------------------------------- #
-    # ----------------------------------------------------------------------- #
-
+    
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.backends.cudnn.benchmark = True
@@ -152,29 +167,19 @@ def main(args, resume_preempt=False):
     except Exception:
         pass
 
-    # -- init torch distributed backend
     world_size, rank = init_distributed()
     logger.info(f"Initialized (rank/world-size) {rank}/{world_size}")
+    
+    if rank == 0 and s3_checkpoint_uri:
+        logger.info(f"Checkpoints will be uploaded to: {s3_checkpoint_uri}")
 
-    # -- set device
     if not torch.cuda.is_available():
         device = torch.device("cpu")
     else:
         device = torch.device("cuda:0")
         torch.cuda.set_device(device)
 
-    # -- log/checkpointing paths
     log_file = os.path.join(folder, f"log_r{rank}.csv")
-    latest_file = "latest.pt"
-    latest_path = os.path.join(folder, latest_file)
-    load_path = None
-    if load_model:
-        load_path = os.path.join(folder, r_file) if r_file is not None else latest_path
-        if not os.path.exists(load_path):
-            load_path = None
-            load_model = False
-
-    # -- make csv_logger
     csv_logger = CSVLogger(
         log_file,
         ("%d", "epoch"),
@@ -185,13 +190,12 @@ def main(args, resume_preempt=False):
         ("%d", "dataload-time(ms)"),
     )
 
-    # -- init model
     encoder, predictor = init_video_model(
+        device=device,
         uniform_power=uniform_power,
         use_mask_tokens=use_mask_tokens,
         num_mask_tokens=int(len(cfgs_mask) * len(dataset_fpcs)),
         zero_init_mask_tokens=zero_init_mask_tokens,
-        device=device,
         patch_size=patch_size,
         max_num_frames=max_num_frames,
         tubelet_size=tubelet_size,
@@ -207,6 +211,9 @@ def main(args, resume_preempt=False):
         use_rope=use_rope,
         use_activation_checkpointing=use_activation_checkpointing,
     )
+    
+    ## REVERTED: Create the target_encoder directly on the GPU using deepcopy.
+    logger.info("Creating target_encoder via deepcopy on the GPU...")
     target_encoder = copy.deepcopy(encoder)
 
     if compile_model:
@@ -215,6 +222,8 @@ def main(args, resume_preempt=False):
         encoder.compile()
         target_encoder.compile()
         predictor.compile()
+    else:
+        logger.info("Skipping model compilation.")
 
     mask_collator = MaskCollator(
         cfgs_mask=cfgs_mask,
@@ -233,7 +242,6 @@ def main(args, resume_preempt=False):
         crop_size=crop_size,
     )
 
-    # -- init data-loaders/samplers
     (unsupervised_loader, unsupervised_sampler) = init_data(
         data=dataset_type,
         root_path=dataset_paths,
@@ -253,13 +261,12 @@ def main(args, resume_preempt=False):
     )
     try:
         _dlen = len(unsupervised_loader)
-    except Exception:  # Different interface for webdataset
+    except Exception:
         _dlen = unsupervised_loader.num_batches
     if ipe is None:
         ipe = _dlen
     logger.info(f"iterations per epoch/dataset length: {ipe}/{_dlen}")
 
-    # -- init optimizer and scheduler
     optimizer, scaler, scheduler, wd_scheduler = init_opt(
         encoder=encoder,
         predictor=predictor,
@@ -276,45 +283,80 @@ def main(args, resume_preempt=False):
         betas=betas,
         eps=eps,
     )
+    
+    start_epoch = 0
+    
+    if force_load_pretrain:
+        if anneal_ckpt_path and os.path.exists(anneal_ckpt_path):
+            logger.info(f"FORCE-LOADING pretrained model from {anneal_ckpt_path}")
+            
+            checkpoint = robust_checkpoint_loader(anneal_ckpt_path, map_location=torch.device("cpu"))
+            epoch_from_ckpt = checkpoint.get("epoch", 0)
+
+            if "encoder" in checkpoint:
+                pretrained_dict = checkpoint["encoder"]
+                pretrained_dict = {k.replace("module.", ""): v for k, v in pretrained_dict.items()}
+                msg = encoder.load_state_dict(pretrained_dict, strict=False)
+                logger.info(f"Loaded pretrained encoder from epoch {epoch_from_ckpt} with msg: {msg}")
+
+            if "target_encoder" in checkpoint:
+                pretrained_dict = checkpoint["target_encoder"]
+                pretrained_dict = {k.replace("module.", ""): v for k, v in pretrained_dict.items()}
+                msg = target_encoder.load_state_dict(pretrained_dict, strict=False)
+                logger.info(f"Loaded pretrained target encoder from epoch {epoch_from_ckpt} with msg: {msg}")
+
+            del checkpoint
+            gc.collect()
+            logger.info("Force-loading of weights complete. Starting fresh from epoch 0.")
+        
+        else:
+            logger.error(f"Configured to force-load but checkpoint was not found at: {anneal_ckpt_path}")
+            raise FileNotFoundError(f"Anneal checkpoint not found: {anneal_ckpt_path}")
+    else:
+        latest_path = os.path.join(folder, "latest.pt")
+        load_path = None
+        if load_model or os.path.exists(latest_path):
+            load_path = os.path.join(folder, r_file) if r_file is not None else latest_path
+        
+        if load_path and os.path.exists(load_path):
+            logger.info(f"Resuming training from checkpoint: {load_path}")
+            (
+                encoder,
+                predictor,
+                target_encoder,
+                optimizer,
+                scaler,
+                start_epoch,
+            ) = load_checkpoint(
+                r_path=load_path,
+                encoder=encoder,
+                predictor=predictor,
+                target_encoder=target_encoder,
+                opt=optimizer,
+                scaler=scaler,
+            )
+            for _ in range(start_epoch * ipe):
+                scheduler.step()
+                wd_scheduler.step()
+                next(momentum_scheduler)
+                mask_collator.step()
+
     encoder = DistributedDataParallel(encoder, static_graph=True)
     predictor = DistributedDataParallel(predictor, static_graph=False, find_unused_parameters=True)
+    ## REVERTED: Wrap the target_encoder in DDP as it now lives on the GPU.
     target_encoder = DistributedDataParallel(target_encoder)
     for p in target_encoder.parameters():
         p.requires_grad = False
 
-    # -- momentum schedule
     momentum_scheduler = (
         ema[0] + i * (ema[1] - ema[0]) / (ipe * num_epochs * ipe_scale)
         for i in range(int(ipe * num_epochs * ipe_scale) + 1)
     )
 
-    start_epoch = 0
-    # -- load training checkpoint
-    if load_model or os.path.exists(latest_path):
-        (
-            encoder,
-            predictor,
-            target_encoder,
-            optimizer,
-            scaler,
-            start_epoch,
-        ) = load_checkpoint(
-            r_path=load_path,
-            encoder=encoder,
-            predictor=predictor,
-            target_encoder=target_encoder,
-            opt=optimizer,
-            scaler=scaler,
-        )
-        for _ in range(start_epoch * ipe):
-            scheduler.step()
-            wd_scheduler.step()
-            next(momentum_scheduler)
-            mask_collator.step()
-
-    def save_checkpoint(epoch, path):
+    def save_checkpoint(epoch, local_path, s3_uri_base=None, is_periodic=False):
         if rank != 0:
             return
+        
         save_dict = {
             "encoder": encoder.state_dict(),
             "predictor": predictor.state_dict(),
@@ -327,10 +369,31 @@ def main(args, resume_preempt=False):
             "world_size": world_size,
             "lr": lr,
         }
+        
         try:
-            torch.save(save_dict, path)
+            torch.save(save_dict, local_path)
         except Exception as e:
-            logger.info(f"Encountered exception when saving checkpoint: {e}")
+            logger.error(f"Encountered exception when saving local checkpoint: {e}")
+            return
+
+        if s3_uri_base:
+            try:
+                buffer = io.BytesIO()
+                torch.save(save_dict, buffer)
+                buffer.seek(0)
+                s3_client = boto3.client("s3")
+                bucket, key_prefix = s3_uri_base.replace("s3://", "").split("/", 1)
+                filename = os.path.basename(local_path)
+                s3_key = os.path.join(key_prefix, filename)
+                
+                logger.info(f"Uploading checkpoint to s3://{bucket}/{s3_key}...")
+                s3_client.put_object(Bucket=bucket, Key=s3_key, Body=buffer.getvalue())
+                logger.info(f"Successfully uploaded checkpoint to s3://{bucket}/{s3_key}")
+            except Exception as e:
+                logger.error(f"Failed to upload checkpoint to S3. Error: {e}")
+
+        if is_periodic and checkpoints_to_keep > 0:
+            prune_local_checkpoints(os.path.dirname(local_path), max_to_keep=checkpoints_to_keep)
 
     logger.info("Initializing loader...")
     unsupervised_sampler.set_epoch(start_epoch)
@@ -338,8 +401,6 @@ def main(args, resume_preempt=False):
 
     if skip_batches > 0:
         logger.info(f"Skip {skip_batches} batches")
-        # -- update distributed-data-loader epoch
-
         for itr in range(skip_batches):
             if itr % 10 == 0:
                 logger.info(f"Skip {itr}/{skip_batches} batches")
@@ -353,7 +414,6 @@ def main(args, resume_preempt=False):
         gc.disable()
         gc.collect()
 
-    # -- TRAINING LOOP
     for epoch in range(start_epoch, num_epochs):
         logger.info("Epoch %d" % (epoch + 1))
 
@@ -365,7 +425,7 @@ def main(args, resume_preempt=False):
 
         for itr in range(ipe):
             itr_start_time = time.time()
-
+            
             iter_retries = 0
             iter_successful = False
             while not iter_successful:
@@ -405,14 +465,14 @@ def main(args, resume_preempt=False):
             if sync_gc and (itr + 1) % GARBAGE_COLLECT_ITR_FREQ == 0:
                 logger.info("Running garbage collection...")
                 gc.collect()
-
+            
             def train_step():
                 _new_lr = scheduler.step()
                 _new_wd = wd_scheduler.step()
-                # --
 
                 def forward_target(c):
                     with torch.no_grad():
+                        ## REVERTED: No data transfer needed, both models are on the GPU
                         h = target_encoder(c)
                         h = [F.layer_norm(hi, (hi.size(-1),)) for hi in h]
                         return h
@@ -423,9 +483,7 @@ def main(args, resume_preempt=False):
                     return z
 
                 def loss_fn(z, h):
-                    # Assumption: predictor will have returned only masked tokens for z
                     h = [apply_masks(hi, mi, concat=False) for hi, mi in zip(h, masks_pred)]
-
                     loss, n = 0, 0
                     for zi, hi in zip(z, h):
                         for zij, hij in zip(zi, hi):
@@ -434,13 +492,11 @@ def main(args, resume_preempt=False):
                     loss /= n
                     return loss
 
-                # Step 1. Forward
                 with torch.cuda.amp.autocast(dtype=dtype, enabled=mixed_precision):
                     h = forward_target(clips)
                     z = forward_context(clips)
-                    loss = loss_fn(z, h)  # jepa prediction loss
+                    loss = loss_fn(z, h)
 
-                # Step 2. Backward & step
                 if mixed_precision:
                     scaler.scale(loss).backward()
                     scaler.unscale_(optimizer)
@@ -453,14 +509,15 @@ def main(args, resume_preempt=False):
                     optimizer.step()
                 optimizer.zero_grad()
 
-                # Step 3. momentum update of target encoder
                 m = next(momentum_scheduler)
                 with torch.no_grad():
                     params_k = []
                     params_q = []
+                    ## REVERTED: No device transfer needed for EMA update
                     for param_q, param_k in zip(encoder.parameters(), target_encoder.parameters()):
                         params_k.append(param_k)
                         params_q.append(param_q)
+                    
                     torch._foreach_mul_(params_k, m)
                     torch._foreach_add_(params_k, params_q, alpha=1 - m)
 
@@ -481,7 +538,6 @@ def main(args, resume_preempt=False):
             gpu_time_meter.update(gpu_etime_ms)
             data_elapsed_time_meter.update(data_elapsed_time_ms)
 
-            # -- Logging
             def log_stats():
                 csv_logger.log(epoch + 1, itr, loss, iter_elapsed_time_ms, gpu_etime_ms, data_elapsed_time_ms)
                 if (itr % log_freq == 0) or (itr == ipe - 1) or np.isnan(loss) or np.isinf(loss):
@@ -510,12 +566,12 @@ def main(args, resume_preempt=False):
             log_stats()
             assert not np.isnan(loss), "loss is nan"
 
-        # -- Save Checkpoint
         logger.info("avg. loss %.3f" % loss_meter.avg)
-        # -- Save Last
+        
+        latest_path = os.path.join(folder, "latest.pt")
         if epoch % CHECKPOINT_FREQ == 0 or epoch == (num_epochs - 1):
-            save_checkpoint(epoch + 1, latest_path)
+            save_checkpoint(epoch + 1, latest_path, s3_checkpoint_uri, is_periodic=False)
             if save_every_freq > 0 and epoch % save_every_freq == 0:
                 save_every_file = f"e{epoch}.pt"
                 save_every_path = os.path.join(folder, save_every_file)
-                save_checkpoint(epoch + 1, save_every_path)
+                save_checkpoint(epoch + 1, save_every_path, s3_checkpoint_uri, is_periodic=True)
