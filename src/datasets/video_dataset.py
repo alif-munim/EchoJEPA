@@ -201,42 +201,54 @@ class VideoDataset(torch.utils.data.Dataset):
         self.samples = samples
         self.labels = labels
 
-    def __getitem__(self, index):
-        """
-        Main method to fetch a sample. Retries with a new random sample if loading fails.
-        """
-        loaded_sample = False
-        while not loaded_sample:
-            sample_path = self.samples[index]
-            if not isinstance(sample_path, str):
-                logger.warning("Invalid sample path.")
-            else:
-                is_image = sample_path.split(".")[-1].lower() in ("jpg", "png", "jpeg")
-                if is_image:
-                    loaded_sample = self.get_item_image(index)
-                else:
-                    loaded_sample = self.get_item_video(index)
-            
-            if not loaded_sample:
-                # If loading fails, get a new random index and try again
-                warnings.warn(f"Retrying with new sample, failed to load: {self.samples[index]}")
-                index = np.random.randint(len(self))
+        print(f"Loaded {len(self.samples)} samples")  
+        print(f"First 5 samples: {self.samples[:5]}")  
+        print(f"Sample types: {[type(s) for s in self.samples[:5]]}")
 
+    def __getitem__(self, index):  
+        loaded_sample = False  
+        retry_count = 0  
+        max_retries = 10  # Prevent infinite loops  
+          
+        while not loaded_sample and retry_count < max_retries:  
+            sample_path = self.samples[index]  
+            if not isinstance(sample_path, str):  
+                logger.warning("Invalid sample path.")  
+            else:  
+                is_image = sample_path.split(".")[-1].lower() in ("jpg", "png", "jpeg")  
+                if is_image:  
+                    loaded_sample = self.get_item_image(index)  
+                else:  
+                    loaded_sample = self.get_item_video(index)  
+              
+            if not loaded_sample:  
+                warnings.warn(f"Retrying with new sample, failed to load: {self.samples[index]}")  
+                index = np.random.randint(len(self))  
+                retry_count += 1  
+      
+        if not loaded_sample:  
+            raise RuntimeError(f"Failed to load any valid samples after {max_retries} retries")  
+          
         return loaded_sample
 
-    def get_item_video(self, index):
-        """
-        Handles the logic for loading and processing a single video sample.
-        """
-        # Lazily initialize the S3 client in the worker process
-        if self.s3_client is None:
-            self.s3_client = boto3.client("s3")
+    def get_item_video(self, index):  
+        if self.s3_client is None:  
+            try:  
+                self.s3_client = boto3.client("s3")  
+                # Test the connection immediately  
+                self.s3_client.list_buckets()  
+            except Exception as e:  
+                logger.error(f"Failed to initialize S3 client: {e}")  
+                return False
 
         sample_uri = self.samples[index]
         dataset_idx, _ = self.per_dataset_indices[index]
         frames_per_clip = self.dataset_fpcs[dataset_idx]
 
         buffer, clip_indices = self.loadvideo_decord(sample_uri, frames_per_clip)
+        # Check for empty buffer (original pattern)  
+        if len(buffer) == 0:  
+            return False  
         
         # Explicitly check for None to see if loading failed.
         # This avoids the "ambiguous truth value" error with NumPy arrays.
@@ -294,37 +306,57 @@ class VideoDataset(torch.utils.data.Dataset):
 
         return buffer, label, clip_indices
 
-    def loadvideo_decord(self, sample_uri, fpc):
-        """
-        Load video content efficiently from an S3 URI using Decord.
-        Returns (None, None) on any failure.
-        """
-        # Safeguard: Ensure the path is a valid S3 URI before proceeding.
-        if not sample_uri.startswith("s3://"):
-            warnings.warn(f"Skipping invalid path. Expected an S3 URI (s3://...) but got: {sample_uri}")
-            return None, None
-    
-        try:
-            bucket_name, key = sample_uri.replace("s3://", "").split("/", 1)
-            
-            # Get object metadata to check size without downloading the file
-            response = self.s3_client.head_object(Bucket=bucket_name, Key=key)
-            _fsize = response['ContentLength']
+    def debug_sample_loading(self, index):  
+        sample_uri = self.samples[index]  
+        print(f"Attempting to load sample {index}: {sample_uri}")  
+        print(f"Sample type: {type(sample_uri)}")  
+        print(f"Is string: {isinstance(sample_uri, str)}")  
+        print(f"Starts with s3://: {sample_uri.startswith('s3://') if isinstance(sample_uri, str) else False}")  
+          
+        if self.s3_client is None:  
+            print("S3 client not initialized")  
+            return  
+              
+        try:  
+            bucket_name, key = sample_uri.replace("s3://", "").split("/", 1)  
+            print(f"Bucket: {bucket_name}, Key: {key}")  
+            response = self.s3_client.head_object(Bucket=bucket_name, Key=key)  
+            print(f"Object exists, size: {response['ContentLength']}")  
+        except Exception as e:  
+            print(f"S3 error: {e}")
 
-            if _fsize > self.filter_long_videos:
-                warnings.warn(f"Skipping long video {sample_uri} of size {_fsize} bytes")
-                return None, None
-
-            # Stream the video file from S3 into an in-memory buffer
-            video_object = self.s3_client.get_object(Bucket=bucket_name, Key=key)
-            video_bytes = io.BytesIO(video_object['Body'].read())
-            
-            # Open the in-memory buffer with VideoReader
-            vr = VideoReader(video_bytes, num_threads=-1, ctx=cpu(0))
-
-        except Exception as e:
-            warnings.warn(f"Failed to load video {sample_uri}. Error: {e}")
-            return None, None
+    def loadvideo_decord(self, sample_uri, fpc):  
+        if not sample_uri.startswith("s3://"):  
+            logger.warning(f"Invalid S3 URI: {sample_uri}")  
+            return [], None  # Match original return format  
+          
+        try:  
+            bucket_name, key = sample_uri.replace("s3://", "").split("/", 1)  
+              
+            # More specific exception handling  
+            try:  
+                response = self.s3_client.head_object(Bucket=bucket_name, Key=key)  
+                _fsize = response['ContentLength']  
+            except self.s3_client.exceptions.NoSuchKey:  
+                logger.warning(f"S3 object not found: {sample_uri}")  
+                return [], None  
+            except self.s3_client.exceptions.ClientError as e:  
+                logger.warning(f"S3 access error for {sample_uri}: {e}")  
+                return [], None
+      
+            if _fsize > self.filter_long_videos:  
+                logger.warning(f"Skipping long video {sample_uri} of size {_fsize} bytes")  
+                return None, None  
+      
+            # Download and process video  
+            video_object = self.s3_client.get_object(Bucket=bucket_name, Key=key)  
+            video_bytes = io.BytesIO(video_object['Body'].read())  
+              
+            vr = VideoReader(video_bytes, num_threads=-1, ctx=cpu(0))  
+              
+        except Exception as e:  
+            logger.warning(f"Failed to load video {sample_uri}. Error: {e}")  
+            return None, None  
             
         fstp = self.frame_step
         if self.duration is not None or self.fps is not None:

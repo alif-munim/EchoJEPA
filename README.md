@@ -1,6 +1,18 @@
 # V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning
 
 
+### Classifier Training
+
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/echo_mvr.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+```
+
+Sample outputs. `[iteration num]` `[max acc]` `[mean min]` (across all heads).
+```
+INFO    ][2025-07-23 12:10:29][root                ][run_one_epoch            ] [    0] 53.125% [20.156% 3.125%] [mem: 5.09e+04]
+[INFO    ][2025-07-23 12:12:51][root                ][run_one_epoch            ] [   10] 46.875% [33.026% 19.602%] [mem: 6.51e+04]
+```
+
 ### Run SSL Pretraining
 
 ```

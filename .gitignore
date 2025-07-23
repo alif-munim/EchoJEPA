@@ -1,5 +1,7 @@
 out/
 misc/
+class_preds*
+checkpoints
 
 *.pyc
 .vscode/
