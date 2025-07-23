@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # ============================================================================
-#  batch_classify.py · 2025‑07‑22 (local/remote friendly)
-#  • multi‑GPU · FP16 · auto batch‑halve on OOM / IndexMath overflow
-#  • strict checkpoint check ✔︎ + per‑rank skip logs + debug limit/dry‑run
-#  • crisp tqdm bars — one per rank, live ETA & throughput
-#  • OUT_DIR override for non‑SageMaker runs (no /opt/ml/* assumptions)
+#  batch_classify.py · 2025‑07‑23  (robust, local/remote friendly)
+#  • multi‑GPU (torchrun) · FP16
+#  • NO silent drops on OOM/IndexMath: recursive split processes ALL samples
+#  • strict checkpoint check + per‑rank skip logs
+#  • tqdm bars per rank
+#  • OUT_DIR env var for non‑SageMaker runs
 # ============================================================================
 
-import argparse, csv, gzip, io, itertools, logging, os, re, time
-import hashlib
+import argparse, csv, gzip, io, itertools, logging, os, re, time, hashlib
 from collections import Counter
 from math import tanh
 from typing import Iterable, Tuple, Optional
@@ -41,19 +41,17 @@ PNG_ROW_RE = re.compile(
     re.IGNORECASE | re.VERBOSE,
 )
 
-tf = transforms.Compose([
-    transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(),
+TF = transforms.Compose([
+    transforms.Resize(224),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
     transforms.Normalize([0.485,0.456,0.406],[0.229,0.224,0.225]),
 ])
 
-# ───────────────────── placeholders lifted to module scope ────────────
-ctr: Counter = Counter()
-
-def record_skip(kind: str, msg: str):
-    ...  # rebound in main()
+ctr: Counter = Counter()  # global counters
+def record_skip(kind: str, msg: str): ...  # rebound in main()
 
 # ───────────────────────────── helpers ────────────────────────────────
-
 def quality_score(img_bgr: np.ndarray) -> float:
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
     sharp = cv2.Laplacian(gray, cv2.CV_64F).var()
@@ -105,28 +103,22 @@ class Net(nn.Module):
         return out
 
 # ─────────────────────── manifest utilities ──────────────────────────
-
-def open_body(s3fs_client: s3fs.S3FileSystem, uri: str):
-    """Download manifest once per rank → /tmp/rankX_hash_manifest.gz, then open."""
+def open_body(fs: s3fs.S3FileSystem, uri: str):
     bucket, key = uri[5:].split("/", 1)
-    
-    # Create a unique local path based on rank and a hash of the manifest URI
-    rank = os.getenv('LOCAL_RANK', '0')
+    rank = os.getenv("LOCAL_RANK", "0")
     uri_hash = hashlib.md5(uri.encode()).hexdigest()[:8]
     local = Path(f"/tmp/manifest_rank{rank}_{uri_hash}.gz")
-
     if not local.exists():
         logging.info("rank%s downloading manifest → %s", rank, local)
-        with s3fs_client.open(f"s3://{bucket}/{key}", "rb") as src, local.open("wb") as dst:
+        with fs.open(f"s3://{bucket}/{key}", "rb") as src, local.open("wb") as dst:
             for chunk in iter(lambda: src.read(8 << 20), b""):
                 dst.write(chunk)
     fh = local.open("rb")
     return gzip.GzipFile(fileobj=fh) if key.endswith(".gz") else fh
 
-
-def iter_manifest(s3fs_client: s3fs.S3FileSystem, uri: str, world: int, rank: int, limit: Optional[int]):
+def iter_manifest(fs: s3fs.S3FileSystem, uri: str, world: int, rank: int, limit: Optional[int]):
     seen = 0
-    for idx, raw in enumerate(open_body(s3fs_client, uri)):
+    for idx, raw in enumerate(open_body(fs, uri)):
         if idx % world != rank:
             continue
         if limit is not None and seen >= limit:
@@ -140,15 +132,10 @@ def iter_manifest(s3fs_client: s3fs.S3FileSystem, uri: str, world: int, rank: in
             ctr["regex"] += 1
             record_skip("REGEX", line)
 
+def count_samples(fs: s3fs.S3FileSystem, uri: str, world: int, rank: int, limit: Optional[int]) -> int:
+    return sum(1 for _ in iter_manifest(fs, uri, world, rank, limit))
+
 # ───────────────────────────── main ──────────────────────────────────
-
-def count_samples(s3fs_client, uri: str, world: int, rank: int, limit: Optional[int]) -> int:
-    n = 0
-    for _ in iter_manifest(s3fs_client, uri, world, rank, limit):
-        n += 1
-    return n
-
-
 def main(a):
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
     logging.basicConfig(
@@ -158,7 +145,7 @@ def main(a):
         force=True,
     )
 
-    # ───── distributed init ─────
+    # distributed
     dist.init_process_group("nccl")
     rank = int(os.environ["LOCAL_RANK"])
     world = dist.get_world_size()
@@ -170,7 +157,8 @@ def main(a):
     torch.backends.cudnn.benchmark = True
 
     MAX_WORKERS = int(os.getenv("MAX_WORKERS", "256"))
-    s3_client = boto3.client("s3", config=BotoCfg(max_pool_connections=MAX_WORKERS))
+    boto_cfg = BotoCfg(max_pool_connections=MAX_WORKERS)
+    _ = boto3.client("s3", config=boto_cfg)  # kept if needed later
     fs = s3fs.S3FileSystem(
         anon=False,
         default_block_size=8 << 20,
@@ -178,11 +166,9 @@ def main(a):
         config_kwargs={"max_pool_connections": MAX_WORKERS},
     )
 
-    # ───── outputs ─────
     out_dir = os.getenv("OUT_DIR", "./sm_output")
-    os.makedirs(out_dir, exist_ok=True)
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
 
-    # per-rank skip file
     skip_path = f"{out_dir}/skip_rank{rank}.txt.gz"
     skip_fh = gzip.open(skip_path, "wt")
 
@@ -191,7 +177,7 @@ def main(a):
 
     globals()["record_skip"] = _record
 
-    # ───── dry-run? just iterate manifest, collect regex stats, exit ─────
+    # dry run
     if a.dry_run:
         for _ in iter_manifest(fs, a.manifest_s3, world, rank, a.limit):
             pass
@@ -199,7 +185,6 @@ def main(a):
         logging.info("DRY-RUN finished – regex %d", ctr["regex"])
         return
 
-    # ───── progress bar prep  ─────
     total_imgs = count_samples(fs, a.manifest_s3, world, rank, a.limit)
     logging.info("rank%d will process ~%s imgs", rank, f"{total_imgs:,d}" if total_imgs else "?")
 
@@ -214,7 +199,7 @@ def main(a):
         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed} < {remaining}, {rate_fmt}]",
     )
 
-    # ───── model ─────
+    # model
     net = Net().to(device).eval()
     with fs.open(a.model_s3, "rb") as f:
         state = torch.load(io.BytesIO(f.read()), map_location="cpu")
@@ -226,7 +211,6 @@ def main(a):
         logging.info("✅ checkpoint keys match perfectly")
     net.half()
 
-    # ───── output CSV ─────
     csv_path = f"{out_dir}/preds_rank{rank}.csv"
     header = ["png_uri", "mp4_uri", "pred_view", "quality", "salience"] + [f"p_{v}" for v in VIEW]
 
@@ -244,7 +228,7 @@ def main(a):
             if img is None:
                 raise ValueError("cv2.imdecode returned None")
             q = quality_score(img)
-            ten = tf(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))).half()
+            ten = TF(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))).half()
             return k, ten, q, False
         except ClientError as ce:
             ctr["open"] += 1
@@ -255,18 +239,28 @@ def main(a):
             logging.debug("DECODE‑fail %s — %s", k, exc)
         return k, None, None, True
 
-    def safe_infer(b: torch.Tensor) -> np.ndarray:
-        cur = b
-        while True:
+    def safe_infer(batch: torch.Tensor) -> np.ndarray:
+        """Process whole batch; on OOM/IndexMath split and retry, never drop."""
+        outs = []
+        stack = [batch]
+        while stack:
+            cur = stack.pop()
             try:
                 with torch.cuda.amp.autocast(), torch.no_grad():
-                    return net(cur).cpu().numpy()
+                    outs.append(net(cur).cpu())
             except (torch.cuda.OutOfMemoryError, RuntimeError) as exc:
-                if ("indexmath" not in str(exc).lower()
-                        and not isinstance(exc, torch.cuda.OutOfMemoryError)):
+                msg = str(exc).lower()
+                if "indexmath" not in msg and not isinstance(exc, torch.cuda.OutOfMemoryError):
                     raise
+                if cur.size(0) == 1:
+                    ctr["oom1"] += 1
+                    record_skip("OOM1", "single_sample_after_split")
+                    continue
+                mid = cur.size(0) // 2
                 torch.cuda.empty_cache()
-                cur = cur[: max(128, cur.size(0) // 2)]
+                stack.append(cur[mid:])
+                stack.append(cur[:mid])
+        return torch.cat(outs, 0).numpy()
 
     with open(csv_path, "w", newline="") as fh:
         w = csv.writer(fh)
@@ -318,6 +312,6 @@ if __name__ == "__main__":
     P.add_argument("--manifest_s3", required=True)
     P.add_argument("--model_s3", required=True)
     P.add_argument("--batch_size", type=int, default=2048)
-    P.add_argument("--limit", type=int, default=None, help="debug‑only: per‑rank cap on #pngs")
-    P.add_argument("--dry_run", action="store_true", help="only parse manifest + regex stats (no decoding/infer)")
+    P.add_argument("--limit", type=int, default=None, help="debug‑only: cap on #pngs per rank")
+    P.add_argument("--dry_run", action="store_true", help="only parse manifest + regex stats")
     main(P.parse_args())

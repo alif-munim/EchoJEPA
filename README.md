@@ -1,19 +1,39 @@
 # V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning
 
+
+### Run SSL Pretraining
+
+```
+python -m app.main --fname configs/train/vitg16/cooldown-336px-64f.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+```
+
+
+### Data Curation
+
+1. `create_annotations.py` -- Create a pretraining dataset in the format expected by VJEPA2.
+2. `monitor_checkpoints.py` -- Keep track of checkpoint directory and upload periodically to S3. Delete extra checkpoints as needed.
+3. `build_manifests.ipynb` -- Build file manifests. Combine dataframes (es, es1, es2). Check MP4 paths. Fix MP4 paths. Filter for A4C. Connect A4C videos to labels (mitral valve regurgitation).
+4. `batch_classify.py` -- Classify all images in file manifests into canonical echo views.
+
+
 ### Modifications
 
 Run echo classification pipeline.
 ```
-OUT_DIR=./out torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_0.clean.dedup.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 2048
+OUT_DIR=./class_preds_es0 torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_0_v2.clean.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 2048
+
+OUT_DIR=./class_preds_es1 torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_1_v2.clean.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 2048
+
+OUT_DIR=./class_preds_es2 torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_2_v2.clean.dedup.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 2048
 ```
 
-Run echo classification pipeline.
+Run echo classification pipeline (again).
 ```
-OUT_DIR=./out torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_1.clean.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 2048
-```
+MAX_WORKERS=512 OUT_DIR=./class_preds_es0 torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_0_v2_rem.clean.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 16384
 
-```
-OUT_DIR=./out torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_2.clean.dedup.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 2048
+MAX_WORKERS=512 OUT_DIR=./class_preds_es1 torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_1_v2_rem.clean.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 16384
+
+MAX_WORKERS=512 OUT_DIR=./class_preds_es2 torchrun --nproc_per_node=8 batch_classify.py   --bucket echodata25   --manifest_s3 s3://echodata25/results/echo-images/all_unmasked_png_paths_2_v2_rem.clean.txt.gz   --model_s3 s3://echodata25/results/models/view_classifier/best_f1_84.pt   --batch_size 16384
 ```
 
 
