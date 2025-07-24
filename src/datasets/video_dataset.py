@@ -231,43 +231,44 @@ class VideoDataset(torch.utils.data.Dataset):
           
         return loaded_sample
 
-    def get_item_video(self, index):  
-        if self.s3_client is None:  
-            try:  
-                self.s3_client = boto3.client("s3")  
-                # Test the connection immediately  
-                self.s3_client.list_buckets()  
-            except Exception as e:  
-                logger.error(f"Failed to initialize S3 client: {e}")  
-                return False
-
-        sample_uri = self.samples[index]
-        dataset_idx, _ = self.per_dataset_indices[index]
-        frames_per_clip = self.dataset_fpcs[dataset_idx]
-
-        buffer, clip_indices = self.loadvideo_decord(sample_uri, frames_per_clip)
-        # Check for empty buffer (original pattern)  
-        if len(buffer) == 0:  
+    def get_item_video(self, index):    
+        if self.s3_client is None:    
+            try:    
+                self.s3_client = boto3.client("s3")    
+                # Test the connection immediately    
+                self.s3_client.list_buckets()    
+            except Exception as e:    
+                logger.error(f"Failed to initialize S3 client: {e}")    
+                return False  
+      
+        sample_uri = self.samples[index]  
+        dataset_idx, _ = self.per_dataset_indices[index]  
+        frames_per_clip = self.dataset_fpcs[dataset_idx]  
+      
+        buffer, clip_indices = self.loadvideo_decord(sample_uri, frames_per_clip)  
+          
+        # Check for None FIRST to avoid TypeError  
+        if buffer is None:  
+            logger.warning(f"Failed to load video: {sample_uri}")  
             return False  
-        
-        # Explicitly check for None to see if loading failed.
-        # This avoids the "ambiguous truth value" error with NumPy arrays.
-        if buffer is None:
-            return False 
-        
-        label = self.labels[index]
-
-        def split_into_clips(video):
-            fpc = frames_per_clip
-            nc = self.num_clips
-            return [video[i * fpc : (i + 1) * fpc] for i in range(nc)]
-
-        if self.shared_transform is not None:
-            buffer = self.shared_transform(buffer)
-        buffer = split_into_clips(buffer)
-        if self.transform is not None:
-            buffer = [self.transform(clip) for clip in buffer]
-
+              
+        # Then check for empty buffer  
+        if len(buffer) == 0:    
+            return False    
+          
+        label = self.labels[index]  
+      
+        def split_into_clips(video):  
+            fpc = frames_per_clip  
+            nc = self.num_clips  
+            return [video[i * fpc : (i + 1) * fpc] for i in range(nc)]  
+      
+        if self.shared_transform is not None:  
+            buffer = self.shared_transform(buffer)  
+        buffer = split_into_clips(buffer)  
+        if self.transform is not None:  
+            buffer = [self.transform(clip) for clip in buffer]  
+      
         return buffer, label, clip_indices
     
     def get_item_image(self, index):

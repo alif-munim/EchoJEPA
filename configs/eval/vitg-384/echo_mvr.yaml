@@ -24,7 +24,8 @@ experiment:
     num_segments: 4  
     num_views_per_segment: 3  
     
-  optimization:  
+  optimization:
+    use_focal_loss: true
     batch_size: 4
     num_epochs: 100  
     use_bfloat16: true  

@@ -9,8 +9,8 @@ python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/config
 
 Sample outputs. `[iteration num]` `[max acc]` `[mean min]` (across all heads).
 ```
-INFO    ][2025-07-23 12:10:29][root                ][run_one_epoch            ] [    0] 53.125% [20.156% 3.125%] [mem: 5.09e+04]
-[INFO    ][2025-07-23 12:12:51][root                ][run_one_epoch            ] [   10] 46.875% [33.026% 19.602%] [mem: 6.51e+04]
+[INFO][2025-07-23 12:10:29][root][run_one_epoch] [0] 53.125% [20.156% 3.125%] [mem: 5.09e+04]
+[INFO][2025-07-23 12:12:51][root][run_one_epoch] [10] 46.875% [33.026% 19.602%] [mem: 6.51e+04]
 ```
 
 ### Run SSL Pretraining
@@ -26,6 +26,7 @@ python -m app.main --fname configs/train/vitg16/cooldown-336px-64f.yaml --device
 2. `monitor_checkpoints.py` -- Keep track of checkpoint directory and upload periodically to S3. Delete extra checkpoints as needed.
 3. `build_manifests.ipynb` -- Build file manifests. Combine dataframes (es, es1, es2). Check MP4 paths. Fix MP4 paths. Filter for A4C. Connect A4C videos to labels (mitral valve regurgitation).
 4. `batch_classify.py` -- Classify all images in file manifests into canonical echo views.
+5. `scratch.ipynb` -- Create mitral regurgitation data splits. Create loss and accuracy curves.
 
 
 ### Modifications

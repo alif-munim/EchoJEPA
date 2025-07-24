@@ -33,6 +33,8 @@ from src.utils.checkpoint_loader import robust_checkpoint_loader
 from src.utils.distributed import AllReduce, init_distributed
 from src.utils.logging import AverageMeter, CSVLogger
 
+from evals.action_anticipation_frozen.losses import sigmoid_focal_loss
+
 logging.basicConfig()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -92,6 +94,8 @@ def main(args_eval, resume_preempt=False):
 
     # -- OPTIMIZATION
     args_opt = args_exp.get("optimization")
+    use_focal_loss = args_opt.get("use_focal_loss", False)
+    
     batch_size = args_opt.get("batch_size")
     num_epochs = args_opt.get("num_epochs")
     use_bfloat16 = args_opt.get("use_bfloat16")
@@ -255,6 +259,7 @@ def main(args_eval, resume_preempt=False):
                 wd_scheduler=wd_scheduler,
                 data_loader=train_loader,
                 use_bfloat16=use_bfloat16,
+                use_focal_loss=use_focal_loss,  # Add this  
             )
 
         val_acc = run_one_epoch(
@@ -268,6 +273,7 @@ def main(args_eval, resume_preempt=False):
             wd_scheduler=wd_scheduler,
             data_loader=val_loader,
             use_bfloat16=use_bfloat16,
+            use_focal_loss=use_focal_loss,  # Add this  
         )
 
         logger.info("[%5d] train: %.3f%% test: %.3f%%" % (epoch + 1, train_acc, val_acc))
@@ -291,12 +297,13 @@ def run_one_epoch(
     wd_scheduler,
     data_loader,
     use_bfloat16,
+    use_focal_loss=False,  # Add this parameter  
 ):
 
     for c in classifiers:
         c.train(mode=training)
 
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = sigmoid_focal_loss if use_focal_loss else torch.nn.CrossEntropyLoss()
     top1_meters = [AverageMeter() for _ in classifiers]
     for itr, data in enumerate(data_loader):
         if training:
