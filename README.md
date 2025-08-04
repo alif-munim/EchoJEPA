@@ -15,6 +15,12 @@ Sample outputs. `[iteration num]` `[max acc]` `[mean min]` (across all heads).
 
 ### Run SSL Pretraining
 
+Run proper pretraining with domain and LR adaptation.
+```
+python -m app.main --fname configs/train/vitg16/pretrain-336px-16f-echo.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+```
+
+(Old) cooldown parameters will barely move the weights.
 ```
 python -m app.main --fname configs/train/vitg16/cooldown-336px-64f.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
 ```

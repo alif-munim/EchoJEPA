@@ -1,0 +1,98 @@
+app: vjepa
+
+# --- SLURM / launcher section ---------------------------------
+nodes: 1                # one p4de node
+tasks_per_node: 8
+mem_per_gpu: 80G
+cpus_per_task: 16
+
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/16.8.vitg.336px.16f.echo.h100
+data:
+  dataset_type: VideoDataset
+  datasets:
+  - /home/sagemaker-user/user-default-efs/vjepa2/data/annotations_s3.csv
+  datasets_weights:
+  - 1.0
+  batch_size: 96
+  crop_size: 336
+  patch_size: 16
+  dataset_fpcs: [16]
+  tubelet_size: 2
+  fps: 4
+  num_workers: 6
+  persistent_workers: true
+  pin_mem: true
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio:
+  - 0.75
+  - 1.35
+  random_resize_scale:
+  - 0.5
+  - 1.0
+  reprob: 0.0
+loss:
+  loss_exp: 1.0
+mask:
+- aspect_ratio:
+  - 0.75
+  - 1.5
+  full_complement: false
+  max_keep: null
+  max_temporal_keep: 1.0
+  num_blocks: 8
+  spatial_scale:
+  - 0.15
+  - 0.15
+  temporal_scale:
+  - 1.0
+  - 1.0
+- aspect_ratio:
+  - 0.75
+  - 1.5
+  full_complement: false
+  max_keep: null
+  max_temporal_keep: 1.0
+  num_blocks: 2
+  spatial_scale:
+  - 0.7
+  - 0.7
+  temporal_scale:
+  - 1.0
+  - 1.0
+meta: 
+  s3_checkpoint_uri: "s3://echodata25/vjepa2/checkpoints-0804/"
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: true
+  read_checkpoint: null
+  save_every_freq: 1
+  save_every_steps: 1000
+  max_step_checkpoints: 3
+  max_epoch_checkpoints: 3
+  seed: 239
+  use_sdpa: true
+model:
+  model_name: vit_giant_xformers
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  use_rope: true
+  zero_init_mask_tokens: true
+optimization:
+  force_load_pretrain: true
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitg-384.pt
+  ema:
+  - 0.99925
+  - 0.99925
+  epochs: 12
+  final_weight_decay: 0.04
+  lr:       1.312e-4        # 1.25e‑4 × 1.6
+  final_lr: 1.312e-6        # keep cosine floor at the same height
+  start_lr: 1.312e-5       # ~1/10 of peak is fine
+  warmup:   3000         # proportional to the extra steps per epoch
+  weight_decay: 0.04

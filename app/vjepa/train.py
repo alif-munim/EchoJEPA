@@ -4,6 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
+import glob
 
 # -- FOR DISTRIBUTED TRAINING ENSURE ONLY 1 DEVICE VISIBLE PER PROCESS
 try:
@@ -73,11 +74,17 @@ def main(args, resume_preempt=False):
     folder = args.get("folder")
     cfgs_meta = args.get("meta")
     s3_checkpoint_uri = cfgs_meta.get("s3_checkpoint_uri", None)
-    checkpoints_to_keep = cfgs_meta.get("checkpoints_to_keep", 10)
+    save_every_freq = cfgs_meta.get("save_every_freq", -1)
+    save_every_steps = cfgs_meta.get("save_every_steps", 0)  
+
+    checkpoints_to_keep = cfgs_meta.get("checkpoints_to_keep", 10)  # Legacy fallback  
+    max_epoch_checkpoints = cfgs_meta.get("max_epoch_checkpoints", checkpoints_to_keep)  
+    max_step_checkpoints = cfgs_meta.get("max_step_checkpoints", 5)
+
     load_model = cfgs_meta.get("load_checkpoint") or resume_preempt
     r_file = cfgs_meta.get("read_checkpoint", None)
     seed = cfgs_meta.get("seed", _GLOBAL_SEED)
-    save_every_freq = cfgs_meta.get("save_every_freq", -1)
+    
     skip_batches = cfgs_meta.get("skip_batches", -1)
     use_sdpa = cfgs_meta.get("use_sdpa", False)
     sync_gc = cfgs_meta.get("sync_gc", False)
@@ -353,47 +360,55 @@ def main(args, resume_preempt=False):
         for i in range(int(ipe * num_epochs * ipe_scale) + 1)
     )
 
-    def save_checkpoint(epoch, local_path, s3_uri_base=None, is_periodic=False):
-        if rank != 0:
-            return
-        
-        save_dict = {
-            "encoder": encoder.state_dict(),
-            "predictor": predictor.state_dict(),
-            "opt": optimizer.state_dict(),
-            "scaler": None if scaler is None else scaler.state_dict(),
-            "target_encoder": target_encoder.state_dict(),
-            "epoch": epoch,
-            "loss": loss_meter.avg,
-            "batch_size": batch_size,
-            "world_size": world_size,
-            "lr": lr,
-        }
-        
-        try:
-            torch.save(save_dict, local_path)
-        except Exception as e:
-            logger.error(f"Encountered exception when saving local checkpoint: {e}")
-            return
-
-        if s3_uri_base:
-            try:
-                buffer = io.BytesIO()
-                torch.save(save_dict, buffer)
-                buffer.seek(0)
-                s3_client = boto3.client("s3")
-                bucket, key_prefix = s3_uri_base.replace("s3://", "").split("/", 1)
-                filename = os.path.basename(local_path)
-                s3_key = os.path.join(key_prefix, filename)
-                
-                logger.info(f"Uploading checkpoint to s3://{bucket}/{s3_key}...")
-                s3_client.put_object(Bucket=bucket, Key=s3_key, Body=buffer.getvalue())
-                logger.info(f"Successfully uploaded checkpoint to s3://{bucket}/{s3_key}")
-            except Exception as e:
-                logger.error(f"Failed to upload checkpoint to S3. Error: {e}")
-
-        if is_periodic and checkpoints_to_keep > 0:
-            prune_local_checkpoints(os.path.dirname(local_path), max_to_keep=checkpoints_to_keep)
+    def save_checkpoint(epoch, local_path, s3_uri_base=None, is_periodic=False):  
+        if rank != 0:  
+            return  
+          
+        save_dict = {  
+            "encoder": encoder.state_dict(),  
+            "predictor": predictor.state_dict(),  
+            "opt": optimizer.state_dict(),  
+            "scaler": None if scaler is None else scaler.state_dict(),  
+            "target_encoder": target_encoder.state_dict(),  
+            "epoch": epoch,  
+            "loss": loss_meter.avg,  
+            "batch_size": batch_size,  
+            "world_size": world_size,  
+            "lr": lr,  
+        }  
+          
+        try:  
+            torch.save(save_dict, local_path)  
+        except Exception as e:  
+            logger.error(f"Encountered exception when saving local checkpoint: {e}")  
+            return  
+      
+        if s3_uri_base:  
+            try:  
+                s3_client = boto3.client("s3")  
+                bucket, key_prefix = s3_uri_base.replace("s3://", "").split("/", 1)  
+                filename = os.path.basename(local_path)  
+                s3_key = os.path.join(key_prefix, filename)  
+                  
+                # Check file size  
+                file_size = os.path.getsize(local_path)  
+                logger.info(f"Checkpoint size: {file_size / (1024**3):.2f} GB")  
+                  
+                if file_size > 5 * 1024**3:  # 5GB threshold  
+                    logger.info(f"Using multipart upload for large checkpoint...")  
+                    # Use multipart upload for files > 5GB  
+                    s3_client.upload_file(local_path, bucket, s3_key)  
+                else:  
+                    # Use regular upload for smaller files  
+                    with open(local_path, 'rb') as f:  
+                        s3_client.put_object(Bucket=bucket, Key=s3_key, Body=f.read())  
+                  
+                logger.info(f"Successfully uploaded checkpoint to s3://{bucket}/{s3_key}")  
+            except Exception as e:  
+                logger.error(f"Failed to upload checkpoint to S3. Error: {e}")  
+      
+        if is_periodic and max_epoch_checkpoints > 0:    
+            prune_local_checkpoints(os.path.dirname(local_path), max_to_keep=max_epoch_checkpoints)
 
     logger.info("Initializing loader...")
     unsupervised_sampler.set_epoch(start_epoch)
@@ -565,6 +580,29 @@ def main(args, resume_preempt=False):
 
             log_stats()
             assert not np.isnan(loss), "loss is nan"
+            
+            # -- Step-based checkpoint saving with cleanup        
+            if save_every_steps > 0 and (itr + 1) % save_every_steps == 0:        
+                # Only rank 0 should do cleanup to avoid race conditions  
+                if rank == 0:  
+                    # Cleanup old step checkpoints FIRST - before saving new one    
+                    step_pattern = os.path.join(folder, "step_*.pt")        
+                    step_checkpoints = glob.glob(step_pattern)        
+                            
+                    if len(step_checkpoints) >= max_step_checkpoints:  # Note: >= instead of >    
+                        step_checkpoints.sort(key=os.path.getmtime, reverse=True)        
+                        for old_checkpoint in step_checkpoints[max_step_checkpoints-1:]:  # Keep one less to make room    
+                            try:        
+                                os.remove(old_checkpoint)        
+                                logger.info(f"Removed old step checkpoint: {os.path.basename(old_checkpoint)}")        
+                            except OSError as e:        
+                                logger.warning(f"Failed to remove checkpoint {old_checkpoint}: {e}")    
+                        
+                # NOW save the new checkpoint (this already has rank check inside save_checkpoint)  
+                step_checkpoint_file = f"step_e{epoch}_i{itr}.pt"        
+                step_checkpoint_path = os.path.join(folder, step_checkpoint_file)        
+                save_checkpoint(epoch + 1, step_checkpoint_path, s3_checkpoint_uri)      
+                logger.info(f"Saved step checkpoint at epoch {epoch+1}, iteration {itr+1}")
 
         logger.info("avg. loss %.3f" % loss_meter.avg)
         

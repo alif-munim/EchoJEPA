@@ -99,6 +99,7 @@ def make_videodataset(
             pin_memory=pin_mem,
             num_workers=num_workers,
             persistent_workers=(num_workers > 0) and persistent_workers,
+            prefetch_factor=2
         )
     else:
         data_loader = NondeterministicDataLoader(
@@ -110,6 +111,7 @@ def make_videodataset(
             pin_memory=pin_mem,
             num_workers=num_workers,
             persistent_workers=(num_workers > 0) and persistent_workers,
+            prefetch_factor=2
         )
     logger.info("VideoDataset unsupervised data loader created")
 
