@@ -320,22 +320,8 @@ def main(args, resume_preempt=False):
             logger.error(f"Configured to force-load but checkpoint was not found at: {anneal_ckpt_path}")
             raise FileNotFoundError(f"Anneal checkpoint not found: {anneal_ckpt_path}")
     else:
-
-        encoder = DistributedDataParallel(encoder, static_graph=True)
-        predictor = DistributedDataParallel(predictor, static_graph=False, find_unused_parameters=True)
-        ## REVERTED: Wrap the target_encoder in DDP as it now lives on the GPU.
-        target_encoder = DistributedDataParallel(target_encoder)
-        for p in target_encoder.parameters():
-            p.requires_grad = False
-
-        momentum_scheduler = (
-            ema[0] + i * (ema[1] - ema[0]) / (ipe * num_epochs * ipe_scale)
-            for i in range(int(ipe * num_epochs * ipe_scale) + 1)
-        )
-        
         latest_path = os.path.join(folder, "latest.pt")
         load_path = None
-        
         if load_model or os.path.exists(latest_path):
             load_path = os.path.join(folder, r_file) if r_file is not None else latest_path
         
@@ -362,6 +348,17 @@ def main(args, resume_preempt=False):
                 next(momentum_scheduler)
                 mask_collator.step()
 
+    encoder = DistributedDataParallel(encoder, static_graph=True)
+    predictor = DistributedDataParallel(predictor, static_graph=False, find_unused_parameters=True)
+    ## REVERTED: Wrap the target_encoder in DDP as it now lives on the GPU.
+    target_encoder = DistributedDataParallel(target_encoder)
+    for p in target_encoder.parameters():
+        p.requires_grad = False
+
+    momentum_scheduler = (
+        ema[0] + i * (ema[1] - ema[0]) / (ipe * num_epochs * ipe_scale)
+        for i in range(int(ipe * num_epochs * ipe_scale) + 1)
+    )
 
     def save_checkpoint(epoch, local_path, s3_uri_base=None, is_periodic=False):  
         if rank != 0:  
