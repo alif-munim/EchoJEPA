@@ -1,0 +1,98 @@
+app: vjepa
+cpus_per_task: 32
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/1.8.vitg16-336px-16f-echo
+mem_per_gpu: 80G
+nodes: 1
+tasks_per_node: 8
+data:
+  dataset_type: VideoDataset
+  datasets:
+  - /home/sagemaker-user/user-default-efs/vjepa2/data/annotations_s3.csv # 18.1M echocardiogram video clips
+  datasets_weights:
+  - 1.0
+  batch_size: 80
+  crop_size: 336 # changed from 384
+  dataset_fpcs:
+  - 16 # changed from 64
+  fps: 4
+  num_workers: 12
+  patch_size: 16
+  persistent_workers: true
+  pin_mem: true # changed from false
+  tubelet_size: 2
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio:
+  - 0.75
+  - 1.35
+  random_resize_scale:
+  - 0.3
+  - 1.0
+  reprob: 0.0
+loss:
+  loss_exp: 1.0
+mask:
+- aspect_ratio:
+  - 0.75
+  - 1.5
+  full_complement: false
+  max_keep: null
+  max_temporal_keep: 1.0
+  num_blocks: 8
+  spatial_scale:
+  - 0.15
+  - 0.15
+  temporal_scale:
+  - 1.0
+  - 1.0
+- aspect_ratio:
+  - 0.75
+  - 1.5
+  full_complement: false
+  max_keep: null
+  max_temporal_keep: 1.0
+  num_blocks: 2
+  spatial_scale:
+  - 0.7
+  - 0.7
+  temporal_scale:
+  - 1.0
+  - 1.0
+meta:
+  s3_checkpoint_uri: "s3://echodata25/vjepa2/checkpoints-0807/" # need to add this for s3 uploads
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: true # make sure your model folder has a latest.pt inside of it
+  read_checkpoint: null
+  save_every_freq: 3
+  seed: 239
+  use_sdpa: true
+model:
+  model_name: vit_giant_xformers
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  use_rope: true
+  zero_init_mask_tokens: true
+  num_mask_tokens: 10 # set automatically in the script
+optimization:
+  force_load_pretrain: true # force loading of vitg-384 ckpt, set to false if you have latest.pt and are resuming
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitg-384.pt
+  ema:
+  - 0.99925
+  - 0.99925
+  epochs: 50
+  final_lr: 3.99e-08 # 1.0e-06, scaled by batch ratio (640/3072) and token ratio (16x21x21)
+  final_weight_decay: 0.04
+  ipe: 300
+  ipe_scale: 1.25
+  is_anneal: true
+  lr: 2.09e-05 # 0.000525, scaled by batch ratio (640/3072) and token ratio (16x21x21)
+  resume_anneal: true
+  start_lr: 3.99e-06 # 0.0001, scaled by batch ratio (640/3072) and token ratio (16x21x21)
+  warmup: 0
+  weight_decay: 0.01

@@ -15,7 +15,7 @@ deid_overlap.ipynb -- overlap of syngo deid keys with data on AWS (aws_uhn.csv)
 
 Pacemaker detection
 ```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/echo_pacemaker.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee pacemaker_classifier_logs_0806_v2.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/echo_pacemaker.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee pacemaker_classifier_logs_0806_v5.log
 ```
 
 Mitral valve regurgitation (old)
@@ -33,7 +33,7 @@ Sample outputs. `[iteration num]` `[max acc]` `[mean min]` (across all heads).
 
 (New) cooldown script with LR adjusted to global batch and token ratios.
 ```
-python -m app.main --fname configs/train/vitg16/cooldown-echo-336px-16f.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee cooldown-echo-336px-16f_logs_0806.log
+python -m app.main --fname configs/train/vitg16/cooldown-echo-336px-16f.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee cooldown-echo-336px-16f_logs_0806_v5.log
 ```
 
 (Old) Run pretraining with domain and LR adaptation (better if training from scratch).

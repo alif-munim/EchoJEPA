@@ -113,6 +113,7 @@ def main(args, resume_preempt=False):
     pred_embed_dim = cfgs_model.get("pred_embed_dim")
     uniform_power = cfgs_model.get("uniform_power", False)
     use_mask_tokens = cfgs_model.get("use_mask_tokens", False)
+    num_mask_tokens = cfgs_model.get("num_mask_tokens", False)
     zero_init_mask_tokens = cfgs_model.get("zero_init_mask_tokens", True)
     use_rope = cfgs_model.get("use_rope", False)
     use_silu = cfgs_model.get("use_silu", False)
@@ -201,7 +202,7 @@ def main(args, resume_preempt=False):
         device=device,
         uniform_power=uniform_power,
         use_mask_tokens=use_mask_tokens,
-        num_mask_tokens=int(len(cfgs_mask) * len(dataset_fpcs)),
+        num_mask_tokens=num_mask_tokens, # int(len(cfgs_mask) * len(dataset_fpcs)),
         zero_init_mask_tokens=zero_init_mask_tokens,
         patch_size=patch_size,
         max_num_frames=max_num_frames,
@@ -320,6 +321,12 @@ def main(args, resume_preempt=False):
                 msg = target_encoder.load_state_dict(pretrained_dict, strict=False)
                 logger.info(f"Loaded pretrained target encoder from epoch {epoch_from_ckpt} with msg: {msg}")
 
+            if "predictor" in checkpoint:
+                pretrained_dict = checkpoint["predictor"]
+                pretrained_dict = {k.replace("module.", ""): v for k, v in pretrained_dict.items()}
+                msg = predictor.load_state_dict(pretrained_dict)
+                logger.info(f"loaded pretrained predictor from epoch {epoch_from_ckpt} with msg: {msg}")
+
             del checkpoint
             gc.collect()
             logger.info("Force-loading of weights complete. Starting fresh from epoch 0.")
@@ -332,6 +339,7 @@ def main(args, resume_preempt=False):
         load_path = None
         if load_model or os.path.exists(latest_path):
             load_path = os.path.join(folder, r_file) if r_file is not None else latest_path
+            logger.info(f"Loading checkpoint from {load_path}")
         
         if load_path and os.path.exists(load_path):
             logger.info(f"Resuming training from checkpoint: {load_path}")
@@ -351,6 +359,9 @@ def main(args, resume_preempt=False):
                 opt=optimizer,
                 scaler=scaler,
             )
+
+            logger.info(f"SUCCESS: Loaded checkpoint from {load_path}")
+            
             completed_steps = start_epoch * ipe + start_itr
             for _ in range(completed_steps):
                 scheduler.step()
@@ -594,33 +605,33 @@ def main(args, resume_preempt=False):
             assert not np.isnan(loss), "loss is nan"
             
             # -- Step-based checkpoint saving with cleanup        
-            if save_every_steps > 0 and (itr + 1) % save_every_steps == 0:        
-                # Only rank 0 should do cleanup to avoid race conditions  
-                if rank == 0:  
-                    # Cleanup old step checkpoints FIRST - before saving new one    
-                    step_pattern = os.path.join(folder, "step_*.pt")        
-                    step_checkpoints = glob.glob(step_pattern)        
+            # if save_every_steps > 0 and (itr + 1) % save_every_steps == 0:        
+            #     # Only rank 0 should do cleanup to avoid race conditions  
+            #     if rank == 0:  
+            #         # Cleanup old step checkpoints FIRST - before saving new one    
+            #         step_pattern = os.path.join(folder, "step_*.pt")        
+            #         step_checkpoints = glob.glob(step_pattern)        
                             
-                    if len(step_checkpoints) >= max_step_checkpoints:  # Note: >= instead of >    
-                        step_checkpoints.sort(key=os.path.getmtime, reverse=True)        
-                        for old_checkpoint in step_checkpoints[max_step_checkpoints-1:]:  # Keep one less to make room    
-                            try:        
-                                os.remove(old_checkpoint)        
-                                logger.info(f"Removed old step checkpoint: {os.path.basename(old_checkpoint)}")        
-                            except OSError as e:        
-                                logger.warning(f"Failed to remove checkpoint {old_checkpoint}: {e}")    
+            #         if len(step_checkpoints) >= max_step_checkpoints:  # Note: >= instead of >    
+            #             step_checkpoints.sort(key=os.path.getmtime, reverse=True)        
+            #             for old_checkpoint in step_checkpoints[max_step_checkpoints-1:]:  # Keep one less to make room    
+            #                 try:        
+            #                     os.remove(old_checkpoint)        
+            #                     logger.info(f"Removed old step checkpoint: {os.path.basename(old_checkpoint)}")        
+            #                 except OSError as e:        
+            #                     logger.warning(f"Failed to remove checkpoint {old_checkpoint}: {e}")    
                         
-                # NOW save the new checkpoint (this already has rank check inside save_checkpoint)  
-                step_checkpoint_file = f"step_e{epoch}_i{itr}.pt"        
-                step_checkpoint_path = os.path.join(folder, step_checkpoint_file)        
-                save_checkpoint(epoch, itr, step_checkpoint_path, s3_checkpoint_uri)      
-                logger.info(f"Saved step checkpoint at epoch {epoch}, iteration {itr}")
+            #     # NOW save the new checkpoint (this already has rank check inside save_checkpoint)  
+            #     step_checkpoint_file = f"step_e{epoch}_i{itr}.pt"        
+            #     step_checkpoint_path = os.path.join(folder, step_checkpoint_file)        
+            #     save_checkpoint(epoch, itr, step_checkpoint_path, s3_checkpoint_uri)      
+            #     logger.info(f"Saved step checkpoint at epoch {epoch}, iteration {itr}")
 
         logger.info("avg. loss %.3f" % loss_meter.avg)
         
         latest_path = os.path.join(folder, "latest.pt")
         if epoch % CHECKPOINT_FREQ == 0 or epoch == (num_epochs - 1):
-            save_checkpoint(epoch + 1, 0, latest_path, s3_checkpoint_uri, is_periodic=False)
+            save_checkpoint(epoch + 1, 0, latest_path, None, is_periodic=False)
             if save_every_freq > 0 and epoch % save_every_freq == 0:
                 save_every_file = f"e{epoch}.pt"
                 save_every_path = os.path.join(folder, save_every_file)
