@@ -7,6 +7,7 @@
 import logging
 import sys
 import warnings
+import re
 
 import torch
 import yaml
@@ -22,6 +23,12 @@ logger = logging.getLogger()
 
 MAX_RETRIES = 3
 
+def _strip_ddp_prefix(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    """
+    Remove a single leading 'module.' (or 'module.module.' in rare cases) so
+    that a DDP-saved checkpoint can be loaded into a bare model instance.
+    """
+    return {re.sub(r'^module\.(?:module\.)?', '', k): v for k, v in state_dict.items()}
 
 def build_eval_args(
     model_name,
@@ -100,21 +107,22 @@ def load_checkpoint(
     checkpoint = robust_checkpoint_loader(r_path, map_location=torch.device("cpu"))
 
     epoch = checkpoint["epoch"]
+    itr   = checkpoint.get("itr", 0)
 
     # -- loading encoder
-    pretrained_dict = checkpoint["encoder"]
+    pretrained_dict = _strip_ddp_prefix(checkpoint["encoder"])
     msg = encoder.load_state_dict(pretrained_dict)
     logger.info(f"loaded pretrained encoder from epoch {epoch} with msg: {msg}")
 
     # -- loading predictor
-    pretrained_dict = checkpoint["predictor"]
+    pretrained_dict = _strip_ddp_prefix(checkpoint["predictor"])
     msg = predictor.load_state_dict(pretrained_dict)
     logger.info(f"loaded pretrained predictor from epoch {epoch} with msg: {msg}")
 
     # -- loading target_encoder
     if target_encoder is not None:
         print(list(checkpoint.keys()))
-        pretrained_dict = checkpoint["target_encoder"]
+        pretrained_dict = _strip_ddp_prefix(checkpoint["target_encoder"])
         msg = target_encoder.load_state_dict(pretrained_dict)
         logger.info(f"loaded pretrained target encoder from epoch {epoch} with msg: {msg}")
 
@@ -133,6 +141,7 @@ def load_checkpoint(
         opt,
         scaler,
         epoch,
+        itr
     )
 
 

@@ -291,7 +291,15 @@ def main(args, resume_preempt=False):
         eps=eps,
     )
     
-    start_epoch = 0
+    def make_momentum_scheduler(start_step=0):
+        total = int(ipe * num_epochs * ipe_scale)
+        return (
+            ema[0] + i * (ema[1] - ema[0]) / total
+            for i in range(start_step, total + 1)
+        )
+    
+    momentum_scheduler = make_momentum_scheduler()   # <-- generator now exists
+    start_epoch, start_itr = 0, 0
     
     if force_load_pretrain:
         if anneal_ckpt_path and os.path.exists(anneal_ckpt_path):
@@ -334,6 +342,7 @@ def main(args, resume_preempt=False):
                 optimizer,
                 scaler,
                 start_epoch,
+                start_itr,
             ) = load_checkpoint(
                 r_path=load_path,
                 encoder=encoder,
@@ -342,7 +351,8 @@ def main(args, resume_preempt=False):
                 opt=optimizer,
                 scaler=scaler,
             )
-            for _ in range(start_epoch * ipe):
+            completed_steps = start_epoch * ipe + start_itr
+            for _ in range(completed_steps):
                 scheduler.step()
                 wd_scheduler.step()
                 next(momentum_scheduler)
@@ -360,7 +370,7 @@ def main(args, resume_preempt=False):
         for i in range(int(ipe * num_epochs * ipe_scale) + 1)
     )
 
-    def save_checkpoint(epoch, local_path, s3_uri_base=None, is_periodic=False):  
+    def save_checkpoint(epoch, itr, local_path, s3_uri_base=None, is_periodic=False):
         if rank != 0:  
             return  
           
@@ -375,6 +385,7 @@ def main(args, resume_preempt=False):
             "batch_size": batch_size,  
             "world_size": world_size,  
             "lr": lr,  
+            "itr": itr,
         }  
           
         try:  
@@ -438,7 +449,8 @@ def main(args, resume_preempt=False):
         gpu_time_meter = AverageMeter()
         data_elapsed_time_meter = AverageMeter()
 
-        for itr in range(ipe):
+        itr_start = start_itr if epoch == start_epoch else 0
+        for itr in range(itr_start, ipe):
             itr_start_time = time.time()
             
             iter_retries = 0
@@ -601,15 +613,15 @@ def main(args, resume_preempt=False):
                 # NOW save the new checkpoint (this already has rank check inside save_checkpoint)  
                 step_checkpoint_file = f"step_e{epoch}_i{itr}.pt"        
                 step_checkpoint_path = os.path.join(folder, step_checkpoint_file)        
-                save_checkpoint(epoch + 1, step_checkpoint_path, s3_checkpoint_uri)      
-                logger.info(f"Saved step checkpoint at epoch {epoch+1}, iteration {itr+1}")
+                save_checkpoint(epoch, itr, step_checkpoint_path, s3_checkpoint_uri)      
+                logger.info(f"Saved step checkpoint at epoch {epoch}, iteration {itr}")
 
         logger.info("avg. loss %.3f" % loss_meter.avg)
         
         latest_path = os.path.join(folder, "latest.pt")
         if epoch % CHECKPOINT_FREQ == 0 or epoch == (num_epochs - 1):
-            save_checkpoint(epoch + 1, latest_path, s3_checkpoint_uri, is_periodic=False)
+            save_checkpoint(epoch + 1, 0, latest_path, s3_checkpoint_uri, is_periodic=False)
             if save_every_freq > 0 and epoch % save_every_freq == 0:
                 save_every_file = f"e{epoch}.pt"
                 save_every_path = os.path.join(folder, save_every_file)
-                save_checkpoint(epoch + 1, save_every_path, s3_checkpoint_uri, is_periodic=True)
+                save_checkpoint(epoch + 1, 0, save_every_path, s3_checkpoint_uri, is_periodic=True)

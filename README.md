@@ -1,8 +1,24 @@
 # V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning
 
+### Dataset
+deid_overlap_revamped.ipynb -- combined syngo and heartlab oids with deids (aws_syngo_exclusive_0806.csv, aws_heartlab_0806.csv)
+starter_labels.ipynb -- building file paths for vjepa2 classifier training (must have s3 uri and value)
+build_manifests.ipynb -- build file manifests on s3 for classification into different views (all_es_combined.parquet)
+data/build_pacemaker_dataset.ipynb -- building a4c pacemaker dataset (+ tiny subset) for fast iteration
+build_dataset.ipynb -- building labeled datasets for vjepa2 classifier training in ssv2 format
+identifiers.ipynb -- heartlab mapping to deidentified studies (patient_to_study.csv)
+heartlab_link.ipynb -- link heartlab reports, studies, and series to videos (heartlab_rep_study_video.csv)
+deid_overlap.ipynb -- overlap of syngo deid keys with data on AWS (aws_uhn.csv)
+
 
 ### Classifier Training
 
+Pacemaker detection
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/echo_pacemaker.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee pacemaker_classifier_logs_0806_v2.log
+```
+
+Mitral valve regurgitation (old)
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/echo_mvr.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
 ```
@@ -15,8 +31,14 @@ Sample outputs. `[iteration num]` `[max acc]` `[mean min]` (across all heads).
 
 ### Run SSL Pretraining
 
-Run proper pretraining with domain and LR adaptation.
+(New) cooldown script with LR adjusted to global batch and token ratios.
 ```
+python -m app.main --fname configs/train/vitg16/cooldown-echo-336px-16f.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee cooldown-echo-336px-16f_logs_0806.log
+```
+
+(Old) Run pretraining with domain and LR adaptation (better if training from scratch).
+```
+export PYTORCH_CUDA_ALLOC_CONF="max_split_size_mb:256,expandable_segments:True"
 python -m app.main --fname configs/train/vitg16/pretrain-336px-16f-echo.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
 ```
 
