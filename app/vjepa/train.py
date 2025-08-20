@@ -77,7 +77,7 @@ def main(args, resume_preempt=False):
     save_every_freq = cfgs_meta.get("save_every_freq", -1)
     save_every_steps = cfgs_meta.get("save_every_steps", 0)  
 
-    checkpoints_to_keep = cfgs_meta.get("checkpoints_to_keep", 10)  # Legacy fallback  
+    checkpoints_to_keep = cfgs_meta.get("checkpoints_to_keep", 3)  # Legacy fallback  
     max_epoch_checkpoints = cfgs_meta.get("max_epoch_checkpoints", checkpoints_to_keep)  
     max_step_checkpoints = cfgs_meta.get("max_step_checkpoints", 5)
 
@@ -152,6 +152,7 @@ def main(args, resume_preempt=False):
 
     # -- OPTIMIZATION
     cfgs_opt = args.get("optimization")
+    is_anneal = cfgs_opt.get("is_anneal", False)
     force_load_pretrain = cfgs_opt.get("force_load_pretrain", False)
     anneal_ckpt_path = cfgs_opt.get("anneal_ckpt", None)
     ipe = cfgs_opt.get("ipe", None)
@@ -241,7 +242,7 @@ def main(args, resume_preempt=False):
         tubelet_size=tubelet_size,
     )
     transform = make_transforms(
-        random_horizontal_flip=True,
+        random_horizontal_flip=False,
         random_resize_aspect_ratio=ar_range,
         random_resize_scale=rr_scale,
         reprob=reprob,
@@ -276,6 +277,7 @@ def main(args, resume_preempt=False):
     logger.info(f"iterations per epoch/dataset length: {ipe}/{_dlen}")
 
     optimizer, scaler, scheduler, wd_scheduler = init_opt(
+        is_anneal=is_anneal,
         encoder=encoder,
         predictor=predictor,
         wd=wd,

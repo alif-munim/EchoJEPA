@@ -10,12 +10,37 @@ identifiers.ipynb -- heartlab mapping to deidentified studies (patient_to_study.
 heartlab_link.ipynb -- link heartlab reports, studies, and series to videos (heartlab_rep_study_video.csv)
 deid_overlap.ipynb -- overlap of syngo deid keys with data on AWS (aws_uhn.csv)
 
+### Debug
+```
+export NCCL_DEBUG=INFO
+export NCCL_ASYNC_ERROR_HANDLING=1
+export TORCH_NCCL_TRACE_BUFFER_SIZE=1048576
+export CUDA_LAUNCH_BLOCKING=1
+```
+
+### Monitor
+```
+chmod +x watcher.sh
+./watcher.sh "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/1.8.vitg16-336px-16f-echo-0820" 3 60
+```
+
+### Building Labels
+1. `starter_labels.ipynb` -- Map the Syngo/HeartLab labels to S3 URIs (aws_uhn.csv) and simplify label types if needed.
+2. `data/build_rvfx_dataset.ipynb.ipynb` -- Create train test splits and put it in VJEPA format.
+3. `configs/eval/vitg-384/rvfx.yaml` -- Create your grid search.
 
 ### Classifier Training
 
+RV systolic function
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_kinetics.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_kinetics_h32_b8_v1.log
+
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h32_b8_v3.log
+```
+
 Pacemaker detection
 ```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/echo_pacemaker.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee pacemaker_classifier_logs_0806_v5.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/pacemaker.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee pacemaker_v1.log
 ```
 
 Mitral valve regurgitation (old)
@@ -33,7 +58,7 @@ Sample outputs. `[iteration num]` `[max acc]` `[mean min]` (across all heads).
 
 (New) cooldown script with LR adjusted to global batch and token ratios.
 ```
-python -m app.main --fname configs/train/vitg16/cooldown-echo-336px-16f.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee cooldown-echo-336px-16f_logs_0806_v5.log
+python -m app.main --fname configs/train/vitg16/pretrain-echo-336px-16f-0820.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee cooldown-echo-336px-16f_logs_0820-v2.log
 ```
 
 (Old) Run pretraining with domain and LR adaptation (better if training from scratch).
