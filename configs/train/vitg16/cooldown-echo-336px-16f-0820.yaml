@@ -1,6 +1,6 @@
 app: vjepa
 cpus_per_task: 32
-folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/1.8.vitg16-336px-16f-echo-0820
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/1.8.vitg16-336px-16f-echo-0820
 mem_per_gpu: 80G
 nodes: 1
 tasks_per_node: 8
@@ -27,7 +27,7 @@ data_aug:
   - 0.9 # 0.75
   - 1.1 # 1.35
   random_resize_scale:
-  - 0.5 # 0.3
+  - 0.3
   - 1.0
   reprob: 0.0
 loss:
@@ -64,7 +64,7 @@ meta:
   dtype: bfloat16
   eval_freq: 100
   load_checkpoint: true # make sure your model folder has a latest.pt inside of it
-  read_checkpoint: null # set 
+  read_checkpoint: null
   save_every_freq: 3
   seed: 239
   use_sdpa: true
@@ -80,18 +80,19 @@ model:
   zero_init_mask_tokens: true
   num_mask_tokens: 10 # set automatically in the script
 optimization:
-  is_anneal: false # set true init linear decay schedule, otherwise cosine decay
-  force_load_pretrain: false # force loading of vitg-384 ckpt, set to false if you have latest.pt and are resuming
+  is_anneal: true # set true init linear decay schedule, otherwise cosine decay
+  force_load_pretrain: true # force loading of vitg-384 ckpt, set to false if you have latest.pt and are resuming
   anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitg-384.pt
   ema:
   - 0.99925
   - 0.99925
-  epochs: 100 # 50
-  final_lr: 1.09375e-04 # orig 0.000525
+  epochs: 50
+  final_lr: 2.08333e-07 # now scaled only by batch ratio / orig 1.0e-06, prev 3.99e-08, scaled by batch ratio (640/3072) and token ratio (16x21x21)
   final_weight_decay: 0.04
   ipe: 300
   ipe_scale: 1.0 # 1.25
-  lr: 1.09375e-04 # orig 0.000525
-  start_lr: 2.08333e-05 # orig 0.0001
-  warmup: 5 # 40
-  weight_decay: 0.04
+  lr: 1.09375e-04 # now scaled only by batch ratio / orig 0.000525, prev 2.09e-05, scaled by batch ratio (640/3072) and token ratio (16x21x21)
+  resume_anneal: true
+  start_lr: 2.08333e-05 # now scaled only by batch ratio / ignored by linear decay schedule / orig 0.0001, prev 3.99e-06, scaled by batch ratio (640/3072) and token ratio (16x21x21)
+  warmup: 0 # ignored by linear decay schedule
+  weight_decay: 0.01

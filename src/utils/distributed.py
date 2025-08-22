@@ -8,6 +8,7 @@ from pathlib import Path
 
 import torch
 import torch.distributed as dist
+from datetime import timedelta
 
 from src.utils.logging import get_logger
 
@@ -43,7 +44,11 @@ def init_distributed(port=37129, rank_and_world_size=(None, None)):
 
     try:
         os.environ["MASTER_PORT"] = str(port)
-        torch.distributed.init_process_group(backend="nccl", world_size=world_size, rank=rank)
+        torch.distributed.init_process_group(backend="nccl", 
+                                             world_size=world_size, 
+                                             rank=rank,
+                                             timeout=timedelta(seconds=1800),
+                                            )
     except Exception as e:
         world_size, rank = 1, 0
         logger.info(f"Rank: {rank}. Distributed training not available {e}")

@@ -1,0 +1,80 @@
+# COOLDOWN CONFIG 
+
+app: vjepa
+cpus_per_task: 32
+folder: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitg-384/a4c_rv_overfit-c
+mem_per_gpu: 80G
+nodes: 1
+tasks_per_node: 8
+num_workers: 8
+
+eval_name: video_classification_frozen
+resume_checkpoint: false
+tag: a4c-rv-overfit-vitg16-336-16f-pretrain-e48   # IMPORTANT: CHA
+
+experiment:
+  classifier:
+    num_heads: 32           # changed from 16 / <-- must divide 1408 (ViT-G). Valid: 16, 22, 32, 44...
+    num_probe_blocks: 8     # changed from 4
+
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/a4c_rvfx_labels_train_tiny.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/a4c_rvfx_labels_val_tiny.csv
+    num_classes: 2
+    resolution: 336
+    frames_per_clip: 16
+    frame_step: 3          # ~50 fps → ~1s coverage with 16*3 ≈ 48-frame span
+    num_segments: 1        # one temporal clip per video (overfit-friendly)
+    num_views_per_segment: 1 # one spatial crop (reduce stochasticity)
+
+  optimization:
+    batch_size: 8         # reduced from 32 to accomodate heavier probes
+    # Small grid biased to overfitting: low/zero weight decay and higher LRs
+    multihead_kwargs:
+      # wd = 0
+      - { lr: 0.020, start_lr: 0.020, weight_decay: 0.0,   warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.0 }
+      - { lr: 0.015, start_lr: 0.015, weight_decay: 0.0,   warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.0 }
+      - { lr: 0.010, start_lr: 0.010, weight_decay: 0.0,   warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.0 }
+      - { lr: 0.005, start_lr: 0.005, weight_decay: 0.0,   warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.0 }
+      - { lr: 0.003, start_lr: 0.003, weight_decay: 0.0,   warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.0 }
+      # wd = 1e-4
+      - { lr: 0.010, start_lr: 0.010, weight_decay: 0.0001,warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.0001 }
+      - { lr: 0.005, start_lr: 0.005, weight_decay: 0.0001,warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.0001 }
+      - { lr: 0.003, start_lr: 0.003, weight_decay: 0.0001,warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.0001 }
+      - { lr: 0.001, start_lr: 0.001, weight_decay: 0.0001,warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.0001 }
+      # wd = 1e-3
+      - { lr: 0.010, start_lr: 0.010, weight_decay: 0.001, warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.001 }
+      - { lr: 0.005, start_lr: 0.005, weight_decay: 0.001, warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.001 }
+      - { lr: 0.003, start_lr: 0.003, weight_decay: 0.001, warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.001 }
+      - { lr: 0.001, start_lr: 0.001, weight_decay: 0.001, warmup: 0.0, final_lr: 0.0, final_weight_decay: 0.001 }
+
+    num_epochs: 200          # give it (more) time to memorize
+    use_bfloat16: true
+    use_pos_embed: false     # <-- no abs pos-emb for cooldown
+
+model_kwargs:
+  # Choose ONE of the following (leave the other commented).
+
+  # Pretrain
+  checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/1.8.vitg16-336px-16f-echo-0820/keep-e66.pt"
+
+  # Echo cooldown (16f, 336px) — default active:
+  # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/1.8.vitg16-336px-16f-echo/e21.pt"
+
+  # Base Kinetics pretrain (ViT-G 384px):
+  # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitg-384.pt"
+
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: target_encoder
+      img_temporal_dim_size: null
+      model_name: vit_giant_xformers
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true         # <-- RoPE ON for cooldown
+  wrapper_kwargs:
+    max_frames: 128
+    use_pos_embed: false     # <-- no abs pos-emb for cooldown

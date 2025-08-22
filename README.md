@@ -11,11 +11,18 @@ heartlab_link.ipynb -- link heartlab reports, studies, and series to videos (hea
 deid_overlap.ipynb -- overlap of syngo deid keys with data on AWS (aws_uhn.csv)
 
 ### Debug
+For debugging issues.
 ```
 export NCCL_DEBUG=INFO
 export NCCL_ASYNC_ERROR_HANDLING=1
 export TORCH_NCCL_TRACE_BUFFER_SIZE=1048576
 export CUDA_LAUNCH_BLOCKING=1
+```
+
+Training script may time out if S3 checkpoint upload takes too long on rank 0.
+```
+export NCCL_BLOCKING_WAIT=1
+export NCCL_ASYNC_ERROR_HANDLING=1
 ```
 
 ### Monitor
@@ -35,7 +42,7 @@ RV systolic function
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_kinetics.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_kinetics_h32_b8_v1.log
 
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h32_b8_v3.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h32_b8_0820_keepe66.log
 ```
 
 Pacemaker detection
@@ -58,7 +65,7 @@ Sample outputs. `[iteration num]` `[max acc]` `[mean min]` (across all heads).
 
 (New) cooldown script with LR adjusted to global batch and token ratios.
 ```
-python -m app.main --fname configs/train/vitg16/pretrain-echo-336px-16f-0820.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee cooldown-echo-336px-16f_logs_0820-v2.log
+python -m app.main --fname configs/train/vitg16/pretrain-echo-336px-16f-0820.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee pretrain-echo-336px-16f-ep66-100-0822.log
 ```
 
 (Old) Run pretraining with domain and LR adaptation (better if training from scratch).

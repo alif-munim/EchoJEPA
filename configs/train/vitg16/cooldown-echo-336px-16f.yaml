@@ -14,7 +14,7 @@ data:
   crop_size: 336 # changed from 384
   dataset_fpcs:
   - 16 # changed from 64
-  fps: 4
+  fps: 24 # changed from 4, greater temporal resolution
   num_workers: 12
   patch_size: 16
   persistent_workers: true

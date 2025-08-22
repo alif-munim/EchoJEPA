@@ -1,6 +1,5 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-#
-# This source code is licensed under the MIT license found in the
+# train.py  # Copyright (c) Meta Platforms, Inc. and affiliates.
+# # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
 import os
@@ -18,7 +17,6 @@ import random
 import time
 import io
 import boto3
-
 import numpy as np
 import torch
 import torch.multiprocessing as mp
@@ -34,31 +32,39 @@ from src.utils.distributed import init_distributed
 from src.utils.logging import AverageMeter, CSVLogger, get_logger, gpu_timer
 from src.utils.checkpoint_loader import robust_checkpoint_loader
 
+import torch.distributed as dist
+
+
+def _barrier():
+    if dist.is_available() and dist.is_initialized():
+        dist.barrier()
+
 
 # --
 log_timings = True
 log_freq = 10
 CHECKPOINT_FREQ = 1
 GARBAGE_COLLECT_ITR_FREQ = 50
-# --
 
+# --
 _GLOBAL_SEED = 0
 random.seed(_GLOBAL_SEED)
 np.random.seed(_GLOBAL_SEED)
 torch.manual_seed(_GLOBAL_SEED)
 torch.backends.cudnn.benchmark = True
 
-
 logger = get_logger(__name__, force=True)
 
 
-def prune_local_checkpoints(folder, max_to_keep=10):
+def prune_local_checkpoints(folder, max_to_keep=4):
     try:
         all_checkpoints = [f for f in os.listdir(folder) if f.startswith('e') and f.endswith('.pt')]
         if len(all_checkpoints) > max_to_keep:
             all_checkpoints.sort(key=lambda x: int(x[1:-3]))
             checkpoints_to_delete = all_checkpoints[:-max_to_keep]
-            logger.info(f"Pruning local checkpoints. Keeping {max_to_keep}, deleting {len(checkpoints_to_delete)}.")
+            logger.info(
+                f"Pruning local checkpoints. Keeping {max_to_keep}, deleting {len(checkpoints_to_delete)}."
+            )
             for ckpt_name in checkpoints_to_delete:
                 full_path = os.path.join(folder, ckpt_name)
                 try:
@@ -75,16 +81,14 @@ def main(args, resume_preempt=False):
     cfgs_meta = args.get("meta")
     s3_checkpoint_uri = cfgs_meta.get("s3_checkpoint_uri", None)
     save_every_freq = cfgs_meta.get("save_every_freq", -1)
-    save_every_steps = cfgs_meta.get("save_every_steps", 0)  
-
-    checkpoints_to_keep = cfgs_meta.get("checkpoints_to_keep", 3)  # Legacy fallback  
-    max_epoch_checkpoints = cfgs_meta.get("max_epoch_checkpoints", checkpoints_to_keep)  
+    save_every_steps = cfgs_meta.get("save_every_steps", 0)
+    checkpoints_to_keep = cfgs_meta.get("checkpoints_to_keep", 3)
+    # Legacy fallback
+    max_epoch_checkpoints = cfgs_meta.get("max_epoch_checkpoints", checkpoints_to_keep)
     max_step_checkpoints = cfgs_meta.get("max_step_checkpoints", 5)
-
     load_model = cfgs_meta.get("load_checkpoint") or resume_preempt
     r_file = cfgs_meta.get("read_checkpoint", None)
     seed = cfgs_meta.get("seed", _GLOBAL_SEED)
-    
     skip_batches = cfgs_meta.get("skip_batches", -1)
     use_sdpa = cfgs_meta.get("use_sdpa", False)
     sync_gc = cfgs_meta.get("sync_gc", False)
@@ -167,10 +171,11 @@ def main(args, resume_preempt=False):
     ema = cfgs_opt.get("ema")
     betas = cfgs_opt.get("betas", (0.9, 0.999))
     eps = cfgs_opt.get("eps", 1.0e-8)
-    
+
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.backends.cudnn.benchmark = True
+
     try:
         mp.set_start_method("spawn")
     except Exception:
@@ -178,7 +183,7 @@ def main(args, resume_preempt=False):
 
     world_size, rank = init_distributed()
     logger.info(f"Initialized (rank/world-size) {rank}/{world_size}")
-    
+
     if rank == 0 and s3_checkpoint_uri:
         logger.info(f"Checkpoints will be uploaded to: {s3_checkpoint_uri}")
 
@@ -186,7 +191,7 @@ def main(args, resume_preempt=False):
         device = torch.device("cpu")
     else:
         device = torch.device("cuda:0")
-        torch.cuda.set_device(device)
+    torch.cuda.set_device(device)
 
     log_file = os.path.join(folder, f"log_r{rank}.csv")
     csv_logger = CSVLogger(
@@ -203,7 +208,7 @@ def main(args, resume_preempt=False):
         device=device,
         uniform_power=uniform_power,
         use_mask_tokens=use_mask_tokens,
-        num_mask_tokens=num_mask_tokens, # int(len(cfgs_mask) * len(dataset_fpcs)),
+        num_mask_tokens=num_mask_tokens,  # int(len(cfgs_mask) * len(dataset_fpcs)),
         zero_init_mask_tokens=zero_init_mask_tokens,
         patch_size=patch_size,
         max_num_frames=max_num_frames,
@@ -220,7 +225,7 @@ def main(args, resume_preempt=False):
         use_rope=use_rope,
         use_activation_checkpointing=use_activation_checkpointing,
     )
-    
+
     ## REVERTED: Create the target_encoder directly on the GPU using deepcopy.
     logger.info("Creating target_encoder via deepcopy on the GPU...")
     target_encoder = copy.deepcopy(encoder)
@@ -241,6 +246,7 @@ def main(args, resume_preempt=False):
         patch_size=patch_size,
         tubelet_size=tubelet_size,
     )
+
     transform = make_transforms(
         random_horizontal_flip=False,
         random_resize_aspect_ratio=ar_range,
@@ -268,10 +274,12 @@ def main(args, resume_preempt=False):
         pin_mem=pin_mem,
         log_dir=None,
     )
+
     try:
         _dlen = len(unsupervised_loader)
     except Exception:
         _dlen = unsupervised_loader.num_batches
+
     if ipe is None:
         ipe = _dlen
     logger.info(f"iterations per epoch/dataset length: {ipe}/{_dlen}")
@@ -293,21 +301,23 @@ def main(args, resume_preempt=False):
         betas=betas,
         eps=eps,
     )
-    
+
     def make_momentum_scheduler(start_step=0):
         total = int(ipe * num_epochs * ipe_scale)
         return (
             ema[0] + i * (ema[1] - ema[0]) / total
             for i in range(start_step, total + 1)
         )
-    
-    momentum_scheduler = make_momentum_scheduler()   # <-- generator now exists
+
+    # (LATEST) Do NOT instantiate momentum_scheduler yet; we must first decide
+    # whether we're resuming or force-loading. We'll build it later
+    # with the correct start_step so EMA is aligned.
     start_epoch, start_itr = 0, 0
-    
+    completed_steps = 0  # (LATEST) Track how many global steps have already been completed
+
     if force_load_pretrain:
         if anneal_ckpt_path and os.path.exists(anneal_ckpt_path):
             logger.info(f"FORCE-LOADING pretrained model from {anneal_ckpt_path}")
-            
             checkpoint = robust_checkpoint_loader(anneal_ckpt_path, map_location=torch.device("cpu"))
             epoch_from_ckpt = checkpoint.get("epoch", 0)
 
@@ -332,106 +342,108 @@ def main(args, resume_preempt=False):
             del checkpoint
             gc.collect()
             logger.info("Force-loading of weights complete. Starting fresh from epoch 0.")
-        
+            completed_steps = 0  # (LATEST) Fresh start => EMA schedule begins at step 0
         else:
             logger.error(f"Configured to force-load but checkpoint was not found at: {anneal_ckpt_path}")
             raise FileNotFoundError(f"Anneal checkpoint not found: {anneal_ckpt_path}")
     else:
         latest_path = os.path.join(folder, "latest.pt")
         load_path = None
+
         if load_model or os.path.exists(latest_path):
             load_path = os.path.join(folder, r_file) if r_file is not None else latest_path
             logger.info(f"Loading checkpoint from {load_path}")
-        
-        if load_path and os.path.exists(load_path):
-            logger.info(f"Resuming training from checkpoint: {load_path}")
-            (
-                encoder,
-                predictor,
-                target_encoder,
-                optimizer,
-                scaler,
-                start_epoch,
-                start_itr,
-            ) = load_checkpoint(
-                r_path=load_path,
-                encoder=encoder,
-                predictor=predictor,
-                target_encoder=target_encoder,
-                opt=optimizer,
-                scaler=scaler,
-            )
 
-            logger.info(f"SUCCESS: Loaded checkpoint from {load_path}")
-            
-            completed_steps = start_epoch * ipe + start_itr
-            for _ in range(completed_steps):
-                scheduler.step()
-                wd_scheduler.step()
-                next(momentum_scheduler)
-                mask_collator.step()
+            if load_path and os.path.exists(load_path):
+                logger.info(f"Resuming training from checkpoint: {load_path}")
+                (
+                    encoder,
+                    predictor,
+                    target_encoder,
+                    optimizer,
+                    scaler,
+                    start_epoch,
+                    start_itr,
+                ) = load_checkpoint(
+                    r_path=load_path,
+                    encoder=encoder,
+                    predictor=predictor,
+                    target_encoder=target_encoder,
+                    opt=optimizer,
+                    scaler=scaler,
+                )
+                logger.info(f"SUCCESS: Loaded checkpoint from {load_path}")
+                completed_steps = start_epoch * ipe + start_itr  # (LATEST) compute once
+
+                # (LATEST) Burn LR/WD/Mask schedules up to the resume step, but do NOT
+                # advance EMA here. We'll rebuild EMA to start at completed_steps.
+                for _ in range(completed_steps):
+                    scheduler.step()
+                    wd_scheduler.step()
+                    # next(momentum_scheduler)  # (LATEST) removed: do NOT consume EMA steps here
+                    mask_collator.step()
 
     encoder = DistributedDataParallel(encoder, static_graph=True)
     predictor = DistributedDataParallel(predictor, static_graph=False, find_unused_parameters=True)
+
     ## REVERTED: Wrap the target_encoder in DDP as it now lives on the GPU.
     target_encoder = DistributedDataParallel(target_encoder)
     for p in target_encoder.parameters():
         p.requires_grad = False
 
-    momentum_scheduler = (
-        ema[0] + i * (ema[1] - ema[0]) / (ipe * num_epochs * ipe_scale)
-        for i in range(int(ipe * num_epochs * ipe_scale) + 1)
-    )
+    # (LATEST) Build EMA schedule only now, starting exactly at completed_steps.
+    # - completed_steps == 0 for fresh/force-load
+    # - completed_steps == start_epoch*ipe + start_itr for resume
+    momentum_scheduler = make_momentum_scheduler(start_step=completed_steps)
 
     def save_checkpoint(epoch, itr, local_path, s3_uri_base=None, is_periodic=False):
-        if rank != 0:  
-            return  
-          
-        save_dict = {  
-            "encoder": encoder.state_dict(),  
-            "predictor": predictor.state_dict(),  
-            "opt": optimizer.state_dict(),  
-            "scaler": None if scaler is None else scaler.state_dict(),  
-            "target_encoder": target_encoder.state_dict(),  
-            "epoch": epoch,  
-            "loss": loss_meter.avg,  
-            "batch_size": batch_size,  
-            "world_size": world_size,  
-            "lr": lr,  
+        if rank != 0:
+            return
+
+        save_dict = {
+            "encoder": encoder.state_dict(),
+            "predictor": predictor.state_dict(),
+            "opt": optimizer.state_dict(),
+            "scaler": None if scaler is None else scaler.state_dict(),
+            "target_encoder": target_encoder.state_dict(),
+            "epoch": epoch,
+            "loss": loss_meter.avg,
+            "batch_size": batch_size,
+            "world_size": world_size,
+            "lr": lr,
             "itr": itr,
-        }  
-          
-        try:  
-            torch.save(save_dict, local_path)  
-        except Exception as e:  
-            logger.error(f"Encountered exception when saving local checkpoint: {e}")  
-            return  
-      
-        if s3_uri_base:  
-            try:  
-                s3_client = boto3.client("s3")  
-                bucket, key_prefix = s3_uri_base.replace("s3://", "").split("/", 1)  
-                filename = os.path.basename(local_path)  
-                s3_key = os.path.join(key_prefix, filename)  
-                  
-                # Check file size  
-                file_size = os.path.getsize(local_path)  
-                logger.info(f"Checkpoint size: {file_size / (1024**3):.2f} GB")  
-                  
-                if file_size > 5 * 1024**3:  # 5GB threshold  
-                    logger.info(f"Using multipart upload for large checkpoint...")  
-                    # Use multipart upload for files > 5GB  
-                    s3_client.upload_file(local_path, bucket, s3_key)  
-                else:  
-                    # Use regular upload for smaller files  
-                    with open(local_path, 'rb') as f:  
-                        s3_client.put_object(Bucket=bucket, Key=s3_key, Body=f.read())  
-                  
-                logger.info(f"Successfully uploaded checkpoint to s3://{bucket}/{s3_key}")  
-            except Exception as e:  
-                logger.error(f"Failed to upload checkpoint to S3. Error: {e}")  
-      
-        if is_periodic and max_epoch_checkpoints > 0:    
+        }
+
+        try:
+            torch.save(save_dict, local_path)
+        except Exception as e:
+            logger.error(f"Encountered exception when saving local checkpoint: {e}")
+            return
+
+        if s3_uri_base:
+            try:
+                s3_client = boto3.client("s3")
+                bucket, key_prefix = s3_uri_base.replace("s3://", "").split("/", 1)
+                filename = os.path.basename(local_path)
+                s3_key = os.path.join(key_prefix, filename)
+
+                # Check file size
+                file_size = os.path.getsize(local_path)
+                logger.info(f"Checkpoint size: {file_size / (1024**3):.2f} GB")
+
+                if file_size > 5 * 1024**3:  # 5GB threshold
+                    logger.info(f"Using multipart upload for large checkpoint...")
+                    # Use multipart upload for files > 5GB
+                    s3_client.upload_file(local_path, bucket, s3_key)
+                else:
+                    # Use regular upload for smaller files
+                    with open(local_path, 'rb') as f:
+                        s3_client.put_object(Bucket=bucket, Key=s3_key, Body=f.read())
+                logger.info(f"Successfully uploaded checkpoint to s3://{bucket}/{s3_key}")
+            except Exception as e:
+                logger.error(f"Failed to upload checkpoint to S3. Error: {e}")
+
+        if is_periodic and max_epoch_checkpoints > 0:
             prune_local_checkpoints(os.path.dirname(local_path), max_to_keep=max_epoch_checkpoints)
 
     logger.info("Initializing loader...")
@@ -463,11 +475,12 @@ def main(args, resume_preempt=False):
         data_elapsed_time_meter = AverageMeter()
 
         itr_start = start_itr if epoch == start_epoch else 0
+
         for itr in range(itr_start, ipe):
             itr_start_time = time.time()
-            
             iter_retries = 0
             iter_successful = False
+
             while not iter_successful:
                 try:
                     sample = next(loader)
@@ -479,11 +492,15 @@ def main(args, resume_preempt=False):
                 except Exception as e:
                     NUM_RETRIES = 5
                     if iter_retries < NUM_RETRIES:
-                        logger.warning(f"Encountered exception when loading data (num retries {iter_retries}):\n{e}")
+                        logger.warning(
+                            f"Encountered exception when loading data (num retries {iter_retries}):\n{e}"
+                        )
                         iter_retries += 1
                         time.sleep(5)
                     else:
-                        logger.warning(f"Exceeded max retries ({NUM_RETRIES}) when loading data. Skipping batch.")
+                        logger.warning(
+                            f"Exceeded max retries ({NUM_RETRIES}) when loading data. Skipping batch."
+                        )
                         raise e
 
             for _fpc_sample in sample:
@@ -505,7 +522,7 @@ def main(args, resume_preempt=False):
             if sync_gc and (itr + 1) % GARBAGE_COLLECT_ITR_FREQ == 0:
                 logger.info("Running garbage collection...")
                 gc.collect()
-            
+
             def train_step():
                 _new_lr = scheduler.step()
                 _new_wd = wd_scheduler.step()
@@ -542,11 +559,13 @@ def main(args, resume_preempt=False):
                     scaler.unscale_(optimizer)
                 else:
                     loss.backward()
+
                 if mixed_precision:
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     optimizer.step()
+
                 optimizer.zero_grad()
 
                 m = next(momentum_scheduler)
@@ -557,7 +576,6 @@ def main(args, resume_preempt=False):
                     for param_q, param_k in zip(encoder.parameters(), target_encoder.parameters()):
                         params_k.append(param_k)
                         params_q.append(param_q)
-                    
                     torch._foreach_mul_(params_k, m)
                     torch._foreach_add_(params_k, params_q, alpha=1 - m)
 
@@ -567,19 +585,23 @@ def main(args, resume_preempt=False):
                     _new_wd,
                 )
 
-            (
-                loss,
-                _new_lr,
-                _new_wd,
-            ), gpu_etime_ms = gpu_timer(train_step)
+            (loss, _new_lr, _new_wd,), gpu_etime_ms = gpu_timer(train_step)
             iter_elapsed_time_ms = (time.time() - itr_start_time) * 1000.0
+
             loss_meter.update(loss)
             iter_time_meter.update(iter_elapsed_time_ms)
             gpu_time_meter.update(gpu_etime_ms)
             data_elapsed_time_meter.update(data_elapsed_time_ms)
 
             def log_stats():
-                csv_logger.log(epoch + 1, itr, loss, iter_elapsed_time_ms, gpu_etime_ms, data_elapsed_time_ms)
+                csv_logger.log(
+                    epoch + 1,
+                    itr,
+                    loss,
+                    iter_elapsed_time_ms,
+                    gpu_etime_ms,
+                    data_elapsed_time_ms,
+                )
                 if (itr % log_freq == 0) or (itr == ipe - 1) or np.isnan(loss) or np.isinf(loss):
                     logger.info(
                         "[%d, %5d] loss: %.3f "
@@ -593,7 +615,9 @@ def main(args, resume_preempt=False):
                             epoch + 1,
                             itr,
                             loss_meter.avg,
-                            "[" + ", ".join([f"{k}: " + "%.1f" % mask_meters[k].avg for k in mask_meters]) + "]",
+                            "["
+                            + ", ".join([f"{k}: " + "%.1f" % mask_meters[k].avg for k in mask_meters])
+                            + "]",
                             _new_wd,
                             _new_lr,
                             torch.cuda.max_memory_allocated() / 1024.0**2,
@@ -605,36 +629,39 @@ def main(args, resume_preempt=False):
 
             log_stats()
             assert not np.isnan(loss), "loss is nan"
-            
-            # -- Step-based checkpoint saving with cleanup        
-            # if save_every_steps > 0 and (itr + 1) % save_every_steps == 0:        
-            #     # Only rank 0 should do cleanup to avoid race conditions  
-            #     if rank == 0:  
-            #         # Cleanup old step checkpoints FIRST - before saving new one    
-            #         step_pattern = os.path.join(folder, "step_*.pt")        
-            #         step_checkpoints = glob.glob(step_pattern)        
-                            
-            #         if len(step_checkpoints) >= max_step_checkpoints:  # Note: >= instead of >    
-            #             step_checkpoints.sort(key=os.path.getmtime, reverse=True)        
-            #             for old_checkpoint in step_checkpoints[max_step_checkpoints-1:]:  # Keep one less to make room    
-            #                 try:        
-            #                     os.remove(old_checkpoint)        
-            #                     logger.info(f"Removed old step checkpoint: {os.path.basename(old_checkpoint)}")        
-            #                 except OSError as e:        
-            #                     logger.warning(f"Failed to remove checkpoint {old_checkpoint}: {e}")    
-                        
-            #     # NOW save the new checkpoint (this already has rank check inside save_checkpoint)  
-            #     step_checkpoint_file = f"step_e{epoch}_i{itr}.pt"        
-            #     step_checkpoint_path = os.path.join(folder, step_checkpoint_file)        
-            #     save_checkpoint(epoch, itr, step_checkpoint_path, s3_checkpoint_uri)      
-            #     logger.info(f"Saved step checkpoint at epoch {epoch}, iteration {itr}")
+
+            # -- Step-based checkpoint saving with cleanup
+            # if save_every_steps > 0 and (itr + 1) % save_every_steps == 0:
+            #     # Only rank 0 should do cleanup to avoid race conditions
+            #     if rank == 0:
+            #         # Cleanup old step checkpoints FIRST - before saving new one
+            #         step_pattern = os.path.join(folder, "step_*.pt")
+            #         step_checkpoints = glob.glob(step_pattern)
+            #         if len(step_checkpoints) >= max_step_checkpoints:  # Note: >= instead of >
+            #             step_checkpoints.sort(key=os.path.getmtime, reverse=True)
+            #             for old_checkpoint in step_checkpoints[max_step_checkpoints-1:]:  # Keep one less to make room
+            #                 try:
+            #                     os.remove(old_checkpoint)
+            #                     logger.info(f"Removed old step checkpoint: {os.path.basename(old_checkpoint)}")
+            #                 except OSError as e:
+            #                     logger.warning(f"Failed to remove checkpoint {old_checkpoint}: {e}")
+            #
+            #         # NOW save the new checkpoint (this already has rank check inside save_checkpoint)
+            #         step_checkpoint_file = f"step_e{epoch}_i{itr}.pt"
+            #         step_checkpoint_path = os.path.join(folder, step_checkpoint_file)
+            #         save_checkpoint(epoch, itr, step_checkpoint_path, s3_checkpoint_uri)
+            #         logger.info(f"Saved step checkpoint at epoch {epoch}, iteration {itr}")
 
         logger.info("avg. loss %.3f" % loss_meter.avg)
-        
+        _barrier()  # everyone reach end-of-epoch together
+
         latest_path = os.path.join(folder, "latest.pt")
         if epoch % CHECKPOINT_FREQ == 0 or epoch == (num_epochs - 1):
             save_checkpoint(epoch + 1, 0, latest_path, None, is_periodic=False)
-            if save_every_freq > 0 and epoch % save_every_freq == 0:
-                save_every_file = f"e{epoch}.pt"
-                save_every_path = os.path.join(folder, save_every_file)
-                save_checkpoint(epoch + 1, 0, save_every_path, s3_checkpoint_uri, is_periodic=True)
+
+        if save_every_freq > 0 and epoch % save_every_freq == 0:
+            save_every_file = f"e{epoch}.pt"
+            save_every_path = os.path.join(folder, save_every_file)
+            save_checkpoint(epoch + 1, 0, save_every_path, s3_checkpoint_uri, is_periodic=True)
+
+        _barrier()  # keep others from entering next epoch while rank 0 uploads

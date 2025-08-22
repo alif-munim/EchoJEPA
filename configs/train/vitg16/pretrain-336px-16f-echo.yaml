@@ -66,14 +66,15 @@ meta:
   dtype: bfloat16
   eval_freq: 100
   load_checkpoint: true
-  read_checkpoint: null
+  read_checkpoint: step_e0_i999.pt
   save_every_freq: 1
-  save_every_steps: 1000
+  save_every_steps: 300
   max_step_checkpoints: 3
   max_epoch_checkpoints: 3
   seed: 239
   use_sdpa: true
 model:
+  compile_model: false
   model_name: vit_giant_xformers
   pred_depth: 12
   pred_embed_dim: 384
@@ -84,7 +85,7 @@ model:
   use_rope: true
   zero_init_mask_tokens: true
 optimization:
-  force_load_pretrain: true
+  force_load_pretrain: false
   anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitg-384.pt
   ema:
   - 0.99925
