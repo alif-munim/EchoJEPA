@@ -25,6 +25,22 @@ export NCCL_BLOCKING_WAIT=1
 export NCCL_ASYNC_ERROR_HANDLING=1
 ```
 
+NCCL Error (turn off persistent workers, pin mem, reduce num workers)
+```
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:678 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x98 (0x7f851d9785e8 in /home/sagemaker-user/.conda/envs/vjepa2-312/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x5ba8bfe (0x7f85070fabfe in /home/sagemaker-user/.conda/envs/vjepa2-312/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: <unknown function> + 0x5baaf40 (0x7f85070fcf40 in /home/sagemaker-user/.conda/envs/vjepa2-312/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: <unknown function> + 0x5bab84a (0x7f85070fd84a in /home/sagemaker-user/.conda/envs/vjepa2-312/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x2a9 (0x7f85070f72a9 in /home/sagemaker-user/.conda/envs/vjepa2-312/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: c10d::ProcessGroupNCCL::heartbeatMonitor() + 0x379 (0x7f84c87f69f9 in /home/sagemaker-user/.conda/envs/vjepa2-312/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #6: <unknown function> + 0xd8198 (0x7f84c7501198 in /home/sagemaker-user/.conda/envs/vjepa2-312/bin/../lib/libstdc++.so.6)
+frame #7: <unknown function> + 0x94ac3 (0x7f851eb8cac3 in /usr/lib/x86_64-linux-gnu/libc.so.6)
+frame #8: clone + 0x44 (0x7f851ec1da04 in /usr/lib/x86_64-linux-gnu/libc.so.6)
+
+[rank3]:[W825 07:38:02.806977494 ProcessGroupNCCL.cpp:1662] [PG ID 0 PG GUID 0(default_pg) Rank 3] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: failed to recv, got 0 bytes
+```
+
 ### Monitor
 ```
 chmod +x watcher.sh
@@ -38,11 +54,45 @@ chmod +x watcher.sh
 
 ### Classifier Training
 
-RV systolic function
+Download checkpoint
+```
+/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep
+aws s3 cp s3://echodata25/vjepa2/checkpoints-0820/e66.pt .
+```
+
+Back to small batch size
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown_v2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h16_b4_bs8_ep162_0827_ns1.log
+
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown_v3.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h16_b4_bs8_ep162_0827_ns2.log
+```
+
+New configs (bs48, scaled LR #2)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_pretrain_v2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_kinetics_h16_b4_bs48_ep144_0827_scaledLR_v2.log
+
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_pretrain_v3.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_kinetics_h16_b4_bs48_ep144_0827_scaledLR_v3.log
+```
+
+Full A4C dataset, RV systolic function
+```
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_full.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_kinetics_h16_b4_bs48_ep144_0826_FULL_scaledLR.log
+```
+
+Scaled (higher batch size, 8 to 48) RV systolic function
+```
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_pretrain.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_kinetics_h16_b4_bs48_ep144_0826_scaledLR.log
+```
+
+RV systolic function (remember to modify **checkpoint**, **run tag**, **output file**)
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_kinetics.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_kinetics_h32_b8_v1.log
 
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h32_b8_0820_keepe66.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h16_b4_0824_keepe96_b8.log
 ```
 
 Pacemaker detection
@@ -63,9 +113,18 @@ Sample outputs. `[iteration num]` `[max acc]` `[mean min]` (across all heads).
 
 ### Run SSL Pretraining
 
+Set environment guards
+```
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export PYTORCH_DISABLE_SIGNAL_HANDLERS=1   # quieter shutdown
+export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
+export NCCL_DEBUG=INFO
+```
+
 (New) cooldown script with LR adjusted to global batch and token ratios.
 ```
-python -m app.main --fname configs/train/vitg16/pretrain-echo-336px-16f-0820.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee pretrain-echo-336px-16f-ep66-100-0822.log
+python -m app.main --fname configs/train/vitg16/pretrain-echo-336px-16f-0820.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee pretrain-echo-336px-16f-ep120-200-0825.log
 ```
 
 (Old) Run pretraining with domain and LR adaptation (better if training from scratch).

@@ -1,6 +1,6 @@
 app: vjepa
 cpus_per_task: 32
-folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/1.8.vitg16-336px-16f-echo-0820
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/1.8.vitg16-336px-16f-echo-0828
 mem_per_gpu: 80G
 nodes: 1
 tasks_per_node: 8
@@ -10,10 +10,10 @@ data:
   - /home/sagemaker-user/user-default-efs/vjepa2/data/annotations_s3.csv # 18.1M echocardiogram video clips
   datasets_weights:
   - 1.0
-  batch_size: 80
+  batch_size: 40 # decreased from 80
   crop_size: 336 # changed from 384
   dataset_fpcs:
-  - 16 # changed from 64
+  - 32 # changed from 16
   fps: 24 # changed from 4, greater temporal resolution
   num_workers: 8
   patch_size: 16
@@ -24,10 +24,10 @@ data_aug:
   auto_augment: false
   motion_shift: false
   random_resize_aspect_ratio:
-  - 0.9 # 0.75
-  - 1.1 # 1.35
+  - 0.9 # default 0.75
+  - 1.1 # default 1.35
   random_resize_scale:
-  - 0.5 # 0.3
+  - 0.5 # default 0.3
   - 1.0
   reprob: 0.0
 loss:
@@ -60,7 +60,7 @@ mask:
   - 1.0
   - 1.0
 meta:
-  s3_checkpoint_uri: "s3://echodata25/vjepa2/checkpoints-0820/" # need to add this for s3 uploads
+  s3_checkpoint_uri: "s3://echodata25/vjepa2/anneal-0828/" # need to add this for s3 uploads
   dtype: bfloat16
   eval_freq: 100
   load_checkpoint: true # make sure your model folder has a latest.pt inside of it
@@ -80,18 +80,19 @@ model:
   zero_init_mask_tokens: true
   num_mask_tokens: 10 # set automatically in the script
 optimization:
-  is_anneal: false # set true init linear decay schedule, otherwise cosine decay
-  force_load_pretrain: false # force loading of vitg-384 ckpt, set to false if you have latest.pt and are resuming
-  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitg-384.pt
+  is_anneal: true # set true init linear decay schedule, otherwise cosine decay
+  force_load_pretrain: true # force loading of vitg-384 ckpt, set to false if you have latest.pt and are resuming
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep/e168.pt # start from 168 epoch pretrained checkpoint
   ema:
   - 0.99925
   - 0.99925
-  epochs: 200 # 50
-  final_lr: 1.09375e-04 # orig 0.000525
+  epochs: 40
+  final_lr: 1.0416e-07 # 1.0e-06
   final_weight_decay: 0.04
   ipe: 300
   ipe_scale: 1.0 # 1.25
-  lr: 1.09375e-04 # orig 0.000525
-  start_lr: 2.08333e-05 # orig 0.0001
-  warmup: 5 # 40
+  lr: 5.468e-05 # 0.000525
+  # resume_anneal: true # unused
+  # start_lr: 1.0416e-05 # 0.0001 # unused for linear decay
+  warmup: 0
   weight_decay: 0.04
