@@ -82,17 +82,17 @@ model:
 optimization:
   is_anneal: true # set true init linear decay schedule, otherwise cosine decay
   force_load_pretrain: true # force loading of vitg-384 ckpt, set to false if you have latest.pt and are resuming
-  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep/e168.pt # start from 168 epoch pretrained checkpoint
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep/e200.pt # start from 168 epoch pretrained checkpoint
   ema:
   - 0.99925
   - 0.99925
   epochs: 40
-  final_lr: 1.0416e-07 # 1.0e-06
+  final_lr: 1.0416e-07 # orig 1.0e-06 (scaled by ref batch size 3072)
   final_weight_decay: 0.04
   ipe: 300
   ipe_scale: 1.0 # 1.25
-  lr: 5.468e-05 # 0.000525
+  lr: 5.468e-05 # orig 0.000525 (scaled by ref batch size 3072)
   # resume_anneal: true # unused
-  # start_lr: 1.0416e-05 # 0.0001 # unused for linear decay
+  # start_lr: 1.0416e-05 # orig 0.0001 (scaled by ref batch size 3072) # unused for linear decay
   warmup: 0
   weight_decay: 0.04

@@ -60,6 +60,11 @@ Download checkpoint
 aws s3 cp s3://echodata25/vjepa2/checkpoints-0820/e66.pt .
 ```
 
+Best settings for RVFX
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_0828.log
+```
+
 Back to small batch size
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown_v2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h16_b4_bs8_ep162_0827_ns1.log
@@ -109,6 +114,12 @@ Sample outputs. `[iteration num]` `[max acc]` `[mean min]` (across all heads).
 ```
 [INFO][2025-07-23 12:10:29][root][run_one_epoch] [0] 53.125% [20.156% 3.125%] [mem: 5.09e+04]
 [INFO][2025-07-23 12:12:51][root][run_one_epoch] [10] 46.875% [33.026% 19.602%] [mem: 6.51e+04]
+```
+
+### Run Annealing
+Cooldown run
+```
+python -m app.main --fname configs/train/vitg16/cooldown-echo-336px-32f-0828.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee cooldown-echo-336px-32f-ep200-0828.log
 ```
 
 ### Run SSL Pretraining
