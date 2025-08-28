@@ -19,7 +19,14 @@ import io
 import boto3
 import numpy as np
 import torch
+# import torch.multiprocessing as mp
 import torch.multiprocessing as mp
+try:
+    mp.set_sharing_strategy("file_system")
+except Exception:
+    pass
+
+
 import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel
 
@@ -465,203 +472,233 @@ def main(args, resume_preempt=False):
         gc.disable()
         gc.collect()
 
-    for epoch in range(start_epoch, num_epochs):
-        logger.info("Epoch %d" % (epoch + 1))
-
-        loss_meter = AverageMeter()
-        mask_meters = {fpc: AverageMeter() for fpc in dataset_fpcs}
-        iter_time_meter = AverageMeter()
-        gpu_time_meter = AverageMeter()
-        data_elapsed_time_meter = AverageMeter()
-
-        itr_start = start_itr if epoch == start_epoch else 0
-
-        for itr in range(itr_start, ipe):
-            itr_start_time = time.time()
-            iter_retries = 0
-            iter_successful = False
-
-            while not iter_successful:
-                try:
-                    sample = next(loader)
-                    iter_successful = True
-                except StopIteration:
-                    logger.info("Exhausted data loaders. Refreshing...")
-                    unsupervised_sampler.set_epoch(epoch)
-                    loader = iter(unsupervised_loader)
-                except Exception as e:
-                    NUM_RETRIES = 5
-                    if iter_retries < NUM_RETRIES:
-                        logger.warning(
-                            f"Encountered exception when loading data (num retries {iter_retries}):\n{e}"
-                        )
-                        iter_retries += 1
-                        time.sleep(5)
+    try:
+        for epoch in range(start_epoch, num_epochs):
+            unsupervised_sampler.set_epoch(epoch)
+            logger.info("Epoch %d" % (epoch + 1))
+    
+            loss_meter = AverageMeter()
+            mask_meters = {fpc: AverageMeter() for fpc in dataset_fpcs}
+            iter_time_meter = AverageMeter()
+            gpu_time_meter = AverageMeter()
+            data_elapsed_time_meter = AverageMeter()
+    
+            itr_start = start_itr if epoch == start_epoch else 0
+    
+            for itr in range(itr_start, ipe):
+                itr_start_time = time.time()
+                iter_retries = 0
+                iter_successful = False
+    
+                while not iter_successful:
+                    try:
+                        sample = next(loader)
+                        iter_successful = True
+                    except StopIteration:
+                        logger.info("Exhausted data loaders. Refreshing...")
+                        unsupervised_sampler.set_epoch(epoch)
+                        loader = iter(unsupervised_loader)
+                    except Exception as e:
+                        NUM_RETRIES = 5
+                        if iter_retries < NUM_RETRIES:
+                            logger.warning(
+                                f"Encountered exception when loading data (num retries {iter_retries}):\n{e}"
+                            )
+                            iter_retries += 1
+                            time.sleep(5)
+                            # refresh iterator (cheap) and try again
+                            loader = iter(unsupervised_loader)
+                        else:
+                            logger.warning("Exceeded max retries; rebuilding DataLoader to respawn workers.")
+                            (unsupervised_loader, unsupervised_sampler) = init_data(
+                                data=dataset_type,
+                                root_path=dataset_paths,
+                                batch_size=batch_size,
+                                training=True,
+                                dataset_fpcs=dataset_fpcs,
+                                fps=fps,
+                                transform=transform,
+                                rank=rank,
+                                world_size=world_size,
+                                datasets_weights=datasets_weights,
+                                persistent_workers=persistent_workers,
+                                collator=mask_collator,
+                                num_workers=num_workers,
+                                pin_mem=pin_mem,
+                                log_dir=None,
+                            )
+                            unsupervised_sampler.set_epoch(epoch)
+                            loader = iter(unsupervised_loader)
+                            iter_retries = 0
+                            # continue the while-loop instead of raising
+                            continue
+    
+                for _fpc_sample in sample:
+                    bs, fpc = _fpc_sample[0][-1][0].size()
+                    mask_meters[fpc].update(bs / batch_size)
+    
+                def load_clips():
+                    all_clips, all_masks_enc, all_masks_pred = [], [], []
+                    for fpc_sample in sample:
+                        udata, masks_enc, masks_pred = fpc_sample
+                        all_clips += [udata[0][0].to(device, non_blocking=True)]
+                        all_masks_enc += [[m.to(device, non_blocking=True) for m in masks_enc]]
+                        all_masks_pred += [[m.to(device, non_blocking=True) for m in masks_pred]]
+                    return all_clips, all_masks_enc, all_masks_pred
+    
+                clips, masks_enc, masks_pred = load_clips()
+                data_elapsed_time_ms = (time.time() - itr_start_time) * 1000.0
+    
+                if sync_gc and (itr + 1) % GARBAGE_COLLECT_ITR_FREQ == 0:
+                    logger.info("Running garbage collection...")
+                    gc.collect()
+    
+                def train_step():
+                    _new_lr = scheduler.step()
+                    _new_wd = wd_scheduler.step()
+    
+                    def forward_target(c):
+                        with torch.no_grad():
+                            ## REVERTED: No data transfer needed, both models are on the GPU
+                            h = target_encoder(c)
+                            h = [F.layer_norm(hi, (hi.size(-1),)) for hi in h]
+                            return h
+    
+                    def forward_context(c):
+                        z = encoder(c, masks_enc)
+                        z = predictor(z, masks_enc, masks_pred)
+                        return z
+    
+                    def loss_fn(z, h):
+                        h = [apply_masks(hi, mi, concat=False) for hi, mi in zip(h, masks_pred)]
+                        loss, n = 0, 0
+                        for zi, hi in zip(z, h):
+                            for zij, hij in zip(zi, hi):
+                                loss += torch.mean(torch.abs(zij - hij) ** loss_exp) / loss_exp
+                                n += 1
+                        loss /= n
+                        return loss
+    
+                    with torch.amp.autocast("cuda", dtype=dtype, enabled=mixed_precision):
+                        h = forward_target(clips)
+                        z = forward_context(clips)
+                        loss = loss_fn(z, h)
+    
+                    if mixed_precision:
+                        scaler.scale(loss).backward()
+                        scaler.unscale_(optimizer)
                     else:
-                        logger.warning(
-                            f"Exceeded max retries ({NUM_RETRIES}) when loading data. Skipping batch."
-                        )
-                        raise e
-
-            for _fpc_sample in sample:
-                bs, fpc = _fpc_sample[0][-1][0].size()
-                mask_meters[fpc].update(bs / batch_size)
-
-            def load_clips():
-                all_clips, all_masks_enc, all_masks_pred = [], [], []
-                for fpc_sample in sample:
-                    udata, masks_enc, masks_pred = fpc_sample
-                    all_clips += [udata[0][0].to(device, non_blocking=True)]
-                    all_masks_enc += [[m.to(device, non_blocking=True) for m in masks_enc]]
-                    all_masks_pred += [[m.to(device, non_blocking=True) for m in masks_pred]]
-                return all_clips, all_masks_enc, all_masks_pred
-
-            clips, masks_enc, masks_pred = load_clips()
-            data_elapsed_time_ms = (time.time() - itr_start_time) * 1000.0
-
-            if sync_gc and (itr + 1) % GARBAGE_COLLECT_ITR_FREQ == 0:
-                logger.info("Running garbage collection...")
-                gc.collect()
-
-            def train_step():
-                _new_lr = scheduler.step()
-                _new_wd = wd_scheduler.step()
-
-                def forward_target(c):
+                        loss.backward()
+    
+                    if mixed_precision:
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        optimizer.step()
+    
+                    optimizer.zero_grad()
+    
+                    m = next(momentum_scheduler)
                     with torch.no_grad():
-                        ## REVERTED: No data transfer needed, both models are on the GPU
-                        h = target_encoder(c)
-                        h = [F.layer_norm(hi, (hi.size(-1),)) for hi in h]
-                        return h
-
-                def forward_context(c):
-                    z = encoder(c, masks_enc)
-                    z = predictor(z, masks_enc, masks_pred)
-                    return z
-
-                def loss_fn(z, h):
-                    h = [apply_masks(hi, mi, concat=False) for hi, mi in zip(h, masks_pred)]
-                    loss, n = 0, 0
-                    for zi, hi in zip(z, h):
-                        for zij, hij in zip(zi, hi):
-                            loss += torch.mean(torch.abs(zij - hij) ** loss_exp) / loss_exp
-                            n += 1
-                    loss /= n
-                    return loss
-
-                with torch.cuda.amp.autocast(dtype=dtype, enabled=mixed_precision):
-                    h = forward_target(clips)
-                    z = forward_context(clips)
-                    loss = loss_fn(z, h)
-
-                if mixed_precision:
-                    scaler.scale(loss).backward()
-                    scaler.unscale_(optimizer)
-                else:
-                    loss.backward()
-
-                if mixed_precision:
-                    scaler.step(optimizer)
-                    scaler.update()
-                else:
-                    optimizer.step()
-
-                optimizer.zero_grad()
-
-                m = next(momentum_scheduler)
-                with torch.no_grad():
-                    params_k = []
-                    params_q = []
-                    ## REVERTED: No device transfer needed for EMA update
-                    for param_q, param_k in zip(encoder.parameters(), target_encoder.parameters()):
-                        params_k.append(param_k)
-                        params_q.append(param_q)
-                    torch._foreach_mul_(params_k, m)
-                    torch._foreach_add_(params_k, params_q, alpha=1 - m)
-
-                return (
-                    float(loss),
-                    _new_lr,
-                    _new_wd,
-                )
-
-            (loss, _new_lr, _new_wd,), gpu_etime_ms = gpu_timer(train_step)
-            iter_elapsed_time_ms = (time.time() - itr_start_time) * 1000.0
-
-            loss_meter.update(loss)
-            iter_time_meter.update(iter_elapsed_time_ms)
-            gpu_time_meter.update(gpu_etime_ms)
-            data_elapsed_time_meter.update(data_elapsed_time_ms)
-
-            def log_stats():
-                csv_logger.log(
-                    epoch + 1,
-                    itr,
-                    loss,
-                    iter_elapsed_time_ms,
-                    gpu_etime_ms,
-                    data_elapsed_time_ms,
-                )
-                if (itr % log_freq == 0) or (itr == ipe - 1) or np.isnan(loss) or np.isinf(loss):
-                    logger.info(
-                        "[%d, %5d] loss: %.3f "
-                        "masks: %s "
-                        "[wd: %.2e] [lr: %.2e] "
-                        "[mem: %.2e] "
-                        "[iter: %.1f ms] "
-                        "[gpu: %.1f ms] "
-                        "[data: %.1f ms]"
-                        % (
-                            epoch + 1,
-                            itr,
-                            loss_meter.avg,
-                            "["
-                            + ", ".join([f"{k}: " + "%.1f" % mask_meters[k].avg for k in mask_meters])
-                            + "]",
-                            _new_wd,
-                            _new_lr,
-                            torch.cuda.max_memory_allocated() / 1024.0**2,
-                            iter_time_meter.avg,
-                            gpu_time_meter.avg,
-                            data_elapsed_time_meter.avg,
-                        )
+                        params_k = []
+                        params_q = []
+                        ## REVERTED: No device transfer needed for EMA update
+                        for param_q, param_k in zip(encoder.parameters(), target_encoder.parameters()):
+                            params_k.append(param_k)
+                            params_q.append(param_q)
+                        torch._foreach_mul_(params_k, m)
+                        torch._foreach_add_(params_k, params_q, alpha=1 - m)
+    
+                    return (
+                        float(loss),
+                        _new_lr,
+                        _new_wd,
                     )
-
-            log_stats()
-            assert not np.isnan(loss), "loss is nan"
-
-            # -- Step-based checkpoint saving with cleanup
-            # if save_every_steps > 0 and (itr + 1) % save_every_steps == 0:
-            #     # Only rank 0 should do cleanup to avoid race conditions
-            #     if rank == 0:
-            #         # Cleanup old step checkpoints FIRST - before saving new one
-            #         step_pattern = os.path.join(folder, "step_*.pt")
-            #         step_checkpoints = glob.glob(step_pattern)
-            #         if len(step_checkpoints) >= max_step_checkpoints:  # Note: >= instead of >
-            #             step_checkpoints.sort(key=os.path.getmtime, reverse=True)
-            #             for old_checkpoint in step_checkpoints[max_step_checkpoints-1:]:  # Keep one less to make room
-            #                 try:
-            #                     os.remove(old_checkpoint)
-            #                     logger.info(f"Removed old step checkpoint: {os.path.basename(old_checkpoint)}")
-            #                 except OSError as e:
-            #                     logger.warning(f"Failed to remove checkpoint {old_checkpoint}: {e}")
-            #
-            #         # NOW save the new checkpoint (this already has rank check inside save_checkpoint)
-            #         step_checkpoint_file = f"step_e{epoch}_i{itr}.pt"
-            #         step_checkpoint_path = os.path.join(folder, step_checkpoint_file)
-            #         save_checkpoint(epoch, itr, step_checkpoint_path, s3_checkpoint_uri)
-            #         logger.info(f"Saved step checkpoint at epoch {epoch}, iteration {itr}")
-
-        logger.info("avg. loss %.3f" % loss_meter.avg)
-        _barrier()  # everyone reach end-of-epoch together
-
-        latest_path = os.path.join(folder, "latest.pt")
-        if epoch % CHECKPOINT_FREQ == 0 or epoch == (num_epochs - 1):
-            save_checkpoint(epoch + 1, 0, latest_path, None, is_periodic=False)
-
-        if save_every_freq > 0 and epoch % save_every_freq == 0:
-            save_every_file = f"e{epoch}.pt"
-            save_every_path = os.path.join(folder, save_every_file)
-            save_checkpoint(epoch + 1, 0, save_every_path, s3_checkpoint_uri, is_periodic=True)
-
-        _barrier()  # keep others from entering next epoch while rank 0 uploads
+    
+                (loss, _new_lr, _new_wd,), gpu_etime_ms = gpu_timer(train_step)
+                iter_elapsed_time_ms = (time.time() - itr_start_time) * 1000.0
+    
+                loss_meter.update(loss)
+                iter_time_meter.update(iter_elapsed_time_ms)
+                gpu_time_meter.update(gpu_etime_ms)
+                data_elapsed_time_meter.update(data_elapsed_time_ms)
+    
+                def log_stats():
+                    csv_logger.log(
+                        epoch + 1,
+                        itr,
+                        loss,
+                        iter_elapsed_time_ms,
+                        gpu_etime_ms,
+                        data_elapsed_time_ms,
+                    )
+                    if (itr % log_freq == 0) or (itr == ipe - 1) or np.isnan(loss) or np.isinf(loss):
+                        logger.info(
+                            "[%d, %5d] loss: %.3f "
+                            "masks: %s "
+                            "[wd: %.2e] [lr: %.2e] "
+                            "[mem: %.2e] "
+                            "[iter: %.1f ms] "
+                            "[gpu: %.1f ms] "
+                            "[data: %.1f ms]"
+                            % (
+                                epoch + 1,
+                                itr,
+                                loss_meter.avg,
+                                "["
+                                + ", ".join([f"{k}: " + "%.1f" % mask_meters[k].avg for k in mask_meters])
+                                + "]",
+                                _new_wd,
+                                _new_lr,
+                                torch.cuda.max_memory_allocated() / 1024.0**2,
+                                iter_time_meter.avg,
+                                gpu_time_meter.avg,
+                                data_elapsed_time_meter.avg,
+                            )
+                        )
+    
+                log_stats()
+                assert not np.isnan(loss), "loss is nan"
+    
+                # -- Step-based checkpoint saving with cleanup
+                # if save_every_steps > 0 and (itr + 1) % save_every_steps == 0:
+                #     # Only rank 0 should do cleanup to avoid race conditions
+                #     if rank == 0:
+                #         # Cleanup old step checkpoints FIRST - before saving new one
+                #         step_pattern = os.path.join(folder, "step_*.pt")
+                #         step_checkpoints = glob.glob(step_pattern)
+                #         if len(step_checkpoints) >= max_step_checkpoints:  # Note: >= instead of >
+                #             step_checkpoints.sort(key=os.path.getmtime, reverse=True)
+                #             for old_checkpoint in step_checkpoints[max_step_checkpoints-1:]:  # Keep one less to make room
+                #                 try:
+                #                     os.remove(old_checkpoint)
+                #                     logger.info(f"Removed old step checkpoint: {os.path.basename(old_checkpoint)}")
+                #                 except OSError as e:
+                #                     logger.warning(f"Failed to remove checkpoint {old_checkpoint}: {e}")
+                #
+                #         # NOW save the new checkpoint (this already has rank check inside save_checkpoint)
+                #         step_checkpoint_file = f"step_e{epoch}_i{itr}.pt"
+                #         step_checkpoint_path = os.path.join(folder, step_checkpoint_file)
+                #         save_checkpoint(epoch, itr, step_checkpoint_path, s3_checkpoint_uri)
+                #         logger.info(f"Saved step checkpoint at epoch {epoch}, iteration {itr}")
+    
+            logger.info("avg. loss %.3f" % loss_meter.avg)
+            _barrier()  # everyone reach end-of-epoch together
+    
+            latest_path = os.path.join(folder, "latest.pt")
+            if epoch % CHECKPOINT_FREQ == 0 or epoch == (num_epochs - 1):
+                save_checkpoint(epoch + 1, 0, latest_path, None, is_periodic=False)
+    
+            if save_every_freq > 0 and epoch % save_every_freq == 0:
+                save_every_file = f"e{epoch}.pt"
+                save_every_path = os.path.join(folder, save_every_file)
+                save_checkpoint(epoch + 1, 0, save_every_path, s3_checkpoint_uri, is_periodic=True)
+    
+            _barrier()  # keep others from entering next epoch while rank 0 uploads
+    finally:
+        try:
+            _barrier()
+        except Exception:
+            pass
+        if dist.is_available() and dist.is_initialized():
+            dist.destroy_process_group()
