@@ -14,7 +14,7 @@ from src.datasets.utils.video.randerase import RandomErasing
 
 def make_transforms(
     training=True,
-    random_horizontal_flip=True,
+    random_horizontal_flip=False,
     random_resize_aspect_ratio=(3 / 4, 4 / 3),
     random_resize_scale=(0.3, 1.0),
     reprob=0.0,

@@ -56,8 +56,30 @@ chmod +x watcher.sh
 
 Download checkpoint
 ```
-/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep
-aws s3 cp s3://echodata25/vjepa2/checkpoints-0820/e66.pt .
+cd /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep
+aws s3 cp s3://echodata25/vjepa2/checkpoints-0820/e198.pt .
+```
+
+```
+cd /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep
+aws s3 cp s3://echodata25/vjepa2/anneal-0828/e39.pt .
+```
+
+```
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_h32_b6.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_h32_b6_0831.log
+```
+
+Final pretrain, 21ep anneal
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_pt.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pt200_0830.log
+
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_anneal.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_anneal39_0905.log
+
+
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_anneal_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_anneal39_ssv2_0905.log
+
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_pretrain_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pretrain198_ssv2_0905.log
 ```
 
 Best settings for RVFX
@@ -67,9 +89,9 @@ python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/config
 
 Back to small batch size
 ```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown_v2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h16_b4_bs8_ep162_0827_ns1.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown_v3.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h16_b4_bs8_ep162_0828_fs2_ns2_FULL.log
 
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown_v3.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h16_b4_bs8_ep162_0827_ns2.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_cooldown_v2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_cooldown_h44_b4_bs8_ep162_0828_fs2_ns2.log
 ```
 
 New configs (bs48, scaled LR #2)

@@ -226,10 +226,10 @@ def main(args_eval, resume_preempt=False):
             [s.step() for s in scheduler]
             [wds.step() for wds in wd_scheduler]
 
-    def save_checkpoint(epoch):
+    def save_checkpoint(epoch, mean_val_acc, best_val_acc):
         all_classifier_dicts = [c.state_dict() for c in classifiers]
         all_opt_dicts = [o.state_dict() for o in optimizer]
-
+    
         save_dict = {
             "classifiers": all_classifier_dicts,
             "opt": all_opt_dicts,
@@ -237,11 +237,24 @@ def main(args_eval, resume_preempt=False):
             "epoch": epoch,
             "batch_size": batch_size,
             "world_size": world_size,
+            # ---- metrics you asked to persist ----
+            "mean_val_acc": float(mean_val_acc),
+            "best_val_acc": float(best_val_acc),
         }
         if rank == 0:
+            # keep rolling latest
+            latest_path = os.path.join(folder, "latest.pt")
             torch.save(save_dict, latest_path)
+    
+            # save a per-epoch snapshot too
+            epoch_path = os.path.join(folder, f"epoch_{epoch:03d}.pt")
+            torch.save(save_dict, epoch_path)
+
 
     # TRAIN LOOP
+    best_val_acc = 0.0
+    val_cnt = 0
+    val_sum = 0.0
     for epoch in range(start_epoch, num_epochs):
         logger.info("Epoch %d" % (epoch + 1))
         train_sampler.set_epoch(epoch)
@@ -275,6 +288,11 @@ def main(args_eval, resume_preempt=False):
             use_bfloat16=use_bfloat16,
             use_focal_loss=use_focal_loss,  # Add this  
         )
+        val_cnt += 1
+        val_sum += float(val_acc)
+        mean_val_acc = val_sum / val_cnt
+        best_val_acc = max(best_val_acc, float(val_acc))
+
 
         logger.info("[%5d] train: %.3f%% test: %.3f%%" % (epoch + 1, train_acc, val_acc))
         if rank == 0:
@@ -283,7 +301,7 @@ def main(args_eval, resume_preempt=False):
         if val_only:
             return
 
-        save_checkpoint(epoch + 1)
+        save_checkpoint(epoch + 1, mean_val_acc, best_val_acc)
 
 
 def run_one_epoch(
@@ -367,26 +385,42 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
     checkpoint = robust_checkpoint_loader(r_path, map_location=torch.device("cpu"))
     logger.info(f"read-path: {r_path}")
 
-    # -- loading encoder
+    # -- loading classifier(s)
     pretrained_dict = checkpoint["classifiers"]
     msg = [c.load_state_dict(pd) for c, pd in zip(classifiers, pretrained_dict)]
 
     if val_only:
-        logger.info(f"loaded pretrained classifier from epoch with msg: {msg}")
+        # Log metrics if present (no change to return signature)
+        if "best_val_acc" in checkpoint or "mean_val_acc" in checkpoint:
+            logger.info(
+                "loaded metrics: best_val_acc=%s mean_val_acc=%s",
+                checkpoint.get("best_val_acc", "NA"),
+                checkpoint.get("mean_val_acc", "NA"),
+            )
+        logger.info(f"loaded pretrained classifier (val_only) with msg: {msg}")
         return classifiers, opt, scaler, 0
 
-    epoch = checkpoint["epoch"]
+    epoch = int(checkpoint["epoch"])
     logger.info(f"loaded pretrained classifier from epoch {epoch} with msg: {msg}")
 
-    # -- loading optimizer
+    # -- optimizer
     [o.load_state_dict(pd) for o, pd in zip(opt, checkpoint["opt"])]
 
-    if scaler is not None:
+    # -- scaler (if used)
+    if scaler is not None and "scaler" in checkpoint and checkpoint["scaler"] is not None:
         [s.load_state_dict(pd) for s, pd in zip(scaler, checkpoint["scaler"])]
 
-    logger.info(f"loaded optimizers from epoch {epoch}")
+    # Log metrics if present (keeps return arity identical)
+    if "best_val_acc" in checkpoint or "mean_val_acc" in checkpoint:
+        logger.info(
+            "loaded metrics: best_val_acc=%s mean_val_acc=%s",
+            checkpoint.get("best_val_acc", "NA"),
+            checkpoint.get("mean_val_acc", "NA"),
+        )
 
+    logger.info(f"loaded optimizers from epoch {epoch}")
     return classifiers, opt, scaler, epoch
+
 
 
 def load_pretrained(encoder, pretrained, checkpoint_key="target_encoder"):
