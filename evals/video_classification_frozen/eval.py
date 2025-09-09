@@ -158,7 +158,7 @@ def main(args_eval, resume_preempt=False):
             num_heads=num_heads,
             depth=num_probe_blocks,
             num_classes=num_classes,
-            use_activation_checkpointing=True,
+            use_activation_checkpointing=True, # Changed from true for faster compute (trading mem since 30GB free)
         ).to(device)
         for _ in opt_kwargs
     ]
