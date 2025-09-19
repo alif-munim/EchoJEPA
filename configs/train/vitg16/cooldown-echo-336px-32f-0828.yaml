@@ -81,8 +81,8 @@ model:
   num_mask_tokens: 10 # set automatically in the script
 optimization:
   is_anneal: true # set true init linear decay schedule, otherwise cosine decay
-  force_load_pretrain: true # force loading of vitg-384 ckpt, set to false if you have latest.pt and are resuming
-  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep/e200.pt # start from 168 epoch pretrained checkpoint
+  force_load_pretrain: false # force loading of vitg-384 ckpt, set to false if you have latest.pt and are resuming
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/1.8.vitg16-336px-16f-echo-0820/latest.pt # start from 200 epoch pretrained checkpoint
   ema:
   - 0.99925
   - 0.99925
