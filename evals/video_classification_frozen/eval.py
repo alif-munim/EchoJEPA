@@ -95,7 +95,7 @@ def main(args_eval, resume_preempt=False):
     # -- OPTIMIZATION
     args_opt = args_exp.get("optimization")
     use_focal_loss = args_opt.get("use_focal_loss", False)
-    
+
     batch_size = args_opt.get("batch_size")
     num_epochs = args_opt.get("num_epochs")
     use_bfloat16 = args_opt.get("use_bfloat16")
@@ -151,18 +151,27 @@ def main(args_eval, resume_preempt=False):
         wrapper_kwargs=args_wrapper,
         device=device,
     )
-    # -- init classifier
+
+    # -- init classifier (disable activation checkpointing; you have headroom)
     classifiers = [
         AttentiveClassifier(
             embed_dim=encoder.embed_dim,
             num_heads=num_heads,
             depth=num_probe_blocks,
             num_classes=num_classes,
-            use_activation_checkpointing=True, # Changed from true for faster compute (trading mem since 30GB free)
+            use_activation_checkpointing=True,
         ).to(device)
         for _ in opt_kwargs
     ]
-    classifiers = [DistributedDataParallel(c, static_graph=True) for c in classifiers]
+    # classifiers = [DistributedDataParallel(c, static_graph=True) for c in classifiers
+    # Add distributed check to avoid DDP crash when running concurrent jobs  
+    from torch import distributed as dist  
+    use_ddp = dist.is_available() and dist.is_initialized() and world_size > 1  
+    if use_ddp:  
+        classifiers = [DistributedDataParallel(c, static_graph=True) for c in classifiers]  
+    else:  
+        logger.info(f"DDP disabled (world_size={world_size}); running single-process.")
+        
     print(classifiers[0])
 
     train_loader, train_sampler = make_dataloader(
@@ -226,10 +235,18 @@ def main(args_eval, resume_preempt=False):
             [s.step() for s in scheduler]
             [wds.step() for wds in wd_scheduler]
 
-    def save_checkpoint(epoch, mean_val_acc, best_val_acc):
+    # ---- per-head running stats ----
+    best_per_head = None
+    sum_per_head = None
+    min_per_head = None
+    best_epoch_per_head = None
+    count_epochs = 0
+
+    def save_checkpoint(epoch, mean_val_acc, best_val_acc,
+                        val_heads, best_per_head, mean_per_head, min_per_head, best_epoch_per_head):
         all_classifier_dicts = [c.state_dict() for c in classifiers]
         all_opt_dicts = [o.state_dict() for o in optimizer]
-    
+
         save_dict = {
             "classifiers": all_classifier_dicts,
             "opt": all_opt_dicts,
@@ -237,31 +254,42 @@ def main(args_eval, resume_preempt=False):
             "epoch": epoch,
             "batch_size": batch_size,
             "world_size": world_size,
-            # ---- metrics you asked to persist ----
+
+            # ---- scalar metrics (max over heads, as before) ----
             "mean_val_acc": float(mean_val_acc),
             "best_val_acc": float(best_val_acc),
+
+            # ---- per-head metrics ----
+            "val_acc_per_head": np.asarray(val_heads, dtype=float).tolist(),
+            "best_val_acc_per_head": np.asarray(best_per_head, dtype=float).tolist(),
+            "mean_val_acc_per_head": np.asarray(mean_per_head, dtype=float).tolist(),
+            "min_val_acc_per_head": np.asarray(min_per_head, dtype=float).tolist(),
+            "best_epoch_per_head": np.asarray(best_epoch_per_head, dtype=int).tolist(),
+
+            # ---- grid (LR/WD mapping for each head) ----
+            "opt_grid": opt_kwargs,
         }
         if rank == 0:
             # keep rolling latest
-            latest_path = os.path.join(folder, "latest.pt")
-            torch.save(save_dict, latest_path)
-    
+            _latest_path = os.path.join(folder, "latest.pt")
+            torch.save(save_dict, _latest_path)
+
             # save a per-epoch snapshot too
             epoch_path = os.path.join(folder, f"epoch_{epoch:03d}.pt")
             torch.save(save_dict, epoch_path)
 
-
     # TRAIN LOOP
-    best_val_acc = 0.0
+    best_val_acc_scalar = 0.0
     val_cnt = 0
-    val_sum = 0.0
+    val_sum_scalar = 0.0
     for epoch in range(start_epoch, num_epochs):
         logger.info("Epoch %d" % (epoch + 1))
         train_sampler.set_epoch(epoch)
+
         if val_only:
-            train_acc = -1.0
+            train_acc_scalar, _ = -1.0, None
         else:
-            train_acc = run_one_epoch(
+            train_acc_scalar, _ = run_one_epoch(
                 device=device,
                 training=True,
                 encoder=encoder,
@@ -272,10 +300,10 @@ def main(args_eval, resume_preempt=False):
                 wd_scheduler=wd_scheduler,
                 data_loader=train_loader,
                 use_bfloat16=use_bfloat16,
-                use_focal_loss=use_focal_loss,  # Add this  
+                use_focal_loss=use_focal_loss,
             )
 
-        val_acc = run_one_epoch(
+        val_acc_scalar, val_heads = run_one_epoch(
             device=device,
             training=False,
             encoder=encoder,
@@ -286,22 +314,47 @@ def main(args_eval, resume_preempt=False):
             wd_scheduler=wd_scheduler,
             data_loader=val_loader,
             use_bfloat16=use_bfloat16,
-            use_focal_loss=use_focal_loss,  # Add this  
+            use_focal_loss=use_focal_loss,
         )
+
+        # ---- update scalar running stats (max over heads) ----
         val_cnt += 1
-        val_sum += float(val_acc)
-        mean_val_acc = val_sum / val_cnt
-        best_val_acc = max(best_val_acc, float(val_acc))
+        val_sum_scalar += float(val_acc_scalar)
+        mean_val_acc_scalar = val_sum_scalar / val_cnt
+        best_val_acc_scalar = max(best_val_acc_scalar, float(val_acc_scalar))
 
+        # ---- update per-head running stats ----
+        count_epochs += 1
+        if best_per_head is None:
+            best_per_head = val_heads.copy()
+            sum_per_head = val_heads.copy()
+            min_per_head = val_heads.copy()
+            best_epoch_per_head = np.full_like(val_heads, epoch + 1, dtype=int)
+        else:
+            improved = val_heads > best_per_head
+            best_epoch_per_head[improved] = epoch + 1
+            best_per_head = np.maximum(best_per_head, val_heads)
+            sum_per_head += val_heads
+            min_per_head = np.minimum(min_per_head, val_heads)
+        mean_per_head = sum_per_head / count_epochs
 
-        logger.info("[%5d] train: %.3f%% test: %.3f%%" % (epoch + 1, train_acc, val_acc))
+        logger.info("[%5d] train: %.3f%%  val(max-head): %.3f%%" % (epoch + 1, train_acc_scalar, val_acc_scalar))
         if rank == 0:
-            csv_logger.log(epoch + 1, train_acc, val_acc)
+            csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar)
 
         if val_only:
             return
 
-        save_checkpoint(epoch + 1, mean_val_acc, best_val_acc)
+        save_checkpoint(
+            epoch + 1,
+            mean_val_acc_scalar,
+            best_val_acc_scalar,
+            val_heads,
+            best_per_head,
+            mean_per_head,
+            min_per_head,
+            best_epoch_per_head,
+        )
 
 
 def run_one_epoch(
@@ -315,14 +368,14 @@ def run_one_epoch(
     wd_scheduler,
     data_loader,
     use_bfloat16,
-    use_focal_loss=False,  # Add this parameter  
+    use_focal_loss=False,
 ):
-
     for c in classifiers:
         c.train(mode=training)
 
     criterion = sigmoid_focal_loss if use_focal_loss else torch.nn.CrossEntropyLoss()
     top1_meters = [AverageMeter() for _ in classifiers]
+
     for itr, data in enumerate(data_loader):
         if training:
             [s.step() for s in scheduler]
@@ -368,7 +421,7 @@ def run_one_epoch(
         _agg_top1 = np.array([t1m.avg for t1m in top1_meters])
         if itr % 10 == 0:
             logger.info(
-                "[%5d] %.3f%% [%.3f%% %.3f%%] [mem: %.2e]"
+                "[%5d] %.3f%% [mean %.3f%% min %.3f%%] [mem: %.2e]"
                 % (
                     itr,
                     _agg_top1.max(),
@@ -378,7 +431,7 @@ def run_one_epoch(
                 )
             )
 
-    return _agg_top1.max()
+    return float(_agg_top1.max()), _agg_top1
 
 
 def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
@@ -420,7 +473,6 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
 
     logger.info(f"loaded optimizers from epoch {epoch}")
     return classifiers, opt, scaler, epoch
-
 
 
 def load_pretrained(encoder, pretrained, checkpoint_key="target_encoder"):
@@ -529,7 +581,6 @@ def init_opt(classifiers, iterations_per_epoch, opt_kwargs, num_epochs, use_bflo
 
 
 class WarmupCosineLRSchedule(object):
-
     def __init__(self, optimizer, T_max, last_epoch=-1):
         self.optimizer = optimizer
         self.T_max = T_max
@@ -557,7 +608,6 @@ class WarmupCosineLRSchedule(object):
 
 
 class CosineWDSchedule(object):
-
     def __init__(self, optimizer, T_max):
         self.optimizer = optimizer
         self.T_max = T_max

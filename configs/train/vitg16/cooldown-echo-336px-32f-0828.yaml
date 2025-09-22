@@ -1,13 +1,13 @@
 app: vjepa
 cpus_per_task: 32
-folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/1.8.vitg16-336px-16f-echo-0828
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/1.8.vitg16-336px-16f-echo-0922-v3
 mem_per_gpu: 80G
 nodes: 1
 tasks_per_node: 8
 data:
   dataset_type: VideoDataset
   datasets:
-  - /home/sagemaker-user/user-default-efs/vjepa2/data/annotations_s3.csv # 18.1M echocardiogram video clips
+  - /home/sagemaker-user/user-default-efs/vjepa2/data/csv/annotations_s3.csv # 18.1M echocardiogram video clips
   datasets_weights:
   - 1.0
   batch_size: 40 # decreased from 80
@@ -60,7 +60,7 @@ mask:
   - 1.0
   - 1.0
 meta:
-  s3_checkpoint_uri: "s3://echodata25/vjepa2/anneal-0828/" # need to add this for s3 uploads
+  s3_checkpoint_uri: "s3://echodata25/vjepa2/anneal-0922/" # need to add this for s3 uploads
   dtype: bfloat16
   eval_freq: 100
   load_checkpoint: true # make sure your model folder has a latest.pt inside of it
@@ -81,12 +81,12 @@ model:
   num_mask_tokens: 10 # set automatically in the script
 optimization:
   is_anneal: true # set true init linear decay schedule, otherwise cosine decay
-  force_load_pretrain: false # force loading of vitg-384 ckpt, set to false if you have latest.pt and are resuming
-  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/1.8.vitg16-336px-16f-echo-0820/latest.pt # start from 200 epoch pretrained checkpoint
+  force_load_pretrain: true # force loading of vitg-384 ckpt, set to false if you have latest.pt and are resuming
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep/e279.pt # start from 200 epoch pretrained checkpoint
   ema:
   - 0.99925
   - 0.99925
-  epochs: 40
+  epochs: 200
   final_lr: 1.0416e-07 # orig 1.0e-06 (scaled by ref batch size 3072)
   final_weight_decay: 0.04
   ipe: 300

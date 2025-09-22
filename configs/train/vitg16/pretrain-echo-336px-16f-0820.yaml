@@ -7,7 +7,7 @@ tasks_per_node: 8
 data:
   dataset_type: VideoDataset
   datasets:
-  - /home/sagemaker-user/user-default-efs/vjepa2/data/annotations_s3.csv # 18.1M echocardiogram video clips
+  - /home/sagemaker-user/user-default-efs/vjepa2/data/csv/annotations_s3.csv # 18.1M echocardiogram video clips
   datasets_weights:
   - 1.0
   batch_size: 80

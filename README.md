@@ -1,14 +1,14 @@
 # V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning
 
 ### Dataset
-deid_overlap_revamped.ipynb -- combined syngo and heartlab oids with deids (aws_syngo_exclusive_0806.csv, aws_heartlab_0806.csv)
-starter_labels.ipynb -- building file paths for vjepa2 classifier training (must have s3 uri and value)
-build_manifests.ipynb -- build file manifests on s3 for classification into different views (all_es_combined.parquet)
-data/build_pacemaker_dataset.ipynb -- building a4c pacemaker dataset (+ tiny subset) for fast iteration
-build_dataset.ipynb -- building labeled datasets for vjepa2 classifier training in ssv2 format
-identifiers.ipynb -- heartlab mapping to deidentified studies (patient_to_study.csv)
-heartlab_link.ipynb -- link heartlab reports, studies, and series to videos (heartlab_rep_study_video.csv)
-deid_overlap.ipynb -- overlap of syngo deid keys with data on AWS (aws_uhn.csv)
+- deid_overlap_revamped.ipynb -- combined syngo and heartlab oids with deids (aws_syngo_exclusive_0806.csv, aws_heartlab_0806.csv)
+- starter_labels.ipynb -- building file paths for vjepa2 classifier training (must have s3 uri and value)
+- build_manifests.ipynb -- build file manifests on s3 for classification into different views (all_es_combined.parquet)
+- data/build_pacemaker_dataset.ipynb -- building a4c pacemaker dataset (+ tiny subset) for fast iteration
+- build_dataset.ipynb -- building labeled datasets for vjepa2 classifier training in ssv2 format
+- identifiers.ipynb -- heartlab mapping to deidentified studies (patient_to_study.csv)
+- heartlab_link.ipynb -- link heartlab reports, studies, and series to videos (heartlab_rep_study_video.csv)
+- deid_overlap.ipynb -- overlap of syngo deid keys with data on AWS (aws_uhn.csv)
 
 ### Debug
 For debugging issues.
@@ -52,12 +52,18 @@ chmod +x watcher.sh
 2. `data/build_rvfx_dataset.ipynb.ipynb` -- Create train test splits and put it in VJEPA format.
 3. `configs/eval/vitg-384/rvfx.yaml` -- Create your grid search.
 
+
+### Inference
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/rvfx.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 2>&1 | tee rvfx_inference_0911.log
+```
+
 ### Classifier Training
 
 Download checkpoint
 ```
 cd /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep
-aws s3 cp s3://echodata25/vjepa2/checkpoints-0820/e198.pt .
+aws s3 cp s3://echodata25/vjepa2/checkpoints-0820/e279.pt .
 ```
 
 ```
@@ -65,12 +71,45 @@ cd /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep
 aws s3 cp s3://echodata25/vjepa2/anneal-0828/e39.pt .
 ```
 
+Small Exp:
 ```
+unset SLURM_LOCALID
+CUDA_VISIBLE_DEVICES=0 python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_anneal_ssv2_min.yaml \
+    --devices cuda:0 2>&1 | tee rvfx_bs8_ns2_anneal_e39_ssv2_min_0919.log
+
+unset SLURM_LOCALID  
+CUDA_VISIBLE_DEVICES=3 python -m evals.main \
+  --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_pretrain_ssv2_min.yaml \
+  --devices cuda:3 2>&1 | tee rvfx_bs8_ns2_pretrain_e249_ssv2_min_0919.log
+```
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_anneal_ssv2_min.yaml --devices cuda:0 2>&1 | tee rvfx_bs8_ns2_anneal_e39_ssv2_min_0919.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_pretrain_ssv2_min.yaml --devices cuda:1 2>&1 | tee rvfx_bs8_ns2_pretrain_e198_ssv2_min_0919.log
+```
+
+
+RVFX: H32, B6
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_h32_b6.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_h32_b6_0831.log
 ```
 
-Final pretrain, 21ep anneal
+LAD: 39ep anneal
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lad_bs8_ns2_anneal_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lad_bs8_ns2_anneal39_0919_v0.log
+```
+
+TVR: 39ep anneal
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/tvr_bs8_ns2_anneal_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee tvr_bs8_ns2_anneal39_0912_v0.log
+```
+
+MVR: 39ep anneal
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/mvr_bs8_ns2_anneal_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee mvr_bs8_ns2_anneal39_0911_v2.log
+```
+
+RVFX: Final pretrain, 39ep anneal
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_pt.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pt200_0830.log
 
@@ -79,7 +118,7 @@ python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/config
 
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_anneal_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_anneal39_ssv2_0905.log
 
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_pretrain_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pretrain198_ssv2_0905.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_pretrain_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pretrain279_ssv2_0920.log
 ```
 
 Best settings for RVFX
@@ -139,9 +178,10 @@ Sample outputs. `[iteration num]` `[max acc]` `[mean min]` (across all heads).
 ```
 
 ### Run Annealing
-Cooldown run
+Cooldown run.
+> Note: Make sure you create a brand new folder for the run and set force_load_pretrain to true from your final pretrain checkpoint.
 ```
-python -m app.main --fname configs/train/vitg16/cooldown-echo-336px-32f-0828.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee cooldown-echo-336px-32f-ep200-0828.log
+python -m app.main --fname configs/train/vitg16/cooldown-echo-336px-32f-0828.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee cooldown-echo-336px-32f-ep279-0922.log
 ```
 
 ### Run SSL Pretraining
@@ -157,7 +197,7 @@ export NCCL_DEBUG=INFO
 
 (New) cooldown script with LR adjusted to global batch and token ratios.
 ```
-python -m app.main --fname configs/train/vitg16/pretrain-echo-336px-16f-0820.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee pretrain-echo-336px-16f-ep120-200-0825.log
+python -m app.main --fname configs/train/vitg16/pretrain-echo-336px-16f-0820.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee pretrain-echo-336px-16f-ep200-400-0922.log
 ```
 
 (Old) Run pretraining with domain and LR adaptation (better if training from scratch).
