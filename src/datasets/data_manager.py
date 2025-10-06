@@ -42,6 +42,7 @@ def init_data(
     img_size=336,
     miss_augment_prob=0.0,          # <<< NEW
     min_present=1,                  # <<< NEW
+    split_name="train"
 ):
     if data.lower() == "imagenet":
         from src.datasets.imagenet1k import make_imagenet1k
@@ -117,6 +118,7 @@ def init_data(
             training=training,                 # <<< NEW
             miss_augment_prob=miss_augment_prob,          # <<< NEW
             min_present=min_present,                  # <<< NEW
+            split_name=split_name
         )
 
     return (data_loader, dist_sampler)

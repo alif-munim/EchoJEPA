@@ -66,6 +66,7 @@ def make_videogroupdataset(
     training=False,                 # <<< NEW
     miss_augment_prob=0.0,          # <<< NEW
     min_present=1,                  # <<< NEW
+    split_name="train"
 ):
     ds = VideoGroupDataset(
         data_paths=data_paths,
@@ -85,10 +86,11 @@ def make_videogroupdataset(
         training=training,                # <<< pass through
         miss_augment_prob=miss_augment_prob,
         min_present=min_present,
+        split_name=split_name
     )
     
     # Mark the split (used by MISS augmentation)
-    ds._is_training = bool(training)
+    # ds._is_training = bool(training)
 
     # Optional per-worker resource logging, as in your other datasets
     log_dir = pathlib.Path(log_dir) if log_dir else None
@@ -164,7 +166,8 @@ class VideoGroupDataset(Dataset):
         img_size=336,
         training=False, 
         miss_augment_prob=0.0, 
-        min_present=1
+        min_present=1,
+        split_name="train"
     ):
         super().__init__()
     
@@ -221,10 +224,14 @@ class VideoGroupDataset(Dataset):
         
         self.img_size = int(img_size)
         self.miss_augment_prob = float(miss_augment_prob)
-        self.min_present = int(min_present)
-        self._is_training = False  # set by factory
-
-        logger.info(f"MISS augmentation: p={self.miss_augment_prob} min_present={self.min_present} (train={self._is_training})")
+        self.min_present = int(min(min_present, self.group_size))
+        self._is_training = bool(training)
+        self.split_name = str(split_name)
+      
+        logger.info(
+            f"[{self.split_name}] MISS augmentation: p={self.miss_augment_prob} "
+            f"min_present={self.min_present} (train={self._is_training})"
+        )
     
         # One S3 client per worker (lazily created in _ensure_s3_client)
         self.s3_client = None

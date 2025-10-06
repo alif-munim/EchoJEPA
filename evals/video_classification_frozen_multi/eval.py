@@ -77,6 +77,9 @@ def main(args_eval, resume_preempt=False):
     args_classifier = args_exp.get("classifier")
     num_probe_blocks = args_classifier.get("num_probe_blocks", 1)
     num_heads = args_classifier.get("num_heads", 16)
+  
+    use_slot_embeddings = args_classifier.get("use_slot_embeddings", False)
+    use_factorized = args_classifier.get("use_factorized", True)
 
     # -- DATA
     args_data = args_exp.get("data")
@@ -91,9 +94,14 @@ def main(args_eval, resume_preempt=False):
     duration = args_data.get("clip_duration", None)
     num_views_per_segment = args_data.get("num_views_per_segment", 1)
     normalization = args_data.get("normalization", None)
+    
     num_clips_per_video = args_data.get("num_clips_per_video", 1)  # NEW
+    
     miss_augment_prob = args_data.get("miss_augment_prob", 0.0)
     min_present       = args_data.get("min_present", 1)
+    
+    num_views = args_data.get("num_segments", 1)
+    clips_per_view = args_data.get("num_clips_per_video", 1)
 
     # -- OPTIMIZATION
     args_opt = args_exp.get("optimization")
@@ -156,6 +164,16 @@ def main(args_eval, resume_preempt=False):
     )
 
     # -- init classifier (disable activation checkpointing; you have headroom)
+    # classifiers = [
+    #     AttentiveClassifier(
+    #         embed_dim=encoder.embed_dim,
+    #         num_heads=num_heads,
+    #         depth=num_probe_blocks,
+    #         num_classes=num_classes,
+    #         use_activation_checkpointing=True,
+    #     ).to(device)
+    #     for _ in opt_kwargs
+    # ]
     classifiers = [
         AttentiveClassifier(
             embed_dim=encoder.embed_dim,
@@ -163,9 +181,14 @@ def main(args_eval, resume_preempt=False):
             depth=num_probe_blocks,
             num_classes=num_classes,
             use_activation_checkpointing=True,
+            use_slot_embeddings=use_slot_embeddings,
+            num_views=num_views,
+            clips_per_view=clips_per_view,
+            use_factorized=use_factorized,
         ).to(device)
         for _ in opt_kwargs
     ]
+    
     # classifiers = [DistributedDataParallel(c, static_graph=True) for c in classifiers
     # Add distributed check to avoid DDP crash when running concurrent jobs  
     from torch import distributed as dist  
@@ -197,6 +220,7 @@ def main(args_eval, resume_preempt=False):
         # NEW kwargs thread down to make_videogroupdataset -> VideoGroupDataset
         miss_augment_prob=miss_augment_prob,
         min_present=min_present,
+        split_name="train"
     )  
 
     # val loader -> keep 0.0 (default) and training=False
@@ -219,6 +243,7 @@ def main(args_eval, resume_preempt=False):
         normalization=normalization,
         miss_augment_prob=0.0,
         min_present=min_present,
+        split_name="val"
     )
     ipe = len(train_loader)
     logger.info(f"Dataloader created... iterations per epoch: {ipe}")
@@ -421,6 +446,10 @@ def run_one_epoch(
             token_keep = slot_present.repeat_interleave(tokens_per_slot, dim=1)  # [B, N] bool
             key_padding_mask = ~token_keep  # True = ignore
 
+            if itr == 0 and training and labels.shape[0] == 1:
+                logger.info(f"Probe: tokens_per_slot={tokens_per_slot}, slots={S}, N={N}")
+
+
             # (Optional) if an entire batch row is all-missing, you could skip/continue
             # if key_padding_mask.all(dim=1).any():
             #     warnings.warn("Batch contains example with all slots missing; consider filtering upstream.")
@@ -560,6 +589,7 @@ def make_dataloader(
     normalization=None,
     miss_augment_prob=0.0,
     min_present=1,
+    split_name="train"
 ):
     if normalization is None:
         normalization = DEFAULT_NORMALIZATION
@@ -619,6 +649,7 @@ def make_dataloader(
         training=training,
         miss_augment_prob=miss_augment_prob,
         min_present=min_present,
+        split_name=split_name
     )
       
     return data_loader, data_sampler
