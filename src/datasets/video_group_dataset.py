@@ -353,19 +353,19 @@ class VideoGroupDataset(Dataset):
             return None
 
 
-    # ---------- Core video loader (local or S3) ----------
     def _loadvideo_decord_multi(self, sample_uri: str, fpc: int, k: int):
         """
-        Open (local or S3) and return K *independent* clips, each with exactly `fpc` frames.
-        Returns:
-          clips: List[np.ndarray [fpc, H, W, 3] (uint8)]
-          per_clip_inds: List[np.int64[fpc]]
+        Return K contiguous clips, each exactly fpc frames sampled at stride `fstp`,
+        i.e., raw windows [i*clip_len, (i+1)*clip_len) without randomness.
+    
+        If the video is short, indices are clipped to [0, V-1] and padded by
+        repeating the last valid frame to keep length fpc.
         """
         vr = self._open_vr(sample_uri)
         if vr is None:
             return [], None
     
-        # Resolve effective frame step (same semantics as single-clip sampler)
+        # --- derive stride and window size ---
         fstp = self.frame_step
         if (self.duration is not None) or (self.fps is not None):
             try:
@@ -386,74 +386,48 @@ class VideoGroupDataset(Dataset):
                 fstp = max(1, int(video_fps // max(1, self.fps)))
     
         assert fstp is not None and fstp > 0
-        clip_len = int(fpc * fstp)
-        V = len(vr)
+        clip_len = int(fpc * fstp)          # raw-frame span per clip
+        V = len(vr)                         # total raw frames
     
-        # Build K index arrays; partition the timeline and pick one window per partition when possible
+        # --- build K contiguous windows: [i*clip_len, (i+1)*clip_len) ---
         per_clip_inds = []
-        all_inds = []
-    
-        if k <= 1:
-            # Single-clip path (identical to previous semantics, but inlined)
-            if V < clip_len:
-                base = max(1, V // max(1, fstp))
-                inds = np.linspace(0, max(0, V), num=base)
-                if base < fpc:
-                    inds = np.concatenate((inds, np.ones(fpc - base) * max(0, V - 1)))
-                inds = np.clip(inds, 0, max(0, V - 1)).astype(np.int64)
-            else:
-                if self.random_clip_sampling and (V > clip_len):
-                    end_idx = np.random.randint(clip_len, V + 1)  # high is exclusive
-                else:
-                    end_idx = clip_len
-                start_idx = end_idx - clip_len
-                inds = np.linspace(start_idx, end_idx, num=fpc)
-                inds = np.clip(inds, start_idx, max(start_idx, end_idx - 1)).astype(np.int64)
-    
-            per_clip_inds.append(inds)
-            frames = vr.get_batch(inds).asnumpy()
-            return [frames], per_clip_inds
-    
-        # Multi-clip: slice the timeline into ~k partitions; last partition takes the remainder
-        part = max(1, V // k)
         for i in range(k):
-            seg_start = i * part
-            seg_end = V if i == k - 1 else (i + 1) * part
-            seg_len = max(0, seg_end - seg_start)
+            start = i * clip_len
+            end   = start + clip_len
     
-            if seg_len >= clip_len:
-                # Enough slack: optional random position within partition
-                if self.random_clip_sampling and (seg_len > clip_len):
-                    end_idx = np.random.randint(seg_start + clip_len, seg_end + 1)  # exclusive high
-                else:
-                    end_idx = seg_start + clip_len
-                start_idx = end_idx - clip_len
-                inds = np.linspace(start_idx, end_idx, num=fpc)
-                inds = np.clip(inds, start_idx, max(start_idx, end_idx - 1)).astype(np.int64)
+            # ideal regular sampling at stride `fstp`
+            inds = np.arange(start, end, fstp, dtype=np.int64)  # length <= fpc
+    
+            # clamp to video range and pad if short
+            if V > 0:
+                inds = np.clip(inds, 0, V - 1)
             else:
-                # Not enough frames in this partition: spread & pad to fpc
-                step = max(1, fstp)
-                base = max(1, seg_len // step)
-                inds = np.linspace(seg_start, seg_end, num=base)
-                if base < fpc:
-                    inds = np.concatenate((inds, np.ones(fpc - base) * max(seg_start, seg_end - 1)))
-                inds = np.clip(inds, seg_start, max(seg_start, seg_end - 1)).astype(np.int64)
+                # empty video fallback -> all zeros
+                inds = np.zeros((fpc,), dtype=np.int64)
+    
+            if inds.shape[0] < fpc:
+                # pad by repeating last valid index
+                pad = np.full((fpc - inds.shape[0],), inds[-1] if inds.shape[0] > 0 else 0, dtype=np.int64)
+                inds = np.concatenate([inds, pad], axis=0)
+    
+            # defensively truncate (in case of off-by-one)
+            if inds.shape[0] > fpc:
+                inds = inds[:fpc]
     
             per_clip_inds.append(inds)
-            all_inds.extend(list(inds))
     
-        # Single batched fetch, then split back into K clips by lengths
-        all_inds = np.asarray(all_inds, dtype=np.int64)
-        frames_all = vr.get_batch(all_inds).asnumpy()
+        # --- single batched fetch and split ---
+        all_inds = np.concatenate(per_clip_inds, axis=0)
+        frames_all = vr.get_batch(all_inds).asnumpy()  # [sum_k fpc, H, W, 3]
     
         clips = []
         offset = 0
-        for inds in per_clip_inds:
-            t = len(inds)
-            clips.append(frames_all[offset:offset + t])
-            offset += t
+        for _ in range(k):
+            clips.append(frames_all[offset:offset + fpc])
+            offset += fpc
     
         return clips, per_clip_inds
+
 
 
     # ---------- Sampling (shared with single-video dataset) ----------
