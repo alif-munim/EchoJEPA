@@ -39,7 +39,9 @@ def init_data(
     persistent_workers=False,
     deterministic=True,
     log_dir=None,
-    img_size=336
+    img_size=336,
+    miss_augment_prob=0.0,          # <<< NEW
+    min_present=1,                  # <<< NEW
 ):
     if data.lower() == "imagenet":
         from src.datasets.imagenet1k import make_imagenet1k
@@ -112,6 +114,9 @@ def init_data(
             deterministic=deterministic,  
             log_dir=log_dir,
             img_size=img_size,                # <<< add this line
+            training=training,                 # <<< NEW
+            miss_augment_prob=miss_augment_prob,          # <<< NEW
+            min_present=min_present,                  # <<< NEW
         )
 
     return (data_loader, dist_sampler)

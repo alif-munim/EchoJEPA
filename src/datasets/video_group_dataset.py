@@ -63,6 +63,9 @@ def make_videogroupdataset(
     deterministic=True,
     log_dir=None,
     img_size=336,                      # <<< NEW (pass resolution)
+    training=False,                 # <<< NEW
+    miss_augment_prob=0.0,          # <<< NEW
+    min_present=1,                  # <<< NEW
 ):
     ds = VideoGroupDataset(
         data_paths=data_paths,
@@ -79,7 +82,13 @@ def make_videogroupdataset(
         shared_transform=shared_transform,
         transform=transform,
         img_size=img_size,             # <<< NEW
+        training=training,                # <<< pass through
+        miss_augment_prob=miss_augment_prob,
+        min_present=min_present,
     )
+    
+    # Mark the split (used by MISS augmentation)
+    ds._is_training = bool(training)
 
     # Optional per-worker resource logging, as in your other datasets
     log_dir = pathlib.Path(log_dir) if log_dir else None
@@ -152,7 +161,10 @@ class VideoGroupDataset(Dataset):
         filter_long_videos=int(10**9),
         shared_transform=None,
         transform=None,
-        img_size=336
+        img_size=336,
+        training=False, 
+        miss_augment_prob=0.0, 
+        min_present=1
     ):
         super().__init__()
     
@@ -206,7 +218,13 @@ class VideoGroupDataset(Dataset):
         self.filter_long_videos = filter_long_videos
         self.shared_transform = shared_transform
         self.transform = transform
+        
         self.img_size = int(img_size)
+        self.miss_augment_prob = float(miss_augment_prob)
+        self.min_present = int(min_present)
+        self._is_training = False  # set by factory
+
+        logger.info(f"MISS augmentation: p={self.miss_augment_prob} min_present={self.min_present} (train={self._is_training})")
     
         # One S3 client per worker (lazily created in _ensure_s3_client)
         self.s3_client = None
@@ -254,8 +272,9 @@ class VideoGroupDataset(Dataset):
 
     def _get_item_row(self, row):
         label = int(row["label"])
-        uris = []
-        present = []
+    
+        # ---- collect URIs and initial presence flags from CSV ----
+        uris, present = [], []
         for c in self.view_cols:
             v = row[c]
             if isinstance(v, str):
@@ -268,21 +287,47 @@ class VideoGroupDataset(Dataset):
                 uris.append(v)
                 present.append(1)
     
-        segs, clip_indices_out, slot_mask = [], [], []
+        # ---- stochastic view-level MISS augmentation (training only) ----
+        # Flip some PRESENT views to missing with prob self.miss_augment_prob,
+        # while enforcing at least self.min_present survivors.
+        if self._is_training and self.miss_augment_prob > 0.0:
+            rng = np.random.default_rng()
+            pres_idx = [i for i, p in enumerate(present) if p]
+            if len(pres_idx) > 0:
+                drops = rng.random(len(pres_idx)) < float(self.miss_augment_prob)
     
+                # survivors if we applied the drops
+                survivors = [i for i, d in zip(pres_idx, drops) if not d]
+                need_min = max(1, int(getattr(self, "min_present", 1)))
+                restore = set()
+                if len(survivors) < need_min:
+                    need = need_min - len(survivors)
+                    dropped = [i for i, d in zip(pres_idx, drops) if d]
+                    if len(dropped) > 0:
+                        restore_sel = rng.choice(dropped, size=min(need, len(dropped)), replace=False)
+                        restore = set(int(x) for x in np.atleast_1d(restore_sel))
+    
+                # apply the (possibly corrected) drops
+                for i, d in zip(pres_idx, drops):
+                    if d and (i not in restore):
+                        uris[i] = None
+                        present[i] = 0
+    
+        # ---- load/construct clips per slot ----
+        segs, clip_indices_out, slot_mask = [], [], []
         for uri, p in zip(uris, present):
             if not p:
-                # missing view -> dummy black clips
+                # Missing view → dummy black clips (shape compatible with transforms)
                 T = self.frames_per_clip
                 H = W = self.img_size
                 dummy = np.zeros((T, H, W, 3), dtype=np.uint8)
                 clips = [dummy for _ in range(self.num_clips_per_video)]
                 idxs  = [np.arange(T, dtype=np.int64) for _ in range(self.num_clips_per_video)]
             else:
-                # NEW: use contiguous multi-clip loader
+                # Contiguous multi-clip loader (K clips of length fpc, non-overlapping)
                 clips, idxs = self._loadvideo_decord_multi(uri, self.frames_per_clip, self.num_clips_per_video)
                 if clips is None or len(clips) == 0:
-                    # fallback to dummy if load failed
+                    # Fallback to dummy if load failed
                     T = self.frames_per_clip
                     H = W = self.img_size
                     dummy = np.zeros((T, H, W, 3), dtype=np.uint8)
@@ -294,9 +339,11 @@ class VideoGroupDataset(Dataset):
     
             segs.extend(clips)
             clip_indices_out.extend(idxs)
-            slot_mask.extend([1 if p else 0] * len(clips))
+            # Per-clip presence flag (replicate the view's presence for its K clips)
+            slot_mask.extend([bool(p)] * len(clips))
     
         return segs, label, clip_indices_out, torch.tensor(slot_mask, dtype=torch.bool)
+
 
 
 

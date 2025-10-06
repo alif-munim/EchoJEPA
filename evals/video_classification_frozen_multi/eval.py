@@ -92,6 +92,8 @@ def main(args_eval, resume_preempt=False):
     num_views_per_segment = args_data.get("num_views_per_segment", 1)
     normalization = args_data.get("normalization", None)
     num_clips_per_video = args_data.get("num_clips_per_video", 1)  # NEW
+    miss_augment_prob = args_data.get("miss_augment_prob", 0.0)
+    min_present       = args_data.get("min_present", 1)
 
     # -- OPTIMIZATION
     args_opt = args_exp.get("optimization")
@@ -191,9 +193,13 @@ def main(args_eval, resume_preempt=False):
         rank=rank,  
         training=True,  
         num_workers=num_workers,  
-        normalization=normalization,  
+        normalization=normalization,
+        # NEW kwargs thread down to make_videogroupdataset -> VideoGroupDataset
+        miss_augment_prob=miss_augment_prob,
+        min_present=min_present,
     )  
-      
+
+    # val loader -> keep 0.0 (default) and training=False
     val_loader, _ = make_dataloader(  
         dataset_type=dataset_type,  
         root_path=val_data_path,  
@@ -210,7 +216,9 @@ def main(args_eval, resume_preempt=False):
         rank=rank,  
         training=False,  
         num_workers=num_workers,  
-        normalization=normalization,  
+        normalization=normalization,
+        miss_augment_prob=0.0,
+        min_present=min_present,
     )
     ipe = len(train_loader)
     logger.info(f"Dataloader created... iterations per epoch: {ipe}")
@@ -550,6 +558,8 @@ def make_dataloader(
     num_workers=12,
     subset_file=None,
     normalization=None,
+    miss_augment_prob=0.0,
+    min_present=1,
 ):
     if normalization is None:
         normalization = DEFAULT_NORMALIZATION
@@ -605,7 +615,10 @@ def make_dataloader(
         num_workers=num_workers,
         drop_last=False,
         subset_file=subset_file,
-        img_size=img_size
+        img_size=img_size,
+        training=training,
+        miss_augment_prob=miss_augment_prob,
+        min_present=min_present,
     )
       
     return data_loader, data_sampler
