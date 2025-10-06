@@ -19,6 +19,7 @@ from src.datasets.utils.dataloader import MonitoredDataset, NondeterministicData
 from src.datasets.utils.weighted_sampler import DistributedWeightedSampler
 
 logger = getLogger()
+MISSING_TOKEN = "MISS"
 
 
 def _worker_init_fn(_):
@@ -61,6 +62,7 @@ def make_videogroupdataset(
     persistent_workers=True,
     deterministic=True,
     log_dir=None,
+    img_size=336,                      # <<< NEW (pass resolution)
 ):
     ds = VideoGroupDataset(
         data_paths=data_paths,
@@ -76,6 +78,7 @@ def make_videogroupdataset(
         filter_long_videos=filter_long_videos,
         shared_transform=shared_transform,
         transform=transform,
+        img_size=img_size,             # <<< NEW
     )
 
     # Optional per-worker resource logging, as in your other datasets
@@ -149,6 +152,7 @@ class VideoGroupDataset(Dataset):
         filter_long_videos=int(10**9),
         shared_transform=None,
         transform=None,
+        img_size=336
     ):
         super().__init__()
     
@@ -202,6 +206,7 @@ class VideoGroupDataset(Dataset):
         self.filter_long_videos = filter_long_videos
         self.shared_transform = shared_transform
         self.transform = transform
+        self.img_size = int(img_size)
     
         # One S3 client per worker (lazily created in _ensure_s3_client)
         self.s3_client = None
@@ -249,57 +254,51 @@ class VideoGroupDataset(Dataset):
 
     def _get_item_row(self, row):
         label = int(row["label"])
-    
-        # Collect URIs for this group (order preserved)
         uris = []
+        present = []
         for c in self.view_cols:
             v = row[c]
-            if isinstance(v, str) and len(v.strip()) > 0:
-                uris.append(v.strip())
-            else:
+            if isinstance(v, str):
+                v = v.strip()
+            is_missing = (v is None) or (v == "") or (isinstance(v, float) and math.isnan(v)) or (v == MISSING_TOKEN)
+            if is_missing:
                 uris.append(None)
+                present.append(0)
+            else:
+                uris.append(v)
+                present.append(1)
     
-        segs = []
-        clip_indices_out = []
+        segs, clip_indices_out, slot_mask = [], [], []
     
-        # For each video in the group, sample `num_clips_per_video` *independent* clips
-        for uri in uris:
-            if uri is None:
-                # synthesize K dummy clips to preserve fixed shape
-                for _ in range(self.num_clips_per_video):
-                    dummy = self._make_dummy_clip(self.frames_per_clip)
-                    if self.transform is not None:
-                        dummy = self.transform(dummy)
-                    segs.append(dummy)
-                    clip_indices_out.append(np.arange(self.frames_per_clip, dtype=np.int64))
-                continue
+        for uri, p in zip(uris, present):
+            if not p:
+                # missing view -> dummy black clips
+                T = self.frames_per_clip
+                H = W = self.img_size
+                dummy = np.zeros((T, H, W, 3), dtype=np.uint8)
+                clips = [dummy for _ in range(self.num_clips_per_video)]
+                idxs  = [np.arange(T, dtype=np.int64) for _ in range(self.num_clips_per_video)]
+            else:
+                # NEW: use contiguous multi-clip loader
+                clips, idxs = self._loadvideo_decord_multi(uri, self.frames_per_clip, self.num_clips_per_video)
+                if clips is None or len(clips) == 0:
+                    # fallback to dummy if load failed
+                    T = self.frames_per_clip
+                    H = W = self.img_size
+                    dummy = np.zeros((T, H, W, 3), dtype=np.uint8)
+                    clips = [dummy for _ in range(self.num_clips_per_video)]
+                    idxs  = [np.arange(T, dtype=np.int64) for _ in range(self.num_clips_per_video)]
     
-            clips_i, idxs_i = self._loadvideo_decord_multi(
-                sample_uri=uri,
-                fpc=self.frames_per_clip,
-                k=self.num_clips_per_video,
-            )
-    
-            # On failure, backfill with dummy clips
-            if not clips_i:
-                for _ in range(self.num_clips_per_video):
-                    dummy = self._make_dummy_clip(self.frames_per_clip)
-                    if self.transform is not None:
-                        dummy = self.transform(dummy)
-                    segs.append(dummy)
-                    clip_indices_out.append(np.arange(self.frames_per_clip, dtype=np.int64))
-                continue
-    
-            # Apply transforms per clip (each becomes a list of spatial views; with num_views_per_segment=1 → length 1)
-            if self.shared_transform is not None:
-                clips_i = [self.shared_transform(c) for c in clips_i]
             if self.transform is not None:
-                clips_i = [self.transform(c) for c in clips_i]
+                clips = [self.transform(c) for c in clips]
     
-            segs.extend(clips_i)
-            clip_indices_out.extend(idxs_i)
+            segs.extend(clips)
+            clip_indices_out.extend(idxs)
+            slot_mask.extend([1 if p else 0] * len(clips))
     
-        return segs, label, clip_indices_out
+        return segs, label, clip_indices_out, torch.tensor(slot_mask, dtype=torch.bool)
+
+
 
     def _open_vr(self, sample_uri: str):
         # Local path

@@ -386,31 +386,54 @@ def run_one_epoch(
             [wds.step() for wds in wd_scheduler]
 
         with torch.cuda.amp.autocast(dtype=torch.float16, enabled=use_bfloat16):
-            # Load data and put on GPU
+            # ----- load batch to device -----
             clips = [
-                [dij.to(device, non_blocking=True) for dij in di]  # iterate over spatial views of clip
-                for di in data[0]  # iterate over temporal index of clip
+                [dij.to(device, non_blocking=True) for dij in di]     # over spatial views
+                for di in data[0]                                      # over temporal clips/segments
             ]
-            clip_indices = [d.to(device, non_blocking=True) for d in data[2]]
             labels = data[1].to(device)
-            batch_size = len(labels)
+            clip_indices = [d.to(device, non_blocking=True) for d in data[2]]
+            slot_present = data[3].to(device)  # [B, S], True = slot has content (not MISS)
+            B = labels.shape[0]
 
-            # Forward and prediction
+            # ----- encoder forward (frozen) -----
             with torch.no_grad():
-                outputs = encoder(clips, clip_indices)
-                if not training:
-                    outputs = [[c(o) for o in outputs] for c in classifiers]
-            if training:
-                outputs = [[c(o) for o in outputs] for c in classifiers]
+                outputs = encoder(clips, clip_indices)  # list over spatial views; each o: [B, N, D]
 
-        # Compute loss
+            # ----- build token-level key padding mask from slot mask -----
+            # Use the first view to infer N
+            o0 = outputs[0]           # [B, N, D]
+            _, N, _ = o0.shape
+            S = slot_present.shape[1]
+            if N % S != 0:
+                raise RuntimeError(f"N={N} tokens not divisible by S={S} slots; cannot expand slot mask.")
+            tokens_per_slot = N // S
+
+            # slot_present=True => keep; False => mask-out
+            token_keep = slot_present.repeat_interleave(tokens_per_slot, dim=1)  # [B, N] bool
+            key_padding_mask = ~token_keep  # True = ignore
+
+            # (Optional) if an entire batch row is all-missing, you could skip/continue
+            # if key_padding_mask.all(dim=1).any():
+            #     warnings.warn("Batch contains example with all slots missing; consider filtering upstream.")
+
+            # ----- probe forward -----
+            if training:
+                outputs = [[c(o, key_padding_mask=key_padding_mask) for o in outputs] for c in classifiers]
+            else:
+                with torch.no_grad():
+                    outputs = [[c(o, key_padding_mask=key_padding_mask) for o in outputs] for c in classifiers]
+
+        # ----- loss & metrics -----
         losses = [[criterion(o, labels) for o in coutputs] for coutputs in outputs]
+
         with torch.no_grad():
-            outputs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]
-            top1_accs = [100.0 * coutputs.max(dim=1).indices.eq(labels).sum() / batch_size for coutputs in outputs]
+            # average probabilities across spatial views per classifier
+            probs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]
+            top1_accs = [100.0 * p.max(dim=1).indices.eq(labels).float().mean() for p in probs]
             top1_accs = [float(AllReduce.apply(t1a)) for t1a in top1_accs]
-            for t1m, t1a in zip(top1_meters, top1_accs):
-                t1m.update(t1a)
+            for meter, acc in zip(top1_meters, top1_accs):
+                meter.update(acc)
 
         if training:
             if use_bfloat16:
@@ -436,6 +459,7 @@ def run_one_epoch(
             )
 
     return float(_agg_top1.max()), _agg_top1
+
 
 
 def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
@@ -581,6 +605,7 @@ def make_dataloader(
         num_workers=num_workers,
         drop_last=False,
         subset_file=subset_file,
+        img_size=img_size
     )
       
     return data_loader, data_sampler

@@ -46,25 +46,20 @@ class AttentiveClassifier(nn.Module):
             self.noun_classifier = nn.Linear(embed_dim, num_noun_classes, bias=True)
         self.action_classifier = nn.Linear(embed_dim, num_action_classes, bias=True)
 
-    def forward(self, x):
+    def forward(self, x, key_padding_mask: torch.Tensor | None = None):
         if torch.isnan(x).any():
             print("Nan detected at output of encoder")
             exit(1)
 
-        x = self.pooler(x)  # [B, 2, D]
+        x = self.pooler(x, key_padding_mask=key_padding_mask)  # [B, Q, D]
         if not self.action_only:
             x_verb, x_noun, x_action = x[:, 0, :], x[:, 1, :], x[:, 2, :]
             x_verb = self.verb_classifier(x_verb)
             x_noun = self.noun_classifier(x_noun)
             x_action = self.action_classifier(x_action)
-            return dict(
-                verb=x_verb,
-                noun=x_noun,
-                action=x_action,
-            )
+            return dict(verb=x_verb, noun=x_noun, action=x_action)
         else:
-            x_action = x[:, 0, :]
-            x_action = self.action_classifier(x_action)
+            x_action = self.action_classifier(x[:, 0, :])
             return dict(action=x_action)
 
 

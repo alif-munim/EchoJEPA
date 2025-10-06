@@ -19,13 +19,13 @@ experiment:
 
   data:
     dataset_type: VideoGroupDataset
-    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/multi_rvfx_labels_train_N8.csv
-    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/multi_rvfx_labels_val_N8.csv
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/multi9_rvfx_labels_train.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/multi9_rvfx_labels_val.csv
     num_classes: 2
     resolution: 336 
     frames_per_clip: 16      # change to 32 to match anneal, 16 to match pretrain
     frame_step: 1            # change to 2 --> ~1.28 s coverage on ~50 fps; use step:1 (~0.64 s) if you want tighter windows; original fpc16xfs3=48
-    num_segments: 8          # Number of videos per group  
+    num_segments: 9          # Number of videos per group  
     num_clips_per_video: 2   # Number of clips from each video 
     num_views_per_segment: 1 # one spatial crop (reduce stochasticity); for echo—spatial variation is low; temporal coverage more important
 

@@ -88,7 +88,11 @@ class AttentivePooler(nn.Module):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
 
-    def forward(self, x):
+    def forward(self, x, key_padding_mask: torch.Tensor | None = None):
+        """
+        x: [B, N, D] tokens (concatenated over all segments/views)
+        key_padding_mask: [B, N] (True = ignore/mask out)
+        """
         if self.blocks is not None:
             for blk in self.blocks:
                 if self.use_activation_checkpointing:
@@ -96,7 +100,7 @@ class AttentivePooler(nn.Module):
                 else:
                     x = blk(x)
         q = self.query_tokens.repeat(len(x), 1, 1)
-        q = self.cross_attention_block(q, x)
+        q = self.cross_attention_block(q, x, attn_mask=key_padding_mask)  # <<< pass mask
         return q
 
 
@@ -131,7 +135,7 @@ class AttentiveClassifier(nn.Module):
         )
         self.linear = nn.Linear(embed_dim, num_classes, bias=True)
 
-    def forward(self, x):
-        x = self.pooler(x).squeeze(1)
+    def forward(self, x, key_padding_mask: torch.Tensor | None = None):
+        x = self.pooler(x, key_padding_mask=key_padding_mask).squeeze(1)
         x = self.linear(x)
         return x
