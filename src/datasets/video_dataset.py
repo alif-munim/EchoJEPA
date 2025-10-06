@@ -24,6 +24,7 @@ from src.datasets.utils.weighted_sampler import DistributedWeightedSampler
 
 _GLOBAL_SEED = 0
 logger = getLogger()
+  
 
 
 def _worker_init_fn(_):

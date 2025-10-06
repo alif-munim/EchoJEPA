@@ -71,6 +71,11 @@ cd /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep
 aws s3 cp s3://echodata25/vjepa2/anneal-0828/e39.pt .
 ```
 
+RVFX 81ep Anneal:
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_anneal_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pt280_an80_ssv2_0925.log
+```
+
 Small Exp:
 ```
 unset SLURM_LOCALID
@@ -96,7 +101,7 @@ python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/config
 
 LAD: 39ep anneal
 ```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lad_bs8_ns2_anneal_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lad_bs8_ns2_anneal39_0919_v0.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lad_bs8_ns2_anneal_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lad_bs8_ns2_anneal39_0922_moderate_v0.log
 ```
 
 TVR: 39ep anneal
@@ -119,6 +124,15 @@ python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/config
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_anneal_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_anneal39_ssv2_0905.log
 
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_pretrain_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pretrain279_ssv2_0920.log
+
+export TMPDIR=/dev/shm
+export TEMP=/dev/shm
+export TMP=/dev/shm
+export PYTORCH_SHARING_STRATEGY=file_descriptor
+
+python -m evals.main --fname configs/eval/vitg-384/rvfx_bs8_ns2_anneal_f16_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pt279_an79_1004.log
+
+python -m evals.main --fname configs/eval/vitg-384/multi_rvfx_bs8_ns2_anneal_f16_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee multi_rvfx_bs8_ns2_pt279_an79_1004.log
 ```
 
 Best settings for RVFX
@@ -181,7 +195,7 @@ Sample outputs. `[iteration num]` `[max acc]` `[mean min]` (across all heads).
 Cooldown run.
 > Note: Make sure you create a brand new folder for the run and set force_load_pretrain to true from your final pretrain checkpoint.
 ```
-python -m app.main --fname configs/train/vitg16/cooldown-echo-336px-32f-0828.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee cooldown-echo-336px-32f-ep279-0922.log
+python -m app.main --fname configs/train/vitg16/cooldown-echo-336px-16f-0930.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee cooldown-echo-336px-16f-ep279-0930_v1.log
 ```
 
 ### Run SSL Pretraining
