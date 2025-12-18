@@ -49,3 +49,5 @@ classifier/data_prep_v2.ipynb
 classifier/data_prep_v2.py
 classifier/*.png
 classifier/convnext_training_old.py
+classifier/split_summary.txt
+classifier/split_summary.txt

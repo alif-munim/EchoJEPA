@@ -128,11 +128,24 @@ python3 make_patient_split.py \
   --syngo syngo-deid.dedup.csv \
   --out labels_patient_split.csv \
   --seed 42 \
-  --train 0.80 --val 0.10 --test 0.10
+  --train 0.80 --val 0.10 --test 0.10 \
+  --min-val 45 --min-test 45 \
+  --max-tries 500
 ```
 
-This script still maps to the still image extracted from the first frame of each video (e.g. paths like `./unmasked/job_1734/images/h4h_ef_frames/1.2.276.0.7230010.3.1.2.845494328.1.1703598471.21532689/1.2.276.0.7230010.3.1.3.845494328.1.1703598471.21532690/mp4/1.2.276.0.7230010.3.1.4.811753780.1.1703598679.15799699_masked.jpg`), so it needs to be cleaned up. All of the raw 584 patients (585 studies) are stored at `/cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_585/`.
+You will get a `split_summary.txt` file that summarizes the data distribution in each split. This script still maps to the still image extracted from the first frame of each video (e.g. paths like `./unmasked/job_1734/images/h4h_ef_frames/1.2.276.0.7230010.3.1.2.845494328.1.1703598471.21532689/1.2.276.0.7230010.3.1.3.845494328.1.1703598471.21532690/mp4/1.2.276.0.7230010.3.1.4.811753780.1.1703598679.15799699_masked.jpg`), so it needs to be cleaned up. All of the raw 584 patients (585 studies) are stored at `/cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_585/`.
 
+To map to the actual mp4 directories, use this script
+```
+python3 map_labels_to_mp4.py \
+  --in labels_patient_split.csv \
+  --root /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_585/ \
+  --out labels_patient_split_mp4.csv \
+  --check-exists \
+  --drop-missing
+```
+
+Now, we have a dataset file with valid splits ready to train!
 
 
 
