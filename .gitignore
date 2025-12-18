@@ -36,3 +36,16 @@ app/vjepa_droid_v2/local/
 app/vjepa_droid_v3/local/
 app/vjepa_droid_v4/local/
 configs/local
+
+classifier/unmasked
+classifier/masked_verification
+classifier/results
+*.bin
+classifier/es*.txt
+classifier/*.csv
+classifier/patients*
+classifier/data_prep.ipynb
+classifier/data_prep_v2.ipynb
+classifier/data_prep_v2.py
+classifier/*.png
+classifier/convnext_training_old.py

@@ -1,0 +1,53 @@
+seed=42
+ratios train/val/test=0.8/0.1/0.1
+
+total_rows_in_labels=22666
+rows_missing_study_id=0
+rows_missing_patient_id=0
+
+unique_patients_total=584
+
+[train]
+unique_patients=425
+samples=18143
+  A4C: 4265
+  PLAX: 3335
+  PSAX-AV: 2043
+  A2C: 1805
+  Subcostal: 1723
+  PSAX-PM: 1493
+  A3C: 1454
+  A5C: 907
+  PSAX-MV: 453
+  PSAX-AP: 383
+  SSN: 282
+
+[val]
+unique_patients=79
+samples=2258
+  A4C: 534
+  PLAX: 414
+  PSAX-AV: 255
+  A2C: 223
+  Subcostal: 216
+  PSAX-PM: 184
+  A3C: 177
+  A5C: 115
+  PSAX-MV: 56
+  PSAX-AP: 46
+  SSN: 38
+
+[test]
+unique_patients=80
+samples=2265
+  A4C: 533
+  PLAX: 416
+  PSAX-AV: 255
+  A2C: 230
+  Subcostal: 213
+  PSAX-PM: 187
+  A3C: 182
+  A5C: 112
+  PSAX-AP: 54
+  PSAX-MV: 49
+  SSN: 34
