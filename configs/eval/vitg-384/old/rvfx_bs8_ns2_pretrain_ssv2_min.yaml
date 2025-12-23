@@ -1,0 +1,73 @@
+# PRETRAIN CONFIG 
+
+app: vjepa
+cpus_per_task: 32
+folder: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitg-384/rvsf_a4c_min
+mem_per_gpu: 80G
+nodes: 1
+tasks_per_node: 8
+num_workers: 8
+
+eval_name: video_classification_frozen
+resume_checkpoint: false
+tag: e249-rvsf-a4c-full-vitg16-336-16f-pretrain-fs1-ns3-nvs2   # IMPORTANT: CHANGE
+
+experiment:
+  classifier:
+    num_heads: 16           # changed from 16 / <-- must divide 1408 (ViT-G). Valid: 16, 22, 32, 44...
+    num_probe_blocks: 4     # changed from 4
+
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_Reduced_RVSF_train.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_Reduced_RVSF_val.csv
+    num_classes: 2
+    resolution: 336
+    frames_per_clip: 16    # change to 32 to match anneal, 16 to match pretrain
+    frame_step: 1          # change to 2 --> ~1.28 s coverage on ~50 fps; use step:1 (~0.64 s) if you want tighter windows; original fpc16xfs3=48
+    num_segments: 3        # in practice, 2 segments works better (TBD); 3 may be overkill; 1 temporal clip per video overfit-friendly
+    num_views_per_segment: 2 # one spatial crop (reduce stochasticity); for echo—spatial variation is low; temporal coverage more important
+
+  optimization:
+    batch_size: 2
+    multihead_kwargs:
+    - final_lr: 0.0
+      final_weight_decay: 0.4
+      lr: 0.001
+      start_lr: 0.001
+      warmup: 0.0
+      weight_decay: 0.4
+      
+    num_epochs: 30
+    use_bfloat16: true
+    use_pos_embed: false
+
+
+model_kwargs:
+  # Choose ONE of the following (leave the other commented).
+
+  # Pretrain
+  checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep/e249.pt"
+
+  # Anneal
+  # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep/e39.pt"
+
+  # Echo cooldown (16f, 336px) — default active:
+  # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/1.8.vitg16-336px-16f-echo/e21.pt"
+
+  # Base Kinetics pretrain (ViT-G 384px):
+  # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitg-384.pt"
+
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: target_encoder
+      img_temporal_dim_size: null
+      model_name: vit_giant_xformers
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true         # <-- RoPE ON for cooldown
+  wrapper_kwargs:
+    max_frames: 128
+    use_pos_embed: false     # <-- no abs pos-emb for cooldown

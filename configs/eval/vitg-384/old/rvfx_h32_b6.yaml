@@ -1,0 +1,66 @@
+# COOLDOWN CONFIG — 32x6 on FULL DATASET
+
+app: vjepa
+cpus_per_task: 32
+folder: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitg-384/a4c_rv_full
+mem_per_gpu: 80G
+nodes: 1
+tasks_per_node: 8
+num_workers: 8
+
+eval_name: video_classification_frozen
+resume_checkpoint: false
+tag: a4c-rv-full-vitg16-336-16f-32x6-ns2-fs2-e162
+
+experiment:
+  classifier:
+    num_heads: 32
+    num_probe_blocks: 6
+
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/a4c_rvfx_labels_train_full.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/a4c_rvfx_labels_val_full.csv
+    num_classes: 2
+    resolution: 336
+    frames_per_clip: 16
+    frame_step: 2            # FS2
+    num_segments: 2          # NS2
+    num_views_per_segment: 1
+
+  optimization:
+    batch_size: 8
+    # Narrow LR×WD sweep for 32x6; start_lr == lr, cosine/linear to final_lr=0
+    multihead_kwargs:
+      # wd = 0
+      - { lr: 0.006, start_lr: 0.006, weight_decay: 0.0,   warmup: 3, final_lr: 0.0, final_weight_decay: 0.0 }
+      - { lr: 0.005, start_lr: 0.005, weight_decay: 0.0,   warmup: 3, final_lr: 0.0, final_weight_decay: 0.0 }
+      - { lr: 0.004, start_lr: 0.004, weight_decay: 0.0,   warmup: 3, final_lr: 0.0, final_weight_decay: 0.0 }
+      # wd = 1e-4
+      - { lr: 0.006, start_lr: 0.006, weight_decay: 0.0001, warmup: 3, final_lr: 0.0, final_weight_decay: 0.0001 }
+      - { lr: 0.004, start_lr: 0.004, weight_decay: 0.0001, warmup: 3, final_lr: 0.0, final_weight_decay: 0.0001 }
+      - { lr: 0.003, start_lr: 0.003, weight_decay: 0.0001, warmup: 3, final_lr: 0.0, final_weight_decay: 0.0001 }
+      # optional coverage (comment out if you want 6 runs total)
+      - { lr: 0.004, start_lr: 0.004, weight_decay: 0.0003, warmup: 3, final_lr: 0.0, final_weight_decay: 0.0003 }
+
+    num_epochs: 200
+    use_bfloat16: true
+    use_pos_embed: false
+
+model_kwargs:
+  # Using your best pretrain checkpoint:
+  checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep/e162.pt"
+
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: target_encoder
+      img_temporal_dim_size: null
+      model_name: vit_giant_xformers
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true
+  wrapper_kwargs:
+    max_frames: 128
+    use_pos_embed: false

@@ -1,8 +1,8 @@
-# ANNEAL CONFIG 
+# PRETRAIN CONFIG 
 
 app: vjepa
 cpus_per_task: 32
-folder: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitg-384/rvsf_a4c
+folder: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitg-384/classifier
 mem_per_gpu: 80G
 nodes: 1
 tasks_per_node: 8
@@ -10,7 +10,7 @@ num_workers: 8
 
 eval_name: video_classification_frozen
 resume_checkpoint: false
-tag: rvsf-a4c-full-vitg16-336-16f-anneal-e39-fs1-ns2-nvs2   # IMPORTANT: CHANGE
+tag: uhn22k-classifier-vitg16-336-16f-pt279-a81-fs1-ns1-nvs1   # IMPORTANT: CHANGE
 
 experiment:
   classifier:
@@ -19,17 +19,17 @@ experiment:
 
   data:
     dataset_type: VideoDataset
-    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/a4c_rvfx_labels_train_full.csv
-    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/a4c_rvfx_labels_val_full.csv
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_train.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_val.csv
     num_classes: 2
     resolution: 336
-    frames_per_clip: 32    # change to 32 to match anneal, 16 to match pretrain
-    frame_step: 1         # change to 2 --> ~1.28 s coverage on ~50 fps; use step:1 (~0.64 s) if you want tighter windows; original fpc16xfs3=48
-    num_segments: 2        # in practice, 2 segments works better (TBD); 3 may be overkill; 1 temporal clip per video overfit-friendly
-    num_views_per_segment: 2 # one spatial crop (reduce stochasticity); for echo—spatial variation is low; temporal coverage more important
+    frames_per_clip: 16    # change to 32 to match anneal, 16 to match pretrain
+    frame_step: 1          # change to 2 --> ~1.28 s coverage on ~50 fps; use step:1 (~0.64 s) if you want tighter windows; original fpc16xfs3=48
+    num_segments: 16        # in practice, 2 segments works better (TBD); 3 may be overkill; 1 temporal clip per video overfit-friendly
+    num_views_per_segment: 1 # one spatial crop (reduce stochasticity); for echo—spatial variation is low; temporal coverage more important
 
   optimization:
-    batch_size: 2
+    batch_size: 1
     multihead_kwargs:
     - final_lr: 0.0
       final_weight_decay: 0.01
@@ -161,10 +161,11 @@ model_kwargs:
   # Choose ONE of the following (leave the other commented).
 
   # Pretrain
-  # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep/e162.pt"
+  # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep/e279.pt"
 
   # Anneal
-  checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep/e39.pt"
+  # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep/e78.pt"
+  checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep/pt-280-an81.pt"
 
   # Echo cooldown (16f, 336px) — default active:
   # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/1.8.vitg16-336px-16f-echo/e21.pt"

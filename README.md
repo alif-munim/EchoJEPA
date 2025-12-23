@@ -58,6 +58,162 @@ chmod +x watcher.sh
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/rvfx.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 2>&1 | tee rvfx_inference_0911.log
 ```
 
+### Dec 21, 2025
+
+The pretrained checkpoint path is as follows:
+```
+/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep/pt-280-an81.pt
+```
+
+For a working reference script, run the following:
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_anneal_f16_ssv2.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pt280_an80_ssv2_1221.log
+```
+
+Rewrite the old cluster paths to the S3 uris:
+```
+python3 rewrite_mp4_paths_to_s3.py \
+  --in labels_patient_split_mp4.csv \
+  --out labels_patient_split_mp4_s3.csv \
+  --s3-prefix s3://echodata25/results/uhn_studies_22k_585/uhn_studies_22k_585 \
+  --root-marker uhn_studies_22k_585
+```
+
+Randomly sample S3 paths and ensure they exist:
+```
+python3 sample_and_check_s3_mp4s.py \
+  --csv labels_patient_split_mp4_s3.csv \
+  --n 500 \
+  --seed 0 \
+  --out-prefix check500
+```
+
+Create train, test, val splits in JEPA data format:
+```
+python3 make_view_labels_space_sep.py \
+  --in labels_patient_split_mp4_s3.csv \
+  --out ../data/csv/uhn_views_22k_train.csv \
+  --mapping uhn_views_22k_mapping_train.txt \
+  --split train
+
+python3 make_view_labels_space_sep.py \
+  --in labels_patient_split_mp4_s3.csv \
+  --out ../data/csv/uhn_views_22k_test.csv \
+  --mapping uhn_views_22k_mapping_test.txt \
+  --split test
+
+python3 make_view_labels_space_sep.py \
+  --in labels_patient_split_mp4_s3.csv \
+  --out ../data/csv/uhn_views_22k_val.csv \
+  --mapping uhn_views_22k_mapping_val.txt \
+  --split val
+```
+
+Check opt grid
+```
+python3 rank_opt_grid.py \
+  --exp-dir mrvsf-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2 \
+  --epoch 2 \
+  --metric best_val_acc_per_head \
+  --topk 10 \
+  --print-grid-dicts
+```
+
+Grids to search
+```
+mrvsf-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/epoch_001.pt
+mrvsf-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/epoch_002.pt
+rvsf-a4c-full-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/epoch_001.pt
+rvsf-a4c-full-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/latest.pt
+rvsf-a4c-full-vitg16-336-16f-pt280-an80-fs1-ns2-nvs2/epoch_001.pt
+rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/epoch_001.pt
+rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/epoch_002.pt
+rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/epoch_003.pt
+rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/latest.pt
+```
+
+Run pruned grid with multilevel for classification
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/classification_1221_g6.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee classification_1221_v1.log
+```
+
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/classification_1221_g6.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee classification_echojepa_v1.log
+```
+
+Clear extra checkpoints and keep top 3
+```
+python3 offload_ckpts_to_s3.py \
+  --exp-dir ./classifier/video_classification_frozen/uhn22k-classifier-vitg16-336-16f-pt279-a81-fs2-ns2-nvs1 \
+  --s3-prefix s3://echodata25/results/uhn22k-classifier-vitg16-336-16f-pt279-a81-fs2-ns2-nvs1/checkpoints \
+  --topk 3 \
+  --delete-local
+```
+
+### Data Efficiency
+
+This is the statistically accurate floor that maintains your exact class distribution while guaranteeing that even your rarest view has enough examples for the linear probe to draw a decision boundary.
+```
+# --- 1% Data Efficiency (Few-Shot) ---
+python3 make_stratified_subset.py \
+  --input ../data/csv/uhn_views_22k_train.csv \
+  --out ../data/csv/uhn_views_22k_train_1percent.csv \
+  --percent 1.0 \
+  --min 3 \
+  --seed 42
+
+# --- 10% Data Efficiency ---
+python3 make_stratified_subset.py \
+  --input ../data/csv/uhn_views_22k_train.csv \
+  --out ../data/csv/uhn_views_22k_train_10percent.csv \
+  --percent 10.0 \
+  --min 3 \
+  --seed 42
+
+# --- 50% Data Efficiency ---
+python3 make_stratified_subset.py \
+  --input ../data/csv/uhn_views_22k_train.csv \
+  --out ../data/csv/uhn_views_22k_train_50percent.csv \
+  --percent 50.0 \
+  --min 3 \
+  --seed 42
+```
+
+Run experiment
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/classification_1221_g6_50p.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee classification_echojepa_50p_1222_v1.log
+```
+
+### Resize Datasets
+
+Create the 224px Dataset (For Swin, EchoFM, EchoPrime)
+```
+export PATH="$HOME/ffmpeg_build/bin:$PATH"
+python resize_dataset.py \
+  --input_dir /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_585 \
+  --output_dir /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_585_224px \
+  --size 224 \
+  --workers 32
+```
+
+Create the 112px Dataset (For PanEcho)
+```
+export PATH="$HOME/ffmpeg_build/bin:$PATH"
+python resize_dataset.py \
+  --input_dir /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_585 \
+  --output_dir /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_585_112px \
+  --size 112 \
+  --workers 32
+```
+
 ### Classifier Training
 
 Download checkpoint
@@ -73,7 +229,7 @@ aws s3 cp s3://echodata25/vjepa2/anneal-0828/e39.pt .
 
 RVFX 81ep Anneal:
 ```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_anneal_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pt280_an80_ssv2_0925.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/rvfx_bs8_ns2_anneal_f16_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pt280_an80_ssv2_1221.log
 ```
 
 Small Exp:
@@ -132,7 +288,12 @@ export PYTORCH_SHARING_STRATEGY=file_descriptor
 
 python -m evals.main --fname configs/eval/vitg-384/rvfx_bs8_ns2_anneal_f16_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pt279_an79_1004.log
 
-python -m evals.main --fname configs/eval/vitg-384/multi_rvfx_bs8_ns2_anneal_f16_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee multi_rvfx_bs8_ns2_pt279_an79_1004.log
+export TMPDIR=/dev/shm
+export TEMP=/dev/shm
+export TMP=/dev/shm
+export PYTORCH_SHARING_STRATEGY=file_descriptor
+
+python -m evals.main --fname configs/eval/vitg-384/multi_rvfx_bs8_ns2_anneal_f16_ssv2.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee multi_rvfx_bs8_ns2_pt279_an79_1005_v1.log
 ```
 
 Best settings for RVFX
