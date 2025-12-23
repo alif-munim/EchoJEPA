@@ -62,7 +62,7 @@ def jpg_to_mp4_path(jpg_path: str, root: Path) -> Optional[Path]:
     sop = jpg_to_sop_uid(fname)
     if not sop:
         return None
-    return root / study_id / "unmasked" / series_id / f"{sop}.mp4"
+    return root / study_id / series_id / f"{sop}.mp4"
 
 
 def main():

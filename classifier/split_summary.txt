@@ -1,41 +1,43 @@
 === Patient-disjoint split summary ===
 seed=42
-chosen_attempt=118
+chosen_attempt=116
 ratios train/val/test=0.8/0.1/0.1
 min_per_class val=45, test=45
 satisfied_minima=True
 
 --- Data mapping ---
-total_rows_in_labels=22666
-rows_with_patient_id=22666
+total_rows_in_labels=27227
+rows_with_patient_id=27227
 rows_missing_study_id=0
 rows_missing_patient_id=0
 
 --- Patient counts (disjointness sanity) ---
-unique_patients_total=584
-train_patients=420, val_patients=82, test_patients=82
+unique_patients_total=606
+train_patients=437, val_patients=84, test_patients=85
 overlap(train,val)=0
 overlap(train,test)=0
 overlap(val,test)=0
 
 --- Sample counts ---
-train_samples=17918 (79.05%)
-val_samples=2353 (10.38%)
-test_samples=2395 (10.57%)
+train_samples=21563 (79.20%)
+val_samples=2832 (10.40%)
+test_samples=2832 (10.40%)
 
 --- Class distribution by split (counts) ---
 label, total, train, val, test
-A4C,5332,4235,542,555
-PLAX,4165,3286,436,443
-PSAX-AV,2553,2016,270,267
-A2C,2258,1791,226,241
-Subcostal,2152,1692,229,231
-PSAX-PM,1864,1471,202,191
-A3C,1813,1443,180,190
-A5C,1134,902,113,119
-PSAX-MV,558,439,59,60
-PSAX-AP,483,381,51,51
-SSN,354,262,45,47
+A4C,5333,4232,546,555
+PLAX,4165,3281,441,443
+Exclude,2563,2044,261,258
+PSAX-AV,2553,2019,264,270
+A2C,2259,1790,230,239
+Subcostal,2152,1682,235,235
+TEE,1995,1616,194,185
+PSAX-PM,1864,1470,203,191
+A3C,1813,1440,184,189
+A5C,1134,901,113,120
+PSAX-MV,558,447,58,53
+PSAX-AP,484,379,56,49
+SSN,354,262,47,45
 
 --- Minima check details ---
 All minima satisfied.

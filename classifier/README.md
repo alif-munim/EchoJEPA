@@ -97,7 +97,7 @@ Didn't bother cooling down Swin, hit a performance ceiling here. Need to randoml
 
 # Multi-Frame (Requires Videos)
 
-Compile a list of studies to download (585)
+Compile a list of studies to download (607)
 ```
 python make_selected_study_dirs.py \
   --labels labels_masked_inplace.csv \
@@ -107,13 +107,14 @@ python make_selected_study_dirs.py \
   --out selected_study_dirs.csv
 ```
 
-Download the studies from S3
+Download the studies from S3 (ignoring ones that are already downloaded)
 ```
 python download_selected_studies.py \
-  --csv selected_study_dirs.csv \
-  --dest "/Users/alifmunim/Documents/Classification" \
+  --csv selected_study_dirs_607.csv \
+  --dest "/Users/alifmunim/Documents/Classification/uhn_studies_22k_607" \
   --log download.log \
-  --only-show-errors
+  --only-show-errors \
+  --skip-if-exists
 ```
 
 # Create Patient Splits

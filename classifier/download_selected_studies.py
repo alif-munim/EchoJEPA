@@ -14,12 +14,12 @@ Usage (macOS/Linux):
 Optional:
   --requester-pays
   --only-show-errors
-  --resume   (skip already-downloaded studies if a marker file exists)
+  --resume   (skip already-downloaded studies if marker exists OR dir is non-empty)
+  --skip-if-exists  (skip if destination dir exists and is non-empty; ignores marker)
 """
 
 import argparse
 import csv
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -37,10 +37,25 @@ def run_aws_cp(uri: str, out_dir: Path, log_fh, requester_pays: bool, only_show_
         cmd += ["--request-payer", "requester"]
     if only_show_errors:
         cmd += ["--only-show-errors"]
-
-    # Send ALL AWS output to log file (stdout+stderr)
     proc = subprocess.run(cmd, stdout=log_fh, stderr=log_fh)
     return proc.returncode
+
+
+def is_non_empty_dir(p: Path) -> bool:
+    # Fast non-emptiness check without materializing a full list
+    return p.exists() and p.is_dir() and any(p.iterdir())
+
+
+def study_already_present(out_dir: Path, marker: Path, resume: bool, skip_if_exists: bool) -> bool:
+    """
+    - --skip-if-exists: skip if out_dir exists and is non-empty (regardless of marker)
+    - --resume: skip if marker exists OR out_dir exists and is non-empty
+    """
+    if skip_if_exists:
+        return is_non_empty_dir(out_dir)
+    if resume:
+        return marker.exists() or is_non_empty_dir(out_dir)
+    return False
 
 
 def main():
@@ -51,7 +66,10 @@ def main():
     ap.add_argument("--jobs", type=int, default=1, help="Keep at 1 for clean progress. (Parallel not supported here.)")
     ap.add_argument("--requester-pays", action="store_true")
     ap.add_argument("--only-show-errors", action="store_true", help="Reduce AWS chatter in logs (still logs errors).")
-    ap.add_argument("--resume", action="store_true", help="Skip a study if a '.download_complete' marker exists.")
+    ap.add_argument("--resume", action="store_true",
+                    help="Skip a study if '.download_complete' exists OR destination directory is non-empty.")
+    ap.add_argument("--skip-if-exists", action="store_true",
+                    help="Skip a study if destination directory exists and is non-empty (ignores marker).")
     args = ap.parse_args()
 
     if args.jobs != 1:
@@ -82,12 +100,11 @@ def main():
     with args.log.open("a", encoding="utf-8") as log_fh:
         log_fh.write(f"\n=== RUN START: csv={args.csv} dest={args.dest} total={total} ===\n")
 
-        # tqdm writes only the bar (no extra prints)
         for study_id, uri in tqdm(rows, total=total, unit="study", dynamic_ncols=True):
             out_dir = args.dest / study_id
             marker = out_dir / ".download_complete"
 
-            if args.resume and marker.exists():
+            if study_already_present(out_dir, marker, resume=args.resume, skip_if_exists=args.skip_if_exists):
                 skipped += 1
                 continue
 
@@ -110,9 +127,7 @@ def main():
 
         log_fh.write(f"\n=== RUN END: failed={len(failed)} skipped={skipped} ===\n")
 
-    # Keep terminal clean: no per-item output. Only exit code communicates failure.
     if failed:
-        # Write a small failure file next to the log for convenience
         fail_path = args.log.with_suffix(args.log.suffix + ".failed_studies.txt")
         fail_path.write_text("\n".join(failed) + "\n", encoding="utf-8")
         sys.exit(3)
