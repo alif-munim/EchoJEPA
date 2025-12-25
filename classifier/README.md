@@ -140,7 +140,7 @@ To map to the actual mp4 directories, use this script
 ```
 python3 map_labels_to_mp4.py \
   --in labels_patient_split.csv \
-  --root /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_585/ \
+  --root /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_607/ \
   --out labels_patient_split_mp4.csv \
   --check-exists \
   --drop-missing
