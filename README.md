@@ -72,45 +72,6 @@ python -m evals.main \
     --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee rvfx_bs8_ns2_pt280_an80_ssv2_1221.log
 ```
 
-Rewrite the old cluster paths to the S3 uris:
-```
-python3 rewrite_mp4_paths_to_s3.py \
-  --in labels_patient_split_mp4.csv \
-  --out labels_patient_split_mp4_s3.csv \
-  --s3-prefix s3://echodata25/results/uhn_studies_22k_585/uhn_studies_22k_585 \
-  --root-marker uhn_studies_22k_585
-```
-
-Randomly sample S3 paths and ensure they exist:
-```
-python3 sample_and_check_s3_mp4s.py \
-  --csv labels_patient_split_mp4_s3.csv \
-  --n 500 \
-  --seed 0 \
-  --out-prefix check500
-```
-
-Create train, test, val splits in JEPA data format:
-```
-python3 make_view_labels_space_sep.py \
-  --in labels_patient_split_mp4_s3.csv \
-  --out ../data/csv/uhn_views_22k_train.csv \
-  --mapping uhn_views_22k_mapping_train.txt \
-  --split train
-
-python3 make_view_labels_space_sep.py \
-  --in labels_patient_split_mp4_s3.csv \
-  --out ../data/csv/uhn_views_22k_test.csv \
-  --mapping uhn_views_22k_mapping_test.txt \
-  --split test
-
-python3 make_view_labels_space_sep.py \
-  --in labels_patient_split_mp4_s3.csv \
-  --out ../data/csv/uhn_views_22k_val.csv \
-  --mapping uhn_views_22k_mapping_val.txt \
-  --split val
-```
-
 Check opt grid
 ```
 python3 rank_opt_grid.py \
@@ -156,34 +117,6 @@ python3 offload_ckpts_to_s3.py \
   --delete-local
 ```
 
-### Data Efficiency
-
-This is the statistically accurate floor that maintains your exact class distribution while guaranteeing that even your rarest view has enough examples for the linear probe to draw a decision boundary.
-```
-# --- 1% Data Efficiency (Few-Shot) ---
-python3 make_stratified_subset.py \
-  --input ../data/csv/uhn_views_22k_train.csv \
-  --out ../data/csv/uhn_views_22k_train_1percent.csv \
-  --percent 1.0 \
-  --min 3 \
-  --seed 42
-
-# --- 10% Data Efficiency ---
-python3 make_stratified_subset.py \
-  --input ../data/csv/uhn_views_22k_train.csv \
-  --out ../data/csv/uhn_views_22k_train_10percent.csv \
-  --percent 10.0 \
-  --min 3 \
-  --seed 42
-
-# --- 50% Data Efficiency ---
-python3 make_stratified_subset.py \
-  --input ../data/csv/uhn_views_22k_train.csv \
-  --out ../data/csv/uhn_views_22k_train_50percent.csv \
-  --percent 50.0 \
-  --min 3 \
-  --seed 42
-```
 
 Run experiment
 ```

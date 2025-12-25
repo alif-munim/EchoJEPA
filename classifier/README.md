@@ -149,5 +149,249 @@ python3 map_labels_to_mp4.py \
 Now, we have a dataset file with valid splits ready to train!
 
 
+Rewrite the old cluster paths to the S3 uris:
+```
+python3 rewrite_mp4_paths_to_s3.py \
+  --in labels_patient_split_mp4.csv \
+  --out labels_patient_split_mp4_s3.csv \
+  --s3-prefix s3://echodata25/results/uhn_studies_22k_585/uhn_studies_22k_585 \
+  --root-marker uhn_studies_22k_585
+```
+
+Randomly sample S3 paths and ensure they exist:
+```
+python3 sample_and_check_s3_mp4s.py \
+  --csv labels_patient_split_mp4_s3.csv \
+  --n 500 \
+  --seed 0 \
+  --out-prefix check500
+```
+
+Create train, test, val splits in JEPA data format:
+```
+python3 make_view_labels_space_sep.py \
+  --in labels_patient_split_mp4_s3.csv \
+  --out ../data/csv/uhn_views_22k_train.csv \
+  --mapping uhn_views_22k_mapping_train.txt \
+  --split train
+
+python3 make_view_labels_space_sep.py \
+  --in labels_patient_split_mp4_s3.csv \
+  --out ../data/csv/uhn_views_22k_test.csv \
+  --mapping uhn_views_22k_mapping_test.txt \
+  --split test
+
+python3 make_view_labels_space_sep.py \
+  --in labels_patient_split_mp4_s3.csv \
+  --out ../data/csv/uhn_views_22k_val.csv \
+  --mapping uhn_views_22k_mapping_val.txt \
+  --split val
+```
+
+### Data Efficiency
+
+This is the statistically accurate floor that maintains your exact class distribution while guaranteeing that even your rarest view has enough examples for the linear probe to draw a decision boundary.
+```
+# --- 1% Data Efficiency (Few-Shot) ---
+python3 make_stratified_subset.py \
+  --input ../data/csv/uhn_views_22k_train.csv \
+  --out ../data/csv/uhn_views_22k_train_1percent.csv \
+  --percent 1.0 \
+  --min 3 \
+  --seed 42
+
+# --- 10% Data Efficiency ---
+python3 make_stratified_subset.py \
+  --input ../data/csv/uhn_views_22k_train.csv \
+  --out ../data/csv/uhn_views_22k_train_10percent.csv \
+  --percent 10.0 \
+  --min 3 \
+  --seed 42
+
+# --- 50% Data Efficiency ---
+python3 make_stratified_subset.py \
+  --input ../data/csv/uhn_views_22k_train.csv \
+  --out ../data/csv/uhn_views_22k_train_50percent.csv \
+  --percent 50.0 \
+  --min 3 \
+  --seed 42
+```
+
+# Color Classification
+
+From the notebook, we have `labels_color.csv`, `labels_quality.csv`, and `labels_zoom.csv` and they look like this
+```
+(base) sagemaker-user@default:/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/classifier$ cat labels_quality.csv | head -n 5
+filename,label,job_id,split
+./unmasked/job_1734/h4h_ef_frames/1.2.276.0.7230010.3.1.2.845494328.1.1703598471.21532689/1.2.276.0.7230010.3.1.3.845494328.1.1703598471.21532690/mp4/1.2.276.0.7230010.3.1.4.1714578744.1.1703600527.15739402_masked.jpg,high,1734,train
+./unmasked/job_1734/h4h_ef_frames/1.2.276.0.7230010.3.1.2.845494328.1.1703598471.21532689/1.2.276.0.7230010.3.1.3.845494328.1.1703598471.21532690/mp4/1.2.276.0.7230010.3.1.4.1714578744.1.1703600664.15740542_masked.jpg,med,1734,train
+./unmasked/job_1734/h4h_ef_frames/1.2.276.0.7230010.3.1.2.845494328.1.1703598471.21532689/1.2.276.0.7230010.3.1.3.845494328.1.1703598471.21532690/mp4/1.2.276.0.7230010.3.1.4.811753780.1.1703598679.15799699_masked.jpg,med,1734,train
+./unmasked/job_1734/h4h_ef_frames/1.2.276.0.7230010.3.1.2.845494328.1.1703598471.21532689/1.2.276.0.7230010.3.1.3.845494328.1.1703598471.21532690/mp4/1.2.276.0.7230010.3.1.4.811753780.1.1703600397.15813507_masked.jpg,high,1734,train
+```
+
+First, we map the labels to mp4:
+```
+python3 map_labels_to_mp4.py \
+  --in labels_color.csv \
+  --root /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_607/ \
+  --out labels_color_mp4.csv
+```
+
+We need to convert them to the S3 paths.
+```
+python3 rewrite_mp4_paths_to_s3.py \
+  --in labels_color_mp4.csv \
+  --out labels_color_s3.csv \
+  --s3-prefix s3://echodata25/results/uhn_studies_22k_607_224px \
+  --root-marker uhn_studies_22k_607
+```
+
+Randomly sample S3 paths and ensure they exist:
+```
+python3 sample_and_check_s3_mp4s.py \
+  --csv labels_color_s3.csv \
+  --n 500 \
+  --seed 0 \
+  --out-prefix check500
+```
+
+Finally, put it in JEPA format
+```
+python3 make_view_labels_space_sep.py \
+  --in labels_color_s3.csv \
+  --out ../data/csv/uhn_colors_22k_train.csv \
+  --mapping uhn_color_22k_mapping_train.txt \
+  --split train
+
+python3 make_view_labels_space_sep.py \
+  --in labels_color_s3.csv \
+  --out ../data/csv/uhn_colors_22k_test.csv \
+  --mapping uhn_color_22k_mapping_test.txt \
+  --split test
+
+python3 make_view_labels_space_sep.py \
+  --in labels_color_s3.csv \
+  --out ../data/csv/uhn_colors_22k_val.csv \
+  --mapping uhn_color_22k_mapping_val.txt \
+  --split val
+```
+
+Run the training
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/color/color_classification_224px.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee color_224px_dec24v1.log
+```
 
 
+# Quality Classification
+
+First, we map the labels to mp4:
+```
+python3 map_labels_to_mp4.py \
+  --in labels_quality.csv \
+  --root /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_607/ \
+  --out labels_quality_mp4.csv
+```
+
+We need to convert them to the S3 paths.
+```
+python3 rewrite_mp4_paths_to_s3.py \
+  --in labels_quality_mp4.csv \
+  --out labels_quality_s3.csv \
+  --s3-prefix s3://echodata25/results/uhn_studies_22k_607_224px \
+  --root-marker uhn_studies_22k_607
+```
+
+Randomly sample S3 paths and ensure they exist:
+```
+python3 sample_and_check_s3_mp4s.py \
+  --csv labels_quality_s3.csv \
+  --n 500 \
+  --seed 0 \
+  --out-prefix check500
+```
+
+Finally, put it in JEPA format
+```
+python3 make_view_labels_space_sep.py \
+  --in labels_quality_s3.csv \
+  --out ../data/csv/uhn_quality_22k_train.csv \
+  --mapping uhn_quality_22k_mapping_train.txt \
+  --split train
+
+python3 make_view_labels_space_sep.py \
+  --in labels_quality_s3.csv \
+  --out ../data/csv/uhn_quality_22k_test.csv \
+  --mapping uhn_quality_22k_mapping_test.txt \
+  --split test
+
+python3 make_view_labels_space_sep.py \
+  --in labels_quality_s3.csv \
+  --out ../data/csv/uhn_quality_22k_val.csv \
+  --mapping uhn_quality_22k_mapping_val.txt \
+  --split val
+```
+
+Run the training
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/quality/quality_classification_224px.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee quality_224px_dec24v1.log
+```
+
+# Zoom Classification
+
+First, we map the labels to mp4:
+```
+python3 map_labels_to_mp4.py \
+  --in labels_zoom.csv \
+  --root /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_607/ \
+  --out labels_zoom_mp4.csv
+```
+
+We need to convert them to the S3 paths.
+```
+python3 rewrite_mp4_paths_to_s3.py \
+  --in labels_zoom_mp4.csv \
+  --out labels_zoom_s3.csv \
+  --s3-prefix s3://echodata25/results/uhn_studies_22k_607_224px \
+  --root-marker uhn_studies_22k_607
+```
+
+Randomly sample S3 paths and ensure they exist:
+```
+python3 sample_and_check_s3_mp4s.py \
+  --csv labels_zoom_s3.csv \
+  --n 500 \
+  --seed 0 \
+  --out-prefix check500
+```
+
+Finally, put it in JEPA format
+```
+python3 make_view_labels_space_sep.py \
+  --in labels_zoom_s3.csv \
+  --out ../data/csv/uhn_zoom_22k_train.csv \
+  --mapping uhn_zoom_22k_mapping_train.txt \
+  --split train
+
+python3 make_view_labels_space_sep.py \
+  --in labels_zoom_s3.csv \
+  --out ../data/csv/uhn_zoom_22k_test.csv \
+  --mapping uhn_zoom_22k_mapping_test.txt \
+  --split test
+
+python3 make_view_labels_space_sep.py \
+  --in labels_zoom_s3.csv \
+  --out ../data/csv/uhn_zoom_22k_val.csv \
+  --mapping uhn_zoom_22k_mapping_val.txt \
+  --split val
+```
+
+Run the training
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/zoom/zoom_classification_224px.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee zoom_224px_dec24v1.log
+```
