@@ -57,6 +57,7 @@ def main(args_eval, resume_preempt=False):
     val_only = args_eval.get("val_only", False)
     if val_only:
         logger.info("VAL ONLY")
+    predictions_save_path = args_eval.get("predictions_save_path", None)
 
     # -- EXPERIMENT
     pretrain_folder = args_eval.get("folder", None)
@@ -77,6 +78,7 @@ def main(args_eval, resume_preempt=False):
     args_classifier = args_exp.get("classifier")
     num_probe_blocks = args_classifier.get("num_probe_blocks", 1)
     num_heads = args_classifier.get("num_heads", 16)
+    probe_checkpoint = args_eval.get("probe_checkpoint", None)
 
     # -- DATA
     args_data = args_exp.get("data")
@@ -126,14 +128,19 @@ def main(args_eval, resume_preempt=False):
     world_size, rank = init_distributed()
     logger.info(f"Initialized (rank/world-size) {rank}/{world_size}")
 
-    # -- log/checkpointing paths
-    folder = os.path.join(pretrain_folder, "video_classification_frozen/")
-    if eval_tag is not None:
-        folder = os.path.join(folder, eval_tag)
-    if not os.path.exists(folder):
-        os.makedirs(folder, exist_ok=True)
-    log_file = os.path.join(folder, f"log_r{rank}.csv")
-    latest_path = os.path.join(folder, "latest.pt")
+    # -- log/checkpointing paths  
+    folder = os.path.join(pretrain_folder, "video_classification_frozen/")  
+    if eval_tag is not None:  
+        folder = os.path.join(folder, eval_tag)  
+    if not os.path.exists(folder):  
+        os.makedirs(folder, exist_ok=True)  
+    log_file = os.path.join(folder, f"log_r{rank}.csv")  
+      
+    # Use custom probe checkpoint if specified, otherwise use default  
+    if probe_checkpoint is not None:  
+        latest_path = probe_checkpoint  
+    else:  
+        latest_path = os.path.join(folder, "latest.pt")
 
     # -- make csv_logger
     if rank == 0:
@@ -286,36 +293,40 @@ def main(args_eval, resume_preempt=False):
         logger.info("Epoch %d" % (epoch + 1))
         train_sampler.set_epoch(epoch)
 
-        if val_only:
-            train_acc_scalar, _ = -1.0, None
-        else:
-            train_acc_scalar, _ = run_one_epoch(
-                device=device,
-                training=True,
-                encoder=encoder,
-                classifiers=classifiers,
-                scaler=scaler,
-                optimizer=optimizer,
-                scheduler=scheduler,
-                wd_scheduler=wd_scheduler,
-                data_loader=train_loader,
-                use_bfloat16=use_bfloat16,
-                use_focal_loss=use_focal_loss,
-            )
+        if val_only:  
+            train_acc_scalar, _ = -1.0, None  
+        else:  
+            train_acc_scalar, _ = run_one_epoch(  
+                device=device,  
+                training=True,  
+                encoder=encoder,  
+                classifiers=classifiers,  
+                scaler=scaler,  
+                optimizer=optimizer,  
+                scheduler=scheduler,  
+                wd_scheduler=wd_scheduler,  
+                data_loader=train_loader,  
+                use_bfloat16=use_bfloat16,  
+                use_focal_loss=use_focal_loss,  
+                val_only=val_only,  
+                predictions_save_path=predictions_save_path,  
+            )  
 
-        val_acc_scalar, val_heads = run_one_epoch(
-            device=device,
-            training=False,
-            encoder=encoder,
-            classifiers=classifiers,
-            scaler=scaler,
-            optimizer=optimizer,
-            scheduler=scheduler,
-            wd_scheduler=wd_scheduler,
-            data_loader=val_loader,
-            use_bfloat16=use_bfloat16,
-            use_focal_loss=use_focal_loss,
-        )
+        val_acc_scalar, val_heads = run_one_epoch(  
+            device=device,  
+            training=False,  
+            encoder=encoder,  
+            classifiers=classifiers,  
+            scaler=scaler,  
+            optimizer=optimizer,  
+            scheduler=scheduler,  
+            wd_scheduler=wd_scheduler,  
+            data_loader=val_loader,  
+            use_bfloat16=use_bfloat16,  
+            use_focal_loss=use_focal_loss,  
+            val_only=val_only,  
+            predictions_save_path=predictions_save_path,  
+        )  
 
         # ---- update scalar running stats (max over heads) ----
         val_cnt += 1
@@ -357,80 +368,121 @@ def main(args_eval, resume_preempt=False):
         )
 
 
-def run_one_epoch(
-    device,
-    training,
-    encoder,
-    classifiers,
-    scaler,
-    optimizer,
-    scheduler,
-    wd_scheduler,
-    data_loader,
-    use_bfloat16,
-    use_focal_loss=False,
-):
-    for c in classifiers:
-        c.train(mode=training)
-
-    criterion = sigmoid_focal_loss if use_focal_loss else torch.nn.CrossEntropyLoss()
-    top1_meters = [AverageMeter() for _ in classifiers]
-
-    for itr, data in enumerate(data_loader):
-        if training:
-            [s.step() for s in scheduler]
-            [wds.step() for wds in wd_scheduler]
-
-        with torch.cuda.amp.autocast(dtype=torch.float16, enabled=use_bfloat16):
-            # Load data and put on GPU
-            clips = [
-                [dij.to(device, non_blocking=True) for dij in di]  # iterate over spatial views of clip
-                for di in data[0]  # iterate over temporal index of clip
-            ]
-            clip_indices = [d.to(device, non_blocking=True) for d in data[2]]
-            labels = data[1].to(device)
-            batch_size = len(labels)
-
-            # Forward and prediction
-            with torch.no_grad():
-                outputs = encoder(clips, clip_indices)
-                if not training:
-                    outputs = [[c(o) for o in outputs] for c in classifiers]
-            if training:
-                outputs = [[c(o) for o in outputs] for c in classifiers]
-
-        # Compute loss
-        losses = [[criterion(o, labels) for o in coutputs] for coutputs in outputs]
-        with torch.no_grad():
-            outputs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]
-            top1_accs = [100.0 * coutputs.max(dim=1).indices.eq(labels).sum() / batch_size for coutputs in outputs]
-            top1_accs = [float(AllReduce.apply(t1a)) for t1a in top1_accs]
-            for t1m, t1a in zip(top1_meters, top1_accs):
-                t1m.update(t1a)
-
-        if training:
-            if use_bfloat16:
-                [[s.scale(lij).backward() for lij in li] for s, li in zip(scaler, losses)]
-                [s.step(o) for s, o in zip(scaler, optimizer)]
-                [s.update() for s in scaler]
-            else:
-                [[lij.backward() for lij in li] for li in losses]
-                [o.step() for o in optimizer]
-            [o.zero_grad() for o in optimizer]
-
-        _agg_top1 = np.array([t1m.avg for t1m in top1_meters])
-        if itr % 10 == 0:
-            logger.info(
-                "[%5d] %.3f%% [mean %.3f%% min %.3f%%] [mem: %.2e]"
-                % (
-                    itr,
-                    _agg_top1.max(),
-                    _agg_top1.mean(),
-                    _agg_top1.min(),
-                    torch.cuda.max_memory_allocated() / 1024.0**2,
-                )
-            )
-
+def run_one_epoch(  
+    device,  
+    training,  
+    encoder,  
+    classifiers,  
+    scaler,  
+    optimizer,  
+    scheduler,  
+    wd_scheduler,  
+    data_loader,  
+    use_bfloat16,  
+    use_focal_loss=False,  
+    val_only=False,  # NEW  
+    predictions_save_path=None,  # NEW  
+):  
+    for c in classifiers:  
+        c.train(mode=training)  
+  
+    criterion = sigmoid_focal_loss if use_focal_loss else torch.nn.CrossEntropyLoss()  
+    top1_meters = [AverageMeter() for _ in classifiers]  
+      
+    # NEW: Initialize prediction storage  
+    all_predictions = []  
+    all_video_paths = []  
+    all_labels = []  
+  
+    for itr, data in enumerate(data_loader):  
+        if training:  
+            [s.step() for s in scheduler]  
+            [wds.step() for wds in wd_scheduler]  
+  
+        with torch.cuda.amp.autocast(dtype=torch.float16, enabled=use_bfloat16):  
+            # Load data and put on GPU  
+            clips = [  
+                [dij.to(device, non_blocking=True) for dij in di]  # iterate over spatial views of clip  
+                for di in data[0]  # iterate over temporal index of clip  
+            ]  
+            clip_indices = [d.to(device, non_blocking=True) for d in data[2]]  
+            labels = data[1].to(device)  
+            batch_size = len(labels)  
+              
+            # NEW: Extract video paths (data[3] if available, otherwise generate)  
+            video_paths = data[3] if len(data) > 3 else [f"video_{itr}_{i}" for i in range(batch_size)]  
+  
+            # Forward and prediction  
+            with torch.no_grad():  
+                outputs = encoder(clips, clip_indices)  
+                if not training:  
+                    outputs = [[c(o) for o in outputs] for c in classifiers]  
+            if training:  
+                outputs = [[c(o) for o in outputs] for c in classifiers]  
+  
+        # Compute loss  
+        losses = [[criterion(o, labels) for o in coutputs] for coutputs in outputs]  
+        with torch.no_grad():  
+            outputs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]  
+            top1_accs = [100.0 * coutputs.max(dim=1).indices.eq(labels).sum() / batch_size for coutputs in outputs]  
+            top1_accs = [float(AllReduce.apply(t1a)) for t1a in top1_accs]  
+            for t1m, t1a in zip(top1_meters, top1_accs):  
+                t1m.update(t1a)  
+                  
+            # NEW: Save predictions and metadata when in val_only mode  
+            if val_only and predictions_save_path is not None:  
+                for i, pred in enumerate(outputs[0]):  # Use first classifier  
+                    all_predictions.append(pred.cpu().numpy())  
+                    all_video_paths.append(video_paths[i])  
+                    all_labels.append(labels[i].cpu().numpy())  
+  
+        if training:  
+            if use_bfloat16:  
+                [[s.scale(lij).backward() for lij in li] for s, li in zip(scaler, losses)]  
+                [s.step(o) for s, o in zip(scaler, optimizer)]  
+                [s.update() for s in scaler]  
+            else:  
+                [[lij.backward() for lij in li] for li in losses]  
+                [o.step() for o in optimizer]  
+            [o.zero_grad() for o in optimizer]  
+  
+        _agg_top1 = np.array([t1m.avg for t1m in top1_meters])  
+        if itr % 10 == 0:  
+            logger.info(  
+                "[%5d] %.3f%% [mean %.3f%% min %.3f%%] [mem: %.2e]"  
+                % (  
+                    itr,  
+                    _agg_top1.max(),  
+                    _agg_top1.mean(),  
+                    _agg_top1.min(),  
+                    torch.cuda.max_memory_allocated() / 1024.0**2,  
+                )  
+            )  
+  
+    # NEW: Save predictions to CSV after epoch  
+    if val_only and predictions_save_path is not None and len(all_predictions) > 0:  
+        import pandas as pd  
+        import os  
+          
+        # Create directory if it doesn't exist  
+        os.makedirs(os.path.dirname(predictions_save_path), exist_ok=True)  
+          
+        # Convert predictions to class labels and probabilities  
+        pred_classes = [np.argmax(pred) for pred in all_predictions]  
+        pred_probs = [pred.max() for pred in all_predictions]  
+          
+        # Create DataFrame  
+        df = pd.DataFrame({  
+            'video_path': all_video_paths,  
+            'true_label': all_labels,  
+            'predicted_class': pred_classes,  
+            'prediction_confidence': pred_probs  
+        })  
+          
+        # Save to CSV  
+        df.to_csv(predictions_save_path, index=False)  
+        logger.info(f"Saved {len(all_predictions)} predictions to {predictions_save_path}")  
+  
     return float(_agg_top1.max()), _agg_top1
 
 

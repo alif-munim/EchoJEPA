@@ -136,14 +136,12 @@ python3 make_patient_split.py \
 
 You will get a `split_summary.txt` file that summarizes the data distribution in each split. This script still maps to the still image extracted from the first frame of each video (e.g. paths like `./unmasked/job_1734/images/h4h_ef_frames/1.2.276.0.7230010.3.1.2.845494328.1.1703598471.21532689/1.2.276.0.7230010.3.1.3.845494328.1.1703598471.21532690/mp4/1.2.276.0.7230010.3.1.4.811753780.1.1703598679.15799699_masked.jpg`), so it needs to be cleaned up. All of the raw 584 patients (585 studies) are stored at `/cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_585/`.
 
-To map to the actual mp4 directories, use this script
+To map to the actual mp4 directories, use this script (additional args include `--check-exists` and `--drop-missing`
 ```
 python3 map_labels_to_mp4.py \
   --in labels_patient_split.csv \
   --root /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_607/ \
-  --out labels_patient_split_mp4.csv \
-  --check-exists \
-  --drop-missing
+  --out labels_patient_split_mp4.csv
 ```
 
 Now, we have a dataset file with valid splits ready to train!
@@ -154,8 +152,8 @@ Rewrite the old cluster paths to the S3 uris:
 python3 rewrite_mp4_paths_to_s3.py \
   --in labels_patient_split_mp4.csv \
   --out labels_patient_split_mp4_s3.csv \
-  --s3-prefix s3://echodata25/results/uhn_studies_22k_585/uhn_studies_22k_585 \
-  --root-marker uhn_studies_22k_585
+  --s3-prefix s3://echodata25/results/uhn_studies_22k_607_224px \
+  --root-marker uhn_studies_22k_607
 ```
 
 Randomly sample S3 paths and ensure they exist:
@@ -218,6 +216,8 @@ python3 make_stratified_subset.py \
 ```
 
 # Color Classification
+~99% accuracy
+[   30] train: 97.892%  val(max-head): 98.769%
 
 From the notebook, we have `labels_color.csv`, `labels_quality.csv`, and `labels_zoom.csv` and they look like this
 ```
@@ -285,6 +285,8 @@ python -m evals.main \
 
 
 # Quality Classification
+~69% accuracy
+[   30] train: 87.041%  val(max-head): 69.981%
 
 First, we map the labels to mp4:
 ```
@@ -341,6 +343,8 @@ python -m evals.main \
 ```
 
 # Zoom Classification
+~85% accuracy
+[   13] train: 90.500%  val(max-head): 86.099%
 
 First, we map the labels to mp4:
 ```
@@ -391,7 +395,46 @@ python3 make_view_labels_space_sep.py \
 
 Run the training
 ```
+mkdir -p /tmp/torch_tmp
+export TMPDIR=/tmp/torch_tmp
 python -m evals.main \
     --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/zoom/zoom_classification_224px.yaml \
     --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee zoom_224px_dec24v1.log
+```
+
+# Inference
+
+First, fix the checkpoint to remove `module` prefixes:
+```
+python classifier/fix_inference_checkpoint.py
+```
+
+Then, run inference:
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/view/uhn_22k.yaml --devices cuda:0
+```
+
+Map numbers to classes:
+```
+python3 - <<'PY'
+import json, pandas as pd
+
+csv_in  = "/home/sagemaker-user/user-default-efs/vjepa2/predictions/uhn22k_predictions.csv"
+map_in  = "/home/sagemaker-user/user-default-efs/vjepa2/classifier/uhn_views_22k_mapping_train.json"
+csv_out = "/home/sagemaker-user/user-default-efs/vjepa2/predictions/uhn22k_predictions_with_names.csv"
+
+with open(map_in, "r") as f:
+    m = json.load(f)
+
+# normalize mapping to int -> str
+m = {int(k): v for k, v in m.items()}
+
+df = pd.read_csv(csv_in)
+
+df["true_label_name"] = df["true_label"].map(m)
+df["predicted_class_name"] = df["predicted_class"].map(m)
+
+df.to_csv(csv_out, index=False)
+print("Wrote:", csv_out)
+PY
 ```

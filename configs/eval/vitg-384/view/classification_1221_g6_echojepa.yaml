@@ -9,7 +9,7 @@ num_workers: 8
 
 eval_name: video_classification_frozen
 resume_checkpoint: false
-tag: uhn22k-classifier-fs2-ns2-nvs1-echojepa-112px
+tag: uhn22k-classifier-fs2-ns2-nvs1-echojepa
 
 experiment:
   classifier:
@@ -21,7 +21,7 @@ experiment:
     dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_train.csv
     dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_val.csv
     num_classes: 13
-    resolution: 112
+    resolution: 224
     frames_per_clip: 16
     
     # SAMPLING (Optimized for Cardiac Cycle)
