@@ -103,6 +103,7 @@ class AttentivePooler(nn.Module):
         q = self.cross_attention_block(q, x, attn_mask=key_padding_mask)
         return q
 
+
 class AttentiveClassifier(nn.Module):
     def __init__(self,
                  embed_dim=768, num_heads=12, mlp_ratio=4.0, depth=1,
@@ -164,3 +165,27 @@ class AttentiveClassifier(nn.Module):
         x = self.linear(x)
         return x
 
+
+class AttentiveRegressor(nn.Module):  
+    def __init__(  
+        self,  
+        embed_dim=768,  
+        num_heads=12,  
+        depth=1,  
+        num_targets=1,  
+        use_activation_checkpointing=False,  # Add this parameter  
+    ):  
+        super().__init__()  
+        self.pooler = AttentivePooler(  
+            num_queries=1,  
+            embed_dim=embed_dim,  
+            num_heads=num_heads,  
+            depth=depth,  
+            use_activation_checkpointing=use_activation_checkpointing,  # Pass it through  
+        )  
+        self.regressor = nn.Linear(embed_dim, num_targets, bias=True)  
+      
+    def forward(self, x):  
+        x = self.pooler(x).squeeze(1)  
+        x = self.regressor(x)  
+        return x

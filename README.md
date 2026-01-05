@@ -10,6 +10,13 @@
 - heartlab_link.ipynb -- link heartlab reports, studies, and series to videos (heartlab_rep_study_video.csv)
 - deid_overlap.ipynb -- overlap of syngo deid keys with data on AWS (aws_uhn.csv)
 
+### Regression
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef_regression.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_regression_0106_v1.log
+```
+
 ### Debug
 For debugging issues.
 ```

@@ -29,6 +29,8 @@ from evals.video_classification_frozen.models import init_module
 from evals.video_classification_frozen.utils import make_transforms
 from src.datasets.data_manager import init_data
 from src.models.attentive_pooler import AttentiveClassifier
+from src.models.attentive_pooler import AttentiveRegressor
+
 from src.utils.checkpoint_loader import robust_checkpoint_loader
 from src.utils.distributed import AllReduce, init_distributed
 from src.utils.logging import AverageMeter, CSVLogger
@@ -144,6 +146,10 @@ def main(args_eval, resume_preempt=False):
     num_heads = args_classifier.get("num_heads", 16)
     probe_checkpoint = args_eval.get("probe_checkpoint", None)
 
+    # -- REGRESSION
+    task_type = args_classifier.get("task_type", "classification")  # "classification" or "regression"  
+    num_targets = args_classifier.get("num_targets", None)  # Only for regression
+
     # -- DATA
     args_data = args_exp.get("data")
     dataset_type = args_data.get("dataset_type", "VideoDataset")
@@ -207,8 +213,11 @@ def main(args_eval, resume_preempt=False):
         latest_path = os.path.join(folder, "latest.pt")
 
     # -- make csv_logger
-    if rank == 0:
-        csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "loss"), ("%.5f", "acc"))
+    if rank == 0:  
+        if task_type == "regression":  
+            csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "train_mse"), ("%.5f", "val_mse"))  
+        else:  # classification  
+            csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "train_acc"), ("%.5f", "val_acc"))
 
     # Initialize model
 
@@ -224,16 +233,30 @@ def main(args_eval, resume_preempt=False):
     )
 
     # -- init classifier (disable activation checkpointing; you have headroom)
-    classifiers = [
-        AttentiveClassifier(
-            embed_dim=encoder.embed_dim,
-            num_heads=num_heads,
-            depth=num_probe_blocks,
-            num_classes=num_classes,
-            use_activation_checkpointing=True,
-        ).to(device)
-        for _ in opt_kwargs
-    ]
+    if task_type == "regression":
+        classifiers = [
+            AttentiveRegressor(
+                embed_dim=encoder.embed_dim,
+                num_heads=num_heads,  
+                depth=num_probe_blocks,  
+                num_targets=num_targets,  
+                use_activation_checkpointing=True,  
+            ).to(device)  
+            for _ in opt_kwargs  
+        ]  
+    else:  # classification  
+        classifiers = [  
+            AttentiveClassifier(  
+                embed_dim=encoder.embed_dim,  
+                num_heads=num_heads,  
+                depth=num_probe_blocks,  
+                num_classes=num_classes,  
+                use_activation_checkpointing=True,  
+            ).to(device)  
+            for _ in opt_kwargs  
+        ]
+
+    
     # classifiers = [DistributedDataParallel(c, static_graph=True) for c in classifiers
     # Add distributed check to avoid DDP crash when running concurrent jobs  
     from torch import distributed as dist  
@@ -373,7 +396,8 @@ def main(args_eval, resume_preempt=False):
                 use_bfloat16=use_bfloat16,  
                 use_focal_loss=use_focal_loss,  
                 val_only=val_only,  
-                predictions_save_path=predictions_save_path,  
+                predictions_save_path=predictions_save_path,
+                task_type=task_type,  # ADD THIS LINE  
             )  
 
         val_acc_scalar, val_heads = run_one_epoch(  
@@ -389,7 +413,8 @@ def main(args_eval, resume_preempt=False):
             use_bfloat16=use_bfloat16,  
             use_focal_loss=use_focal_loss,  
             val_only=val_only,  
-            predictions_save_path=predictions_save_path,  
+            predictions_save_path=predictions_save_path,
+            task_type=task_type,  # ADD THIS LINE  
         )  
 
         # ---- update scalar running stats (max over heads) ----
@@ -432,129 +457,171 @@ def main(args_eval, resume_preempt=False):
         )
 
 
-def run_one_epoch(
-    device,
-    training,
-    encoder,
-    classifiers,
-    scaler,
-    optimizer,
-    scheduler,
-    wd_scheduler,
-    data_loader,
-    use_bfloat16,
-    use_focal_loss=False,
-    val_only=False,
-    predictions_save_path=None,
-):
-    # --- NEW: Import tqdm for progress bar ---
-    from tqdm import tqdm
-    
-    for c in classifiers:
-        c.train(mode=training)
-
-    if use_focal_loss:
-        criterion = FocalLoss(alpha=1.0, gamma=2.0)
-    else:
-        criterion = torch.nn.CrossEntropyLoss()
-        
-    top1_meters = [AverageMeter() for _ in classifiers]
-    
-    all_predictions = []
-    all_video_paths = []
-    all_labels = []
-
-    # --- NEW: Wrap loader in tqdm if val_only ---
-    # This automatically calculates total batches (len(csv) / batch_size)
-    # and gives you the ETA based on processing speed.
-    if val_only:
-        # dynamic_ncols=True adapts to terminal width
-        iterator = tqdm(data_loader, desc="Inference", unit="batch", dynamic_ncols=True)
-    else:
-        iterator = data_loader
-
-    # Change 'data_loader' to 'iterator' in the loop
-    for itr, data in enumerate(iterator):
-        if training:
-            [s.step() for s in scheduler]
-            [wds.step() for wds in wd_scheduler]
-
-        with torch.cuda.amp.autocast(dtype=torch.float16, enabled=use_bfloat16):
-            # Load data and put on GPU
-            clips = [
-                [dij.to(device, non_blocking=True) for dij in di]
-                for di in data[0]
-            ]
-            clip_indices = [d.to(device, non_blocking=True) for d in data[2]]
-            labels = data[1].to(device)
-            batch_size = len(labels)
+def run_one_epoch(  
+    device,  
+    training,  
+    encoder,  
+    classifiers,  
+    scaler,  
+    optimizer,  
+    scheduler,  
+    wd_scheduler,  
+    data_loader,  
+    use_bfloat16,  
+    task_type="classification",  # "classification" or "regression"  
+    use_focal_loss=False,  
+    val_only=False,  
+    predictions_save_path=None,  
+):  
+    # --- NEW: Import tqdm for progress bar ---  
+    from tqdm import tqdm  
+      
+    for c in classifiers:  
+        c.train(mode=training)  
+  
+    # Choose loss function based on task type  
+    if task_type == "regression":  
+        criterion = torch.nn.MSELoss()  
+        metric_meters = [AverageMeter() for _ in classifiers]  # For MSE/MAE  
+    else:  # classification  
+        if use_focal_loss:  
+            criterion = FocalLoss(alpha=1.0, gamma=2.0)  
+        else:  
+            criterion = torch.nn.CrossEntropyLoss()  
+        top1_meters = [AverageMeter() for _ in classifiers]  
+      
+    all_predictions = []  
+    all_video_paths = []  
+    all_labels = []  
+  
+    # --- NEW: Wrap loader in tqdm if val_only ---  
+    if val_only:  
+        iterator = tqdm(data_loader, desc="Inference", unit="batch", dynamic_ncols=True)  
+    else:  
+        iterator = data_loader  
+  
+    for itr, data in enumerate(iterator):  
+        if training:  
+            [s.step() for s in scheduler]  
+            [wds.step() for wds in wd_scheduler]  
+  
+        with torch.cuda.amp.autocast(dtype=torch.float16, enabled=use_bfloat16):  
+            # Load data and put on GPU  
+            clips = [  
+                [dij.to(device, non_blocking=True) for dij in di]  
+                for di in data[0]  
+            ]  
+            clip_indices = [d.to(device, non_blocking=True) for d in data[2]]  
+            labels = data[1].to(device)  
+            batch_size = len(labels)  
+              
+            video_paths = data[3] if len(data) > 3 else [f"video_{itr}_{i}" for i in range(batch_size)]  
+  
+            # Forward and prediction  
+            with torch.no_grad():  
+                outputs = encoder(clips, clip_indices)  
+                if not training:  
+                    outputs = [[c(o) for o in outputs] for c in classifiers]  
+            if training:  
+                outputs = [[c(o) for o in outputs] for c in classifiers]  
+  
+        # Compute loss with proper dtype handling  
+        if task_type == "regression":  
+            # Ensure consistent dtypes for regression  
+            labels = labels.float()  
+            if labels.dim() == 1:  
+                labels = labels.unsqueeze(-1)  
+            losses = [[criterion(o.float(), labels) for o in coutputs] for coutputs in outputs]  
+        else:  
+            losses = [[criterion(o, labels) for o in coutputs] for coutputs in outputs]  
             
-            video_paths = data[3] if len(data) > 3 else [f"video_{itr}_{i}" for i in range(batch_size)]
+        # Compute metrics based on task type  
+        with torch.no_grad():  
+            if task_type == "regression":  
+                # For regression: compute MSE, MAE  
+                outputs = [sum([o for o in coutputs]) / len(coutputs) for coutputs in outputs]  
+                mse_errors = [F.mse_loss(o.squeeze().float(), labels.squeeze()) for o in outputs]  
+                mae_errors = [F.l1_loss(o.squeeze().float(), labels.squeeze()) for o in outputs]  
+                mse_errors = [float(AllReduce.apply(mse)) for mse in mse_errors]  
+                for meter, mse in zip(metric_meters, mse_errors):  
+                    meter.update(mse)  
+            else:  # classification  
+                outputs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]  
+                top1_accs = [100.0 * coutputs.max(dim=1).indices.eq(labels).sum() / batch_size for coutputs in outputs]  
+                top1_accs = [float(AllReduce.apply(t1a)) for t1a in top1_accs]  
+                for t1m, t1a in zip(top1_meters, top1_accs):  
+                    t1m.update(t1a)  
+                    
+            if val_only and predictions_save_path is not None:  
+                for i, pred in enumerate(outputs[0]):  
+                    all_predictions.append(pred.cpu().numpy())  
+                    all_video_paths.append(video_paths[i])  
+                    all_labels.append(labels[i].cpu().numpy())  
+  
+        if training:  
+            if use_bfloat16:  
+                [[s.scale(lij).backward() for lij in li] for s, li in zip(scaler, losses)]  
+                [s.step(o) for s, o in zip(scaler, optimizer)]  
+                [s.update() for s in scaler]  
+            else:  
+                [[lij.backward() for lij in li] for li in losses]  
+                [o.step() for o in optimizer]  
+            [o.zero_grad() for o in optimizer]  
+  
+        # Aggregate metrics for logging  
+        if task_type == "regression":  
+            _agg_metrics = np.array([m.avg for m in metric_meters])  
+            metric_name = "MSE"  
+            metric_symbol = ""  
+        else:  # classification  
+            _agg_metrics = np.array([t1m.avg for t1m in top1_meters])  
+            metric_name = "Acc"  
+            metric_symbol = "%"  
+            
+        # Only log to text log periodically (keep tqdm clean)  
+        if itr % 10 == 0:  
+            if val_only:  
+                # Update description dynamically with metrics  
+                if task_type == "regression":  
+                    iterator.set_description(f"Inf MSE: {_agg_metrics.min():.4f}")  
+                else:  
+                    iterator.set_description(f"Inf Acc: {_agg_metrics.max():.2f}%")  
+            else:  
+                msg = "[%5d] %.3f%s [mean %.3f%s] [mem: %.2e]" % (  
+                    itr, _agg_metrics.max(), metric_symbol, _agg_metrics.mean(), metric_symbol,   
+                    torch.cuda.max_memory_allocated() / 1024.0**2,  
+                )  
+                logger.info(msg)  
+  
+    # Save predictions (existing code)  
+    if val_only and predictions_save_path is not None and len(all_predictions) > 0:  
+        import pandas as pd  
+        import os  
+        os.makedirs(os.path.dirname(predictions_save_path), exist_ok=True)  
+            
+        if task_type == "regression":  
+            # For regression, save raw predictions  
+            pred_values = [pred[0] if len(pred.shape) > 0 else pred for pred in all_predictions]  
+            df = pd.DataFrame({  
+                'video_path': all_video_paths,  
+                'true_label': all_labels,  
+                'predicted_value': pred_values  
+            })  
+        else:  # classification  
+            pred_classes = [np.argmax(pred) for pred in all_predictions]  
+            pred_probs = [pred.max() for pred in all_predictions]  
+            df = pd.DataFrame({  
+                'video_path': all_video_paths,  
+                'true_label': all_labels,  
+                'predicted_class': pred_classes,  
+                'prediction_confidence': pred_probs  
+            })  
+            
+        df.to_csv(predictions_save_path, index=False)  
+        logger.info(f"Saved {len(all_predictions)} predictions to {predictions_save_path}")  
+  
+    return float(_agg_metrics.max()), _agg_metrics
 
-            # Forward and prediction
-            with torch.no_grad():
-                outputs = encoder(clips, clip_indices)
-                if not training:
-                    outputs = [[c(o) for o in outputs] for c in classifiers]
-            if training:
-                outputs = [[c(o) for o in outputs] for c in classifiers]
-
-        # Compute loss
-        losses = [[criterion(o, labels) for o in coutputs] for coutputs in outputs]
-        with torch.no_grad():
-            outputs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]
-            top1_accs = [100.0 * coutputs.max(dim=1).indices.eq(labels).sum() / batch_size for coutputs in outputs]
-            top1_accs = [float(AllReduce.apply(t1a)) for t1a in top1_accs]
-            for t1m, t1a in zip(top1_meters, top1_accs):
-                t1m.update(t1a)
-                
-            if val_only and predictions_save_path is not None:
-                for i, pred in enumerate(outputs[0]):
-                    all_predictions.append(pred.cpu().numpy())
-                    all_video_paths.append(video_paths[i])
-                    all_labels.append(labels[i].cpu().numpy())
-
-        if training:
-            if use_bfloat16:
-                [[s.scale(lij).backward() for lij in li] for s, li in zip(scaler, losses)]
-                [s.step(o) for s, o in zip(scaler, optimizer)]
-                [s.update() for s in scaler]
-            else:
-                [[lij.backward() for lij in li] for li in losses]
-                [o.step() for o in optimizer]
-            [o.zero_grad() for o in optimizer]
-
-        _agg_top1 = np.array([t1m.avg for t1m in top1_meters])
-        
-        # Only log to text log periodically (keep tqdm clean)
-        if itr % 10 == 0:
-            # If using tqdm, use write() to avoid breaking the bar
-            msg = "[%5d] %.3f%% [mean %.3f%%] [mem: %.2e]" % (
-                itr, _agg_top1.max(), _agg_top1.mean(), torch.cuda.max_memory_allocated() / 1024.0**2,
-            )
-            if val_only:
-                # Update description dynamically with accuracy
-                iterator.set_description(f"Inf Acc: {_agg_top1.max():.2f}%")
-            else:
-                logger.info(msg)
-
-    # Save predictions (existing code)
-    if val_only and predictions_save_path is not None and len(all_predictions) > 0:
-        import pandas as pd
-        import os
-        os.makedirs(os.path.dirname(predictions_save_path), exist_ok=True)
-        pred_classes = [np.argmax(pred) for pred in all_predictions]
-        pred_probs = [pred.max() for pred in all_predictions]
-        df = pd.DataFrame({
-            'video_path': all_video_paths,
-            'true_label': all_labels,
-            'predicted_class': pred_classes,
-            'prediction_confidence': pred_probs
-        })
-        df.to_csv(predictions_save_path, index=False)
-        logger.info(f"Saved {len(all_predictions)} predictions to {predictions_save_path}")
-
-    return float(_agg_top1.max()), _agg_top1
 
 
 def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
