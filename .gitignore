@@ -1,0 +1,17 @@
+# Virtual environments
+echofm_venv/
+torch_cpu_venv/
+
+# Large model files
+*.pth
+
+# Batch data folders
+cohort_batches/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Slurm output files (optional)
+*.out
+*.err
