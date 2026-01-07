@@ -13,7 +13,7 @@ START_TS="$(date '+%Y-%m-%d %H:%M:%S')"
 
 # ---------- Paths (overridable via env or your .slurm) ----------
 BASE_INPUT_DIR="${BASE_INPUT_DIR:-/gpfs/data/whitney-lab/echo-FM/March_2022_complete/DICOM}"
-OUTPUT_ROOT="${OUTPUT_ROOT:-/gpfs/data/whitney-lab/echo-FM/March_2022_complete/CONVERTED}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-/gpfs/data/whitney-lab/echo-FM/March_2022_complete/CONVERTED_DATA_JAN}"
 SHARED_DIR="${SHARED_DIR:-$OUTPUT_ROOT}"
 MANIFEST="${MANIFEST:-$SHARED_DIR/manifest.txt}"
 CURSOR="${CURSOR:-$SHARED_DIR/cursor.txt}"
@@ -26,7 +26,7 @@ PYTHON_THREADS="${PYTHON_THREADS:-2}"
 OPENJPEG_THREADS="${OPENJPEG_THREADS:-2}"
 
 # ---------- Color space handling ----------
-FORCE_GRAY="${FORCE_GRAY:-1}"   # default ON: write grayscale (3 identical channels)
+FORCE_GRAY="${FORCE_GRAY:-0}"   # default OFF: write color (3 identical channels)
 export FORCE_GRAY
 
 FF_ENC="${FF_ENC:-libx264}"

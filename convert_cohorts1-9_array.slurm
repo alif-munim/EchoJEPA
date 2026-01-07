@@ -33,12 +33,12 @@ echo ""
 # ---------- Paths ----------
 export FFMPEG_BIN="/gpfs/data/whitney-lab/echo-FM/CODE/echofm_venv/lib/python3.12/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2"
 BASE_DATA_DIR="/gpfs/data/whitney-lab/echo-FM/DATA"
-BASE_OUTPUT_DIR="/gpfs/data/whitney-lab/echo-FM/CONVERTED_DATA"
+BASE_OUTPUT_DIR="/gpfs/data/whitney-lab/echo-FM/CONVERTED_DATA_JAN"
 SCRIPT_DIR="/gpfs/data/whitney-lab/echo-FM/CODE/adapted_cri"
 
 # ---------- Configuration ----------
 export JOBS_PER_STUDY=12
-export FORCE_GRAY=1
+export FORCE_GRAY=0
 export PYTHON_THREADS=2
 export OPENJPEG_NUM_THREADS=2
 
