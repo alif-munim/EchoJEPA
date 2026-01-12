@@ -481,8 +481,8 @@ def run_one_epoch(
   
     # Choose loss function based on task type  
     if task_type == "regression":  
-        criterion = torch.nn.MSELoss()  
-        metric_meters = [AverageMeter() for _ in classifiers]  # For MSE/MAE  
+        criterion = torch.nn.SmoothL1Loss()  # Huber Loss  
+        metric_meters = [AverageMeter() for _ in classifiers]
     else:  # classification  
         if use_focal_loss:  
             criterion = FocalLoss(alpha=1.0, gamma=2.0)  
@@ -527,24 +527,30 @@ def run_one_epoch(
   
         # Compute loss with proper dtype handling  
         if task_type == "regression":  
-            # Ensure consistent dtypes for regression  
             labels = labels.float()  
             if labels.dim() == 1:  
                 labels = labels.unsqueeze(-1)  
-            losses = [[criterion(o.float(), labels) for o in coutputs] for coutputs in outputs]  
+            losses = [[criterion(o.float(), labels) for o in coutputs] for coutputs in outputs]
         else:  
             losses = [[criterion(o, labels) for o in coutputs] for coutputs in outputs]  
             
         # Compute metrics based on task type  
         with torch.no_grad():  
-            if task_type == "regression":  
-                # For regression: compute MSE, MAE  
-                outputs = [sum([o for o in coutputs]) / len(coutputs) for coutputs in outputs]  
-                mse_errors = [F.mse_loss(o.squeeze().float(), labels.squeeze()) for o in outputs]  
-                mae_errors = [F.l1_loss(o.squeeze().float(), labels.squeeze()) for o in outputs]  
-                mse_errors = [float(AllReduce.apply(mse)) for mse in mse_errors]  
-                for meter, mse in zip(metric_meters, mse_errors):  
-                    meter.update(mse)  
+            if task_type == "regression":
+                outputs = [sum([o for o in coutputs]) / len(coutputs) for coutputs in outputs]
+                
+                # 1. Calculate Normalized MAE (Standard Deviations)
+                mae_errors = [F.l1_loss(o.squeeze().float(), labels.squeeze()) for o in outputs]
+                mae_errors = [float(AllReduce.apply(mae)) for mae in mae_errors]
+                
+                # 2. --- NEW: Convert to Real MAE (LVEF %) ---
+                # Multiply by the Standard Deviation of your TRAIN set (from your stats)
+                LVEF_TRAIN_STD = 11.33 
+                mae_errors = [mae * LVEF_TRAIN_STD for mae in mae_errors]
+                # --------------------------------------------
+
+                for meter, mae in zip(metric_meters, mae_errors):
+                    meter.update(mae)
             else:  # classification  
                 outputs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]  
                 top1_accs = [100.0 * coutputs.max(dim=1).indices.eq(labels).sum() / batch_size for coutputs in outputs]  
@@ -571,8 +577,8 @@ def run_one_epoch(
         # Aggregate metrics for logging  
         if task_type == "regression":  
             _agg_metrics = np.array([m.avg for m in metric_meters])  
-            metric_name = "MSE"  
-            metric_symbol = ""  
+            metric_name = "MAE"  # Changed from "MSE"  
+            metric_symbol = ""
         else:  # classification  
             _agg_metrics = np.array([t1m.avg for t1m in top1_meters])  
             metric_name = "Acc"  
