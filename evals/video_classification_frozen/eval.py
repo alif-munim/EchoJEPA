@@ -337,7 +337,9 @@ def main(args_eval, resume_preempt=False):
     count_epochs = 0
 
     def save_checkpoint(epoch, mean_val_acc, best_val_acc,
-                        val_heads, best_per_head, mean_per_head, min_per_head, best_epoch_per_head):
+                        val_heads, best_per_head, mean_per_head, min_per_head, best_epoch_per_head,
+                        is_best=False):  # <--- ADD THIS PARAMETER
+        
         all_classifier_dicts = [c.state_dict() for c in classifiers]
         all_opt_dicts = [o.state_dict() for o in optimizer]
 
@@ -348,29 +350,30 @@ def main(args_eval, resume_preempt=False):
             "epoch": epoch,
             "batch_size": batch_size,
             "world_size": world_size,
-
-            # ---- scalar metrics (max over heads, as before) ----
             "mean_val_acc": float(mean_val_acc),
             "best_val_acc": float(best_val_acc),
-
-            # ---- per-head metrics ----
             "val_acc_per_head": np.asarray(val_heads, dtype=float).tolist(),
             "best_val_acc_per_head": np.asarray(best_per_head, dtype=float).tolist(),
             "mean_val_acc_per_head": np.asarray(mean_per_head, dtype=float).tolist(),
             "min_val_acc_per_head": np.asarray(min_per_head, dtype=float).tolist(),
             "best_epoch_per_head": np.asarray(best_epoch_per_head, dtype=int).tolist(),
-
-            # ---- grid (LR/WD mapping for each head) ----
             "opt_grid": opt_kwargs,
         }
+        
         if rank == 0:
-            # keep rolling latest
+            # 1. Always save latest
             _latest_path = os.path.join(folder, "latest.pt")
             torch.save(save_dict, _latest_path)
 
-            # save a per-epoch snapshot too
+            # 2. Save per-epoch snapshot
             epoch_path = os.path.join(folder, f"epoch_{epoch:03d}.pt")
             torch.save(save_dict, epoch_path)
+            
+            # 3. --- NEW: Save BEST checkpoint ---
+            if is_best:
+                best_path = os.path.join(folder, "best.pt")
+                torch.save(save_dict, best_path)
+                logger.info(f"Generated new best model: {best_path}")
 
     # ---- per-head running stats ----
     best_per_head = None
@@ -435,13 +438,19 @@ def main(args_eval, resume_preempt=False):
         val_sum_scalar += float(val_acc_scalar)
         mean_val_acc_scalar = val_sum_scalar / val_cnt
         
-        # [FIX 4] Conditional Best Logic (Lower is better for Regression)
+        # --- NEW: Logic for determining "Best" ---
+        is_best = False
         if task_type == "regression":
+            # For Regression: LOWER is better
+            # Note: Initialize best_val_acc_scalar to float('inf') before loop!
             if float(val_acc_scalar) < best_val_acc_scalar:
                 best_val_acc_scalar = float(val_acc_scalar)
+                is_best = True
         else:
+            # For Classification: HIGHER is better
             if float(val_acc_scalar) > best_val_acc_scalar:
                 best_val_acc_scalar = float(val_acc_scalar)
+                is_best = True
 
         # ---- update per-head running stats ----
         count_epochs += 1
@@ -490,6 +499,7 @@ def main(args_eval, resume_preempt=False):
             mean_per_head,
             min_per_head,
             best_epoch_per_head,
+            is_best=is_best,  # <--- PASS THE FLAG HERE
         )
 
 
