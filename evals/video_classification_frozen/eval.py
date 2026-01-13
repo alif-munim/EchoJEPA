@@ -372,56 +372,76 @@ def main(args_eval, resume_preempt=False):
             epoch_path = os.path.join(folder, f"epoch_{epoch:03d}.pt")
             torch.save(save_dict, epoch_path)
 
+    # ---- per-head running stats ----
+    best_per_head = None
+    sum_per_head = None
+    min_per_head = None
+    best_epoch_per_head = None
+    count_epochs = 0
+    
+    # [FIX 3] Initialize Best Scalar based on Task
+    if task_type == "regression":
+        best_val_acc_scalar = float('inf')
+    else:
+        best_val_acc_scalar = 0.0
+
     # TRAIN LOOP
-    best_val_acc_scalar = 0.0
     val_cnt = 0
     val_sum_scalar = 0.0
+    
     for epoch in range(start_epoch, num_epochs):
         logger.info("Epoch %d" % (epoch + 1))
         train_sampler.set_epoch(epoch)
 
-        if val_only:  
-            train_acc_scalar, _ = -1.0, None  
-        else:  
-            train_acc_scalar, _ = run_one_epoch(  
-                device=device,  
-                training=True,  
-                encoder=encoder,  
-                classifiers=classifiers,  
-                scaler=scaler,  
-                optimizer=optimizer,  
-                scheduler=scheduler,  
-                wd_scheduler=wd_scheduler,  
-                data_loader=train_loader,  
-                use_bfloat16=use_bfloat16,  
-                use_focal_loss=use_focal_loss,  
-                val_only=val_only,  
+        if val_only:
+            train_acc_scalar, _ = -1.0, None
+        else:
+            train_acc_scalar, _ = run_one_epoch(
+                device=device,
+                training=True,
+                encoder=encoder,
+                classifiers=classifiers,
+                scaler=scaler,
+                optimizer=optimizer,
+                scheduler=scheduler,
+                wd_scheduler=wd_scheduler,
+                data_loader=train_loader,
+                use_bfloat16=use_bfloat16,
+                use_focal_loss=use_focal_loss,
+                val_only=val_only,
                 predictions_save_path=predictions_save_path,
-                task_type=task_type,  # ADD THIS LINE  
-            )  
+                task_type=task_type,
+            )
 
-        val_acc_scalar, val_heads = run_one_epoch(  
-            device=device,  
-            training=False,  
-            encoder=encoder,  
-            classifiers=classifiers,  
-            scaler=scaler,  
-            optimizer=optimizer,  
-            scheduler=scheduler,  
-            wd_scheduler=wd_scheduler,  
-            data_loader=val_loader,  
-            use_bfloat16=use_bfloat16,  
-            use_focal_loss=use_focal_loss,  
-            val_only=val_only,  
+        val_acc_scalar, val_heads = run_one_epoch(
+            device=device,
+            training=False,
+            encoder=encoder,
+            classifiers=classifiers,
+            scaler=scaler,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            wd_scheduler=wd_scheduler,
+            data_loader=val_loader,
+            use_bfloat16=use_bfloat16,
+            use_focal_loss=use_focal_loss,
+            val_only=val_only,
             predictions_save_path=predictions_save_path,
-            task_type=task_type,  # ADD THIS LINE  
-        )  
+            task_type=task_type,
+        )
 
-        # ---- update scalar running stats (max over heads) ----
+        # ---- update scalar running stats ----
         val_cnt += 1
         val_sum_scalar += float(val_acc_scalar)
         mean_val_acc_scalar = val_sum_scalar / val_cnt
-        best_val_acc_scalar = max(best_val_acc_scalar, float(val_acc_scalar))
+        
+        # [FIX 4] Conditional Best Logic (Lower is better for Regression)
+        if task_type == "regression":
+            if float(val_acc_scalar) < best_val_acc_scalar:
+                best_val_acc_scalar = float(val_acc_scalar)
+        else:
+            if float(val_acc_scalar) > best_val_acc_scalar:
+                best_val_acc_scalar = float(val_acc_scalar)
 
         # ---- update per-head running stats ----
         count_epochs += 1
@@ -431,14 +451,30 @@ def main(args_eval, resume_preempt=False):
             min_per_head = val_heads.copy()
             best_epoch_per_head = np.full_like(val_heads, epoch + 1, dtype=int)
         else:
-            improved = val_heads > best_per_head
+            # For per-head, we need similar conditional logic for "improved"
+            if task_type == "regression":
+                improved = val_heads < best_per_head # Lower is better
+                best_per_head = np.minimum(best_per_head, val_heads)
+            else:
+                improved = val_heads > best_per_head # Higher is better
+                best_per_head = np.maximum(best_per_head, val_heads)
+                
             best_epoch_per_head[improved] = epoch + 1
-            best_per_head = np.maximum(best_per_head, val_heads)
             sum_per_head += val_heads
             min_per_head = np.minimum(min_per_head, val_heads)
+            
         mean_per_head = sum_per_head / count_epochs
 
-        logger.info("[%5d] train: %.3f%%  val(max-head): %.3f%%" % (epoch + 1, train_acc_scalar, val_acc_scalar))
+        # Log appropriate metric name
+        metric_label = "MAE" if task_type == "regression" else "Acc"
+        symbol = "" if task_type == "regression" else "%"
+        
+        logger.info("[%5d] train: %.3f%s  val(max-head): %.3f%s (Best: %.3f%s)" % (
+            epoch + 1, train_acc_scalar, symbol, 
+            val_acc_scalar, symbol, 
+            best_val_acc_scalar, symbol
+        ))
+        
         if rank == 0:
             csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar)
 
@@ -457,85 +493,85 @@ def main(args_eval, resume_preempt=False):
         )
 
 
-def run_one_epoch(  
-    device,  
-    training,  
-    encoder,  
-    classifiers,  
-    scaler,  
-    optimizer,  
-    scheduler,  
-    wd_scheduler,  
-    data_loader,  
-    use_bfloat16,  
-    task_type="classification",  # "classification" or "regression"  
-    use_focal_loss=False,  
-    val_only=False,  
-    predictions_save_path=None,  
-):  
-    # --- NEW: Import tqdm for progress bar ---  
-    from tqdm import tqdm  
-      
-    for c in classifiers:  
-        c.train(mode=training)  
-  
-    # Choose loss function based on task type  
-    if task_type == "regression":  
-        criterion = torch.nn.SmoothL1Loss()  # Huber Loss  
+def run_one_epoch(
+    device,
+    training,
+    encoder,
+    classifiers,
+    scaler,
+    optimizer,
+    scheduler,
+    wd_scheduler,
+    data_loader,
+    use_bfloat16,
+    task_type="classification",  # "classification" or "regression"
+    use_focal_loss=False,
+    val_only=False,
+    predictions_save_path=None,
+):
+    # --- NEW: Import tqdm for progress bar ---
+    from tqdm import tqdm
+    
+    for c in classifiers:
+        c.train(mode=training)
+
+    # Choose loss function based on task type
+    if task_type == "regression":
+        criterion = torch.nn.SmoothL1Loss()  # Huber Loss
         metric_meters = [AverageMeter() for _ in classifiers]
-    else:  # classification  
-        if use_focal_loss:  
-            criterion = FocalLoss(alpha=1.0, gamma=2.0)  
-        else:  
-            criterion = torch.nn.CrossEntropyLoss()  
-        top1_meters = [AverageMeter() for _ in classifiers]  
-      
-    all_predictions = []  
-    all_video_paths = []  
-    all_labels = []  
-  
-    # --- NEW: Wrap loader in tqdm if val_only ---  
-    if val_only:  
-        iterator = tqdm(data_loader, desc="Inference", unit="batch", dynamic_ncols=True)  
-    else:  
-        iterator = data_loader  
-  
-    for itr, data in enumerate(iterator):  
-        if training:  
-            [s.step() for s in scheduler]  
-            [wds.step() for wds in wd_scheduler]  
-  
-        with torch.cuda.amp.autocast(dtype=torch.float16, enabled=use_bfloat16):  
-            # Load data and put on GPU  
-            clips = [  
-                [dij.to(device, non_blocking=True) for dij in di]  
-                for di in data[0]  
-            ]  
-            clip_indices = [d.to(device, non_blocking=True) for d in data[2]]  
-            labels = data[1].to(device)  
-            batch_size = len(labels)  
-              
-            video_paths = data[3] if len(data) > 3 else [f"video_{itr}_{i}" for i in range(batch_size)]  
-  
-            # Forward and prediction  
-            with torch.no_grad():  
-                outputs = encoder(clips, clip_indices)  
-                if not training:  
-                    outputs = [[c(o) for o in outputs] for c in classifiers]  
-            if training:  
-                outputs = [[c(o) for o in outputs] for c in classifiers]  
-  
-        # Compute loss with proper dtype handling  
-        if task_type == "regression":  
-            labels = labels.float()  
-            if labels.dim() == 1:  
-                labels = labels.unsqueeze(-1)  
-            losses = [[criterion(o.float(), labels) for o in coutputs] for coutputs in outputs]
-        else:  
-            losses = [[criterion(o, labels) for o in coutputs] for coutputs in outputs]  
+    else:  # classification
+        if use_focal_loss:
+            criterion = FocalLoss(alpha=1.0, gamma=2.0)
+        else:
+            criterion = torch.nn.CrossEntropyLoss()
+        top1_meters = [AverageMeter() for _ in classifiers]
+    
+    all_predictions = []
+    all_video_paths = []
+    all_labels = []
+
+    # --- NEW: Wrap loader in tqdm if val_only ---
+    if val_only:
+        iterator = tqdm(data_loader, desc="Inference", unit="batch", dynamic_ncols=True)
+    else:
+        iterator = data_loader
+
+    for itr, data in enumerate(iterator):
+        if training:
+            [s.step() for s in scheduler]
+            [wds.step() for wds in wd_scheduler]
+
+        with torch.cuda.amp.autocast(dtype=torch.float16, enabled=use_bfloat16):
+            # Load data and put on GPU
+            clips = [
+                [dij.to(device, non_blocking=True) for dij in di]
+                for di in data[0]
+            ]
+            clip_indices = [d.to(device, non_blocking=True) for d in data[2]]
+            labels = data[1].to(device)
+            batch_size = len(labels)
             
-        # Compute metrics based on task type  
-        with torch.no_grad():  
+            video_paths = data[3] if len(data) > 3 else [f"video_{itr}_{i}" for i in range(batch_size)]
+
+            # Forward and prediction
+            with torch.no_grad():
+                outputs = encoder(clips, clip_indices)
+                if not training:
+                    outputs = [[c(o) for o in outputs] for c in classifiers]
+            if training:
+                outputs = [[c(o) for o in outputs] for c in classifiers]
+
+        # Compute loss with proper dtype handling
+        if task_type == "regression":
+            labels = labels.float()
+            if labels.dim() == 1:
+                labels = labels.unsqueeze(-1)
+            losses = [[criterion(o.float(), labels) for o in coutputs] for coutputs in outputs]
+        else:
+            losses = [[criterion(o, labels) for o in coutputs] for coutputs in outputs]
+            
+        # Compute metrics based on task type
+        with torch.no_grad():
             if task_type == "regression":
                 outputs = [sum([o for o in coutputs]) / len(coutputs) for coutputs in outputs]
                 
@@ -543,89 +579,108 @@ def run_one_epoch(
                 mae_errors = [F.l1_loss(o.squeeze().float(), labels.squeeze()) for o in outputs]
                 mae_errors = [float(AllReduce.apply(mae)) for mae in mae_errors]
                 
-                # 2. --- NEW: Convert to Real MAE (LVEF %) ---
-                # Multiply by the Standard Deviation of your TRAIN set (from your stats)
+                # 2. Convert to Real MAE (LVEF %) for LOGGING
+                # Multiply by the Standard Deviation of your TRAIN set
                 LVEF_TRAIN_STD = 11.33 
                 mae_errors = [mae * LVEF_TRAIN_STD for mae in mae_errors]
-                # --------------------------------------------
 
                 for meter, mae in zip(metric_meters, mae_errors):
                     meter.update(mae)
-            else:  # classification  
-                outputs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]  
-                top1_accs = [100.0 * coutputs.max(dim=1).indices.eq(labels).sum() / batch_size for coutputs in outputs]  
-                top1_accs = [float(AllReduce.apply(t1a)) for t1a in top1_accs]  
-                for t1m, t1a in zip(top1_meters, top1_accs):  
-                    t1m.update(t1a)  
+            else:  # classification
+                outputs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]
+                top1_accs = [100.0 * coutputs.max(dim=1).indices.eq(labels).sum() / batch_size for coutputs in outputs]
+                top1_accs = [float(AllReduce.apply(t1a)) for t1a in top1_accs]
+                for t1m, t1a in zip(top1_meters, top1_accs):
+                    t1m.update(t1a)
                     
-            if val_only and predictions_save_path is not None:  
-                for i, pred in enumerate(outputs[0]):  
-                    all_predictions.append(pred.cpu().numpy())  
-                    all_video_paths.append(video_paths[i])  
-                    all_labels.append(labels[i].cpu().numpy())  
-  
-        if training:  
-            if use_bfloat16:  
-                [[s.scale(lij).backward() for lij in li] for s, li in zip(scaler, losses)]  
-                [s.step(o) for s, o in zip(scaler, optimizer)]  
-                [s.update() for s in scaler]  
-            else:  
-                [[lij.backward() for lij in li] for li in losses]  
-                [o.step() for o in optimizer]  
-            [o.zero_grad() for o in optimizer]  
-  
-        # Aggregate metrics for logging  
-        if task_type == "regression":  
-            _agg_metrics = np.array([m.avg for m in metric_meters])  
-            metric_name = "MAE"  # Changed from "MSE"  
+            if val_only and predictions_save_path is not None:
+                for i, pred in enumerate(outputs[0]):
+                    all_predictions.append(pred.cpu().numpy())
+                    all_video_paths.append(video_paths[i])
+                    all_labels.append(labels[i].cpu().numpy())
+
+        if training:
+            if use_bfloat16:
+                [[s.scale(lij).backward() for lij in li] for s, li in zip(scaler, losses)]
+                [s.step(o) for s, o in zip(scaler, optimizer)]
+                [s.update() for s in scaler]
+            else:
+                [[lij.backward() for lij in li] for li in losses]
+                [o.step() for o in optimizer]
+            [o.zero_grad() for o in optimizer]
+
+        # Aggregate metrics for logging
+        if task_type == "regression":
+            _agg_metrics = np.array([m.avg for m in metric_meters])
+            metric_name = "MAE" 
             metric_symbol = ""
-        else:  # classification  
-            _agg_metrics = np.array([t1m.avg for t1m in top1_meters])  
-            metric_name = "Acc"  
-            metric_symbol = "%"  
+        else:  # classification
+            _agg_metrics = np.array([t1m.avg for t1m in top1_meters])
+            metric_name = "Acc"
+            metric_symbol = "%"
             
-        # Only log to text log periodically (keep tqdm clean)  
-        if itr % 10 == 0:  
-            if val_only:  
-                # Update description dynamically with metrics  
-                if task_type == "regression":  
-                    iterator.set_description(f"Inf MSE: {_agg_metrics.min():.4f}")  
-                else:  
-                    iterator.set_description(f"Inf Acc: {_agg_metrics.max():.2f}%")  
-            else:  
-                msg = "[%5d] %.3f%s [mean %.3f%s] [mem: %.2e]" % (  
-                    itr, _agg_metrics.max(), metric_symbol, _agg_metrics.mean(), metric_symbol,   
-                    torch.cuda.max_memory_allocated() / 1024.0**2,  
-                )  
-                logger.info(msg)  
-  
-    # Save predictions (existing code)  
-    if val_only and predictions_save_path is not None and len(all_predictions) > 0:  
-        import pandas as pd  
-        import os  
-        os.makedirs(os.path.dirname(predictions_save_path), exist_ok=True)  
+        # Only log to text log periodically (keep tqdm clean)
+        if itr % 10 == 0:
+            if val_only:
+                # Update description dynamically with metrics
+                if task_type == "regression":
+                    # [FIX 1] Changed Label to MAE
+                    iterator.set_description(f"Inf MAE: {_agg_metrics.min():.4f}")
+                else:
+                    iterator.set_description(f"Inf Acc: {_agg_metrics.max():.2f}%")
+            else:
+                msg = "[%5d] %.3f%s [mean %.3f%s] [mem: %.2e]" % (
+                    itr, _agg_metrics.max(), metric_symbol, _agg_metrics.mean(), metric_symbol, 
+                    torch.cuda.max_memory_allocated() / 1024.0**2,
+                )
+                logger.info(msg)
+
+    # Save predictions (Un-normalized)
+    if val_only and predictions_save_path is not None and len(all_predictions) > 0:
+        import pandas as pd
+        import os
+        os.makedirs(os.path.dirname(predictions_save_path), exist_ok=True)
             
-        if task_type == "regression":  
-            # For regression, save raw predictions  
-            pred_values = [pred[0] if len(pred.shape) > 0 else pred for pred in all_predictions]  
-            df = pd.DataFrame({  
-                'video_path': all_video_paths,  
-                'true_label': all_labels,  
-                'predicted_value': pred_values  
-            })  
-        else:  # classification  
-            pred_classes = [np.argmax(pred) for pred in all_predictions]  
-            pred_probs = [pred.max() for pred in all_predictions]  
-            df = pd.DataFrame({  
-                'video_path': all_video_paths,  
-                'true_label': all_labels,  
-                'predicted_class': pred_classes,  
-                'prediction_confidence': pred_probs  
-            })  
+        if task_type == "regression":
+            # For regression, save REAL values
+            # 1. Get raw normalized predictions
+            pred_values_norm = [pred[0] if len(pred.shape) > 0 else pred for pred in all_predictions]
             
-        df.to_csv(predictions_save_path, index=False)  
-        logger.info(f"Saved {len(all_predictions)} predictions to {predictions_save_path}")  
-  
+            # 2. [FIX 2] Un-normalize logic for CSV
+            LVEF_STD = 11.33
+            LVEF_MEAN = 57.06
+            
+            # Convert arrays to scalars and un-normalize
+            # Note: labels are likely already 1-element arrays from the loop above
+            labels_real = []
+            for l in all_labels:
+                val = l[0] if isinstance(l, (np.ndarray, list)) else l
+                labels_real.append((val * LVEF_STD) + LVEF_MEAN)
+                
+            preds_real = []
+            for p in pred_values_norm:
+                val = p[0] if isinstance(p, (np.ndarray, list)) else p
+                preds_real.append((val * LVEF_STD) + LVEF_MEAN)
+
+            df = pd.DataFrame({
+                'video_path': all_video_paths,
+                'label_real': labels_real,
+                'pred_real': preds_real,
+                'abs_error': [abs(a-b) for a,b in zip(labels_real, preds_real)]
+            })
+        else:  # classification
+            pred_classes = [np.argmax(pred) for pred in all_predictions]
+            pred_probs = [pred.max() for pred in all_predictions]
+            df = pd.DataFrame({
+                'video_path': all_video_paths,
+                'true_label': all_labels,
+                'predicted_class': pred_classes,
+                'prediction_confidence': pred_probs
+            })
+            
+        df.to_csv(predictions_save_path, index=False)
+        logger.info(f"Saved {len(all_predictions)} predictions to {predictions_save_path}")
+
     return float(_agg_metrics.max()), _agg_metrics
 
 
