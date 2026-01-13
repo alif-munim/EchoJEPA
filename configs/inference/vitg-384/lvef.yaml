@@ -10,7 +10,7 @@ num_workers: 8
 
 # Use the same evaluation infrastructure
 eval_name: video_classification_frozen
-resume_checkpoint: false
+resume_checkpoint: true # <--- CHANGE THIS TO TRUE, OTHERWISE RANDOM WEIGHTS
 # Use a new tag for inference results
 tag: rvsf-lvef-a4c-inference-test-set
 
