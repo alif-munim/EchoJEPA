@@ -98,4 +98,4 @@ model_kwargs:
     max_frames: 128  
     use_pos_embed: false  
     # MULTI-LAYER EXTRACTION  
-    out_layers: [36, 37, 38, 39]
+    out_layers: [24, 29, 34, 39]
