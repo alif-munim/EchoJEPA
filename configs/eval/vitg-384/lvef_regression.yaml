@@ -10,7 +10,7 @@ num_workers: 8
 # Use existing evaluation infrastructure  
 eval_name: video_classification_frozen  
 resume_checkpoint: false  
-tag: lvef-a4c-regression-vitg16-336-16f-pt280-an81-fs2-ns2-regression-multilevel 
+tag: lvef-a4c-regression-vitg16-336-16f-pt280-an81-fs2-ns2-regression-multilevel-224px 
   
 experiment:  
   classifier:  
