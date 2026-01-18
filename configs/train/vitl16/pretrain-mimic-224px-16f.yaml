@@ -10,7 +10,7 @@ data:
   - /home/sagemaker-user/user-default-efs/vjepa2/data/csv/mimic_annotations_s3.csv # 525k echocardiogram video clips (224px)
   datasets_weights:
   - 1.0
-  batch_size: 64
+  batch_size: 128
   crop_size: 224
   patch_size: 16
   dataset_fpcs:
@@ -94,9 +94,9 @@ optimization:
 
   # With 8 GPUs (global batch 256), scale LR from the 3072-global-batch recipe:
   # 5.25e-4 * (256/3072) = 4.375e-5
-  start_lr: 1.6667e-05
-  lr: 8.75e-05
-  final_lr: 8.75e-05
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
 
   warmup: 40
   # Total epochs must be > warmup
