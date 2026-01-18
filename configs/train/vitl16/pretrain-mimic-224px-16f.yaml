@@ -62,7 +62,7 @@ mask:
 meta:
   dtype: bfloat16
   eval_freq: 100
-  load_checkpoint: true
+  load_checkpoint: false
   read_checkpoint: null
   save_every_freq: 10
   seed: 239
@@ -75,11 +75,12 @@ model:
   uniform_power: true
   use_activation_checkpointing: true
   use_mask_tokens: true
+  num_mask_tokens: 10
   use_rope: true
   zero_init_mask_tokens: true
 optimization:
   is_anneal: false # set true init linear decay schedule, otherwise cosine decay
-  force_load_pretrain: false # force loading of vitl ckpt, set to false if you have latest.pt and are resuming
+  force_load_pretrain: true # force loading of vitl ckpt, set to false if you have latest.pt and are resuming
   anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitl.pt
     
   # EMA, WD as in V-JEPA2 recipe
