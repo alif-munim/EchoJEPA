@@ -1,0 +1,100 @@
+app: vjepa
+
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 220G
+
+folder: /your_folder/anneal/mimic/vjepa2_vitl_224px_32f_anneal
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /your_data_path/mimic_train_paths.csv
+  datasets_weights:
+    - 1.0
+
+  # Reduce batch because we increase frames
+  batch_size: 16  # global batch = 128
+
+  crop_size: 224
+  patch_size: 16
+  tubelet_size: 2
+
+  # Longer clips in cooldown
+  dataset_fpcs:
+    - 32
+
+  # Keep temporal coverage ~4.0s
+  fps: 8
+
+  num_workers: 8
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  use_sdpa: true
+  load_checkpoint: true
+  read_checkpoint: null
+  save_every_freq: 3
+  eval_freq: 0
+  seed: 239
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  use_rope: true
+  zero_init_mask_tokens: true
+
+optimization:
+  # Turn on anneal mode (linear decay) and point to your best/last pretrain ckpt
+  is_anneal: true
+  force_load_pretrain: true
+  anneal_ckpt: /your_folder/pretrain/mimic/vjepa2_vitl_224px_16f/latest.pt
+
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+
+  ipe: 300
+  ipe_scale: 1.0
+
+  # Start from the pretrain LR, decay to small final LR
+  # (Batch is smaller here, so keeping LR moderate is safer)
+  lr: 2.2e-05
+  final_lr: 1.0e-06
+
+  warmup: 0
+  epochs: 40  # ~12k steps if ipe=300
