@@ -58,7 +58,6 @@ upload_logs() {
       aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" --only-show-errors || true
   fi
 }
-
 on_exit() {
   rc=$?
   echo "[INFO] Job Exiting with code $rc. Performing final sync..."
