@@ -92,8 +92,8 @@ optimization:
   ipe: 300
   ipe_scale: 1.25
 
-  # With 8 GPUs (global batch 256), scale LR from the 3072-global-batch recipe:
-  # 5.25e-4 * (256/3072) = 4.375e-5
+  # Scale LR from the 3072-global-batch recipe:
+  # 5.25e-4 * (GLOBAL_BS/3072) = NEW_LR
   start_lr: 3.33e-5
   lr: 1.75e-4
   final_lr: 1.75e-4

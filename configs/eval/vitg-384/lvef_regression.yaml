@@ -10,7 +10,7 @@ num_workers: 8
 # Use existing evaluation infrastructure  
 eval_name: video_classification_frozen  
 resume_checkpoint: false  
-tag: lvef-a4c-regression-vitg16-336-16f-pt280-an81-fs2-ns2-regression-multilevel-224px 
+tag: lvef-a4c-regression-vitg16-336-16f-pt280-an81-fs2-ns2-regression-multilevel-336px 
   
 experiment:  
   classifier:  
@@ -22,10 +22,10 @@ experiment:
   data:  
     dataset_type: VideoDataset  
     # UPDATED: Use actual CSV paths with float targets  
-    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_train_224px.csv  
-    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_val_224px.csv  
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_train.csv  
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_val.csv  
       
-    resolution: 224  
+    resolution: 336  
     frames_per_clip: 16  
     frame_step: 2  
     num_segments: 2  

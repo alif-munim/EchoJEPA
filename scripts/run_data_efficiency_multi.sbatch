@@ -124,9 +124,40 @@ pip install -e . --no-deps --no-build-isolation || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # 8. Download Data & Checkpoint
+# 8. Download Data & Checkpoint
 mkdir -p data/csv
 aws s3 cp "$TRAIN_FULL_S3" "data/csv/${TRAIN_FULL_NAME}"
 aws s3 cp "$VAL_S3" "data/csv/${VAL_NAME}"
+mkdir -p "$(dirname "$ENC_CKPT_REL")"
+aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_REL"
+
+# --- NEW: CACHE VIDEOS LOCALLY ---
+echo "[INFO] Syncing video dataset to local NVMe..."
+LOCAL_VIDEO_DIR="${WORKDIR}/videos"
+mkdir -p "$LOCAL_VIDEO_DIR"
+
+# Assuming your videos are all under this common prefix based on your logs:
+# s3://echodata25/results/uhn_studies_22k_607_224px/
+# We sync that folder to local. 
+# NOTE: Adjust the S3 path below if your CSV uses multiple different buckets/prefixes.
+VIDEO_S3_PREFIX="s3://echodata25/results/uhn_studies_22k_607_224px/"
+
+# Fast sync using AWS CLI
+aws s3 sync "$VIDEO_S3_PREFIX" "$LOCAL_VIDEO_DIR" --quiet
+
+echo "[INFO] Patching CSVs to point to local video files..."
+# We replace the S3 prefix in the CSVs with the local directory path
+# Escape slashes for sed
+ESC_S3_PREFIX=$(printf '%s\n' "$VIDEO_S3_PREFIX" | sed 's:[][\/.^$*]:\\&:g')
+ESC_LOCAL_DIR=$(printf '%s\n' "$LOCAL_VIDEO_DIR/" | sed 's:[][\/.^$*]:\\&:g')
+
+sed -i "s|${ESC_S3_PREFIX}|${ESC_LOCAL_DIR}|g" "data/csv/${TRAIN_FULL_NAME}"
+sed -i "s|${ESC_S3_PREFIX}|${ESC_LOCAL_DIR}|g" "data/csv/${VAL_NAME}"
+
+echo "[INFO] Data preparation complete."
+# ---------------------------------
+
+
 mkdir -p "$(dirname "$ENC_CKPT_REL")"
 aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_REL"
 
@@ -252,6 +283,14 @@ EOF
 # Start background service
 start_background_services &
 REFRESH_PID=$!
+
+# === ADD THIS WAIT BLOCK ===
+echo "[INFO] Waiting for AWS credentials to be initialized..."
+while [ ! -f ~/.aws/credentials ]; do
+    sleep 1
+done
+echo "[INFO] Credentials initialized. Starting training."
+# ===========================
 
 
 # ==============================================================================

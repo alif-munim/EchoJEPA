@@ -478,11 +478,13 @@ def main(args_eval, resume_preempt=False):
         metric_label = "MAE" if task_type == "regression" else "Acc"
         symbol = "" if task_type == "regression" else "%"
         
-        logger.info("[%5d] train: %.3f%s  val(max-head): %.3f%s (Best: %.3f%s)" % (
-            epoch + 1, train_acc_scalar, symbol, 
-            val_acc_scalar, symbol, 
+        val_label = "val(min-head)" if task_type == "regression" else "val(max-head)"
+        logger.info("[%5d] train: %.3f%s  %s: %.3f%s (Best: %.3f%s)" % (
+            epoch + 1, train_acc_scalar, symbol,
+            val_label, val_acc_scalar, symbol,
             best_val_acc_scalar, symbol
         ))
+
         
         if rank == 0:
             csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar)
@@ -551,7 +553,9 @@ def run_one_epoch(
             [s.step() for s in scheduler]
             [wds.step() for wds in wd_scheduler]
 
-        with torch.cuda.amp.autocast(dtype=torch.float16, enabled=use_bfloat16):
+        from torch.amp import autocast
+        with autocast("cuda", dtype=torch.bfloat16, enabled=use_bfloat16):
+        # with torch.cuda.amp.autocast(dtype=torch.float16, enabled=use_bfloat16):
             # Load data and put on GPU
             clips = [
                 [dij.to(device, non_blocking=True) for dij in di]
@@ -610,14 +614,10 @@ def run_one_epoch(
                     all_labels.append(labels[i].cpu().numpy())
 
         if training:
-            if use_bfloat16:
-                [[s.scale(lij).backward() for lij in li] for s, li in zip(scaler, losses)]
-                [s.step(o) for s, o in zip(scaler, optimizer)]
-                [s.update() for s in scaler]
-            else:
-                [[lij.backward() for lij in li] for li in losses]
-                [o.step() for o in optimizer]
+            [[lij.backward() for lij in li] for li in losses]
+            [o.step() for o in optimizer]
             [o.zero_grad() for o in optimizer]
+
 
         # Aggregate metrics for logging
         if task_type == "regression":
@@ -639,11 +639,13 @@ def run_one_epoch(
                 else:
                     iterator.set_description(f"Inf Acc: {_agg_metrics.max():.2f}%")
             else:
+                best_scalar = float(_agg_metrics.min()) if task_type == "regression" else float(_agg_metrics.max())
                 msg = "[%5d] %.3f%s [mean %.3f%s] [mem: %.2e]" % (
-                    itr, _agg_metrics.max(), metric_symbol, _agg_metrics.mean(), metric_symbol, 
+                    itr, best_scalar, metric_symbol, _agg_metrics.mean(), metric_symbol,
                     torch.cuda.max_memory_allocated() / 1024.0**2,
                 )
                 logger.info(msg)
+
 
     # Save predictions (Un-normalized)
     if val_only and predictions_save_path is not None and len(all_predictions) > 0:
@@ -691,7 +693,9 @@ def run_one_epoch(
         df.to_csv(predictions_save_path, index=False)
         logger.info(f"Saved {len(all_predictions)} predictions to {predictions_save_path}")
 
-    return float(_agg_metrics.max()), _agg_metrics
+    scalar = float(_agg_metrics.min()) if task_type == "regression" else float(_agg_metrics.max())
+    return scalar, _agg_metrics
+
 
 
 
@@ -837,7 +841,8 @@ def init_opt(classifiers, iterations_per_epoch, opt_kwargs, num_epochs, use_bflo
         optimizers += [torch.optim.AdamW(param_groups)]
         schedulers += [WarmupCosineLRSchedule(optimizers[-1], T_max=int(num_epochs * iterations_per_epoch))]
         wd_schedulers += [CosineWDSchedule(optimizers[-1], T_max=int(num_epochs * iterations_per_epoch))]
-        scalers += [torch.cuda.amp.GradScaler() if use_bfloat16 else None]
+        # scalers += [torch.cuda.amp.GradScaler() if use_bfloat16 else None]
+        scalers += [None]
     return optimizers, scalers, schedulers, wd_schedulers
 
 
