@@ -73,9 +73,10 @@ experiment:
         weight_decay: 0.4
 
 model_kwargs:
-  checkpoint: /opt/dlami/nvme/checkpoints/videomae_base.pth
+  checkpoint: /opt/dlami/nvme/checkpoints/videomae_vitl_pretrain.pth
   module_name: evals.video_classification_frozen.modelcustom.videomae_encoder
   pretrain_kwargs:
     encoder:
-      model_name: vit_large_patch16_224   # must match your modeling_finetune symbol
+      model_name: vit_large_patch16_224
+      tubelet_size: 2
   wrapper_kwargs: {}
