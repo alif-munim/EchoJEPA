@@ -29,7 +29,8 @@ class PanEchoWrapper(nn.Module):
         self.panecho_model = panecho_model
         self.embed_dim = 768
 
-    def forward(self, x):
+    def forward(self, x, clip_indices=None):
+        # Update: Added clip_indices=None to handle V-JEPA's extra argument
         # x shape: [B, C, T, H, W] -> [B, 768]
         embeddings = self.panecho_model(x)
         return embeddings.unsqueeze(1)
@@ -64,7 +65,6 @@ def init_module(
     
     try:
         # 3. Explicitly load PanEcho's 'src' package
-        # This ensures sys.modules['src'] is correctly populated with PanEcho's version
         importlib.invalidate_caches()
         import src 
         
@@ -79,7 +79,6 @@ def init_module(
         
     except Exception as e:
         logger.error(f"Failed to load PanEcho: {e}")
-        # Print path info for debugging
         logger.error(f"Current sys.path: {sys.path}")
         raise e
         
