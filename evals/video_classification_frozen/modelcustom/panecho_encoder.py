@@ -1,7 +1,7 @@
 """
 Custom model wrapper for PanEcho to work with V-JEPA 2 eval system.
 """
-# --- SSL FIX START ---
+# --- SSL FIX (Required for weight downloads) ---
 import ssl
 try:
     _create_unverified_https_context = ssl._create_unverified_context
@@ -9,13 +9,14 @@ except AttributeError:
     pass
 else:
     ssl._create_default_https_context = _create_unverified_https_context
-# --- SSL FIX END ---
+# -----------------------------------------------
 
 import logging
 import torch
 import torch.nn as nn
 import sys
 import os
+import importlib
 import importlib.util
 
 logging.basicConfig()
@@ -26,15 +27,11 @@ class PanEchoWrapper(nn.Module):
     def __init__(self, panecho_model):
         super().__init__()
         self.panecho_model = panecho_model
-        # PanEcho output dim
         self.embed_dim = 768
 
     def forward(self, x):
-        # x shape: [B, C, T, H, W]
-        # PanEcho expects standard video input
-        # Returns [B, 768]
+        # x shape: [B, C, T, H, W] -> [B, 768]
         embeddings = self.panecho_model(x)
-        # Reshape for AttentiveClassifier: [B, 1, 768]
         return embeddings.unsqueeze(1)
 
 def init_module(
@@ -47,48 +44,58 @@ def init_module(
     logger.info("Loading PanEcho model from local source...")
     
     # 1. Locate local PanEcho directory
-    # Assumes PanEcho is at: evals/video_classification_frozen/modelcustom/PanEcho
     current_dir = os.path.dirname(os.path.abspath(__file__))
     panecho_root = os.path.join(current_dir, "PanEcho")
     
     if not os.path.exists(panecho_root):
         raise FileNotFoundError(f"PanEcho source not found at {panecho_root}")
 
-    # 2. Handle 'src' Namespace Collision
-    # Both V-JEPA and PanEcho have a 'src' folder. We must force Python
-    # to use PanEcho's 'src' temporarily.
+    # 2. Context Swap: V-JEPA src -> PanEcho src
+    # We must remove ALL 'src.*' modules to prevent collision
+    vjepa_modules = {k: v for k, v in sys.modules.items() if k == 'src' or k.startswith('src.')}
+    original_path = list(sys.path)
     
-    # Save V-JEPA's 'src' if it's already loaded
-    vjepa_src = sys.modules.get('src')
-    if 'src' in sys.modules:
-        del sys.modules['src']
-    
-    # Prepend PanEcho to sys.path
+    # Unload V-JEPA
+    for k in vjepa_modules:
+        del sys.modules[k]
+        
+    # Prepend PanEcho path
     sys.path.insert(0, panecho_root)
     
     try:
-        # 3. Manually load hubconf.py from PanEcho
+        # 3. Explicitly load PanEcho's 'src' package
+        # This ensures sys.modules['src'] is correctly populated with PanEcho's version
+        importlib.invalidate_caches()
+        import src 
+        
+        # 4. Load hubconf and instantiate model
         hubconf_path = os.path.join(panecho_root, "hubconf.py")
-        spec = importlib.util.spec_from_file_location("panecho_hubconf", hubconf_path)
+        spec = importlib.util.spec_from_file_location("hubconf", hubconf_path)
         hubconf = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(hubconf)
         
-        # 4. Instantiate Model
-        # This triggers 'from src.models import ...' inside PanEcho, 
-        # which now resolves correctly to PanEcho/src
+        # 'pretrained=True' triggers weight download (handled by SSL fix)
         panecho_model = hubconf.PanEcho(pretrained=True, clip_len=frames_per_clip)
         
-    finally:
-        # 5. Cleanup: Restore V-JEPA environment
-        sys.path.pop(0) # Remove PanEcho from path
+    except Exception as e:
+        logger.error(f"Failed to load PanEcho: {e}")
+        # Print path info for debugging
+        logger.error(f"Current sys.path: {sys.path}")
+        raise e
         
-        # Remove PanEcho's 'src' from cache
-        if 'src' in sys.modules:
-            del sys.modules['src']
+    finally:
+        # 5. Restore V-JEPA Environment
+        
+        # Remove PanEcho modules from cache
+        panecho_modules = {k: v for k, v in sys.modules.items() if k == 'src' or k.startswith('src.')}
+        for k in panecho_modules:
+            del sys.modules[k]
             
-        # Restore V-JEPA's 'src'
-        if vjepa_src:
-            sys.modules['src'] = vjepa_src
+        # Restore Path
+        sys.path = original_path
+        
+        # Restore V-JEPA modules
+        sys.modules.update(vjepa_modules)
 
-    logger.info(f"PanEcho loaded successfully. Embed dim: 768")
+    logger.info(f"PanEcho loaded successfully. Embed dim: {768}")
     return PanEchoWrapper(panecho_model)
