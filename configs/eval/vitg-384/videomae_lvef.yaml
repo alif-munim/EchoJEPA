@@ -71,7 +71,7 @@ experiment:
         weight_decay: 0.4
 
 model_kwargs:
-  checkpoint: /path/to/videomae_pretrain_checkpoint.pth
+  checkpoint: /opt/dlami/nvme/checkpoints/videomae_base.pth
   module_name: evals.video_classification_frozen.modelcustom.videomae_encoder
   pretrain_kwargs:
     encoder:
