@@ -35,46 +35,61 @@ class PanEchoWrapper(nn.Module):
             if isinstance(input_data, torch.Tensor):
                 return input_data
             if isinstance(input_data, list):
-                # Recursively process elements
                 processed = [flatten_to_tensor(d) for d in input_data]
-                # Stack: If [Tensor, Tensor] -> Stacked Tensor
                 return torch.stack(processed)
             raise ValueError(f"Unsupported type: {type(input_data)}")
 
-        # 1. Handle List Input (Collated views / Nested lists)
+        # 1. Robustly Handle List Input
         if isinstance(x, list):
             try:
                 x = flatten_to_tensor(x)
             except Exception as e:
                 raise ValueError(f"Received list input but failed to flatten: {e}")
 
-        # 2. Universal Flattening for High-Dimension Inputs (e.g. 7D from multi-segment)
+        # 2. Flatten for PanEcho [Batch*Views, C, T, H, W]
         # We assume the LAST 4 dimensions are always [C, T, H, W]
-        # Everything before that is "Batch" or "View" structure.
+        # Everything before that is Batch/Views
         if x.ndim >= 5:
             shape = x.shape
+            batch_dims = shape[:-4]   # e.g., (B, N) or (B, N, M)
+            spatial_dims = shape[-4:] # (C, T, H, W)
             
-            # Separate batch structure from image dimensions
-            batch_dims = shape[:-4]   # e.g. [2, 1, 1]
-            spatial_dims = shape[-4:] # [3, 16, 224, 224]
-            
-            # Flatten all batch dims into one: [Total_Batch, 3, 16, 224, 224]
+            # Flatten batch dims
             flat_batch_size = 1
             for d in batch_dims:
                 flat_batch_size *= d
             
             x_flat = x.view(flat_batch_size, *spatial_dims)
             
-            # Forward pass -> [Total_Batch, 768] (Tensor)
-            # NOTE: Because we pass backbone_only=True below, this returns a Tensor, not a dict.
-            emb_flat = self.panecho_model(x_flat)
+            # Forward pass
+            output = self.panecho_model(x_flat)
             
-            # Reshape back to [Batch, Num_Tokens, D] for AttentiveClassifier
-            # We treat the first dimension as the true batch size, and the rest as tokens (clips)
+            # Handle Dictionary Output
+            if isinstance(output, dict):
+                if 'embedding' in output:
+                    emb_flat = output['embedding']
+                elif 'last_hidden_state' in output:
+                    state = output['last_hidden_state']
+                    emb_flat = state[:, 0] if state.ndim == 3 else state
+                else:
+                    emb_flat = next(iter(output.values()))
+            else:
+                emb_flat = output
+            
+            # --- CRITICAL FIX: Return List[Tensor] ---
+            # V-JEPA eval loop iterates over the output.
+            # If we return a Tensor [B, N, D], iteration yields B tensors of shape [N, D] (2D) -> CRASH.
+            # We MUST return a List of length N, where each item is [B, 1, D] (3D).
+            
             true_batch_size = batch_dims[0]
             num_tokens = flat_batch_size // true_batch_size
             
-            return emb_flat.view(true_batch_size, num_tokens, self.embed_dim)
+            # Reshape to [B, N, D]
+            emb_3d = emb_flat.view(true_batch_size, num_tokens, self.embed_dim)
+            
+            # Split into list of [B, 1, D] tensors
+            # This ensures that when eval.py iterates, it gets a Batch of data for one view.
+            return [emb_3d[:, i:i+1, :] for i in range(num_tokens)]
 
         raise ValueError(f"Unexpected input shape: {x.shape}")
 
@@ -93,30 +108,25 @@ def init_module(
     if not os.path.exists(panecho_root):
         raise FileNotFoundError(f"PanEcho source not found at {panecho_root}")
 
-    # Context Swap: V-JEPA src -> PanEcho src
+    # Context Swap
     vjepa_modules = {k: v for k, v in sys.modules.items() if k == 'src' or k.startswith('src.')}
     original_path = list(sys.path)
-    
     for k in vjepa_modules:
         del sys.modules[k]
-    
     sys.path.insert(0, panecho_root)
     
     try:
         importlib.invalidate_caches()
         import src 
-        
         hubconf_path = os.path.join(panecho_root, "hubconf.py")
         spec = importlib.util.spec_from_file_location("hubconf", hubconf_path)
         hubconf = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(hubconf)
         
-        # Instantiate Model with backbone_only=True
-        # This ensures output is a Tensor, not a Dict
         panecho_model = hubconf.PanEcho(
             pretrained=True, 
             clip_len=frames_per_clip,
-            backbone_only=True  # <--- CRITICAL FIX
+            backbone_only=True
         )
         
     except Exception as e:
@@ -124,11 +134,9 @@ def init_module(
         raise e
         
     finally:
-        # Cleanup
         panecho_modules = {k: v for k, v in sys.modules.items() if k == 'src' or k.startswith('src.')}
         for k in panecho_modules:
             del sys.modules[k]
-            
         sys.path = original_path
         sys.modules.update(vjepa_modules)
 
