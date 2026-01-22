@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=8
 #SBATCH --cpus-per-task=12
 #SBATCH -t 4-00:00:00
-#SBATCH -J videomae_cooldown_resume
+#SBATCH -J videomae_strict_retry
 #SBATCH -o /tmp/videomae_%j.out
 #SBATCH -e /tmp/videomae_%j.err
 #SBATCH --signal=B:USR1@300
@@ -177,7 +177,7 @@ torch.save({"model": new_sd}, OUT)
 print(f"[INFO] Wrote VideoMAE init ckpt: {OUT}")
 PY
 
-# Safety Patch for Legacy PyTorch (If not already fixed in tar)
+# --- Safety Patch for Legacy PyTorch (If not already fixed in tar) ---
 if [ -f "utils.py" ]; then
     sed -i 's/from torch._six import inf/from torch import inf/g' utils.py
 fi
@@ -208,9 +208,6 @@ echo "[INFO] NUM_SAMPLES=${NUM_SAMPLES}"
 STEPS_PER_EPOCH=$((NUM_SAMPLES / MICRO_GLOBAL_BS))
 UPDATES_PER_EPOCH=$((STEPS_PER_EPOCH / ACCUM_ITER))
 
-echo "[INFO] MICRO_GLOBAL_BS=${MICRO_GLOBAL_BS} ACCUM_ITER=${ACCUM_ITER}"
-echo "[INFO] STEPS_PER_EPOCH=${STEPS_PER_EPOCH} UPDATES_PER_EPOCH=${UPDATES_PER_EPOCH}"
-
 if [ "${UPDATES_PER_EPOCH}" -le 0 ]; then
   echo "[FATAL] UPDATES_PER_EPOCH computed as 0. Check batch sizes."
   exit 1
@@ -231,8 +228,8 @@ LR_VAL="7.03125e-6"
 OUTPUT_DIR="${WORKDIR}/output"
 mkdir -p "$OUTPUT_DIR"
 
-# 1. DOWNLOAD CHECKPOINT (RESUME)
-# Resuming from the last good checkpoint before the crash
+# 1. DOWNLOAD CHECKPOINT (RESUME from Epoch 30)
+# Note: Using 'checkpoint-29.pth' from previous run to be safe
 aws s3 cp s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/videomae_97/training_folder/checkpoint-29.pth "${WORKDIR}/checkpoint-29.pth" || echo "[WARN] Checkpoint not found"
 
 # Start periodic uploads
@@ -245,10 +242,18 @@ aws s3 cp s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/r
 ) &
 SYNC_PID=$!
 
-# 2. RUN TRAINING
-#    --start_epoch 30: Tells scheduler we are continuing
-#    --clip_grad 1.0:  Prevents NaN explosion
-#    --num_workers 6:  Prevents RAM OOM
+# Updated LR (Half of previous)
+LR_VAL="8.7890625e-7"
+
+# =========================
+# LAUNCH
+# =========================
+OUTPUT_DIR="${WORKDIR}/output"
+mkdir -p "$OUTPUT_DIR"
+
+# Force resume from a known stable point (Checkpoint 29)
+aws s3 cp s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/videomae_97/training_folder/checkpoint-29.pth "${WORKDIR}/checkpoint-29.pth"
+
 srun --kill-on-bad-exit=1 \
   python -u run_mae_pretraining.py \
     --data_path "${WORKDIR}/data/train.csv" \
@@ -262,19 +267,18 @@ srun --kill-on-bad-exit=1 \
     --sampling_rate "${TARGET_FPS}" \
     --opt adamw \
     --opt_betas 0.9 0.95 \
+    --opt_eps 1e-6 \
     --lr "${LR_VAL}" \
-    --min_lr 2.5e-6 \
-    --warmup_lr 2.5e-7 \
+    --min_lr 1.0e-6 \
     --weight_decay 0.04 \
     --warmup_epochs "${WARMUP_EPOCHS}" \
-    --save_ckpt_freq 10 \
     --epochs "${EPOCHS}" \
     --log_dir "${OUTPUT_DIR}" \
     --output_dir "${OUTPUT_DIR}" \
     --num_workers 6 \
-    --clip_grad 1.0 \
+    --clip_grad 0.5 \
     --resume "${WORKDIR}/checkpoint-29.pth" \
-    --start_epoch 30 
+    --start_epoch 30
 
 RC=$?
 

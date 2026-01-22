@@ -56,7 +56,6 @@ class VideoDataset(Dataset):
         )
         self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         
-        # Prefer /dev/shm for speed (RAM), fallback to /tmp
         default_tmp = "/dev/shm" if os.path.exists("/dev/shm") else "/tmp"
         self.tmp_dir = os.getenv("VIDEOMAE_TMP", default_tmp)
         Path(self.tmp_dir).mkdir(parents=True, exist_ok=True)
@@ -82,89 +81,59 @@ class VideoDataset(Dataset):
                 suffix = os.path.splitext(key)[-1] or ".mp4"
                 fd, tmp_path = tempfile.mkstemp(prefix="s3_", suffix=suffix, dir=self.tmp_dir)
                 os.close(fd) 
-                
                 client.download_file(Bucket=bucket, Key=key, Filename=tmp_path)
                 
-                obj_meta = client.head_object(Bucket=bucket, Key=key)
-                expected_bytes = obj_meta.get("ContentLength")
-                if expected_bytes is not None:
-                    written_bytes = os.path.getsize(tmp_path)
-                    if written_bytes != expected_bytes:
-                        raise RuntimeError(f"Incomplete download: {written_bytes}/{expected_bytes} bytes")
+                # Check if file is non-empty
+                if os.path.getsize(tmp_path) < 100:
+                    raise RuntimeError("File too small")
 
                 vr = decord.VideoReader(tmp_path, num_threads=1)
                 return vr, tmp_path
-
             except Exception as e:
                 last_err = e
-                if tmp_path is not None and os.path.exists(tmp_path):
+                if tmp_path and os.path.exists(tmp_path):
                     try: os.remove(tmp_path)
                     except: pass
                 time.sleep(0.1 * (2 ** attempt))
-
-        raise RuntimeError(f"Failed to load {sample} after retries: {last_err}")
-        
-    def _sample_indices_by_fps(self, vr):
-        T = self.frames_per_clip
-        target_fps = self.target_fps
-        try:
-            duration = len(vr)
-        except:
-            return np.zeros((T,), dtype=np.int64)
-
-        if duration <= 0: return np.zeros((T,), dtype=np.int64)
-        
-        try: src_fps = float(vr.get_avg_fps())
-        except: src_fps = 0.0
-        if not np.isfinite(src_fps) or src_fps <= 0: src_fps = 30.0
-
-        clip_len_sec = T / target_fps
-        vid_len_sec = duration / src_fps
-
-        if vid_len_sec <= clip_len_sec:
-            times = (np.arange(T, dtype=np.float32) / target_fps)
-            idx = np.round(times * src_fps).astype(np.int64) % duration
-            return idx
-
-        max_start = vid_len_sec - clip_len_sec
-        start_sec = np.random.uniform(0.0, max_start)
-        times = start_sec + (np.arange(T, dtype=np.float32) / target_fps)
-        idx = np.round(times * src_fps).astype(np.int64)
-        idx = np.clip(idx, 0, duration - 1)
-        return idx
+        raise RuntimeError(f"Failed to load {sample}: {last_err}")
 
     def __getitem__(self, idx):
         path = self.samples[idx]
         mask = self.masked_position_generator()
         tmp_path = None
-        
         try:
             vr, tmp_path = self.loadvideo_decord(path)
-            
-            indices = self._sample_indices_by_fps(vr)
+            duration = len(vr)
+            if duration <= 0: raise RuntimeError("Zero duration")
+
+            # Simple sampling
+            indices = np.linspace(0, duration - 1, self.frames_per_clip).astype(int)
             frames = vr.get_batch(indices).asnumpy()
+            
+            # --- NUMERICAL SANITY CHECK ---
+            if np.isnan(frames).any() or np.isinf(frames).any():
+                raise RuntimeError("NaN in raw video pixels")
+            
             frames = torch.from_numpy(frames).float().permute(0, 3, 1, 2) / 255.0
             
+            # Augmentation
             i, j, h, w = transforms.RandomResizedCrop.get_params(frames[0], scale=self.rrc_scale, ratio=self.rrc_ratio)
             frames = F.resized_crop(frames, i, j, h, w, size=(self.crop_size, self.crop_size))
             frames = self.normalize(frames)
             frames = frames.permute(1, 0, 2, 3).contiguous()
-            
-            # --- CRITICAL SAFETY CHECK: NAN/INF ---
-            if torch.isnan(frames).any() or torch.isinf(frames).any():
-                raise RuntimeError(f"Frame tensor contains NaNs or Infs for {path}")
-            # --------------------------------------
 
-            return frames, torch.from_numpy(mask).bool()
+            # --- FINAL TENSOR CHECK ---
+            if torch.isnan(frames).any() or (torch.abs(frames) > 20).any():
+                raise RuntimeError("Tensor out of bounds or NaN after normalization")
+
+            return frames, torch.from_numpy(mask).bool(), path
             
         except Exception as e:
-            # === CRITICAL CHANGE: RECURSIVE RETRY ===
-            print(f"[WARN] Failed to load {path} (Error: {e}). Retrying with new sample...", flush=True)
+            print(f"[STRICT-RETRY] Skipping {path} due to: {e}", flush=True)
             new_idx = np.random.randint(0, len(self))
             return self.__getitem__(new_idx)
-            
         finally:
-            if tmp_path is not None and os.path.exists(tmp_path):
+            if tmp_path and os.path.exists(tmp_path):
                 try: os.remove(tmp_path)
                 except: pass
 

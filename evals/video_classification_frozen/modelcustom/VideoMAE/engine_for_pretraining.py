@@ -44,7 +44,7 @@ def train_one_epoch(model: torch.nn.Module, data_loader: Iterable, optimizer: to
                 if wd_schedule_values is not None and param_group["weight_decay"] > 0:
                     param_group["weight_decay"] = wd_schedule_values[it]
     
-        videos, bool_masked_pos = batch
+        videos, bool_masked_pos, paths = batch
         videos = videos.to(device, non_blocking=True)
         bool_masked_pos = bool_masked_pos.to(device, non_blocking=True).flatten(1).to(torch.bool)
     
@@ -98,6 +98,15 @@ def train_one_epoch(model: torch.nn.Module, data_loader: Iterable, optimizer: to
                 parameters=model.parameters(), create_graph=is_second_order,
                 update_grad=update_grad
             )
+        
+        if update_grad:
+            if grad_norm is None or (isinstance(grad_norm, torch.Tensor) and not torch.isfinite(grad_norm)):
+                print("[WARN] non-finite grad_norm; cleared grads and continuing", flush=True)
+            optimizer.zero_grad(set_to_none=True)
+
+        if update_grad and (grad_norm is not None) and (not torch.isfinite(grad_norm)):
+            print("[BAD BATCH PATHS]", paths, flush=True)
+
     
         torch.cuda.synchronize()
     
@@ -108,7 +117,8 @@ def train_one_epoch(model: torch.nn.Module, data_loader: Iterable, optimizer: to
         max_lr = max(pg["lr"] for pg in optimizer.param_groups)
         metric_logger.update(lr=max_lr)
         metric_logger.update(min_lr=min_lr)
-    
+
+        
         if update_grad:
             loss_scale_value = loss_scaler.state_dict()["scale"]
             metric_logger.update(loss_scale=loss_scale_value)
