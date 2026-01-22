@@ -30,15 +30,23 @@ class PanEchoWrapper(nn.Module):
         self.embed_dim = 768
 
     def forward(self, x, clip_indices=None):
-        # 1. Handle List Input (Collated views) -> Stack to [B, N, C, T, H, W]
+        # Helper: Recursively stack lists into a single Tensor
+        def flatten_to_tensor(input_data):
+            if isinstance(input_data, torch.Tensor):
+                return input_data
+            if isinstance(input_data, list):
+                # Recursively process elements
+                processed = [flatten_to_tensor(d) for d in input_data]
+                # Stack: If [Tensor, Tensor] -> Stacked Tensor
+                return torch.stack(processed)
+            raise ValueError(f"Unsupported type: {type(input_data)}")
+
+        # 1. Robustly Handle List Input (Collated views / Nested lists)
         if isinstance(x, list):
-            # Assume list of tensors [B, C, T, H, W] or similar structure
             try:
-                x = torch.stack(x, dim=1)
+                x = flatten_to_tensor(x)
             except Exception as e:
-                # Fallback: if list cannot be stacked directly (e.g. varying sizes), 
-                # this is a data issue, but we report it clearly.
-                raise ValueError(f"Received list input but failed to stack: {e}")
+                raise ValueError(f"Received list input but failed to flatten: {e}")
 
         # 2. Handle 6D Input [B, N, C, T, H, W] (Multi-clip/Multi-view)
         # PanEcho expects [Batch, C, T, H, W]. We treat (B*N) as the batch.
@@ -80,13 +88,16 @@ def init_module(
     vjepa_modules = {k: v for k, v in sys.modules.items() if k == 'src' or k.startswith('src.')}
     original_path = list(sys.path)
     
+    # Unload V-JEPA modules
     for k in vjepa_modules:
         del sys.modules[k]
     
+    # Inject PanEcho path
     sys.path.insert(0, panecho_root)
     
     try:
         importlib.invalidate_caches()
+        # Force load PanEcho's src package
         import src 
         
         hubconf_path = os.path.join(panecho_root, "hubconf.py")
@@ -102,7 +113,7 @@ def init_module(
         raise e
         
     finally:
-        # Cleanup
+        # Cleanup and Restore V-JEPA environment
         panecho_modules = {k: v for k, v in sys.modules.items() if k == 'src' or k.startswith('src.')}
         for k in panecho_modules:
             del sys.modules[k]
