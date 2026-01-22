@@ -35,38 +35,51 @@ class PanEchoWrapper(nn.Module):
             if isinstance(input_data, torch.Tensor):
                 return input_data
             if isinstance(input_data, list):
-                # Recursively process elements
                 processed = [flatten_to_tensor(d) for d in input_data]
-                # Stack: If [Tensor, Tensor] -> Stacked Tensor
                 return torch.stack(processed)
             raise ValueError(f"Unsupported type: {type(input_data)}")
 
-        # 1. Robustly Handle List Input (Collated views / Nested lists)
+        # 1. Handle List Input
         if isinstance(x, list):
             try:
                 x = flatten_to_tensor(x)
             except Exception as e:
                 raise ValueError(f"Received list input but failed to flatten: {e}")
 
-        # 2. Handle 6D Input [B, N, C, T, H, W] (Multi-clip/Multi-view)
-        # PanEcho expects [Batch, C, T, H, W]. We treat (B*N) as the batch.
-        if x.ndim == 6:
-            B, N, C, T, H, W = x.shape
-            x = x.reshape(B * N, C, T, H, W)
+        # 2. Universal Flattening for High-Dimension Inputs (5D, 6D, 7D...)
+        # We assume the LAST 4 dimensions are always [C, T, H, W]
+        # Everything before that is "Batch" or "View" structure.
+        if x.ndim >= 5:
+            shape = x.shape
             
-            # Forward pass -> [B*N, D]
-            emb = self.panecho_model(x)
+            # Dimensions:
+            # - spatial_dims: C, T, H, W (Last 4)
+            # - batch_dims:   Everything before (B, N, M...)
             
-            # Reshape back to [B, N, D] so AttentiveClassifier sees N tokens
-            return emb.view(B, N, self.embed_dim)
+            batch_dims = shape[:-4]
+            spatial_dims = shape[-4:] # [3, 16, 224, 224]
+            
+            # Flatten all batch dims into one: [Total_Batch, 3, 16, 224, 224]
+            flat_batch_size = 1
+            for d in batch_dims:
+                flat_batch_size *= d
+            
+            x_flat = x.view(flat_batch_size, *spatial_dims)
+            
+            # Forward pass -> [Total_Batch, D]
+            emb_flat = self.panecho_model(x_flat)
+            
+            # Reshape back to [B, N, M..., D]
+            # AttentiveClassifier usually expects [Batch, Num_Tokens, D]
+            # If input was 7D [2, 1, 1, 3, 16, 224, 224], batch_dims are (2, 1, 1)
+            # We want to return [2, (1*1), D] -> [Batch, Tokens, D]
+            
+            # We keep the first dimension as true Batch Size
+            true_batch_size = batch_dims[0]
+            num_tokens = flat_batch_size // true_batch_size
+            
+            return emb_flat.view(true_batch_size, num_tokens, self.embed_dim)
 
-        # 3. Handle 5D Input [B, C, T, H, W] (Single clip)
-        if x.ndim == 5:
-            # Forward pass -> [B, D]
-            emb = self.panecho_model(x)
-            # Add token dimension -> [B, 1, D]
-            return emb.unsqueeze(1)
-            
         raise ValueError(f"Unexpected input shape: {x.shape}")
 
 def init_module(
@@ -88,16 +101,13 @@ def init_module(
     vjepa_modules = {k: v for k, v in sys.modules.items() if k == 'src' or k.startswith('src.')}
     original_path = list(sys.path)
     
-    # Unload V-JEPA modules
     for k in vjepa_modules:
         del sys.modules[k]
     
-    # Inject PanEcho path
     sys.path.insert(0, panecho_root)
     
     try:
         importlib.invalidate_caches()
-        # Force load PanEcho's src package
         import src 
         
         hubconf_path = os.path.join(panecho_root, "hubconf.py")
@@ -113,7 +123,7 @@ def init_module(
         raise e
         
     finally:
-        # Cleanup and Restore V-JEPA environment
+        # Cleanup
         panecho_modules = {k: v for k, v in sys.modules.items() if k == 'src' or k.startswith('src.')}
         for k in panecho_modules:
             del sys.modules[k]
