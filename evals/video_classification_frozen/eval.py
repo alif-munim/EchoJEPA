@@ -215,7 +215,7 @@ def main(args_eval, resume_preempt=False):
     # -- make csv_logger
     if rank == 0:  
         if task_type == "regression":  
-            csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "train_mse"), ("%.5f", "val_mse"))  
+            csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "train_mae"), ("%.5f", "val_mae"))
         else:  # classification  
             csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "train_acc"), ("%.5f", "val_acc"))
 
@@ -346,7 +346,7 @@ def main(args_eval, resume_preempt=False):
         save_dict = {
             "classifiers": all_classifier_dicts,
             "opt": all_opt_dicts,
-            "scaler": None if scaler is None else [s.state_dict() for s in scaler],
+            "scaler": None if (scaler is None) else [None if s is None else s.state_dict() for s in scaler],
             "epoch": epoch,
             "batch_size": batch_size,
             "world_size": world_size,
@@ -548,12 +548,12 @@ def run_one_epoch(
     else:
         iterator = data_loader
 
+    from torch.amp import autocast
     for itr, data in enumerate(iterator):
         if training:
             [s.step() for s in scheduler]
             [wds.step() for wds in wd_scheduler]
 
-        from torch.amp import autocast
         with autocast("cuda", dtype=torch.bfloat16, enabled=use_bfloat16):
         # with torch.cuda.amp.autocast(dtype=torch.float16, enabled=use_bfloat16):
             # Load data and put on GPU
@@ -726,7 +726,10 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
 
     # -- scaler (if used)
     if scaler is not None and "scaler" in checkpoint and checkpoint["scaler"] is not None:
-        [s.load_state_dict(pd) for s, pd in zip(scaler, checkpoint["scaler"])]
+        for s, sd in zip(scaler, checkpoint["scaler"]):
+            if s is None or sd is None:
+                continue
+            s.load_state_dict(sd)
 
     # Log metrics if present (keeps return arity identical)
     if "best_val_acc" in checkpoint or "mean_val_acc" in checkpoint:

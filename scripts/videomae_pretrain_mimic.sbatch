@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=8
 #SBATCH --cpus-per-task=12
 #SBATCH -t 4-00:00:00
-#SBATCH -J videomae_compute_matched
+#SBATCH -J videomae_cooldown_resume
 #SBATCH -o /tmp/videomae_%j.out
 #SBATCH -e /tmp/videomae_%j.err
 #SBATCH --signal=B:USR1@300
@@ -22,22 +22,23 @@ export PYTHONUNBUFFERED=1
 export MASTER_PORT=$((12000 + $RANDOM % 20000))
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 
-
-# --- V-JEPA COMPUTE MATCHING TARGETS ---
-TARGET_EFF_BS=1024           # 128 * 8 (V-JEPA Config)
-TARGET_UPDATES=72000         # 240 epochs * 300 updates/epoch
-TARGET_WARMUP_UPDATES=12000  # 40 epochs * 300 updates/epoch
+# --- COMPUTE MATCHING TARGETS (Base + Cooldown) ---
+# Base: 72,000 updates
+# Cooldown: 12,000 updates
+# Total: 84,000 updates
+TARGET_UPDATES=84000
+TARGET_WARMUP_UPDATES=12000
+TARGET_EFF_BS=1024
 
 # --- VideoMAE Micro-batch Configuration ---
 WORLD_SIZE=8
-BATCH_PER_GPU=32             # Reduced from 48 to allow for grad accumulation RAM overhead
+BATCH_PER_GPU=32
 MICRO_GLOBAL_BS=$((BATCH_PER_GPU * WORLD_SIZE))
 ACCUM_ITER=$((TARGET_EFF_BS / MICRO_GLOBAL_BS))
 
 # Validate Batch Configuration
 if [ $((MICRO_GLOBAL_BS * ACCUM_ITER)) -ne "${TARGET_EFF_BS}" ]; then
   echo "[FATAL] MICRO_GLOBAL_BS * ACCUM_ITER must equal TARGET_EFF_BS"
-  echo "        MICRO=${MICRO_GLOBAL_BS} ACCUM=${ACCUM_ITER} TARGET=${TARGET_EFF_BS}"
   exit 1
 fi
 
@@ -55,24 +56,32 @@ VITL_RAW_S3="${S3_BASE}/checkpoints/vitl_raw.pth"
 RUN_S3="${S3_BASE}/runs/videomae_${SLURM_JOB_ID}"
 
 # =========================
-# LOGGING
+# LOGGING / SYNC
 # =========================
 sync_ckpts() {
-  aws s3 sync "output" "${RUN_S3}/training_folder/" \
-    --exclude "*" \
-    --include "*.pth" --include "*.pt" --include "*.yaml" --include "*.json" --include "*.csv" \
-    --only-show-errors || true
+  local outdir="${OUTPUT_DIR:-output}"
+  if [ -d "${outdir}" ]; then
+    aws s3 sync "${outdir}" "${RUN_S3}/training_folder/" \
+      --exclude "*" \
+      --include "*.pth" --include "*.pt" --include "*.yaml" --include "*.json" --include "*.csv" \
+      --only-show-errors || true
+  fi
 }
+
 upload_logs() {
-  aws s3 cp "/tmp/videomae_${SLURM_JOB_ID}.out" "${RUN_S3}/logs/job.out" --only-show-errors || true
-  aws s3 cp "/tmp/videomae_${SLURM_JOB_ID}.err" "${RUN_S3}/logs/job.err" --only-show-errors || true
+  local out="/tmp/videomae_${SLURM_JOB_ID}.out"
+  local err="/tmp/videomae_${SLURM_JOB_ID}.err"
+  [ -f "${out}" ] && aws s3 cp "${out}" "${RUN_S3}/logs/job.out" --only-show-errors || true
+  [ -f "${err}" ] && aws s3 cp "${err}" "${RUN_S3}/logs/job.err" --only-show-errors || true
 }
+
 on_exit() {
   rc=$?
   upload_logs
   sync_ckpts
   exit $rc
 }
+
 trap on_exit EXIT
 trap 'sync_ckpts; upload_logs' USR1
 
@@ -111,26 +120,20 @@ aws s3 cp "$VITL_RAW_S3" vitl_raw.pth
 
 python - <<'PY'
 import torch
-# Directly import the class instead of using create_model factory
-from modeling_pretrain import pretrain_videomae_large_patch16_224 
+from modeling_pretrain import pretrain_videomae_large_patch16_224
 
 RAW = "vitl_raw.pth"
 OUT = "pretrained_videomae_init.pth"
-DECODER_DEPTH = 4 
+DECODER_DEPTH = 4
 
 ckpt = torch.load(RAW, map_location="cpu")
 src = ckpt.get("model", ckpt.get("state_dict", ckpt))
 
-# Clean
 tmp = {k.replace("module.", ""): v for k, v in src.items() 
        if not k.startswith(("module.head.", "module.fc_norm.", "head.", "fc_norm."))}
 src = tmp
 
-# Instantiate directly
-model = pretrain_videomae_large_patch16_224(
-    pretrained=False, 
-    decoder_depth=DECODER_DEPTH
-)
+model = pretrain_videomae_large_patch16_224(pretrained=False, decoder_depth=DECODER_DEPTH)
 tgt_sd = model.state_dict()
 
 def pick(*names):
@@ -174,21 +177,27 @@ torch.save({"model": new_sd}, OUT)
 print(f"[INFO] Wrote VideoMAE init ckpt: {OUT}")
 PY
 
+# Safety Patch for Legacy PyTorch (If not already fixed in tar)
+if [ -f "utils.py" ]; then
+    sed -i 's/from torch._six import inf/from torch import inf/g' utils.py
+fi
+
 # =========================================================
 # COMPUTE MATCHED EPOCH CALCULATIONS
 # =========================================================
 
-# 1. Count Total Samples accurately (ignoring comments/blanks)
 NUM_SAMPLES=$(python - <<'PY'
-import sys
 p="data/train.csv"
 n=0
 with open(p,"r") as f:
     for line in f:
         line=line.strip()
-        if not line or line.startswith("#"): 
+        if not line or line.startswith("#"):
             continue
-        first=line.split(",")[0].split()[0].strip()
+        if "," in line:
+            first = line.split(",")[0].strip()
+        else:
+            first = line.split()[0].strip()
         if first.startswith("s3://"):
             n+=1
 print(n)
@@ -196,8 +205,6 @@ PY
 )
 echo "[INFO] NUM_SAMPLES=${NUM_SAMPLES}"
 
-# 2. Calculate Steps and Updates per Epoch
-# Note: DataLoader usually drops the last batch if it doesn't fit
 STEPS_PER_EPOCH=$((NUM_SAMPLES / MICRO_GLOBAL_BS))
 UPDATES_PER_EPOCH=$((STEPS_PER_EPOCH / ACCUM_ITER))
 
@@ -209,20 +216,13 @@ if [ "${UPDATES_PER_EPOCH}" -le 0 ]; then
   exit 1
 fi
 
-# 3. Calculate Epochs needed to hit Target Updates
 EPOCHS=$(( (TARGET_UPDATES + UPDATES_PER_EPOCH - 1) / UPDATES_PER_EPOCH ))
 WARMUP_EPOCHS=$(( (TARGET_WARMUP_UPDATES + UPDATES_PER_EPOCH - 1) / UPDATES_PER_EPOCH ))
 
-echo "[INFO] COMPUTE MATCHED CONFIG:"
+echo "[INFO] COMPUTE MATCHED CONFIG (Base + Cooldown):"
 echo "       Total Updates: ${TARGET_UPDATES} -> ${EPOCHS} Epochs"
 echo "       Warmup Updates: ${TARGET_WARMUP_UPDATES} -> ${WARMUP_EPOCHS} Epochs"
 
-# 4. Learning Rate Adjustment (Maintain previous actual LR)
-# Previous Actual LR: ~2.8125e-5 (at eff_batch 384)
-# VideoMAE Scaling: lr = base_lr * (eff_batch / 256)
-# To keep Actual LR = 2.8125e-5 at eff_batch 1024:
-# 2.8125e-5 = base_lr * (1024 / 256)
-# base_lr = 2.8125e-5 / 4 = 7.03125e-6
 LR_VAL="7.03125e-6"
 
 # =========================
@@ -231,6 +231,24 @@ LR_VAL="7.03125e-6"
 OUTPUT_DIR="${WORKDIR}/output"
 mkdir -p "$OUTPUT_DIR"
 
+# 1. DOWNLOAD CHECKPOINT (RESUME)
+# Resuming from the last good checkpoint before the crash
+aws s3 cp s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/videomae_97/training_folder/checkpoint-29.pth "${WORKDIR}/checkpoint-29.pth" || echo "[WARN] Checkpoint not found"
+
+# Start periodic uploads
+(
+  while true; do
+    sleep 900
+    sync_ckpts
+    upload_logs
+  done
+) &
+SYNC_PID=$!
+
+# 2. RUN TRAINING
+#    --start_epoch 30: Tells scheduler we are continuing
+#    --clip_grad 1.0:  Prevents NaN explosion
+#    --num_workers 6:  Prevents RAM OOM
 srun --kill-on-bad-exit=1 \
   python -u run_mae_pretraining.py \
     --data_path "${WORKDIR}/data/train.csv" \
@@ -253,12 +271,16 @@ srun --kill-on-bad-exit=1 \
     --epochs "${EPOCHS}" \
     --log_dir "${OUTPUT_DIR}" \
     --output_dir "${OUTPUT_DIR}" \
-    --num_workers 6
+    --num_workers 6 \
+    --clip_grad 1.0 \
+    --resume "${WORKDIR}/checkpoint-29.pth" \
+    --start_epoch 30 
+
 RC=$?
 
-if [ -n "${SYNC_PID:-}" ]; then
-  kill "$SYNC_PID" 2>/dev/null || true
-  wait "$SYNC_PID" 2>/dev/null || true
-fi
-
+# graceful cleanup
+kill $SYNC_PID 2>/dev/null || true
+wait $SYNC_PID 2>/dev/null || true
+upload_logs
+sync_ckpts
 exit $RC
