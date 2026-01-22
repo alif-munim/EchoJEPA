@@ -35,10 +35,12 @@ TRAIN_CSV_S3="${TRAIN_CSV_S3:-${S3_BASE}/${TRAIN_CSV_REL}}"
 VAL_CSV_S3="${VAL_CSV_S3:-${S3_BASE}/${VAL_CSV_REL}}"
 
 # --- Checkpoint Config ---
-# S3 location where you just uploaded the file
-CKPT_S3="${S3_BASE}/checkpoints/videomae_vitl_pretrain.pth"
+# Google Drive file ID for VideoMAE ViT-L pretrain checkpoint
+GDRIVE_ID="1qLOXWb_MGEvaI7tvuAe94CV7S2HXRwT3"
 # Local path expected by your YAML config
-CKPT_LOCAL="/opt/dlami/nvme/checkpoints/videomae_base.pth"
+CKPT_LOCAL="/opt/dlami/nvme/checkpoints/videomae_vitl_pretrain.pth"
+# S3 cache location (to avoid re-downloading from Google Drive)
+CKPT_S3="${S3_BASE}/checkpoints/videomae_vitl_pretrain_gdrive.pth"
 
 RUN_S3="${S3_BASE}/runs/videomae_lvef_${SLURM_JOB_ID}"
 
@@ -79,6 +81,9 @@ aws s3 cp "$BOTO3_WHL_S3" boto3-wheelhouse.tar
 mkdir -p wheelhouse
 tar -xf boto3-wheelhouse.tar -C wheelhouse
 python -m pip install --no-index --find-links wheelhouse boto3
+
+# Install gdown for Google Drive downloads
+pip install gdown --quiet
 
 # --- Setup Code ---
 aws s3 cp "$CODE_S3" code.tar
@@ -130,11 +135,86 @@ mkdir -p "$(dirname "$TRAIN_CSV_REL")"
 aws s3 cp "$TRAIN_CSV_S3" "$TRAIN_CSV_REL"
 aws s3 cp "$VAL_CSV_S3" "$VAL_CSV_REL"
 
-# 2. VideoMAE Checkpoint
-# We download the file from S3 and save it to the specific path defined in the YAML
-echo "[INFO] Downloading VideoMAE checkpoint..."
+# 2. VideoMAE Checkpoint - with S3 caching to avoid repeated Google Drive downloads
+echo "[INFO] Downloading VideoMAE ViT-L pretrain checkpoint..."
 mkdir -p "$(dirname "$CKPT_LOCAL")"
-aws s3 cp "$CKPT_S3" "$CKPT_LOCAL"
+
+# First, try to get from S3 cache
+if aws s3 cp "$CKPT_S3" "$CKPT_LOCAL" 2>/dev/null; then
+    echo "[INFO] Downloaded checkpoint from S3 cache"
+else
+    echo "[INFO] Checkpoint not in S3 cache, downloading from Google Drive..."
+    
+    # Download from Google Drive with retry logic
+    DOWNLOAD_SUCCESS=false
+    for attempt in 1 2 3; do
+        echo "[INFO] Google Drive download attempt $attempt/3..."
+        if gdown "https://drive.google.com/uc?id=${GDRIVE_ID}" -O "$CKPT_LOCAL" --quiet; then
+            DOWNLOAD_SUCCESS=true
+            break
+        fi
+        echo "[WARN] Attempt $attempt failed, waiting before retry..."
+        sleep 10
+    done
+    
+    if [ "$DOWNLOAD_SUCCESS" = false ]; then
+        echo "[ERROR] Failed to download VideoMAE checkpoint from Google Drive after 3 attempts"
+        exit 1
+    fi
+    
+    # Cache to S3 for future runs
+    echo "[INFO] Caching checkpoint to S3 for future runs..."
+    aws s3 cp "$CKPT_LOCAL" "$CKPT_S3" || echo "[WARN] Failed to cache checkpoint to S3"
+fi
+
+# Verify checkpoint
+if [ ! -f "$CKPT_LOCAL" ]; then
+    echo "[ERROR] Checkpoint file not found at $CKPT_LOCAL"
+    exit 1
+fi
+
+CKPT_SIZE=$(stat -c%s "$CKPT_LOCAL" 2>/dev/null || stat -f%z "$CKPT_LOCAL" 2>/dev/null || echo "0")
+echo "[INFO] Checkpoint size: ${CKPT_SIZE} bytes"
+
+# VideoMAE ViT-L pretrain checkpoint should be ~1.1GB
+if [ "$CKPT_SIZE" -lt 1000000000 ]; then
+    echo "[WARN] Checkpoint seems small (${CKPT_SIZE} bytes). Expected ~1.1GB for ViT-L pretrain"
+    echo "[WARN] The file may be corrupted or incomplete"
+fi
+
+# Verify it's a valid PyTorch checkpoint
+python - "$CKPT_LOCAL" <<'PY'
+import sys
+import torch
+
+ckpt_path = sys.argv[1]
+try:
+    ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+    if "model" in ckpt:
+        keys = list(ckpt["model"].keys())
+    elif "state_dict" in ckpt:
+        keys = list(ckpt["state_dict"].keys())
+    else:
+        keys = list(ckpt.keys())
+    
+    print(f"[INFO] Checkpoint verified: {len(keys)} keys")
+    
+    # Check if it's a pretrain checkpoint (has encoder prefix)
+    has_encoder = any(k.startswith("encoder.") for k in keys)
+    has_decoder = any(k.startswith("decoder") for k in keys)
+    
+    if has_encoder:
+        print("[INFO] Detected PRETRAIN checkpoint format (has encoder.* keys)")
+    if has_decoder:
+        print("[INFO] Checkpoint contains decoder weights (will be skipped)")
+    
+    # Show sample keys
+    print(f"[INFO] Sample keys: {keys[:5]}")
+    
+except Exception as e:
+    print(f"[ERROR] Failed to load checkpoint: {e}")
+    sys.exit(1)
+PY
 
 # --- Parse Output Folder from Config ---
 CFG_FOLDER="$(python - <<PY
