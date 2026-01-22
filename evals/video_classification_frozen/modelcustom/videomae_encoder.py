@@ -1,6 +1,8 @@
 # evals/video_classification_frozen/modelcustom/videomae_encoder.py
 
 import logging
+import sys
+import os
 from typing import Any, List, Tuple, Union
 
 import torch
@@ -114,6 +116,37 @@ class VideoMAEWrapper(nn.Module):
         return [feats[:, i, :, :] for i in range(num_leaves)]
 
 
+def _import_modeling_finetune():
+    """
+    Dynamically import modeling_finetune from the vendored VideoMAE directory.
+    Handles the sys.path manipulation needed to find the module.
+    """
+    # Get the directory containing this file (modelcustom/)
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Path to the vendored VideoMAE directory
+    videomae_dir = os.path.join(this_dir, "VideoMAE")
+    
+    if not os.path.isdir(videomae_dir):
+        raise ImportError(
+            f"VideoMAE directory not found at {videomae_dir}. "
+            "Please ensure VideoMAE is vendored in modelcustom/VideoMAE/"
+        )
+    
+    # Temporarily add VideoMAE dir to sys.path
+    if videomae_dir not in sys.path:
+        sys.path.insert(0, videomae_dir)
+        logger.info(f"Added {videomae_dir} to sys.path")
+    
+    try:
+        import modeling_finetune
+        return modeling_finetune
+    except ImportError as e:
+        raise ImportError(
+            f"Failed to import modeling_finetune from {videomae_dir}: {e}"
+        )
+
+
 def init_module(
     resolution: int,
     frames_per_clip: int,
@@ -138,25 +171,36 @@ def init_module(
     if model_name is None:
         raise ValueError("VideoMAE config must include pretrain_kwargs.encoder.model_name")
 
-    # Import your VideoMAE implementation
-    # Adjust this import to match where you vendored the code.
-    from third_party.videomae import modeling_finetune  # Option A
-    # from modeling_finetune import ...                # Option B if sys.path insert is used
+    # Import VideoMAE from vendored location
+    modeling_finetune = _import_modeling_finetune()
 
     if not hasattr(modeling_finetune, model_name):
-        raise ValueError(f"modeling_finetune has no attribute {model_name}")
+        available = [n for n in dir(modeling_finetune) if n.startswith("vit_")]
+        raise ValueError(
+            f"modeling_finetune has no attribute '{model_name}'. "
+            f"Available models: {available}"
+        )
 
     ctor = getattr(modeling_finetune, model_name)
 
     # Instantiate model. Different VideoMAE forks accept different kwargs.
     # Keep it conservative; pass only common args unless you know your fork supports more.
     # Many VideoMAE ViT constructors accept img_size and num_frames; if yours doesn't, remove them.
+    extra_kwargs = {k: v for k, v in enc_cfg.items() if k != "model_name"}
+    
     try:
-        model = ctor(img_size=resolution, num_frames=frames_per_clip, **{k: v for k, v in enc_cfg.items() if k != "model_name"})
-    except TypeError:
+        model = ctor(img_size=resolution, num_frames=frames_per_clip, **extra_kwargs)
+        logger.info(f"Created VideoMAE model: {model_name}(img_size={resolution}, num_frames={frames_per_clip})")
+    except TypeError as e:
         # Fallback if the ctor signature is simpler
-        model = ctor(**{k: v for k, v in enc_cfg.items() if k != "model_name"})
+        logger.warning(f"Failed with img_size/num_frames args ({e}), trying simpler constructor")
+        model = ctor(**extra_kwargs)
+        logger.info(f"Created VideoMAE model: {model_name}() with fallback constructor")
 
+    # Load checkpoint
+    if not os.path.isfile(checkpoint):
+        raise FileNotFoundError(f"VideoMAE checkpoint not found: {checkpoint}")
+    
     ckpt = torch.load(checkpoint, map_location="cpu")
     state = ckpt.get("model", ckpt.get("state_dict", ckpt))
 
@@ -170,6 +214,11 @@ def init_module(
 
     msg = model.load_state_dict(cleaned, strict=False)
     logger.info(f"Loaded VideoMAE weights (strict=False). Missing={len(msg.missing_keys)} Unexpected={len(msg.unexpected_keys)}")
+    
+    if msg.missing_keys:
+        logger.debug(f"Missing keys: {msg.missing_keys[:10]}{'...' if len(msg.missing_keys) > 10 else ''}")
+    if msg.unexpected_keys:
+        logger.debug(f"Unexpected keys: {msg.unexpected_keys[:10]}{'...' if len(msg.unexpected_keys) > 10 else ''}")
 
     # Freeze encoder weights
     model.eval()
