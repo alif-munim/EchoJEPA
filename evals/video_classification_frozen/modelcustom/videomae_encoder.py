@@ -3,20 +3,23 @@
 import logging
 import sys
 import os
-from typing import Any, List, Tuple, Union
+import warnings
+from typing import Any, List, Union
+from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+
+# Suppress timm registry overwrite warnings
+warnings.filterwarnings("ignore", message="Overwriting .* in registry")
+warnings.filterwarnings("ignore", category=FutureWarning, module="timm")
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 def _collect_leaf_tensors(x: Any) -> List[torch.Tensor]:
-    """
-    Flattens nested list/tuple structures into a list of leaf tensors.
-    Expected leaf shape: [B, C, T, H, W].
-    """
+    """Flattens nested list/tuple structures into a list of leaf tensors."""
     leaves: List[torch.Tensor] = []
 
     def rec(z: Any):
@@ -43,54 +46,49 @@ class VideoMAEWrapper(nn.Module):
     def __init__(self, model: nn.Module):
         super().__init__()
         self.model = model
-        # Most VideoMAE ViT variants expose embed_dim; otherwise infer from norm weight
+        
+        # Infer embed_dim from model
         self.embed_dim = getattr(model, "embed_dim", None)
         if self.embed_dim is None:
-            # Fallback inference (works for many ViT-like models)
-            self.embed_dim = int(model.norm.weight.shape[0])
+            if hasattr(model, "fc_norm") and hasattr(model.fc_norm, "weight"):
+                self.embed_dim = int(model.fc_norm.weight.shape[0])
+            elif hasattr(model, "norm") and hasattr(model.norm, "weight"):
+                self.embed_dim = int(model.norm.weight.shape[0])
+            else:
+                raise ValueError("Could not infer embed_dim from model")
+        
+        logger.info(f"VideoMAEWrapper initialized with embed_dim={self.embed_dim}")
 
     @torch.no_grad()
     def _forward_features(self, x: torch.Tensor) -> torch.Tensor:
         """
-        x: [B*, C, T, H, W]
-        returns:
-          - ideally [B*, N_tokens, D]
-          - if model returns [B*, D], we convert to [B*, 1, D]
+        Extract features from VideoMAE.
+        x: [B, C, T, H, W]
+        returns: [B, N_tokens, D] or [B, 1, D] if pooled
         """
-        # Common VideoMAE APIs:
-        #  - model.forward_features(x)
-        #  - model.get_intermediate_layers(x)
         if hasattr(self.model, "forward_features"):
             feats = self.model.forward_features(x)
         else:
-            # Some implementations return logits in forward(); avoid that if possible.
+            # Fallback: use forward but this might return logits
             feats = self.model(x)
 
         if feats.dim() == 2:
-            feats = feats.unsqueeze(1)  # [B*, 1, D]
+            feats = feats.unsqueeze(1)  # [B, 1, D]
         if feats.dim() != 3:
             raise ValueError(f"Expected 2D or 3D features, got shape={tuple(feats.shape)}")
-        return feats  # [B*, N, D]
+        return feats
 
     def forward(
         self,
         clips: Union[torch.Tensor, List[Any]],
         clip_indices=None,
     ) -> List[torch.Tensor]:
-        """
-        clips is the nested list structure coming from your eval.py dataloader:
-          leaves are tensors of shape [B, C, T, H, W].
-        We treat each leaf as one "view/segment clip", run VideoMAE on all leaves
-        in a single batch, then return a list of per-clip features:
-          out[i] = Tensor[B, N_tokens, D]
-        """
+        """Process nested clip structure and return per-clip features."""
         if torch.is_tensor(clips):
-            # Rare path: already a tensor (assume single clip)
             x_flat = clips
             if x_flat.dim() == 4:
-                # [B, T, H, W] not expected
                 raise ValueError(f"Unexpected tensor rank for clips: {x_flat.shape}")
-            feats = self._forward_features(x_flat)  # [B, N, D]
+            feats = self._forward_features(x_flat)
             return [feats]
 
         leaves = _collect_leaf_tensors(clips)
@@ -99,52 +97,138 @@ class VideoMAEWrapper(nn.Module):
             if int(t.shape[0]) != B:
                 raise ValueError("All clip leaves must share the same batch dimension.")
 
-        # Concatenate along batch: [num_leaves*B, C, T, H, W]
         x_flat = torch.cat(leaves, dim=0)
-
-        # VideoMAE forward -> [num_leaves*B, N_tokens, D]
         feats_flat = self._forward_features(x_flat)
 
         num_leaves = len(leaves)
         N_tokens = int(feats_flat.shape[1])
         D = int(feats_flat.shape[2])
 
-        # Reshape back to [num_leaves, B, N_tokens, D] then to [B, num_leaves, N_tokens, D]
         feats = feats_flat.view(num_leaves, B, N_tokens, D).permute(1, 0, 2, 3).contiguous()
-
-        # Return list length = num_leaves, each item [B, N_tokens, D]
         return [feats[:, i, :, :] for i in range(num_leaves)]
 
 
 def _import_modeling_finetune():
-    """
-    Dynamically import modeling_finetune from the vendored VideoMAE directory.
-    Handles the sys.path manipulation needed to find the module.
-    """
-    # Get the directory containing this file (modelcustom/)
+    """Dynamically import modeling_finetune from the vendored VideoMAE directory."""
     this_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # Path to the vendored VideoMAE directory
     videomae_dir = os.path.join(this_dir, "VideoMAE")
     
     if not os.path.isdir(videomae_dir):
-        raise ImportError(
-            f"VideoMAE directory not found at {videomae_dir}. "
-            "Please ensure VideoMAE is vendored in modelcustom/VideoMAE/"
-        )
+        raise ImportError(f"VideoMAE directory not found at {videomae_dir}")
     
-    # Temporarily add VideoMAE dir to sys.path
     if videomae_dir not in sys.path:
         sys.path.insert(0, videomae_dir)
         logger.info(f"Added {videomae_dir} to sys.path")
     
-    try:
-        import modeling_finetune
-        return modeling_finetune
-    except ImportError as e:
-        raise ImportError(
-            f"Failed to import modeling_finetune from {videomae_dir}: {e}"
-        )
+    import modeling_finetune
+    return modeling_finetune
+
+
+def _convert_pretrain_to_finetune_state_dict(pretrain_state_dict, model_state_dict):
+    """
+    Convert a VideoMAE PRETRAIN checkpoint to work with a FINETUNE model.
+    
+    Pretrain checkpoints have structure:
+      - encoder.patch_embed.*, encoder.blocks.*, encoder.norm.*, encoder.pos_embed
+      - decoder.*, decoder_pos_embed, mask_token, etc.
+    
+    Finetune models expect:
+      - patch_embed.*, blocks.*, fc_norm.*, pos_embed, head.*
+    
+    Reference: MCG-NJU/VideoMAE run_class_finetuning.py lines 324-385
+    """
+    new_state_dict = OrderedDict()
+    
+    # Keys to skip (decoder-related, not needed for feature extraction)
+    skip_prefixes = (
+        "decoder", "mask_token", "decoder_pos_embed", 
+        "decoder_embed", "decoder_blocks", "decoder_norm",
+        "decoder_pred", "enc_dec_proj"
+    )
+    
+    loaded_keys = []
+    skipped_keys = []
+    
+    for key, value in pretrain_state_dict.items():
+        original_key = key
+        
+        # Remove common prefixes
+        if key.startswith("module."):
+            key = key[7:]
+        
+        # Handle encoder. prefix (pretrain checkpoint format)
+        if key.startswith("encoder."):
+            key = key[8:]
+        
+        # Handle backbone. prefix (some checkpoint formats)
+        if key.startswith("backbone."):
+            key = key[9:]
+        
+        # Skip decoder-related keys
+        if any(key.startswith(prefix) for prefix in skip_prefixes):
+            skipped_keys.append(original_key)
+            continue
+        
+        # Handle norm -> fc_norm remapping (some VideoMAE versions)
+        # The finetune model uses fc_norm instead of norm for final normalization
+        if key == "norm.weight" and "fc_norm.weight" in model_state_dict:
+            key = "fc_norm.weight"
+        elif key == "norm.bias" and "fc_norm.bias" in model_state_dict:
+            key = "fc_norm.bias"
+        
+        new_state_dict[key] = value
+        loaded_keys.append(f"{original_key} -> {key}")
+    
+    # Remove head weights if they don't match (we'll use AttentiveClassifier instead)
+    for head_key in ["head.weight", "head.bias"]:
+        if head_key in new_state_dict:
+            if head_key in model_state_dict:
+                if new_state_dict[head_key].shape != model_state_dict[head_key].shape:
+                    logger.info(f"Removing mismatched {head_key}: "
+                              f"ckpt={new_state_dict[head_key].shape} vs model={model_state_dict[head_key].shape}")
+                    del new_state_dict[head_key]
+            else:
+                del new_state_dict[head_key]
+    
+    logger.info(f"Checkpoint conversion: {len(loaded_keys)} keys converted, {len(skipped_keys)} decoder keys skipped")
+    
+    return new_state_dict
+
+
+def _interpolate_pos_embed(pos_embed_ckpt, pos_embed_model, num_frames, tubelet_size=2):
+    """
+    Interpolate position embedding if spatial dimensions don't match.
+    Reference: MCG-NJU/VideoMAE run_class_finetuning.py lines 358-380
+    """
+    if pos_embed_ckpt.shape == pos_embed_model.shape:
+        return pos_embed_ckpt
+    
+    logger.info(f"Interpolating pos_embed: {pos_embed_ckpt.shape} -> {pos_embed_model.shape}")
+    
+    embedding_size = pos_embed_ckpt.shape[-1]
+    num_patches_model = pos_embed_model.shape[1]
+    num_extra_tokens = 0  # VideoMAE typically doesn't use cls token
+    
+    # Original spatial size
+    temporal_patches = num_frames // tubelet_size
+    orig_size = int(((pos_embed_ckpt.shape[1] - num_extra_tokens) / temporal_patches) ** 0.5)
+    new_size = int((num_patches_model / temporal_patches) ** 0.5)
+    
+    if orig_size == new_size:
+        return pos_embed_ckpt
+    
+    logger.info(f"Position interpolate from {orig_size}x{orig_size} to {new_size}x{new_size}")
+    
+    pos_tokens = pos_embed_ckpt[:, num_extra_tokens:]
+    pos_tokens = pos_tokens.reshape(-1, temporal_patches, orig_size, orig_size, embedding_size)
+    pos_tokens = pos_tokens.reshape(-1, orig_size, orig_size, embedding_size).permute(0, 3, 1, 2)
+    pos_tokens = torch.nn.functional.interpolate(
+        pos_tokens, size=(new_size, new_size), mode='bicubic', align_corners=False
+    )
+    pos_tokens = pos_tokens.permute(0, 2, 3, 1).reshape(-1, temporal_patches, new_size, new_size, embedding_size)
+    pos_tokens = pos_tokens.flatten(1, 3)
+    
+    return pos_tokens
 
 
 def init_module(
@@ -155,19 +239,20 @@ def init_module(
     wrapper_kwargs: dict,
 ):
     """
-    V-JEPA2 eval entrypoint.
-
-    model_kwargs should describe how to construct VideoMAE.
-    Suggested YAML format:
-      pretrain_kwargs:
-        encoder:
-          model_name: vit_large_patch16_224
-          # (optional) other ctor kwargs
+    V-JEPA2 eval entrypoint for VideoMAE.
+    
+    Properly handles loading pretrain checkpoints into finetune model architecture.
     """
-    logger.info(f"Loading VideoMAE checkpoint from: {checkpoint}")
+    logger.info(f"="*60)
+    logger.info(f"Initializing VideoMAE encoder")
+    logger.info(f"  Resolution: {resolution}")
+    logger.info(f"  Frames per clip: {frames_per_clip}")
+    logger.info(f"  Checkpoint: {checkpoint}")
+    logger.info(f"="*60)
 
     enc_cfg = model_kwargs.get("encoder", model_kwargs)
     model_name = enc_cfg.get("model_name", None)
+    
     if model_name is None:
         raise ValueError("VideoMAE config must include pretrain_kwargs.encoder.model_name")
 
@@ -176,53 +261,115 @@ def init_module(
 
     if not hasattr(modeling_finetune, model_name):
         available = [n for n in dir(modeling_finetune) if n.startswith("vit_")]
-        raise ValueError(
-            f"modeling_finetune has no attribute '{model_name}'. "
-            f"Available models: {available}"
-        )
+        raise ValueError(f"Model '{model_name}' not found. Available: {available}")
 
     ctor = getattr(modeling_finetune, model_name)
-
-    # Instantiate model. Different VideoMAE forks accept different kwargs.
-    # Keep it conservative; pass only common args unless you know your fork supports more.
-    # Many VideoMAE ViT constructors accept img_size and num_frames; if yours doesn't, remove them.
     extra_kwargs = {k: v for k, v in enc_cfg.items() if k != "model_name"}
     
-    try:
-        model = ctor(img_size=resolution, num_frames=frames_per_clip, **extra_kwargs)
-        logger.info(f"Created VideoMAE model: {model_name}(img_size={resolution}, num_frames={frames_per_clip})")
-    except TypeError as e:
-        # Fallback if the ctor signature is simpler
-        logger.warning(f"Failed with img_size/num_frames args ({e}), trying simpler constructor")
-        model = ctor(**extra_kwargs)
-        logger.info(f"Created VideoMAE model: {model_name}() with fallback constructor")
-
+    # VideoMAE model construction
+    # The finetune models use 'all_frames' parameter
+    tubelet_size = extra_kwargs.pop("tubelet_size", 2)
+    
+    model = None
+    construction_attempts = [
+        # Attempt 1: Full VideoMAE finetune style
+        lambda: ctor(
+            img_size=resolution,
+            all_frames=frames_per_clip,
+            tubelet_size=tubelet_size,
+            num_classes=1000,  # Placeholder, we won't use the head
+            **extra_kwargs
+        ),
+        # Attempt 2: With num_frames instead
+        lambda: ctor(
+            img_size=resolution,
+            num_frames=frames_per_clip,
+            tubelet_size=tubelet_size,
+            **extra_kwargs
+        ),
+        # Attempt 3: Minimal (timm-style)
+        lambda: ctor(**extra_kwargs),
+    ]
+    
+    for i, attempt in enumerate(construction_attempts, 1):
+        try:
+            model = attempt()
+            logger.info(f"Model construction succeeded on attempt {i}")
+            break
+        except TypeError as e:
+            logger.debug(f"Attempt {i} failed: {e}")
+            continue
+    
+    if model is None:
+        raise RuntimeError(f"Could not construct model {model_name}")
+    
     # Load checkpoint
     if not os.path.isfile(checkpoint):
-        raise FileNotFoundError(f"VideoMAE checkpoint not found: {checkpoint}")
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint}")
     
-    ckpt = torch.load(checkpoint, map_location="cpu")
-    state = ckpt.get("model", ckpt.get("state_dict", ckpt))
-
-    # Strip common prefixes
-    cleaned = {}
-    for k, v in state.items():
-        kk = k
-        if kk.startswith("module."):
-            kk = kk[len("module."):]
-        cleaned[kk] = v
-
-    msg = model.load_state_dict(cleaned, strict=False)
-    logger.info(f"Loaded VideoMAE weights (strict=False). Missing={len(msg.missing_keys)} Unexpected={len(msg.unexpected_keys)}")
+    logger.info(f"Loading checkpoint: {checkpoint}")
+    ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
     
-    if msg.missing_keys:
-        logger.debug(f"Missing keys: {msg.missing_keys[:10]}{'...' if len(msg.missing_keys) > 10 else ''}")
+    # Handle different checkpoint formats
+    if "model" in ckpt:
+        state_dict = ckpt["model"]
+        logger.info("Found 'model' key in checkpoint")
+    elif "state_dict" in ckpt:
+        state_dict = ckpt["state_dict"]
+        logger.info("Found 'state_dict' key in checkpoint")
+    else:
+        state_dict = ckpt
+        logger.info("Using checkpoint directly as state_dict")
+    
+    # Log checkpoint structure for debugging
+    sample_keys = list(state_dict.keys())[:10]
+    logger.info(f"Checkpoint has {len(state_dict)} keys. Sample: {sample_keys}")
+    
+    # Check if this is a pretrain checkpoint (has encoder. prefix or decoder keys)
+    has_encoder_prefix = any(k.startswith("encoder.") for k in state_dict.keys())
+    has_decoder_keys = any(k.startswith("decoder") for k in state_dict.keys())
+    
+    if has_encoder_prefix or has_decoder_keys:
+        logger.info("Detected PRETRAIN checkpoint format - converting to finetune format")
+        state_dict = _convert_pretrain_to_finetune_state_dict(state_dict, model.state_dict())
+    else:
+        logger.info("Detected FINETUNE checkpoint format - using directly")
+        # Still need to strip module. prefix if present
+        if any(k.startswith("module.") for k in state_dict.keys()):
+            state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+    
+    # Handle position embedding interpolation if needed
+    if "pos_embed" in state_dict and "pos_embed" in model.state_dict():
+        model_pos = model.state_dict()["pos_embed"]
+        ckpt_pos = state_dict["pos_embed"]
+        if ckpt_pos.shape != model_pos.shape:
+            state_dict["pos_embed"] = _interpolate_pos_embed(
+                ckpt_pos, model_pos, frames_per_clip, tubelet_size
+            )
+    
+    # Load weights
+    msg = model.load_state_dict(state_dict, strict=False)
+    
+    # Analyze loading results
+    truly_missing = [k for k in msg.missing_keys if not k.startswith("head.")]
+    
+    logger.info(f"Weight loading complete:")
+    logger.info(f"  - Missing keys: {len(msg.missing_keys)} (head-related: {len(msg.missing_keys) - len(truly_missing)})")
+    logger.info(f"  - Unexpected keys: {len(msg.unexpected_keys)}")
+    
+    if truly_missing:
+        logger.warning(f"  - Truly missing (non-head): {truly_missing[:5]}{'...' if len(truly_missing) > 5 else ''}")
+    
     if msg.unexpected_keys:
-        logger.debug(f"Unexpected keys: {msg.unexpected_keys[:10]}{'...' if len(msg.unexpected_keys) > 10 else ''}")
-
-    # Freeze encoder weights
+        logger.debug(f"  - Unexpected: {msg.unexpected_keys[:5]}{'...' if len(msg.unexpected_keys) > 5 else ''}")
+    
+    # Freeze encoder
     model.eval()
     for p in model.parameters():
         p.requires_grad = False
+    
+    num_params = sum(p.numel() for p in model.parameters()) / 1e6
+    logger.info(f"VideoMAE encoder ready: {num_params:.1f}M parameters (frozen)")
+    logger.info(f"="*60)
 
     return VideoMAEWrapper(model)
