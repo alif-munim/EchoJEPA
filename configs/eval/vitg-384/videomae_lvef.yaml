@@ -4,7 +4,7 @@ cpus_per_task: 32
 mem_per_gpu: 120G
 
 eval_name: video_classification_frozen
-folder: /your_folder/evals/videomae
+folder: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitg-384/lvef_regression
 tag: viewcls-videomae-vitl-224-16f
 resume_checkpoint: true
 
