@@ -35,28 +35,27 @@ class PanEchoWrapper(nn.Module):
             if isinstance(input_data, torch.Tensor):
                 return input_data
             if isinstance(input_data, list):
+                # Recursively process elements
                 processed = [flatten_to_tensor(d) for d in input_data]
+                # Stack: If [Tensor, Tensor] -> Stacked Tensor
                 return torch.stack(processed)
             raise ValueError(f"Unsupported type: {type(input_data)}")
 
-        # 1. Handle List Input
+        # 1. Handle List Input (Collated views / Nested lists)
         if isinstance(x, list):
             try:
                 x = flatten_to_tensor(x)
             except Exception as e:
                 raise ValueError(f"Received list input but failed to flatten: {e}")
 
-        # 2. Universal Flattening for High-Dimension Inputs (5D, 6D, 7D...)
+        # 2. Universal Flattening for High-Dimension Inputs (e.g. 7D from multi-segment)
         # We assume the LAST 4 dimensions are always [C, T, H, W]
         # Everything before that is "Batch" or "View" structure.
         if x.ndim >= 5:
             shape = x.shape
             
-            # Dimensions:
-            # - spatial_dims: C, T, H, W (Last 4)
-            # - batch_dims:   Everything before (B, N, M...)
-            
-            batch_dims = shape[:-4]
+            # Separate batch structure from image dimensions
+            batch_dims = shape[:-4]   # e.g. [2, 1, 1]
             spatial_dims = shape[-4:] # [3, 16, 224, 224]
             
             # Flatten all batch dims into one: [Total_Batch, 3, 16, 224, 224]
@@ -66,15 +65,12 @@ class PanEchoWrapper(nn.Module):
             
             x_flat = x.view(flat_batch_size, *spatial_dims)
             
-            # Forward pass -> [Total_Batch, D]
+            # Forward pass -> [Total_Batch, 768] (Tensor)
+            # NOTE: Because we pass backbone_only=True below, this returns a Tensor, not a dict.
             emb_flat = self.panecho_model(x_flat)
             
-            # Reshape back to [B, N, M..., D]
-            # AttentiveClassifier usually expects [Batch, Num_Tokens, D]
-            # If input was 7D [2, 1, 1, 3, 16, 224, 224], batch_dims are (2, 1, 1)
-            # We want to return [2, (1*1), D] -> [Batch, Tokens, D]
-            
-            # We keep the first dimension as true Batch Size
+            # Reshape back to [Batch, Num_Tokens, D] for AttentiveClassifier
+            # We treat the first dimension as the true batch size, and the rest as tokens (clips)
             true_batch_size = batch_dims[0]
             num_tokens = flat_batch_size // true_batch_size
             
@@ -115,8 +111,13 @@ def init_module(
         hubconf = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(hubconf)
         
-        # Instantiate Model
-        panecho_model = hubconf.PanEcho(pretrained=True, clip_len=frames_per_clip)
+        # Instantiate Model with backbone_only=True
+        # This ensures output is a Tensor, not a Dict
+        panecho_model = hubconf.PanEcho(
+            pretrained=True, 
+            clip_len=frames_per_clip,
+            backbone_only=True  # <--- CRITICAL FIX
+        )
         
     except Exception as e:
         logger.error(f"Failed to load PanEcho: {e}")
