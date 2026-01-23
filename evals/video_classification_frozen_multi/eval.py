@@ -21,6 +21,7 @@ import torch
 import torch.multiprocessing as mp
 import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel
+import torch.distributed as dist
 
 from evals.video_classification_frozen.models import init_module
 from evals.video_classification_frozen.utils import make_transforms
