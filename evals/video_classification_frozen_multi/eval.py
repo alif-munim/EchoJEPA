@@ -576,6 +576,7 @@ def run_one_epoch(
 ):
     import inspect
     import numpy as np  # Fixed UnboundLocalError by importing here or at top
+    import os
 
     try:
         from tqdm import tqdm
