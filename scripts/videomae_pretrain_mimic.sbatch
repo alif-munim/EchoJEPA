@@ -16,11 +16,53 @@ set -euxo pipefail
 # GLOBAL CONFIG
 # =========================
 export AWS_DEFAULT_REGION="us-west-2"
+export AWS_REGION="us-west-2"
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export PYTHONUNBUFFERED=1
 export MASTER_PORT=$((12000 + $RANDOM % 20000))
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+
+# =========================
+# AWS CREDENTIAL CONFIG (Fix for long-running jobs)
+# =========================
+# Make boto3 reliably find the same config/creds as the AWS CLI
+export AWS_SDK_LOAD_CONFIG=1
+
+# Make sure boto3/worker processes look in the expected home for ~/.aws/*
+export HOME="/home/ubuntu"
+export AWS_SHARED_CREDENTIALS_FILE="${HOME}/.aws/credentials"
+export AWS_CONFIG_FILE="${HOME}/.aws/config"
+
+# If using instance profile/IMDS, don't accidentally disable it
+unset AWS_EC2_METADATA_DISABLED 2>/dev/null || true
+export AWS_METADATA_SERVICE_TIMEOUT=5
+export AWS_METADATA_SERVICE_NUM_ATTEMPTS=3
+
+# =========================
+# NCCL CONFIG (Avoid 10-minute hangs on failures)
+# =========================
+export NCCL_ASYNC_ERROR_HANDLING=1
+export NCCL_BLOCKING_WAIT=1
+export TORCH_DISTRIBUTED_DEBUG=DETAIL
+
+# =========================
+# PREFLIGHT CREDENTIAL CHECK (Fail fast before hours of training)
+# =========================
+echo "[PREFLIGHT] Checking AWS credentials..."
+aws sts get-caller-identity || { echo "[FATAL] AWS CLI credentials check failed"; exit 1; }
+
+python - <<'PY'
+import boto3
+try:
+    identity = boto3.client("sts").get_caller_identity()
+    print(f"[PREFLIGHT] boto3 credentials OK: {identity['Arn']}")
+except Exception as e:
+    print(f"[FATAL] boto3 credentials check failed: {e}")
+    exit(1)
+PY
+
+echo "[PREFLIGHT] AWS credentials verified successfully"
 
 # --- COMPUTE MATCHING TARGETS (Base + Cooldown) ---
 # Base: 72,000 updates
@@ -220,7 +262,8 @@ echo "[INFO] COMPUTE MATCHED CONFIG (Base + Cooldown):"
 echo "       Total Updates: ${TARGET_UPDATES} -> ${EPOCHS} Epochs"
 echo "       Warmup Updates: ${TARGET_WARMUP_UPDATES} -> ${WARMUP_EPOCHS} Epochs"
 
-LR_VAL="7.03125e-6"
+# Updated LR (Half of previous)
+LR_VAL="8.7890625e-7"
 
 # =========================
 # LAUNCH
@@ -228,7 +271,7 @@ LR_VAL="7.03125e-6"
 OUTPUT_DIR="${WORKDIR}/output"
 mkdir -p "$OUTPUT_DIR"
 
-# 1. DOWNLOAD CHECKPOINT (RESUME from Epoch 30)
+# DOWNLOAD CHECKPOINT (RESUME from Epoch 30)
 # Note: Using 'checkpoint-29.pth' from previous run to be safe
 aws s3 cp s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/videomae_97/training_folder/checkpoint-29.pth "${WORKDIR}/checkpoint-29.pth" || echo "[WARN] Checkpoint not found"
 
@@ -241,18 +284,6 @@ aws s3 cp s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/r
   done
 ) &
 SYNC_PID=$!
-
-# Updated LR (Half of previous)
-LR_VAL="8.7890625e-7"
-
-# =========================
-# LAUNCH
-# =========================
-OUTPUT_DIR="${WORKDIR}/output"
-mkdir -p "$OUTPUT_DIR"
-
-# Force resume from a known stable point (Checkpoint 29)
-aws s3 cp s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/videomae_97/training_folder/checkpoint-29.pth "${WORKDIR}/checkpoint-29.pth"
 
 srun --kill-on-bad-exit=1 \
   python -u run_mae_pretraining.py \
