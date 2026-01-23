@@ -23,8 +23,8 @@ import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel
 import torch.distributed as dist
 
-from evals.video_classification_frozen.models import init_module
-from evals.video_classification_frozen.utils import make_transforms
+from evals.video_classification_frozen_multi.models import init_module
+from evals.video_classification_frozen_multi.utils import make_transforms
 from src.datasets.data_manager import init_data
 from src.models.attentive_pooler import AttentiveClassifier, AttentiveRegressor
 
