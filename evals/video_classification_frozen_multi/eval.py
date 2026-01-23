@@ -111,6 +111,10 @@ def main(args_eval, resume_preempt=False):
     set_override("OVERRIDE_NUM_CLIPS_PER_VIDEO", data, "num_clips_per_video", int)
     set_override("OVERRIDE_MISS_AUG_PROB", data, "miss_augment_prob", float)
     set_override("OVERRIDE_MIN_PRESENT", data, "min_present", int)
+    
+    # --- NEW: Override Mean/Std for regression ---
+    set_override("OVERRIDE_TARGET_MEAN", data, "target_mean", float)
+    set_override("OVERRIDE_TARGET_STD", data, "target_std", float)
 
     # 4) Optimization overrides
     set_override("OVERRIDE_EPOCHS", opt, "num_epochs", int)
@@ -175,6 +179,10 @@ def main(args_eval, resume_preempt=False):
 
     num_views = args_data.get("num_segments", 1)
     clips_per_view = args_data.get("num_clips_per_video", 1)
+    
+    # --- NEW: Get Mean/Std from config ---
+    target_mean = args_data.get("target_mean", None)
+    target_std = args_data.get("target_std", None)
 
     # -- OPTIMIZATION
     args_opt = args_exp.get("optimization")
@@ -439,6 +447,9 @@ def main(args_eval, resume_preempt=False):
                 use_focal_loss=use_focal_loss,
                 val_only=False,
                 predictions_save_path=None,
+                # --- NEW: Pass mean/std ---
+                target_mean=target_mean,
+                target_std=target_std,
             )
 
         val_scalar, val_heads = run_one_epoch(
@@ -456,6 +467,9 @@ def main(args_eval, resume_preempt=False):
             use_focal_loss=use_focal_loss,
             val_only=val_only,
             predictions_save_path=predictions_save_path,
+            # --- NEW: Pass mean/std ---
+            target_mean=target_mean,
+            target_std=target_std,
         )
 
         # ---- update scalar running stats ----
@@ -523,8 +537,6 @@ def main(args_eval, resume_preempt=False):
         )
 
 
-
-
 def run_one_epoch(
     device,
     training,
@@ -540,9 +552,12 @@ def run_one_epoch(
     use_focal_loss=False,
     val_only=False,
     predictions_save_path=None,
+    # --- NEW: Arguments for un-normalization ---
+    target_mean=None,
+    target_std=None,
 ):
     import inspect
-    import numpy as np  # <--- MOVED HERE TO FIX UnboundLocalError
+    import numpy as np  # Fixed UnboundLocalError by importing here or at top
 
     try:
         from tqdm import tqdm
@@ -686,10 +701,12 @@ def run_one_epoch(
                 mae_vals = [F.l1_loss(p.squeeze().float(), y.squeeze().float()) for p in preds]
                 mae_vals = [float(AllReduce.apply(m)) for m in mae_vals]
 
-                # Reference behavior (LVEF): log MAE in real units by multiplying train-STD.
-                # Adjust these constants if your regression target differs.
-                LVEF_TRAIN_STD = 11.33
-                mae_vals = [m * LVEF_TRAIN_STD for m in mae_vals]
+                # --- NEW: Un-normalize Logic ---
+                # Default to Identity (mean=0, std=1) if not provided
+                t_std = target_std if target_std is not None else 1.0
+                
+                # Convert normalized MAE to real scale
+                mae_vals = [m * t_std for m in mae_vals]
 
                 for meter, m in zip(metric_meters, mae_vals):
                     meter.update(m)
@@ -771,10 +788,9 @@ def run_one_epoch(
             os.makedirs(out_dir, exist_ok=True)
 
         if task_type == "regression":
-            # Reference behavior (LVEF): un-normalize for CSV using fixed mean/std.
-            # Adjust if your labels are not z-scored LVEF.
-            LVEF_STD = 11.33
-            LVEF_MEAN = 57.06
+            # --- NEW: Un-normalize for CSV using passed mean/std ---
+            t_mean = target_mean if target_mean is not None else 0.0
+            t_std = target_std if target_std is not None else 1.0
 
             labels_real, preds_real = [], []
 
@@ -782,16 +798,16 @@ def run_one_epoch(
                 l = np.asarray(l).reshape(-1)
                 # if multi-target, keep vector; otherwise scalar
                 if l.size == 1:
-                    labels_real.append(float(l[0] * LVEF_STD + LVEF_MEAN))
+                    labels_real.append(float(l[0] * t_std + t_mean))
                 else:
-                    labels_real.append((l * LVEF_STD + LVEF_MEAN).tolist())
+                    labels_real.append((l * t_std + t_mean).tolist())
 
             for p in all_predictions:
                 p = np.asarray(p).reshape(-1)
                 if p.size == 1:
-                    preds_real.append(float(p[0] * LVEF_STD + LVEF_MEAN))
+                    preds_real.append(float(p[0] * t_std + t_mean))
                 else:
-                    preds_real.append((p * LVEF_STD + LVEF_MEAN).tolist())
+                    preds_real.append((p * t_std + t_mean).tolist())
 
             # abs_error only meaningful for scalar targets
             abs_err = None
@@ -824,7 +840,6 @@ def run_one_epoch(
 
     scalar = float(_agg.min()) if task_type == "regression" else float(_agg.max())
     return scalar, _agg
-
 
 
 def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
@@ -867,8 +882,6 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
 
     logger.info(f"loaded optimizers from epoch {epoch}")
     return classifiers, opt, scaler, epoch
-
-
 
 
 def load_pretrained(encoder, pretrained, checkpoint_key="target_encoder"):
@@ -1009,8 +1022,6 @@ def init_opt(classifiers, iterations_per_epoch, opt_kwargs, num_epochs, use_bflo
         scalers += [None]
 
     return optimizers, scalers, schedulers, wd_schedulers
-
-
 
 
 class WarmupCosineLRSchedule(object):
