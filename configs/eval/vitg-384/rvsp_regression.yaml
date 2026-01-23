@@ -119,3 +119,4 @@ model_kwargs:
   wrapper_kwargs:
     max_frames: 128
     use_pos_embed: false     # <-- no abs pos-emb for cooldown
+    return_per_clip: true   # <--- return flat list of embeddings (one per clip/slot)
