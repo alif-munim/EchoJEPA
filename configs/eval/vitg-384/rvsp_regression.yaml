@@ -21,6 +21,7 @@ experiment:
     num_views: 2
     clips_per_view: 2
     use_factorized: true
+    num_targets: 1            # CHANGED: Replace num_classes with num_targets  
 
   data:
     dataset_type: VideoGroupDataset
