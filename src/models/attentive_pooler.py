@@ -1,3 +1,4 @@
+# src/models/attentive_pooler.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 #
 # This source code is licensed under the MIT license found in the
@@ -90,16 +91,28 @@ class AttentivePooler(nn.Module):
 
     def forward(self, x, key_padding_mask: torch.Tensor | None = None):
         """
-        x: [B, N, D]; key_padding_mask: [B, N] (True=ignore). Backwards compatible: may be None.
+        x: [B, N, D]
+        key_padding_mask: [B, N] (True = ignore / pad)
         """
+        # For self-attn blocks (N->N), SDPA needs something broadcastable to [B, h, N, N]
+        self_attn_mask = None
+        if key_padding_mask is not None:
+            # mask keys for all queries; broadcast over heads and query positions
+            self_attn_mask = key_padding_mask[:, None, None, :]  # [B,1,1,N], bool
+
         if self.blocks is not None:
             for blk in self.blocks:
                 if self.use_activation_checkpointing:
-                    x = torch.utils.checkpoint.checkpoint(blk, x, False, None, use_reentrant=False)
+                    # pass (x, mask=None, attn_mask=self_attn_mask) positionally
+                    x = torch.utils.checkpoint.checkpoint(
+                        blk, x, None, self_attn_mask, use_reentrant=False
+                    )
                 else:
-                    x = blk(x)
-        q = self.query_tokens.repeat(len(x), 1, 1)
-        # New path uses mask if provided; old path (None) behaves exactly as before
+                    x = blk(x, mask=None, attn_mask=self_attn_mask)
+
+        q = self.query_tokens.repeat(x.shape[0], 1, 1)
+
+        # Cross-attn is Q->N; your CrossAttention expects [B,N], so keep the 2D mask here
         q = self.cross_attention_block(q, x, attn_mask=key_padding_mask)
         return q
 
@@ -134,6 +147,8 @@ class AttentiveClassifier(nn.Module):
         self.use_factorized = bool(use_factorized)
 
         if self.use_slot_embeddings:
+            expected = num_views * clips_per_view
+            
             if self.use_factorized:
                 self.view_embed = nn.Embedding(self.num_views, embed_dim)
                 self.clip_embed = nn.Embedding(self.clips_per_view, embed_dim)
@@ -142,6 +157,8 @@ class AttentiveClassifier(nn.Module):
 
     def _build_slot_emb(self, B, N, device):
         S = self.num_slots
+        if N % S != 0:
+            raise ValueError(f"N={N} not divisible by num_slots={S}")
         tokens_per_slot = N // S
         slot_ids = torch.arange(S, device=device).unsqueeze(0).repeat(B, 1)  # [B,S]
 
@@ -196,6 +213,8 @@ class AttentiveRegressor(nn.Module):
         self.use_factorized = bool(use_factorized)
 
         if self.use_slot_embeddings:
+            expected = num_views * clips_per_view
+            
             if self.use_factorized:
                 self.view_embed = nn.Embedding(self.num_views, embed_dim)
                 self.clip_embed = nn.Embedding(self.clips_per_view, embed_dim)
@@ -204,19 +223,24 @@ class AttentiveRegressor(nn.Module):
 
     def _build_slot_emb(self, B, N, device):
         S = self.num_slots
+        if N % S != 0:
+            raise ValueError(
+                f"Token count N={N} not divisible by num_slots S={S}. "
+                f"Need early-fused tokens with stable slot ordering."
+            )
+    
         tokens_per_slot = N // S
         slot_ids = torch.arange(S, device=device).unsqueeze(0).repeat(B, 1)  # [B,S]
-
+    
         if self.use_factorized:
             view_ids = slot_ids // self.clips_per_view
             clip_ids = slot_ids %  self.clips_per_view
-            v_emb = self.view_embed(view_ids)  # [B,S,D]
-            c_emb = self.clip_embed(clip_ids)  # [B,S,D]
-            slot_emb = v_emb + c_emb
+            slot_emb = self.view_embed(view_ids) + self.clip_embed(clip_ids)
         else:
-            slot_emb = self.slot_embed(slot_ids)  # [B,S,D]
-
+            slot_emb = self.slot_embed(slot_ids)
+    
         return slot_emb.repeat_interleave(tokens_per_slot, dim=1)  # [B,N,D]
+
       
     def forward(self, x, key_padding_mask=None):
         if self.use_slot_embeddings:

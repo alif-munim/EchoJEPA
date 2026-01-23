@@ -1,3 +1,4 @@
+# evals/video_classification_frozen_multi/eval.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 #
 # This source code is licensed under the MIT license found in the
@@ -6,10 +7,10 @@
 import os
 
 # -- FOR DISTRIBUTED TRAINING ENSURE ONLY 1 DEVICE VISIBLE PER PROCESS
-try:
-    os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["SLURM_LOCALID"]
-except Exception:
-    pass
+# try:
+#     os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["SLURM_LOCALID"]
+# except Exception:
+#     pass
 
 import logging
 import math
@@ -177,8 +178,9 @@ def main(args_eval, resume_preempt=False):
     miss_augment_prob = args_data.get("miss_augment_prob", 0.0)
     min_present = args_data.get("min_present", 1)
 
-    num_views = args_data.get("num_segments", 1)
-    clips_per_view = args_data.get("num_clips_per_video", 1)
+    num_views = args_classifier.get("num_views", args_data.get("num_segments", 1))
+    clips_per_view = args_classifier.get("clips_per_view", args_data.get("num_clips_per_video", 1))
+
     
     # --- NEW: Get Mean/Std from config ---
     target_mean = args_data.get("target_mean", None)
@@ -457,6 +459,8 @@ def main(args_eval, resume_preempt=False):
                 # --- NEW: Pass mean/std ---
                 target_mean=target_mean,
                 target_std=target_std,
+                num_views=num_views,
+                clips_per_view=clips_per_view
             )
 
         val_scalar, val_heads = run_one_epoch(
@@ -477,6 +481,8 @@ def main(args_eval, resume_preempt=False):
             # --- NEW: Pass mean/std ---
             target_mean=target_mean,
             target_std=target_std,
+            num_views=num_views,
+            clips_per_view=clips_per_view
         )
 
         # ---- update scalar running stats ----
@@ -562,6 +568,7 @@ def run_one_epoch(
     # --- NEW: Arguments for un-normalization ---
     target_mean=None,
     target_std=None,
+    num_views=None, clips_per_view=None
 ):
     import inspect
     import numpy as np  # Fixed UnboundLocalError by importing here or at top
@@ -635,6 +642,11 @@ def run_one_epoch(
                 logger.info(f"  > View 0 contains {len(clips[0])} temporal clips.")
                 if len(clips[0]) > 0:
                      logger.info(f"  > Tensor Shape: {clips[0][0].shape}")
+
+                expected_slots = num_views * clips_per_view
+                if expected_slots is not None and len(enc_outs) != expected_slots:
+                    raise RuntimeError(f"Encoder returned L={len(enc_outs)} slots, expected {expected_slots} (=num_views*clips_per_view).")
+
             # --------------------------
             
             labels = data[1].to(device)
@@ -658,78 +670,79 @@ def run_one_epoch(
             if video_paths is None:
                 video_paths = [f"sample_{itr}_{i}" for i in range(B)]
 
+            if itr == 0 and rank == 0:
+                logger.info("video_paths (basenames): " + str([os.path.basename(p) for p in video_paths]))
+
+
             # ---- encoder forward (frozen) ----
             with torch.no_grad():
-                enc_outs = encoder(clips, clip_indices)  # list over views; each [B, N, D]
-
-            # ---- key padding mask from slot mask ----
+                enc_outs = encoder(clips, clip_indices)  # list of slot tensors, each [B, Nslot, D]
+            
+            # Early-fuse: [B, L*Nslot, D]
+            x = torch.cat(enc_outs, dim=1)
+            
+            # Build token-level padding mask aligned with the concatenation
             key_padding_mask = None
             if slot_present is not None:
-                o0 = enc_outs[0]  # [B, N, D]
-                _, N, _ = o0.shape
-                S = slot_present.shape[1]
-                if N % S != 0:
-                    raise RuntimeError(f"N={N} tokens not divisible by S={S} slots; cannot expand slot mask.")
-                tokens_per_slot = N // S
 
-                token_keep = slot_present.repeat_interleave(tokens_per_slot, dim=1)  # [B, N]
-                key_padding_mask = ~token_keep  # True = ignore
+                if itr == 0 and rank == 0:
+                    logger.info(f"slot_present shape: {None if slot_present is None else tuple(slot_present.shape)}")
+                    logger.info(f"L (enc_outs): {len(enc_outs)} | Nslot: {enc_outs[0].shape[1]}")
 
-            # ---- probe forward ----
-            if training:
+                
+                slot_keep = slot_present.bool()     # [B, V] or [B, L]
+                L = len(enc_outs)
+                Nslot = enc_outs[0].shape[1]
+            
+                # If slot_present is per-view [B,V], expand to per-slot [B,L] where L=V*C
+                if num_views is not None and clips_per_view is not None:
+                    if slot_keep.shape[1] == num_views and L == num_views * clips_per_view:
+                        slot_keep = slot_keep.repeat_interleave(clips_per_view, dim=1)
+            
+                if slot_keep.shape[1] != L:
+                    raise RuntimeError(f"slot_present has {slot_keep.shape[1]} entries but encoder returned {L} slots")
+            
+                token_keep = slot_keep.repeat_interleave(Nslot, dim=1)  # [B, L*Nslot]
+                key_padding_mask = ~token_keep                          # True = ignore
+
+                if itr == 0 and rank == 0:
+                    B = key_padding_mask.shape[0]
+                    L = len(enc_outs)
+                    Nslot = enc_outs[0].shape[1]
+                    slot_masked = key_padding_mask[0].view(L, Nslot).all(dim=1)  # True means entire slot masked
+                    logger.info(f"masked slots (per-slot): {slot_masked.tolist()}")
+
+
+
+            # ---- probe forward (same structure for train + eval) ----
+            with torch.set_grad_enabled(training):
                 outs = []
                 for ci, c in enumerate(classifiers):
-                    c_outs = []
-                    for o in enc_outs:
-                        if supports_kpm[ci]:
-                            c_outs.append(c(o, key_padding_mask=key_padding_mask))
-                        else:
-                            c_outs.append(c(o))
-                    outs.append(c_outs)
-            else:
-                with torch.no_grad():
-                    outs = []
-                    for ci, c in enumerate(classifiers):
-                        c_outs = []
-                        for o in enc_outs:
-                            if supports_kpm[ci]:
-                                c_outs.append(c(o, key_padding_mask=key_padding_mask))
-                            else:
-                                c_outs.append(c(o))
-                        outs.append(c_outs)
+                    outs.append(c(x, key_padding_mask=key_padding_mask) if supports_kpm[ci] else c(x))
+            
+                if task_type == "regression":
+                    y = labels.float()
+                    if y.dim() == 1:
+                        y = y.unsqueeze(-1)
+                    losses = [criterion(o.float(), y) for o in outs]
+                else:
+                    y = labels.long()
+                    losses = [criterion(o, y) for o in outs]
 
-        # ---- loss ----
-        if task_type == "regression":
-            y = labels.float()
-            if y.dim() == 1:
-                y = y.unsqueeze(-1)
-            losses = [[criterion(o.float(), y) for o in couts] for couts in outs]
-        else:
-            y = labels.long()
-            losses = [[criterion(o, y) for o in couts] for couts in outs]
+
 
         # ---- metrics + optional prediction collection ----
         with torch.no_grad():
             if task_type == "regression":
-                # average raw preds across views per head
-                preds = [sum([o for o in couts]) / len(couts) for couts in outs]  # list over heads
-
-                # MAE in normalized units
-                mae_vals = [F.l1_loss(p.squeeze().float(), y.squeeze().float()) for p in preds]
+                mae_vals = [F.l1_loss(o.squeeze().float(), y.squeeze().float()) for o in outs]
                 mae_vals = [float(AllReduce.apply(m)) for m in mae_vals]
-
-                # --- NEW: Un-normalize Logic ---
-                # Default to Identity (mean=0, std=1) if not provided
                 t_std = target_std if target_std is not None else 1.0
-                
-                # Convert normalized MAE to real scale
-                mae_vals = [m * t_std for m in mae_vals]
-
+                mae_vals = [m * t_std for m in mae_vals]   # scale ONCE
                 for meter, m in zip(metric_meters, mae_vals):
                     meter.update(m)
-
+        
                 if val_only and predictions_save_path is not None:
-                    p0 = preds[0].detach().cpu().numpy()  # first head only
+                    p0 = outs[0].detach().cpu().numpy()
                     y0 = y.detach().cpu().numpy()
                     for i in range(B):
                         all_predictions.append(p0[i])
@@ -737,18 +750,15 @@ def run_one_epoch(
                         all_labels.append(y0[i])
 
                 _agg = np.array([m.avg for m in metric_meters])
-
+            
             else:
-                # average probs across views per head
-                probs = [sum([F.softmax(o, dim=1) for o in couts]) / len(couts) for couts in outs]
-                top1 = [100.0 * p.max(dim=1).indices.eq(y).float().mean() for p in probs]
+                top1 = [100.0 * o.argmax(dim=1).eq(y).float().mean() for o in outs]
                 top1 = [float(AllReduce.apply(t)) for t in top1]
-
                 for meter, a in zip(top1_meters, top1):
                     meter.update(a)
-
+        
                 if val_only and predictions_save_path is not None:
-                    p0 = probs[0].detach().cpu().numpy()  # first head only
+                    p0 = F.softmax(outs[0], dim=1).detach().cpu().numpy()  # if you want probs
                     y0 = y.detach().cpu().numpy()
                     for i in range(B):
                         all_predictions.append(p0[i])
@@ -759,9 +769,11 @@ def run_one_epoch(
 
         # ---- backward/step ----
         if training:
-            [[lij.backward() for lij in li] for li in losses]
-            [o.step() for o in optimizer]
-            [o.zero_grad() for o in optimizer]
+            for loss, opt in zip(losses, optimizer):
+                loss.backward()
+                opt.step()
+                opt.zero_grad()
+
 
         # ---- periodic logging ----
         if itr % 10 == 0:

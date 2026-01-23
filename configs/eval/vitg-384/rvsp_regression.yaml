@@ -1,4 +1,4 @@
-# PRETRAIN CONFIG 
+# configs/eval/vitg-384/rvsp_regression.yaml
 
 app: vjepa
 cpus_per_task: 32
