@@ -542,6 +542,7 @@ def run_one_epoch(
     predictions_save_path=None,
 ):
     import inspect
+    import numpy as np  # <--- MOVED HERE TO FIX UnboundLocalError
 
     try:
         from tqdm import tqdm
@@ -564,7 +565,7 @@ def run_one_epoch(
     # Loss + meters
     if task_type == "regression":
         criterion = torch.nn.SmoothL1Loss()  # Huber
-        metric_meters = [AverageMeter() for _ in classifiers]  # MAE meters (after optional scaling)
+        metric_meters = [AverageMeter() for _ in classifiers]  # MAE meters
     else:
         criterion = FocalLoss(alpha=1.0, gamma=2.0) if use_focal_loss else torch.nn.CrossEntropyLoss()
         top1_meters = [AverageMeter() for _ in classifiers]
@@ -763,7 +764,6 @@ def run_one_epoch(
     # ---- save predictions ----
     if val_only and predictions_save_path is not None and len(all_predictions) > 0:
         import os
-        import numpy as np
         import pandas as pd
 
         out_dir = os.path.dirname(predictions_save_path)
