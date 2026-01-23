@@ -643,10 +643,6 @@ def run_one_epoch(
                 if len(clips[0]) > 0:
                      logger.info(f"  > Tensor Shape: {clips[0][0].shape}")
 
-                expected_slots = num_views * clips_per_view
-                if expected_slots is not None and len(enc_outs) != expected_slots:
-                    raise RuntimeError(f"Encoder returned L={len(enc_outs)} slots, expected {expected_slots} (=num_views*clips_per_view).")
-
             # --------------------------
             
             labels = data[1].to(device)
@@ -677,6 +673,11 @@ def run_one_epoch(
             # ---- encoder forward (frozen) ----
             with torch.no_grad():
                 enc_outs = encoder(clips, clip_indices)  # list of slot tensors, each [B, Nslot, D]
+
+            if itr == 0
+                expected_slots = num_views * clips_per_view
+                if expected_slots is not None and len(enc_outs) != expected_slots:
+                    raise RuntimeError(f"Encoder returned L={len(enc_outs)} slots, expected {expected_slots} (=num_views*clips_per_view).")
             
             # Early-fuse: [B, L*Nslot, D]
             x = torch.cat(enc_outs, dim=1)
