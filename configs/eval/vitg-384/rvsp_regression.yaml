@@ -14,10 +14,11 @@ tag: mrvsf-a4c-full-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2   # IMPORTANT: CH
 
 experiment:
   classifier:
+    task_type: regression      # NEW: Specify regression task  
     num_heads: 16           # changed from 16 / <-- must divide 1408 (ViT-G). Valid: 16, 22, 32, 44...
     num_probe_blocks: 4     # changed from 4
     use_slot_embeddings: true   # default false keeps old behavior
-    num_views: 9
+    num_views: 2
     clips_per_view: 2
     use_factorized: true
 
