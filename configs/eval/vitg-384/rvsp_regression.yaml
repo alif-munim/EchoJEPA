@@ -106,7 +106,7 @@ model_kwargs:
   # Base Kinetics pretrain (ViT-G 384px):
   # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitg-384.pt"
 
-  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  module_name: evals.video_classification_frozen_multi.modelcustom.vit_encoder_multiclip
   pretrain_kwargs:
     encoder:
       checkpoint_key: target_encoder
