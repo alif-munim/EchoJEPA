@@ -98,7 +98,8 @@ class AttentivePooler(nn.Module):
         self_attn_mask = None
         if key_padding_mask is not None:
             # mask keys for all queries; broadcast over heads and query positions
-            self_attn_mask = key_padding_mask[:, None, None, :]  # [B,1,1,N], bool
+            # self_attn_mask = key_padding_mask[:, None, None, :]  # [B,1,1,N], bool
+            self_attn_mask = (~key_padding_mask)[:, None, None, :]  # [B,1,1,N]
 
         if self.blocks is not None:
             for blk in self.blocks:

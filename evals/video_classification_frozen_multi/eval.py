@@ -571,7 +571,7 @@ def run_one_epoch(
     target_mean=None,
     target_std=None,
     num_views=None, clips_per_view=None,
-    rank=0
+    rank = dist.get_rank() if dist.is_available() and dist.is_initialized() else 0
 ):
     import inspect
     import numpy as np  # Fixed UnboundLocalError by importing here or at top
@@ -678,9 +678,14 @@ def run_one_epoch(
                 enc_outs = encoder(clips, clip_indices)  # list of slot tensors, each [B, Nslot, D]
 
             if itr == 0:
-                expected_slots = num_views * clips_per_view
-                if expected_slots is not None and len(enc_outs) != expected_slots:
-                    raise RuntimeError(f"Encoder returned L={len(enc_outs)} slots, expected {expected_slots} (=num_views*clips_per_view).")
+                if (num_views is not None) and (clips_per_view is not None):
+                    expected_slots = int(num_views) * int(clips_per_view)
+                    if len(enc_outs) != expected_slots:
+                        raise RuntimeError(
+                            f"Encoder returned L={len(enc_outs)} slots, expected {expected_slots} "
+                            f"(=num_views*clips_per_view)."
+                        )
+
             
             # Early-fuse: [B, L*Nslot, D]
             x = torch.cat(enc_outs, dim=1)
