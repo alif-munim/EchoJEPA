@@ -7,10 +7,6 @@ import os
 
 # -- FOR DISTRIBUTED TRAINING ENSURE ONLY 1 DEVICE VISIBLE PER PROCESS
 try:
-    # -- WARNING: IF DOING DISTRIBUTED TRAINING ON A NON-SLURM CLUSTER, MAKE
-    # --          SURE TO UPDATE THIS TO GET LOCAL-RANK ON NODE, OR ENSURE
-    # --          THAT YOUR JOBS ARE LAUNCHED WITH ONLY 1 DEVICE VISIBLE
-    # --          TO EACH PROCESS
     os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["SLURM_LOCALID"]
 except Exception:
     pass
@@ -29,11 +25,12 @@ from evals.video_classification_frozen.models import init_module
 from evals.video_classification_frozen.utils import make_transforms
 from src.datasets.data_manager import init_data
 from src.models.attentive_pooler import AttentiveClassifier
+# --- NEW: Import Regressor ---
+from src.models.attentive_pooler import AttentiveRegressor
+
 from src.utils.checkpoint_loader import robust_checkpoint_loader
 from src.utils.distributed import AllReduce, init_distributed
 from src.utils.logging import AverageMeter, CSVLogger
-
-from evals.action_anticipation_frozen.losses import sigmoid_focal_loss
 
 logging.basicConfig()
 logger = logging.getLogger()
@@ -46,6 +43,29 @@ torch.backends.cudnn.benchmark = True
 
 pp = pprint.PrettyPrinter(indent=4)
 
+# --- NEW: FocalLoss Class ---
+class FocalLoss(torch.nn.Module):
+    def __init__(self, alpha=1.0, gamma=2.0, reduction='mean'):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, inputs, targets):
+        # inputs: [B, C] logits
+        # targets: [B] class indices
+        ce_loss = F.cross_entropy(inputs, targets, reduction='none')
+        pt = torch.exp(-ce_loss)
+        focal_loss = (self.alpha * (1 - pt) ** self.gamma * ce_loss)
+        
+        if self.reduction == 'mean':
+            return focal_loss.mean()
+        elif self.reduction == 'sum':
+            return focal_loss.sum()
+        else:
+            return focal_loss
+# ----------------------------
+
 
 def main(args_eval, resume_preempt=False):
 
@@ -53,10 +73,52 @@ def main(args_eval, resume_preempt=False):
     #  PASSED IN PARAMS FROM CONFIG FILE
     # ----------------------------------------------------------------------- #
 
+    import os
+    
+    # --- NEW: Environment Variable Overrides ---
+    def set_override(env_var, target_dict, key, type_func=str):
+        val = os.environ.get(env_var)
+        if val is not None:
+            if type_func == bool:
+                val = val.lower() in ('true', '1', 't', 'yes')
+            else:
+                val = type_func(val)
+            print(f"!!! MANUAL OVERRIDE: {key} -> {val}")
+            target_dict[key] = val
+
+    # 1. Top-level parameters
+    set_override("OVERRIDE_TAG", args_eval, "tag")
+    set_override("OVERRIDE_VAL_ONLY", args_eval, "val_only", bool)
+    set_override("OVERRIDE_PRED_PATH", args_eval, "predictions_save_path")
+    set_override("OVERRIDE_CKPT", args_eval, "probe_checkpoint")
+
+    # Ensure nested dictionaries exist
+    exp = args_eval.setdefault("experiment", {})
+    clf = exp.setdefault("classifier", {})
+    data = exp.setdefault("data", {})
+    opt = exp.setdefault("optimization", {})
+
+    # 2. Classifier parameters
+    set_override("OVERRIDE_NUM_HEADS", clf, "num_heads", int)
+    set_override("OVERRIDE_NUM_BLOCKS", clf, "num_probe_blocks", int)
+
+    # 3. Data parameters
+    set_override("OVERRIDE_TRAIN_DATA", data, "dataset_train")
+    set_override("OVERRIDE_VAL_DATA", data, "dataset_val")
+    set_override("OVERRIDE_NUM_CLASSES", data, "num_classes", int)
+    set_override("OVERRIDE_RES", data, "resolution", int)
+
+    # 4. Optimization parameters
+    set_override("OVERRIDE_EPOCHS", opt, "num_epochs", int)
+    set_override("OVERRIDE_FOCAL_LOSS", opt, "use_focal_loss", bool)
+    set_override("OVERRIDE_BATCH", opt, "batch_size", int)
+    # -------------------------------------------
+
     # -- VAL ONLY
     val_only = args_eval.get("val_only", False)
     if val_only:
         logger.info("VAL ONLY")
+    predictions_save_path = args_eval.get("predictions_save_path", None)
 
     # -- EXPERIMENT
     pretrain_folder = args_eval.get("folder", None)
@@ -77,7 +139,14 @@ def main(args_eval, resume_preempt=False):
     args_classifier = args_exp.get("classifier")
     num_probe_blocks = args_classifier.get("num_probe_blocks", 1)
     num_heads = args_classifier.get("num_heads", 16)
-  
+    
+    # Check for manual checkpoint override
+    probe_checkpoint = args_eval.get("probe_checkpoint", None)
+
+    # -- REGRESSION SETTINGS
+    task_type = args_classifier.get("task_type", "classification") 
+    num_targets = args_classifier.get("num_targets", 1) # Default 1 for scalar regression
+    
     use_slot_embeddings = args_classifier.get("use_slot_embeddings", False)
     use_factorized = args_classifier.get("use_factorized", True)
 
@@ -95,7 +164,7 @@ def main(args_eval, resume_preempt=False):
     num_views_per_segment = args_data.get("num_views_per_segment", 1)
     normalization = args_data.get("normalization", None)
     
-    num_clips_per_video = args_data.get("num_clips_per_video", 1)  # NEW
+    num_clips_per_video = args_data.get("num_clips_per_video", 1)
     
     miss_augment_prob = args_data.get("miss_augment_prob", 0.0)
     min_present       = args_data.get("min_present", 1)
@@ -144,11 +213,18 @@ def main(args_eval, resume_preempt=False):
     if not os.path.exists(folder):
         os.makedirs(folder, exist_ok=True)
     log_file = os.path.join(folder, f"log_r{rank}.csv")
-    latest_path = os.path.join(folder, "latest.pt")
+    
+    if probe_checkpoint is not None:
+        latest_path = probe_checkpoint
+    else:
+        latest_path = os.path.join(folder, "latest.pt")
 
-    # -- make csv_logger
+    # -- make csv_logger (Headers based on task)
     if rank == 0:
-        csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "loss"), ("%.5f", "acc"))
+        if task_type == "regression":
+            csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "train_mae"), ("%.5f", "val_mae"))
+        else:
+            csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "loss"), ("%.5f", "acc"))
 
     # Initialize model
 
@@ -163,34 +239,35 @@ def main(args_eval, resume_preempt=False):
         device=device,
     )
 
-    # -- init classifier (disable activation checkpointing; you have headroom)
-    # classifiers = [
-    #     AttentiveClassifier(
-    #         embed_dim=encoder.embed_dim,
-    #         num_heads=num_heads,
-    #         depth=num_probe_blocks,
-    #         num_classes=num_classes,
-    #         use_activation_checkpointing=True,
-    #     ).to(device)
-    #     for _ in opt_kwargs
-    # ]
-    classifiers = [
-        AttentiveClassifier(
-            embed_dim=encoder.embed_dim,
-            num_heads=num_heads,
-            depth=num_probe_blocks,
-            num_classes=num_classes,
-            use_activation_checkpointing=True,
-            use_slot_embeddings=use_slot_embeddings,
-            num_views=num_views,
-            clips_per_view=clips_per_view,
-            use_factorized=use_factorized,
-        ).to(device)
-        for _ in opt_kwargs
-    ]
+    # -- init classifier (Switch between Regressor and Classifier)
+    if task_type == "regression":
+        classifiers = [
+            AttentiveRegressor(
+                embed_dim=encoder.embed_dim,
+                num_heads=num_heads,
+                depth=num_probe_blocks,
+                num_targets=num_targets, # Usually 1
+                use_activation_checkpointing=True,
+                # use_slot_embeddings=use_slot_embeddings, # Verify if Regressor supports this, usually yes
+            ).to(device)
+            for _ in opt_kwargs
+        ]
+    else:
+        classifiers = [
+            AttentiveClassifier(
+                embed_dim=encoder.embed_dim,
+                num_heads=num_heads,
+                depth=num_probe_blocks,
+                num_classes=num_classes,
+                use_activation_checkpointing=True,
+                use_slot_embeddings=use_slot_embeddings,
+                num_views=num_views,
+                clips_per_view=clips_per_view,
+                use_factorized=use_factorized,
+            ).to(device)
+            for _ in opt_kwargs
+        ]
     
-    # classifiers = [DistributedDataParallel(c, static_graph=True) for c in classifiers
-    # Add distributed check to avoid DDP crash when running concurrent jobs  
     from torch import distributed as dist  
     use_ddp = dist.is_available() and dist.is_initialized() and world_size > 1  
     if use_ddp:  
@@ -209,7 +286,7 @@ def main(args_eval, resume_preempt=False):
         eval_duration=duration,  
         num_segments=num_segments,  
         num_views_per_segment=1,  
-        num_clips_per_video=num_clips_per_video,  # NEW  
+        num_clips_per_video=num_clips_per_video, 
         allow_segment_overlap=True,  
         batch_size=batch_size,  
         world_size=world_size,  
@@ -217,13 +294,11 @@ def main(args_eval, resume_preempt=False):
         training=True,  
         num_workers=num_workers,  
         normalization=normalization,
-        # NEW kwargs thread down to make_videogroupdataset -> VideoGroupDataset
         miss_augment_prob=miss_augment_prob,
         min_present=min_present,
         split_name="train"
     )  
 
-    # val loader -> keep 0.0 (default) and training=False
     val_loader, _ = make_dataloader(  
         dataset_type=dataset_type,  
         root_path=val_data_path,  
@@ -233,7 +308,7 @@ def main(args_eval, resume_preempt=False):
         num_segments=num_segments,  
         eval_duration=duration,  
         num_views_per_segment=num_views_per_segment,  
-        num_clips_per_video=num_clips_per_video,  # NEW  
+        num_clips_per_video=num_clips_per_video, 
         allow_segment_overlap=True,  
         batch_size=batch_size,  
         world_size=world_size,  
@@ -280,7 +355,8 @@ def main(args_eval, resume_preempt=False):
     count_epochs = 0
 
     def save_checkpoint(epoch, mean_val_acc, best_val_acc,
-                        val_heads, best_per_head, mean_per_head, min_per_head, best_epoch_per_head):
+                        val_heads, best_per_head, mean_per_head, min_per_head, best_epoch_per_head,
+                        is_best=False):
         all_classifier_dicts = [c.state_dict() for c in classifiers]
         all_opt_dicts = [o.state_dict() for o in optimizer]
 
@@ -314,9 +390,20 @@ def main(args_eval, resume_preempt=False):
             # save a per-epoch snapshot too
             epoch_path = os.path.join(folder, f"epoch_{epoch:03d}.pt")
             torch.save(save_dict, epoch_path)
+            
+            # --- NEW: Save Best ---
+            if is_best:
+                best_path = os.path.join(folder, "best.pt")
+                torch.save(save_dict, best_path)
+                logger.info(f"Generated new best model: {best_path}")
 
     # TRAIN LOOP
-    best_val_acc_scalar = 0.0
+    # Initialize "Best" metric based on task type
+    if task_type == "regression":
+        best_val_acc_scalar = float('inf') # Lower is better for MAE
+    else:
+        best_val_acc_scalar = 0.0 # Higher is better for Acc
+
     val_cnt = 0
     val_sum_scalar = 0.0
     for epoch in range(start_epoch, num_epochs):
@@ -338,6 +425,7 @@ def main(args_eval, resume_preempt=False):
                 data_loader=train_loader,
                 use_bfloat16=use_bfloat16,
                 use_focal_loss=use_focal_loss,
+                task_type=task_type,
             )
 
         val_acc_scalar, val_heads = run_one_epoch(
@@ -352,13 +440,26 @@ def main(args_eval, resume_preempt=False):
             data_loader=val_loader,
             use_bfloat16=use_bfloat16,
             use_focal_loss=use_focal_loss,
+            val_only=val_only,
+            predictions_save_path=predictions_save_path,
+            task_type=task_type,
         )
 
-        # ---- update scalar running stats (max over heads) ----
+        # ---- update scalar running stats (max/min over heads) ----
         val_cnt += 1
         val_sum_scalar += float(val_acc_scalar)
         mean_val_acc_scalar = val_sum_scalar / val_cnt
-        best_val_acc_scalar = max(best_val_acc_scalar, float(val_acc_scalar))
+        
+        # --- Best Model Logic ---
+        is_best = False
+        if task_type == "regression":
+            if float(val_acc_scalar) < best_val_acc_scalar:
+                best_val_acc_scalar = float(val_acc_scalar)
+                is_best = True
+        else:
+            if float(val_acc_scalar) > best_val_acc_scalar:
+                best_val_acc_scalar = float(val_acc_scalar)
+                is_best = True
 
         # ---- update per-head running stats ----
         count_epochs += 1
@@ -368,14 +469,29 @@ def main(args_eval, resume_preempt=False):
             min_per_head = val_heads.copy()
             best_epoch_per_head = np.full_like(val_heads, epoch + 1, dtype=int)
         else:
-            improved = val_heads > best_per_head
+            if task_type == "regression":
+                improved = val_heads < best_per_head
+                best_per_head = np.minimum(best_per_head, val_heads)
+            else:
+                improved = val_heads > best_per_head
+                best_per_head = np.maximum(best_per_head, val_heads)
+                
             best_epoch_per_head[improved] = epoch + 1
-            best_per_head = np.maximum(best_per_head, val_heads)
             sum_per_head += val_heads
             min_per_head = np.minimum(min_per_head, val_heads)
+        
         mean_per_head = sum_per_head / count_epochs
 
-        logger.info("[%5d] train: %.3f%%  val(max-head): %.3f%%" % (epoch + 1, train_acc_scalar, val_acc_scalar))
+        # Logging String
+        metric_symbol = "" if task_type == "regression" else "%"
+        val_prefix = "val(min-head)" if task_type == "regression" else "val(max-head)"
+        
+        logger.info("[%5d] train: %.3f%s  %s: %.3f%s (Best: %.3f%s)" % (
+            epoch + 1, train_acc_scalar, metric_symbol, 
+            val_prefix, val_acc_scalar, metric_symbol, 
+            best_val_acc_scalar, metric_symbol
+        ))
+        
         if rank == 0:
             csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar)
 
@@ -391,6 +507,7 @@ def main(args_eval, resume_preempt=False):
             mean_per_head,
             min_per_head,
             best_epoch_per_head,
+            is_best=is_best,
         )
 
 
@@ -405,97 +522,177 @@ def run_one_epoch(
     wd_scheduler,
     data_loader,
     use_bfloat16,
+    task_type="classification",
     use_focal_loss=False,
+    val_only=False,
+    predictions_save_path=None,
 ):
+    from tqdm import tqdm
+    
     for c in classifiers:
         c.train(mode=training)
 
-    criterion = sigmoid_focal_loss if use_focal_loss else torch.nn.CrossEntropyLoss()
-    top1_meters = [AverageMeter() for _ in classifiers]
+    # --- UPDATED: Loss Selection ---
+    if task_type == "regression":
+        # Using SmoothL1 (Huber) for robustness, or MSE
+        criterion = torch.nn.SmoothL1Loss()
+        metric_meters = [AverageMeter() for _ in classifiers]
+    else:
+        if use_focal_loss:
+            # Use the local class we defined
+            criterion = FocalLoss(alpha=1.0, gamma=2.0)
+        else:
+            criterion = torch.nn.CrossEntropyLoss()
+        top1_meters = [AverageMeter() for _ in classifiers]
 
-    for itr, data in enumerate(data_loader):
+    all_predictions = []
+    all_video_paths = []
+    all_labels = []
+
+    # Wrap iterator for validation to see progress
+    if val_only:
+        iterator = tqdm(data_loader, desc="Inference", unit="batch", dynamic_ncols=True)
+    else:
+        iterator = data_loader
+
+    from torch.amp import autocast
+    for itr, data in enumerate(iterator):
         if training:
             [s.step() for s in scheduler]
             [wds.step() for wds in wd_scheduler]
 
-        with torch.cuda.amp.autocast(dtype=torch.float16, enabled=use_bfloat16):
-            # ----- load batch to device -----
+        with autocast("cuda", dtype=torch.bfloat16, enabled=use_bfloat16):
+            # Load batch
             clips = [
-                [dij.to(device, non_blocking=True) for dij in di]     # over spatial views
-                for di in data[0]                                      # over temporal clips/segments
+                [dij.to(device, non_blocking=True) for dij in di]
+                for di in data[0]
             ]
-            labels = data[1].to(device)
             clip_indices = [d.to(device, non_blocking=True) for d in data[2]]
-            slot_present = data[3].to(device)  # [B, S], True = slot has content (not MISS)
-            B = labels.shape[0]
+            labels = data[1].to(device)
+            batch_size = len(labels)
+            
+            # Paths handling (if available)
+            video_paths = data[3] if len(data) > 3 else [f"vid_{itr}_{i}" for i in range(batch_size)]
 
-            # ----- encoder forward (frozen) -----
+            # Forward
             with torch.no_grad():
-                outputs = encoder(clips, clip_indices)  # list over spatial views; each o: [B, N, D]
-
-            # ----- build token-level key padding mask from slot mask -----
-            # Use the first view to infer N
-            o0 = outputs[0]           # [B, N, D]
-            _, N, _ = o0.shape
-            S = slot_present.shape[1]
-            if N % S != 0:
-                raise RuntimeError(f"N={N} tokens not divisible by S={S} slots; cannot expand slot mask.")
-            tokens_per_slot = N // S
-
-            # slot_present=True => keep; False => mask-out
-            token_keep = slot_present.repeat_interleave(tokens_per_slot, dim=1)  # [B, N] bool
-            key_padding_mask = ~token_keep  # True = ignore
-
-            if itr == 0 and training and labels.shape[0] == 1:
-                logger.info(f"Probe: tokens_per_slot={tokens_per_slot}, slots={S}, N={N}")
-
-
-            # (Optional) if an entire batch row is all-missing, you could skip/continue
-            # if key_padding_mask.all(dim=1).any():
-            #     warnings.warn("Batch contains example with all slots missing; consider filtering upstream.")
-
-            # ----- probe forward -----
+                outputs = encoder(clips, clip_indices)
+            
+            # Classifier Forward
             if training:
-                outputs = [[c(o, key_padding_mask=key_padding_mask) for o in outputs] for c in classifiers]
+                outputs = [[c(o) for o in outputs] for c in classifiers]
             else:
                 with torch.no_grad():
-                    outputs = [[c(o, key_padding_mask=key_padding_mask) for o in outputs] for c in classifiers]
+                    outputs = [[c(o) for o in outputs] for c in classifiers]
 
-        # ----- loss & metrics -----
-        losses = [[criterion(o, labels) for o in coutputs] for coutputs in outputs]
+        # --- Loss Calculation ---
+        if task_type == "regression":
+            # Ensure Float and dimensions match
+            labels = labels.float()
+            if labels.dim() == 1:
+                labels = labels.unsqueeze(-1)
+            losses = [[criterion(o.float(), labels) for o in coutputs] for coutputs in outputs]
+        else:
+            losses = [[criterion(o, labels) for o in coutputs] for coutputs in outputs]
 
+        # --- Metrics & Accumulation ---
         with torch.no_grad():
-            # average probabilities across spatial views per classifier
-            probs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]
-            top1_accs = [100.0 * p.max(dim=1).indices.eq(labels).float().mean() for p in probs]
-            top1_accs = [float(AllReduce.apply(t1a)) for t1a in top1_accs]
-            for meter, acc in zip(top1_meters, top1_accs):
-                meter.update(acc)
+            if task_type == "regression":
+                # Average across spatial views
+                preds = [sum([o for o in coutputs]) / len(coutputs) for coutputs in outputs]
+                
+                # Metric: L1 Loss (MAE)
+                mae_errors = [F.l1_loss(p.float(), labels.float()) for p in preds]
+                mae_errors = [float(AllReduce.apply(mae)) for mae in mae_errors]
+                
+                # Convert normalized MAE to real scale (optional logging adjustment)
+                # LVEF_TRAIN_STD = 11.33 
+                # mae_errors = [mae * LVEF_TRAIN_STD for mae in mae_errors]
+
+                for meter, mae in zip(metric_meters, mae_errors):
+                    meter.update(mae)
+            else:
+                # Classification
+                preds = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]
+                top1_accs = [100.0 * p.max(dim=1).indices.eq(labels).float().mean() for p in preds]
+                top1_accs = [float(AllReduce.apply(t1a)) for t1a in top1_accs]
+                for meter, acc in zip(top1_meters, top1_accs):
+                    meter.update(acc)
+            
+            # Store predictions for CSV saving (val_only)
+            if val_only and predictions_save_path is not None:
+                # Average spatial views for storage
+                final_preds = [sum(coutputs)/len(coutputs) for coutputs in outputs]
+                # Just take the first head's prediction for simplicity in CSV 
+                # (or average heads if you prefer, but usually we analyze specific heads)
+                best_head_pred = final_preds[0] 
+                
+                all_predictions.extend(best_head_pred.float().cpu().numpy())
+                all_labels.extend(labels.cpu().numpy())
+                all_video_paths.extend(video_paths)
 
         if training:
-            if use_bfloat16:
-                [[s.scale(lij).backward() for lij in li] for s, li in zip(scaler, losses)]
-                [s.step(o) for s, o in zip(scaler, optimizer)]
-                [s.update() for s in scaler]
+            # Scaler step
+            # Note: Your reference removed scaler usage for bfloat16, using standard backward
+            # but usually scaler is safe to keep. If reference explicitly removes it:
+            if use_bfloat16 and scaler[0] is not None:
+                 [[s.scale(lij).backward() for lij in li] for s, li in zip(scaler, losses)]
+                 [s.step(o) for s, o in zip(scaler, optimizer)]
+                 [s.update() for s in scaler]
             else:
                 [[lij.backward() for lij in li] for li in losses]
                 [o.step() for o in optimizer]
+            
             [o.zero_grad() for o in optimizer]
 
-        _agg_top1 = np.array([t1m.avg for t1m in top1_meters])
-        if itr % 10 == 0:
-            logger.info(
-                "[%5d] %.3f%% [mean %.3f%% min %.3f%%] [mem: %.2e]"
-                % (
-                    itr,
-                    _agg_top1.max(),
-                    _agg_top1.mean(),
-                    _agg_top1.min(),
-                    torch.cuda.max_memory_allocated() / 1024.0**2,
-                )
-            )
+        # --- Logging ---
+        if task_type == "regression":
+            _agg_metrics = np.array([m.avg for m in metric_meters])
+            metric_symbol = ""
+        else:
+            _agg_metrics = np.array([m.avg for m in top1_meters])
+            metric_symbol = "%"
 
-    return float(_agg_top1.max()), _agg_top1
+        if itr % 10 == 0:
+            if val_only:
+                val_metric = _agg_metrics.min() if task_type == "regression" else _agg_metrics.max()
+                desc_label = "MAE" if task_type == "regression" else "Acc"
+                iterator.set_description(f"Inf {desc_label}: {val_metric:.4f}")
+            else:
+                best_scalar = float(_agg_metrics.min()) if task_type == "regression" else float(_agg_metrics.max())
+                logger.info(
+                    "[%5d] %.3f%s [mean %.3f%s] [mem: %.2e]"
+                    % (
+                        itr,
+                        best_scalar, metric_symbol,
+                        _agg_metrics.mean(), metric_symbol,
+                        torch.cuda.max_memory_allocated() / 1024.0**2,
+                    )
+                )
+
+    # --- Save CSV at end of val epoch ---
+    if val_only and predictions_save_path is not None and len(all_predictions) > 0:
+        import pandas as pd
+        os.makedirs(os.path.dirname(predictions_save_path), exist_ok=True)
+        
+        #Flatten inputs
+        flat_preds = [p.item() if hasattr(p, 'item') else p for p in all_predictions]
+        flat_labels = [l.item() if hasattr(l, 'item') else l for l in all_labels]
+        flat_paths = [str(p) for p in all_video_paths]
+
+        df = pd.DataFrame({
+            'video_path': flat_paths,
+            'label': flat_labels,
+            'prediction': flat_preds
+        })
+        df.to_csv(predictions_save_path, index=False)
+        logger.info(f"Saved predictions to {predictions_save_path}")
+
+    # Return scalar for checkpoint saving logic
+    if task_type == "regression":
+        return float(_agg_metrics.min()), _agg_metrics
+    else:
+        return float(_agg_metrics.max()), _agg_metrics
 
 
 

@@ -26,7 +26,7 @@ experiment:
     dataset_type: VideoGroupDataset
     dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/rvsp_train.csv
     dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/rvsp_val.csv
-    num_classes: 2
+    num_classes: 1           # IMPORTANT: 1 for regression
     resolution: 336 
     frames_per_clip: 16      # change to 32 to match anneal, 16 to match pretrain
     frame_step: 1            # change to 2 --> ~1.28 s coverage on ~50 fps; use step:1 (~0.64 s) if you want tighter windows; original fpc16xfs3=48
@@ -35,7 +35,7 @@ experiment:
     num_views_per_segment: 1 # one spatial crop (reduce stochasticity); for echo—spatial variation is low; temporal coverage more important
     
     miss_augment_prob: 0.10   # prob to flip a PRESENT view to MISS at train time
-    min_present: 4            # keep at least this many views per study during augmentation
+    min_present: 1            # keep at least this many views per study during augmentation
 
   optimization:
     batch_size: 1
