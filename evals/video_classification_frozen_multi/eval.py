@@ -674,7 +674,7 @@ def run_one_epoch(
             with torch.no_grad():
                 enc_outs = encoder(clips, clip_indices)  # list of slot tensors, each [B, Nslot, D]
 
-            if itr == 0
+            if itr == 0:
                 expected_slots = num_views * clips_per_view
                 if expected_slots is not None and len(enc_outs) != expected_slots:
                     raise RuntimeError(f"Encoder returned L={len(enc_outs)} slots, expected {expected_slots} (=num_views*clips_per_view).")
