@@ -54,6 +54,7 @@ class EchoPrimeEncoderOnlyWrapper(nn.Module):
         self.bin_size = int(bin_size)
 
         # EchoPrime normalization constants (0..255 pixel space)
+        # Source: echonet/EchoPrime echo_prime/model.py
         mean = torch.tensor([29.110628, 28.076836, 29.096405]).reshape(3, 1, 1, 1)
         std = torch.tensor([47.989223, 46.456997, 47.20083]).reshape(3, 1, 1, 1)
         self.register_buffer("mean_255", mean, persistent=False)
@@ -68,6 +69,10 @@ class EchoPrimeEncoderOnlyWrapper(nn.Module):
 
     @torch.no_grad()
     def _normalize_like_echoprime(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        x: [N, C, T, H, W], typically in 0..1 after V-JEPA2 transforms.
+        EchoPrime normalizes in 0..255 space.
+        """
         if x.dtype.is_floating_point:
             xmax = float(x.detach().max().cpu())
         else:
@@ -82,6 +87,10 @@ class EchoPrimeEncoderOnlyWrapper(nn.Module):
 
     @torch.no_grad()
     def _embed_videos_batched(self, vids: torch.Tensor) -> torch.Tensor:
+        """
+        vids: [N, 3, 16, 224, 224] normalized like EchoPrime
+        returns: [N, 512]
+        """
         N = int(vids.shape[0])
         feats = []
         for start in range(0, N, self.bin_size):
@@ -97,9 +106,14 @@ class EchoPrimeEncoderOnlyWrapper(nn.Module):
             leaves = _collect_leaf_tensors(clips)
 
         B = int(leaves[0].shape[0])
-        x_flat = torch.cat(leaves, dim=0) # [L*B, C, T, H, W]
+        for t in leaves:
+            if int(t.shape[0]) != B:
+                raise ValueError("All clip leaves must share the same batch dimension.")
 
-        # Ensure 16 frames
+        # Flatten leaves along batch: [L*B, C, T, H, W]
+        x_flat = torch.cat(leaves, dim=0) 
+
+        # Ensure exactly 16 frames (EchoPrime requirement)
         C, T = int(x_flat.shape[1]), int(x_flat.shape[2])
         if T != 16:
             if T > 16:
@@ -110,8 +124,10 @@ class EchoPrimeEncoderOnlyWrapper(nn.Module):
                                   device=x_flat.device, dtype=x_flat.dtype)
                 x_flat = torch.cat([x_flat, pad], dim=2)
 
+        # Normalize
         x_flat = self._normalize_like_echoprime(x_flat)
 
+        # Run Encoder (MViT)
         if self.force_fp32 and x_flat.is_cuda:
             with torch.autocast(device_type="cuda", enabled=False):
                 vid_feats = self._embed_videos_batched(x_flat) # [L*B, 512]
@@ -119,9 +135,10 @@ class EchoPrimeEncoderOnlyWrapper(nn.Module):
             vid_feats = self._embed_videos_batched(x_flat) # [L*B, 512]
 
         # Prepare output list
-        emb = vid_feats.float()
-        emb = emb.unsqueeze(1) # [L*B, 1, 512]
+        # Add singleton token dim: [L*B, 512] -> [L*B, 1, 512]
+        emb = vid_feats.float().unsqueeze(1)
 
+        # Unflatten back to per-leaf list: [B, L, 1, 512]
         L = len(leaves)
         emb = emb.view(L, B, 1, self.embed_dim).permute(1, 0, 2, 3).contiguous()
         return [emb[:, i, :, :] for i in range(L)]
@@ -134,8 +151,11 @@ def init_module(
     model_kwargs: dict,
     wrapper_kwargs: dict,
 ):
+    """
+    EchoPrime MViT-Only initialization.
+    """
     if resolution != 224:
-        logger.warning(f"EchoPrime was trained on 224; got {resolution}. Proceeding.")
+        logger.warning(f"EchoPrime was trained on 224; got resolution={resolution}. Proceeding anyway.")
     
     this_dir = os.path.dirname(os.path.abspath(__file__))
     default_root = os.path.join(this_dir, "EchoPrime")
@@ -146,28 +166,32 @@ def init_module(
     if echo_root is None and os.path.isdir(default_root):
         echo_root = default_root
 
+    # Resolve ckpt paths
     encoder_ckpt = wrapper_kwargs.get("encoder_ckpt", None)
 
+    # Allow "checkpoint" to directly be the encoder weight path
     if encoder_ckpt is None and checkpoint and os.path.isfile(checkpoint):
         encoder_ckpt = checkpoint
 
     if encoder_ckpt is None:
         if echo_root is None:
-            raise ValueError("Set wrapper_kwargs.echo_prime_root or encoder_ckpt.")
+            raise ValueError("Set wrapper_kwargs.echo_prime_root or wrapper_kwargs.encoder_ckpt.")
         encoder_ckpt = os.path.join(echo_root, "model_data", "weights", "echo_prime_encoder.pt")
 
-    logger.info(f"Loading EchoPrime encoder: {encoder_ckpt}")
-    
+    logger.info(f"Loading EchoPrime encoder weights: {encoder_ckpt}")
+
+    # Build MViT exactly like upstream EchoPrime
     echo_sd = torch.load(encoder_ckpt, map_location="cpu")
     echo_encoder = torchvision.models.video.mvit_v2_s()
+    # EchoPrime modifies the head to output 512
     echo_encoder.head[-1] = nn.Linear(echo_encoder.head[-1].in_features, 512)
     echo_encoder.load_state_dict(echo_sd)
     echo_encoder.eval()
-    for p in echo_encoder.parameters(): p.requires_grad = False
+    for p in echo_encoder.parameters():
+        p.requires_grad = False
 
     return EchoPrimeEncoderOnlyWrapper(
         echo_encoder=echo_encoder,
-        view_classifier=None, # Removed
         force_fp32=bool(wrapper_kwargs.get("force_fp32", True)),
         bin_size=int(wrapper_kwargs.get("bin_size", 50)),
     )
