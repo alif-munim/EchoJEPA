@@ -167,25 +167,62 @@ class AttentiveClassifier(nn.Module):
 
 
 class AttentiveRegressor(nn.Module):  
-    def __init__(  
-        self,  
-        embed_dim=768,  
-        num_heads=12,  
-        depth=1,  
-        num_targets=1,  
-        use_activation_checkpointing=False,  # Add this parameter  
-    ):  
-        super().__init__()  
-        self.pooler = AttentivePooler(  
-            num_queries=1,  
-            embed_dim=embed_dim,  
-            num_heads=num_heads,  
-            depth=depth,  
-            use_activation_checkpointing=use_activation_checkpointing,  # Pass it through  
-        )  
-        self.regressor = nn.Linear(embed_dim, num_targets, bias=True)  
+    def __init__(self,
+                 embed_dim=768, num_heads=12, mlp_ratio=4.0, depth=1,
+                 norm_layer=nn.LayerNorm, init_std=0.02, qkv_bias=True,
+                 num_targets=1, complete_block=True,
+                 use_activation_checkpointing=False,
+                 # NEW (Matched to Classifier)
+                 use_slot_embeddings: bool = False,
+                 num_views: int = 9,
+                 clips_per_view: int = 2,
+                 use_factorized: bool = True):
+        super().__init__()
+
+        self.pooler = AttentivePooler(
+            num_queries=1, embed_dim=embed_dim, num_heads=num_heads,
+            mlp_ratio=mlp_ratio, depth=depth, norm_layer=norm_layer,
+            init_std=init_std, qkv_bias=qkv_bias,
+            complete_block=complete_block,
+            use_activation_checkpointing=use_activation_checkpointing,
+        )
+        self.regressor = nn.Linear(embed_dim, num_targets, bias=True)
+        
+        # ---- NEW (Mirrored from Classifier) ----
+        self.use_slot_embeddings = bool(use_slot_embeddings)
+        self.num_views = int(num_views)
+        self.clips_per_view = int(clips_per_view)
+        self.num_slots = self.num_views * self.clips_per_view
+        self.use_factorized = bool(use_factorized)
+
+        if self.use_slot_embeddings:
+            if self.use_factorized:
+                self.view_embed = nn.Embedding(self.num_views, embed_dim)
+                self.clip_embed = nn.Embedding(self.clips_per_view, embed_dim)
+            else:
+                self.slot_embed = nn.Embedding(self.num_slots, embed_dim)
+
+    def _build_slot_emb(self, B, N, device):
+        S = self.num_slots
+        tokens_per_slot = N // S
+        slot_ids = torch.arange(S, device=device).unsqueeze(0).repeat(B, 1)  # [B,S]
+
+        if self.use_factorized:
+            view_ids = slot_ids // self.clips_per_view
+            clip_ids = slot_ids %  self.clips_per_view
+            v_emb = self.view_embed(view_ids)  # [B,S,D]
+            c_emb = self.clip_embed(clip_ids)  # [B,S,D]
+            slot_emb = v_emb + c_emb
+        else:
+            slot_emb = self.slot_embed(slot_ids)  # [B,S,D]
+
+        return slot_emb.repeat_interleave(tokens_per_slot, dim=1)  # [B,N,D]
       
-    def forward(self, x):  
-        x = self.pooler(x).squeeze(1)  
-        x = self.regressor(x)  
+    def forward(self, x, key_padding_mask=None):
+        if self.use_slot_embeddings:
+            B, N, D = x.shape
+            x = x + self._build_slot_emb(B, N, x.device)
+            
+        x = self.pooler(x, key_padding_mask=key_padding_mask).squeeze(1)
+        x = self.regressor(x)
         return x

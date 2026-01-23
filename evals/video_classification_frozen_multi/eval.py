@@ -424,6 +424,13 @@ def main(args_eval, resume_preempt=False):
     val_cnt = 0
     val_sum_scalar = 0.0
 
+    # --- ADD THIS SANITY CHECK ---
+    if rank == 0:
+        logger.info(f"Task Type: {task_type}")
+        if task_type == "regression":
+            logger.info(f"Regression Un-normalization: Mean={target_mean}, Std={target_std}")
+    # -----------------------------
+
     for epoch in range(start_epoch, num_epochs):
         logger.info("Epoch %d" % (epoch + 1))
         if train_sampler is not None and hasattr(train_sampler, "set_epoch"):
@@ -617,9 +624,19 @@ def run_one_epoch(
         with cast_ctx:
             # ---- load batch ----
             clips = [
-                [dij.to(device, non_blocking=True) for dij in di]  # over spatial views
-                for di in data[0]  # over temporal clips/segments
+                [dij.to(device, non_blocking=True) for dij in di]
+                for di in data[0]
             ]
+            
+            # --- DEBUG VERIFICATION ---
+            if itr == 0:
+                logger.info(f"VERIFICATION: Batch {itr}")
+                logger.info(f"  > Loaded {len(clips)} distinct views/videos per patient.")
+                logger.info(f"  > View 0 contains {len(clips[0])} temporal clips.")
+                if len(clips[0]) > 0:
+                     logger.info(f"  > Tensor Shape: {clips[0][0].shape}")
+            # --------------------------
+            
             labels = data[1].to(device)
             clip_indices = [d.to(device, non_blocking=True) for d in data[2]]
 
