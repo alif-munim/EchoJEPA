@@ -460,7 +460,8 @@ def main(args_eval, resume_preempt=False):
                 target_mean=target_mean,
                 target_std=target_std,
                 num_views=num_views,
-                clips_per_view=clips_per_view
+                clips_per_view=clips_per_view,
+                rank=rank
             )
 
         val_scalar, val_heads = run_one_epoch(
@@ -482,7 +483,8 @@ def main(args_eval, resume_preempt=False):
             target_mean=target_mean,
             target_std=target_std,
             num_views=num_views,
-            clips_per_view=clips_per_view
+            clips_per_view=clips_per_view,
+            rank=rank
         )
 
         # ---- update scalar running stats ----
@@ -568,7 +570,8 @@ def run_one_epoch(
     # --- NEW: Arguments for un-normalization ---
     target_mean=None,
     target_std=None,
-    num_views=None, clips_per_view=None
+    num_views=None, clips_per_view=None,
+    rank=0
 ):
     import inspect
     import numpy as np  # Fixed UnboundLocalError by importing here or at top
