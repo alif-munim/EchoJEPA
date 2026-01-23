@@ -23,8 +23,8 @@ experiment:
 
   data:
     dataset_type: VideoGroupDataset
-    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/MISS_multi9_rvfx_labels_train.csv
-    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/MISS_multi9_rvfx_labels_val.csv
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/rvsp_train.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/rvsp_val.csv
     num_classes: 2
     resolution: 336 
     frames_per_clip: 16      # change to 32 to match anneal, 16 to match pretrain
@@ -176,7 +176,8 @@ model_kwargs:
   # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/keep/e279.pt"
 
   # Anneal
-  checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep/e78.pt"
+  # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep/e78.pt"
+  checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep/pt-280-an81.pt"  
 
   # Echo cooldown (16f, 336px) — default active:
   # checkpoint: "/home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/1.8.vitg16-336px-16f-echo/e21.pt"
