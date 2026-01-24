@@ -37,6 +37,11 @@ Multi-level inference (224px)
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echojepa_224px_multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_224px_multi_infv1.log
 ```
 
+Echoprime inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echoprime_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echoprime_224px_infv1.log
+```
+
 ### TAPSE Regression
 ```
 python -m evals.main \
