@@ -1,32 +1,26 @@
 app: vjepa
-
 nodes: 1
 tasks_per_node: 8
 cpus_per_task: 16
 mem_per_gpu: 220G
 
-folder: /your_folder/anneal/mimic/vjepa2_vitl_224px_32f_anneal
+# Write cooldown outputs to a NEW folder (recommended; don't overwrite pretrain)
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/cooldown/mimic/vjepa2_vitl_224px_16f
 
 data:
   dataset_type: VideoDataset
   datasets:
-    - /your_data_path/mimic_train_paths.csv
-  datasets_weights:
-    - 1.0
+    - /home/sagemaker-user/user-default-efs/vjepa2/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
 
-  # Reduce batch because we increase frames
-  batch_size: 16  # global batch = 128
+  # Keep global batch = 8 * 128 = 1024 (matches your VideoMAE effective BS)
+  batch_size: 128
 
   crop_size: 224
   patch_size: 16
-  tubelet_size: 2
-
-  # Longer clips in cooldown
-  dataset_fpcs:
-    - 32
-
-  # Keep temporal coverage ~4.0s
+  dataset_fpcs: [16]
   fps: 8
+  tubelet_size: 2
 
   num_workers: 8
   persistent_workers: true
@@ -60,12 +54,15 @@ mask:
 
 meta:
   dtype: bfloat16
-  use_sdpa: true
+  eval_freq: 100
+
+  # Allow resuming cooldown if preempted; safe because folder is new
   load_checkpoint: true
   read_checkpoint: null
-  save_every_freq: 3
-  eval_freq: 0
+
+  save_every_freq: 5
   seed: 239
+  use_sdpa: true
 
 model:
   model_name: vit_large
@@ -75,26 +72,39 @@ model:
   uniform_power: true
   use_activation_checkpointing: true
   use_mask_tokens: true
+  num_mask_tokens: 10
   use_rope: true
   zero_init_mask_tokens: true
 
 optimization:
-  # Turn on anneal mode (linear decay) and point to your best/last pretrain ckpt
+  # ---- COOLDOWN SWITCH ----
   is_anneal: true
+  resume_anneal: true
+
+  # IMPORTANT: not starting from latest.pt, so we force load checkpoint below
   force_load_pretrain: true
-  anneal_ckpt: /your_folder/pretrain/mimic/vjepa2_vitl_224px_16f/latest.pt
+
+  # Start cooldown from the END of your 240-epoch run (use the actual file that exists)
+  # Prefer the last checkpoint you saved (examples: latest.pt, e240.pt, checkpoint.pt, etc.)
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/mimic/vjepa2_vitl_224px_16f/e230.pt
 
   ema: [0.99925, 0.99925]
   weight_decay: 0.04
   final_weight_decay: 0.04
 
+  # Keep the same update accounting
   ipe: 300
+
+  # Option A (recommended if you want to actually reach final_lr by the end of cooldown):
   ipe_scale: 1.0
 
-  # Start from the pretrain LR, decay to small final LR
-  # (Batch is smaller here, so keeping LR moderate is safer)
-  lr: 2.2e-05
-  final_lr: 1.0e-06
+  # LR: decay linearly from lr -> final_lr over cooldown steps
+  # (start_lr is effectively irrelevant with LinearDecaySchedule, but keep it coherent)
+  start_lr: 1.75e-4
+  lr: 1.75e-4
+  final_lr: 1.0e-6
 
   warmup: 0
-  epochs: 40  # ~12k steps if ipe=300
+
+  # 40 epochs * 300 iters/epoch = 12,000 updates
+  epochs: 40
