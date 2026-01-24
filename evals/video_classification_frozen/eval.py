@@ -115,6 +115,10 @@ def main(args_eval, resume_preempt=False):
     set_override("OVERRIDE_NUM_CLASSES", data, "num_classes", int)
     set_override("OVERRIDE_RES", data, "resolution", int)
 
+    # --- NEW: Override Mean/Std for regression ---
+    set_override("OVERRIDE_TARGET_MEAN", data, "target_mean", float)
+    set_override("OVERRIDE_TARGET_STD", data, "target_std", float)
+
     # 4. Optimization parameters
     set_override("OVERRIDE_EPOCHS", opt, "num_epochs", int)
     set_override("OVERRIDE_FOCAL_LOSS", opt, "use_focal_loss", bool)
@@ -165,6 +169,10 @@ def main(args_eval, resume_preempt=False):
     duration = args_data.get("clip_duration", None)
     num_views_per_segment = args_data.get("num_views_per_segment", 1)
     normalization = args_data.get("normalization", None)
+    
+    # --- NEW: Get Mean/Std from config ---
+    target_mean = args_data.get("target_mean", None)
+    target_std = args_data.get("target_std", None)
 
     # -- OPTIMIZATION
     args_opt = args_exp.get("optimization")
@@ -416,6 +424,8 @@ def main(args_eval, resume_preempt=False):
                 val_only=val_only,
                 predictions_save_path=predictions_save_path,
                 task_type=task_type,
+                target_mean=target_mean,
+                target_std=target_std,
             )
 
         val_acc_scalar, val_heads = run_one_epoch(
@@ -433,6 +443,8 @@ def main(args_eval, resume_preempt=False):
             val_only=val_only,
             predictions_save_path=predictions_save_path,
             task_type=task_type,
+            target_mean=target_mean,
+            target_std=target_std,
         )
 
         # ---- update scalar running stats ----
@@ -522,6 +534,8 @@ def run_one_epoch(
     use_focal_loss=False,
     val_only=False,
     predictions_save_path=None,
+    target_mean=None,
+    target_std=None,
 ):
     # --- NEW: Import tqdm for progress bar ---
     from tqdm import tqdm
@@ -595,10 +609,10 @@ def run_one_epoch(
                 mae_errors = [F.l1_loss(o.squeeze().float(), labels.squeeze()) for o in outputs]
                 mae_errors = [float(AllReduce.apply(mae)) for mae in mae_errors]
                 
-                # 2. Convert to Real MAE (LVEF %) for LOGGING
-                # Multiply by the Standard Deviation of your TRAIN set
-                LVEF_TRAIN_STD = 11.33 
-                mae_errors = [mae * LVEF_TRAIN_STD for mae in mae_errors]
+                # 2. Convert to Real MAE for LOGGING
+                # --- CHANGE THIS BLOCK ---
+                t_std = target_std if target_std is not None else 1.0
+                mae_errors = [mae * t_std for mae in mae_errors]
 
                 for meter, mae in zip(metric_meters, mae_errors):
                     meter.update(mae)
@@ -660,21 +674,21 @@ def run_one_epoch(
             # 1. Get raw normalized predictions
             pred_values_norm = [pred[0] if len(pred.shape) > 0 else pred for pred in all_predictions]
             
-            # 2. [FIX 2] Un-normalize logic for CSV
-            LVEF_STD = 11.33
-            LVEF_MEAN = 57.06
+            # 2. Un-normalize logic for CSV
+            # --- CHANGE THIS BLOCK ---
+            t_mean = target_mean if target_mean is not None else 0.0
+            t_std = target_std if target_std is not None else 1.0
             
             # Convert arrays to scalars and un-normalize
-            # Note: labels are likely already 1-element arrays from the loop above
             labels_real = []
             for l in all_labels:
                 val = l[0] if isinstance(l, (np.ndarray, list)) else l
-                labels_real.append((val * LVEF_STD) + LVEF_MEAN)
+                labels_real.append((val * t_std) + t_mean)  # Use variables
                 
             preds_real = []
             for p in pred_values_norm:
                 val = p[0] if isinstance(p, (np.ndarray, list)) else p
-                preds_real.append((val * LVEF_STD) + LVEF_MEAN)
+                preds_real.append((val * t_std) + t_mean)   # Use variables
 
             df = pd.DataFrame({
                 'video_path': all_video_paths,

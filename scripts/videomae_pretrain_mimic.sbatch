@@ -309,8 +309,8 @@ srun --kill-on-bad-exit=1 \
     --num_workers 6 \
     --clip_grad 0.5 \
     --resume "${WORKDIR}/checkpoint-29.pth" \
-    --start_epoch 30
-
+    --start_epoch 30 \
+    --save_ckpt_freq 10
 RC=$?
 
 # graceful cleanup

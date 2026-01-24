@@ -40,8 +40,9 @@ VAL_S3="${S3_BASE}/data/csv/${VAL_NAME}"
 # Output S3 Location
 JOB_S3="${S3_BASE}/runs/echoprime_lvef_${SLURM_JOB_ID}"
 
-# Video Dataset Location
-VIDEO_S3_PREFIX="s3://echodata25/results/uhn_studies_22k_607_224px/"
+# --- FIX: Correct Video Location for LVEF Dataset ---
+VIDEO_S3_PREFIX="s3://echodata25/results/uhn-lvef-224/"
+# ----------------------------------------------------
 
 # ==============================================================================
 # SETUP & HYDRATION
@@ -64,15 +65,21 @@ echo "[INFO] host=$(hostname) job=${SLURM_JOB_ID}"
 nvidia-smi -L || true
 
 # --- NEW: CREDENTIAL SAFETY CHECK ---
-# Nuke any existing credentials to force usage of the Instance Profile
 rm -rf ~/.aws
 mkdir -p ~/.aws
 
-# Force S3 Signature Version 4 (Fixes 400 Bad Request)
+# Force S3 Signature Version 4 & Region Config
 aws configure set default.s3.signature_version s3v4
 aws configure set default.region us-west-2
 
-# Verify Identity (If this fails, the node has no IAM role)
+# Also write a config file for tools that look there instead of credentials
+cat <<EOF > ~/.aws/config
+[default]
+region = us-west-2
+s3 =
+    signature_version = s3v4
+EOF
+
 echo "[INFO] Verifying Identity..."
 aws sts get-caller-identity
 # ------------------------------------
@@ -169,11 +176,15 @@ mkdir -p "$LOCAL_VIDEO_DIR"
 aws s3 sync "$VIDEO_S3_PREFIX" "$LOCAL_VIDEO_DIR" --quiet --region us-west-2
 
 echo "[INFO] Patching CSVs to point to local video files..."
+# Be extremely careful with special chars in S3 URIs
 ESC_S3_PREFIX=$(printf '%s\n' "$VIDEO_S3_PREFIX" | sed 's:[][\/.^$*]:\\&:g')
 ESC_LOCAL_DIR=$(printf '%s\n' "${LOCAL_VIDEO_DIR}/" | sed 's:[][\/.^$*]:\\&:g')
 
 sed -i "s|${ESC_S3_PREFIX}|${ESC_LOCAL_DIR}|g" "data/csv/${TRAIN_FULL_NAME}"
 sed -i "s|${ESC_S3_PREFIX}|${ESC_LOCAL_DIR}|g" "data/csv/${VAL_NAME}"
+
+echo "[INFO] Patching complete. Verifying one entry:"
+head -n 2 "data/csv/${TRAIN_FULL_NAME}"
 
 # ==============================================================================
 # CONFIGURATION GENERATOR
@@ -233,7 +244,7 @@ print(f"Generated config: {args.out}")
 EOF
 
 # ==============================================================================
-# BACKGROUND SERVICE (MOVED TO AFTER INITIAL SETUP)
+# BACKGROUND SERVICE
 # ==============================================================================
 start_background_services() {
     mkdir -p ~/.aws
@@ -249,8 +260,6 @@ start_background_services() {
         fi
         
         CREDS_JSON=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/ -s)
-        # Check if we got a role name list or the JSON itself
-        # If result is a list (e.g. ScuderiaInstanceRole), fetch that role
         if [[ "$CREDS_JSON" != *"{"* ]]; then
              ROLE_NAME="$CREDS_JSON"
              CREDS_JSON=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/$ROLE_NAME -s)
@@ -269,6 +278,11 @@ aws_session_token = $SESSION
 region = us-west-2
 EOF
             mv ~/.aws/credentials.tmp ~/.aws/credentials
+            
+            # Ensure config also exists
+            if [ ! -f ~/.aws/config ]; then
+                echo -e "[default]\nregion = us-west-2\ns3 =\n    signature_version = s3v4" > ~/.aws/config
+            fi
         fi
 
         if [ -d "results/classifier/video_classification_frozen" ]; then
