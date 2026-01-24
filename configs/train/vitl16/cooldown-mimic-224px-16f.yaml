@@ -106,5 +106,7 @@ optimization:
 
   warmup: 0
 
-  # 40 epochs * 300 iters/epoch = 12,000 updates
-  epochs: 40
+  # pretrain stopped short at 230 epochs (instead of 240)
+  # so we extend cooldown from 40 epochs to 50
+  # 50 epochs * 300 iters/epoch = 15,000 updates
+  epochs: 50
