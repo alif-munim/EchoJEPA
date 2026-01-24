@@ -19,7 +19,7 @@ experiment:
     dataset_type: VideoDataset
     # UPDATED: Use actual CSV paths with float targets
     dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_train_224px.csv
-    dataset_val: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_val_224px.csv
+    dataset_val: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_val_224px_256.csv
     resolution: 224
     frames_per_clip: 16
     frame_step: 2
