@@ -6,12 +6,28 @@
 #SBATCH --cpus-per-task=96
 #SBATCH -t 4-12:00:00
 #SBATCH -J vjepa_lvef_224
-#SBATCH -o /tmp/vjepa_lvef-%j.out
-#SBATCH -e /tmp/vjepa_lvef-%j.err
+#SBATCH -o /tmp/vjepa_224px-lvef-%j.out
+#SBATCH -e /tmp/vjepa_224px-lvef-%j.err
 
 set -euxo pipefail
 
+# === CREDENTIAL FIX (CRITICAL) ===
+# 1. Unset stale credentials passed from your local shell
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+
+# 2. WIPE STALE CONFIG FILES
+rm -rf ~/.aws
+mkdir -p ~/.aws
+
+# 3. Force Region configuration
 export AWS_DEFAULT_REGION="us-west-2"
+export AWS_REGION="us-west-2"
+export AWS_SDK_LOAD_CONFIG=1
+
+# 4. Explicitly configure CLI to be safe
+aws configure set default.region us-west-2
+aws configure set default.s3.signature_version s3v4
+# =================================
 
 # === S3 CONFIGURATION ===
 ART_BUCKET="sagemaker-hyperpod-lifecycle-495467399120-usw2"
@@ -29,24 +45,23 @@ CFG_REL="configs/eval/vitg-384/lvef/vjepa_lvef_224px.yaml"
 CFG_S3="${S3_BASE}/${CFG_REL}"
 
 # 2. Update Data Paths to match your new CSV filenames
-#    The script will download these from S3 and place them locally
 TRAIN_CSV_REL="data/csv/a4c_b_lvef_train_224px.csv"
 VAL_CSV_REL="data/csv/a4c_b_lvef_val_224px_256.csv"
 
 TRAIN_CSV_S3="${S3_BASE}/${TRAIN_CSV_REL}"
 VAL_CSV_S3="${S3_BASE}/${VAL_CSV_REL}"
 
-# 3. Backbone Checkpoint (Matches 'pt-280-an81.pt' in your config)
+# 3. Backbone Checkpoint
 ENC_CKPT_REL="checkpoints/anneal/keep/pt-280-an81.pt"
 ENC_CKPT_S3="${S3_BASE}/${ENC_CKPT_REL}"
 
 # Run Output Location in S3
-RUN_S3="${S3_BASE}/runs/${SLURM_JOB_ID}"
+RUN_S3="${S3_BASE}/runs/vjepa_lvef_224px_${SLURM_JOB_ID}"
 
 # === LOGGING & TRAPS ===
 upload_logs() {
-  aws s3 cp "/tmp/vjepa_lvef-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/job.out" 2>/dev/null || true
-  aws s3 cp "/tmp/vjepa_lvef-${SLURM_JOB_ID}.err" "${RUN_S3}/logs/job.err" 2>/dev/null || true
+  aws s3 cp "/tmp/vjepa_224px-lvef-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/job.out" --region us-west-2 2>/dev/null || true
+  aws s3 cp "/tmp/vjepa_224px-lvef-${SLURM_JOB_ID}.err" "${RUN_S3}/logs/job.err" --region us-west-2 2>/dev/null || true
 }
 trap 'rc=$?; upload_logs; exit $rc' EXIT
 
@@ -62,7 +77,7 @@ cd "$WORKDIR"
 echo "[INFO] WORKDIR=$WORKDIR"
 
 # === SETUP ENVIRONMENT ===
-aws s3 cp "$ENV_S3" env.tar
+aws s3 cp "$ENV_S3" env.tar --region us-west-2
 mkdir -p env
 tar -xf env.tar -C env
 set +u
@@ -71,13 +86,13 @@ set -u
 env/bin/conda-unpack || true
 
 # Install boto3
-aws s3 cp "$BOTO3_WHL_S3" boto3-wheelhouse.tar
+aws s3 cp "$BOTO3_WHL_S3" boto3-wheelhouse.tar --region us-west-2
 mkdir -p wheelhouse
 tar -xf boto3-wheelhouse.tar -C wheelhouse
 python -m pip install --no-index --find-links wheelhouse boto3
 
 # === SETUP CODE ===
-aws s3 cp "$CODE_S3" code.tar
+aws s3 cp "$CODE_S3" code.tar --region us-west-2
 tar -xf code.tar
 REPO_DIR=$(find . -maxdepth 10 -type f -name run_inf.sh -print -quit | xargs -r dirname)
 cd "${REPO_DIR}"
@@ -86,19 +101,16 @@ cd "${REPO_DIR}"
 if [ ! -f "$CFG_REL" ]; then
   echo "[WARN] ${CFG_REL} not found in code.tar; trying S3: ${CFG_S3}"
   mkdir -p "$(dirname "$CFG_REL")"
-  aws s3 cp "$CFG_S3" "$CFG_REL"
+  aws s3 cp "$CFG_S3" "$CFG_REL" --region us-west-2
 fi
 
 # === PATCH PATHS ===
-# Replaces hardcoded Studio paths (/home/sagemaker-user/...) in your config
-# with the actual scratch paths on the cluster node.
 python - <<'PY'
 from pathlib import Path
 import os, re
 
 repo = os.getcwd()
 studio = "/home/sagemaker-user/user-default-efs/vjepa2"
-# Regex to catch various EFS mount variations
 efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
 
 roots = ["configs", "app", "evals", "src"]
@@ -111,9 +123,7 @@ for r in roots:
         if f.suffix in exts and f.is_file():
             try:
                 t = f.read_text()
-                # Replace standard studio path
                 t2 = t.replace(studio, repo)
-                # Replace EFS mount paths
                 t2 = efs_pat.sub(repo, t2)
                 if t2 != t:
                     f.write_text(t2)
@@ -131,15 +141,17 @@ echo "[INFO] Downloading Data & Checkpoints..."
 
 # 1. CSVs
 mkdir -p "$(dirname "$TRAIN_CSV_REL")"
-aws s3 cp "$TRAIN_CSV_S3" "$TRAIN_CSV_REL"
-aws s3 cp "$VAL_CSV_S3" "$VAL_CSV_REL"
+aws s3 cp "$TRAIN_CSV_S3" "$TRAIN_CSV_REL" --region us-west-2
+aws s3 cp "$VAL_CSV_S3" "$VAL_CSV_REL" --region us-west-2
 
 # 2. Backbone Checkpoint
 mkdir -p "$(dirname "$ENC_CKPT_REL")"
-aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_REL"
+aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_REL" --region us-west-2
 
 # === PARSE OUTPUT FOLDER ===
-# Read the patched config to find where the script will write outputs
+# FIX: Export the variable so Python can see it
+export CFG_REL 
+
 CFG_FOLDER="$(python - <<'PY'
 import re
 import os
@@ -183,17 +195,16 @@ set -e
 # === UPLOAD ARTIFACTS ===
 echo "[INFO] Uploading artifacts..."
 
-# 1. Logs and Config
-aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" || true
-aws s3 cp "$CFG_REL" "${RUN_S3}/config/run_config.yaml" || true
+aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" --region us-west-2 || true
+aws s3 cp "$CFG_REL" "${RUN_S3}/config/run_config.yaml" --region us-west-2 || true
 
-# 2. Sync the output folder (checkpoints, metrics, etc.)
 aws s3 sync "$CFG_FOLDER" "${RUN_S3}/training_folder/" \
   --exclude "*.pth" \
   --include "*.pt" \
   --include "*.csv" \
   --include "*.log" \
-  --include "*.json" || true
+  --include "*.json" \
+  --region us-west-2 || true
 
 if [ "$RC" -ne 0 ]; then
   echo "[ERROR] Training failed with exit code ${RC}"
