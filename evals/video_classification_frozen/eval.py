@@ -611,9 +611,9 @@ def run_one_epoch(
                     
             if val_only and predictions_save_path is not None:
                 for i, pred in enumerate(outputs[0]):
-                    all_predictions.append(pred.cpu().numpy())
+                    all_predictions.append(pred.float().cpu().numpy())  # Convert to float32 first
                     all_video_paths.append(video_paths[i])
-                    all_labels.append(labels[i].cpu().numpy())
+                    all_labels.append(labels[i].float().cpu().numpy())  # Also convert labels
 
         if training:
             [[lij.backward() for lij in li] for li in losses]
