@@ -1,14 +1,33 @@
-# V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning
+# EchoJEPA: Video World Models for Cardiac Ultrasound
 
-### Dataset
-- deid_overlap_revamped.ipynb -- combined syngo and heartlab oids with deids (aws_syngo_exclusive_0806.csv, aws_heartlab_0806.csv)
-- starter_labels.ipynb -- building file paths for vjepa2 classifier training (must have s3 uri and value)
-- build_manifests.ipynb -- build file manifests on s3 for classification into different views (all_es_combined.parquet)
-- data/build_pacemaker_dataset.ipynb -- building a4c pacemaker dataset (+ tiny subset) for fast iteration
-- build_dataset.ipynb -- building labeled datasets for vjepa2 classifier training in ssv2 format
-- identifiers.ipynb -- heartlab mapping to deidentified studies (patient_to_study.csv)
-- heartlab_link.ipynb -- link heartlab reports, studies, and series to videos (heartlab_rep_study_video.csv)
-- deid_overlap.ipynb -- overlap of syngo deid keys with data on AWS (aws_uhn.csv)
+### LVEF Inference
+
+EchoJEPA Inference (336px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_inference_0123.log
+```
+
+EchoJEPA Multi-level Inference (336px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef_336multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_336multi_inference_0123.log
+```
+
+EchoJEPA Multi-level Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echojepa_224px_multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_224px_multi_infv1.log
+```
+
+EchoPrime Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echoprime_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echoprime_224px_infv1.log
+```
+
+PanEcho Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/panecho_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee panecho_224px_infv1.log
+```
+
+# Training
 
 ### RVSP Regression
 ```
@@ -22,37 +41,22 @@ python -m evals.main \
     --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_regression_multi_336px_0121_v1.log
 ```
 
-Inference
-```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_inference_0123.log
-```
-
-Multi-level inference
-```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef_336multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_336multi_inference_0123.log
-```
-
-Multi-level inference (224px)
-```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echojepa_224px_multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_224px_multi_infv1.log
-```
-
-Echoprime inference (224px)
-```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echoprime_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echoprime_224px_infv1.log
-```
-
-Panecho inference (224px)
-```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/panecho_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee panecho_224px_infv1.log
-```
-
 ### TAPSE Regression
 ```
 python -m evals.main \
     --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/tapse_regression.yaml \
     --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee tapse_regression_0107_v1.log
 ```
+
+### Dataset
+- deid_overlap_revamped.ipynb -- combined syngo and heartlab oids with deids (aws_syngo_exclusive_0806.csv, aws_heartlab_0806.csv)
+- starter_labels.ipynb -- building file paths for vjepa2 classifier training (must have s3 uri and value)
+- build_manifests.ipynb -- build file manifests on s3 for classification into different views (all_es_combined.parquet)
+- data/build_pacemaker_dataset.ipynb -- building a4c pacemaker dataset (+ tiny subset) for fast iteration
+- build_dataset.ipynb -- building labeled datasets for vjepa2 classifier training in ssv2 format
+- identifiers.ipynb -- heartlab mapping to deidentified studies (patient_to_study.csv)
+- heartlab_link.ipynb -- link heartlab reports, studies, and series to videos (heartlab_rep_study_video.csv)
+- deid_overlap.ipynb -- overlap of syngo deid keys with data on AWS (aws_uhn.csv)
 
 
 
