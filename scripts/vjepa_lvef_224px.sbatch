@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p ml.p5e.48xlarge
+#SBATCH -p partition-1
 #SBATCH -N 1
 #SBATCH --gres=gpu:8
 #SBATCH --ntasks-per-node=1
@@ -60,6 +60,7 @@ RUN_S3="${S3_BASE}/runs/vjepa_lvef_224px_${SLURM_JOB_ID}"
 
 # === LOGGING & TRAPS ===
 upload_logs() {
+  # Upload master logs (stdout/stderr)
   aws s3 cp "/tmp/vjepa_224px-lvef-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/job.out" --region us-west-2 2>/dev/null || true
   aws s3 cp "/tmp/vjepa_224px-lvef-${SLURM_JOB_ID}.err" "${RUN_S3}/logs/job.err" --region us-west-2 2>/dev/null || true
 }
@@ -149,7 +150,7 @@ mkdir -p "$(dirname "$ENC_CKPT_REL")"
 aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_REL" --region us-west-2
 
 # === PARSE OUTPUT FOLDER ===
-# FIX: Export the variable so Python can see it
+# FIX: Export variable so Python can see it
 export CFG_REL 
 
 CFG_FOLDER="$(python - <<'PY'
@@ -184,6 +185,29 @@ echo "[INFO] Detected ${GPU_COUNT} GPUs: ${DEVICES[*]}"
 
 RUNLOG="lvef_train_${SLURM_JOB_ID}.log"
 
+# === BACKGROUND SYNC (INTERMITTENT) ===
+echo "[INFO] Starting background sync process (Every 10 mins)..."
+(
+    while true; do
+        sleep 600
+        # Sync Output Folder (Checkpoints, etc.)
+        aws s3 sync "$CFG_FOLDER" "${RUN_S3}/training_folder/" \
+            --exclude "*.pth" \
+            --include "*.pt" \
+            --include "*.csv" \
+            --include "*.log" \
+            --include "*.json" \
+            --region us-west-2 > /dev/null 2>&1 || true
+            
+        # Sync Training Log
+        if [ -f "$RUNLOG" ]; then
+            aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" --region us-west-2 > /dev/null 2>&1 || true
+        fi
+    done
+) &
+SYNC_PID=$!
+# ======================================
+
 set +e
 python -m evals.main \
   --fname "$CFG_REL" \
@@ -192,8 +216,12 @@ python -m evals.main \
 RC=${PIPESTATUS[0]}
 set -e
 
-# === UPLOAD ARTIFACTS ===
-echo "[INFO] Uploading artifacts..."
+# Stop background sync
+kill $SYNC_PID 2>/dev/null || true
+wait $SYNC_PID 2>/dev/null || true
+
+# === FINAL UPLOAD ===
+echo "[INFO] Uploading final artifacts..."
 
 aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" --region us-west-2 || true
 aws s3 cp "$CFG_REL" "${RUN_S3}/config/run_config.yaml" --region us-west-2 || true
