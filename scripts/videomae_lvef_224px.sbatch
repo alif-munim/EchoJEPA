@@ -38,7 +38,7 @@ CFG_REL="configs/eval/vitg-384/lvef/videomae_lvef.yaml"
 
 # 2. Data Paths
 TRAIN_CSV_REL="data/csv/a4c_b_lvef_train_224px.csv"
-VAL_CSV_REL="data/csv/a4c_b_lvef_val_224px.csv"
+VAL_CSV_REL="data/csv/a4c_b_lvef_val_224px_256.csv"
 
 TRAIN_CSV_S3="${S3_BASE}/${TRAIN_CSV_REL}"
 VAL_CSV_S3="${S3_BASE}/${VAL_CSV_REL}"
