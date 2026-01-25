@@ -26,7 +26,7 @@ S3_BASE="s3://${ART_BUCKET}/vjepa2-artifacts"
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
 CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
-RUN_S3="${S3_BASE}/runs/${SLURM_JOB_ID}"
+RUN_S3="${S3_BASE}/runs/vjepa_mimic_pretrain_${SLURM_JOB_ID}"
 
 # Data & Config (S3) - UPDATED: new config for continuation from epoch 90
 CSV_S3="${S3_BASE}/data/csv/mimic_annotations_s3.csv"

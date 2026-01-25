@@ -21,7 +21,7 @@ predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/lvef_3
 
 # POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
 # Based on your previous config, it should be here:
-probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitg-384/lvef_regression/video_classification_frozen/lvef-a4c-regression-vitg16-336-16f-pt280-an81-fs2-ns2-regression-multilevel-336px/epoch_004.pt
+probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitg-384/lvef_regression/video_classification_frozen/lvef-a4c-regression-vitg16-336-16f-pt280-an81-fs2-ns2-regression-multilevel-336px/epoch_006.pt
 
 experiment:
   classifier:
