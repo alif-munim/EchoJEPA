@@ -1,4 +1,4 @@
-# configs/train/vitl16/pretrain-mimic-224px-16f-cont90.yaml
+# configs/train/vitl16/pretrain-mimic-224px-16f-cont120.yaml
 app: vjepa
 nodes: 1
 tasks_per_node: 8
@@ -66,7 +66,7 @@ meta:
   load_checkpoint: false
   read_checkpoint: null
   save_every_freq: 10
-  seed: 42
+  seed: 83
   use_sdpa: true
 model:
   model_name: vit_large
