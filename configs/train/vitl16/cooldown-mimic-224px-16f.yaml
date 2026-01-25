@@ -1,3 +1,4 @@
+# configs/train/vitl16/cooldown-mimic-224px-16f.yaml
 app: vjepa
 nodes: 1
 tasks_per_node: 8

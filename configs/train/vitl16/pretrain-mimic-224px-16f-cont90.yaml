@@ -1,4 +1,4 @@
-# configs/train/vitl16/pretrain-mimic-224px-16f.yaml
+# configs/train/vitl16/pretrain-mimic-224px-16f-cont90.yaml
 app: vjepa
 nodes: 1
 tasks_per_node: 8
@@ -81,7 +81,7 @@ model:
   zero_init_mask_tokens: true
 optimization:
   is_anneal: false # set true init linear decay schedule, otherwise cosine decay
-  force_load_pretrain: false # force loading of vitl ckpt, set to false if you have latest.pt and are resuming
+  force_load_pretrain: true # force loading of vitl ckpt, set to false if you have latest.pt and are resuming
   anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitl.pt
     
   # EMA, WD as in V-JEPA2 recipe
