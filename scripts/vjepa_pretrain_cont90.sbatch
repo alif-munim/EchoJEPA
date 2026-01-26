@@ -28,7 +28,7 @@ CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 RUN_S3="${S3_BASE}/runs/vjepa_mimic_pretrain_${SLURM_JOB_ID}"
 
-# Data & Config (S3) - UPDATED: new config for continuation from epoch 130
+# Data & Config (S3) - UPDATED: new config for continuation from epoch 150
 CSV_S3="${S3_BASE}/data/csv/mimic_annotations_s3.csv"
 CFG_S3="${S3_BASE}/configs/train/vitl16/pretrain-mimic-224px-16f.yaml"
 CFG_REL="configs/train/vitl16/pretrain-mimic-224px-16f.yaml"
@@ -37,8 +37,7 @@ CFG_REL="configs/train/vitl16/pretrain-mimic-224px-16f.yaml"
 VITL_RAW_S3="${S3_BASE}/checkpoints/vitl_raw.pth"
 
 # RESUME CHECKPOINT: epoch 130 from previous run
-# s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/vjepa_mimic_pretrain_129/training_folder/log_r7.csv
-RESUME_CKPT_S3="${S3_BASE}/runs/vjepa_mimic_pretrain_137/training_folder/e150.pt"
+RESUME_CKPT_S3="${S3_BASE}/runs/vjepa_mimic_pretrain_137/training_folder/e144.pt"
 
 # Define Log Name Globally
 RUNLOG="train_vitl_${SLURM_JOB_ID}.log"
