@@ -4,12 +4,12 @@
 
 EchoJEPA Inference (336px)
 ```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_inference_0123.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echojepa_336px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_inference_0123.log
 ```
 
 EchoJEPA Multi-level Inference (336px)
 ```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef_336multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_336multi_inference_0123.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echojepa_336px_multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_336multi_inference_ep6.log
 ```
 
 EchoJEPA Multi-level Inference (224px)
@@ -27,6 +27,85 @@ PanEcho Inference (224px)
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/panecho_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee panecho_224px_infv1.log
 ```
 
+### RVSP Inference
+
+EchoJEPA Inference (336px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/rvsp/echojepa_336px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_336px_rvsp_v1.log
+```
+
+EchoJEPA Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/rvsp/echojepa_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_224px_rvsp_v1.log
+```
+
+PanEcho Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/rvsp/panecho_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee panecho_224px_rvsp_v1.log
+```
+
+EchoPrime Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/rvsp/echoprime_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echoprime_224px_rvsp_v1.log
+```
+
+VideoMAE Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/rvsp/videomae_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee videomae_224px_rvsp_v1.log
+```
+
+
+
+
+# Probe Tests
+
+
+```
+conda activate vjepa2-312
+cd ~/user-default-efs/vjepa2
+python -m evals.main \
+    --fname configs/eval/vitg-384/lvef/mini_exp/vjepa_lvef_224px_pt230_an10.yaml \
+    --devices cuda:0 cuda:1 2>&1 | tee echojepa_L_pt230_an10_8k.log
+```
+
+```
+conda activate vjepa2-312
+cd ~/user-default-efs/vjepa2
+export MASTER_PORT=29501  
+python -m evals.main \
+    --fname configs/eval/vitg-384/lvef/mini_exp/vjepa_lvef_224px_pt150.yaml \
+    --devices cuda:2 cuda:3 2>&1 | tee echojepa_L_pt150_8k.log
+```
+
+```
+conda activate vjepa2-312
+cd ~/user-default-efs/vjepa2
+export MASTER_PORT=29502  
+python -m evals.main \
+    --fname configs/eval/vitg-384/lvef/mini_exp/vjepa_lvef_224px_pt90.yaml \
+    --devices cuda:4 cuda:5 2>&1 | tee echojepa_L_pt90_8k.log
+```
+
+```
+conda activate vjepa2-312
+cd ~/user-default-efs/vjepa2
+export MASTER_PORT=29503 
+python -m evals.main \
+    --fname configs/eval/vitg-384/lvef/mini_exp/vjepa_lvef_224px_pt70.yaml \
+    --devices cuda:6 cuda:7 2>&1 | tee echojepa_L_pt70_8k.log
+```
+
+```
+conda activate vjepa2-312
+cd ~/user-default-efs/vjepa2
+export MASTER_PORT=29503 
+python -m evals.main \
+    --fname configs/eval/vitg-384/lvef/mini_exp/vjepa_lvef_224px_pt230_an30.yaml \
+    --devices cuda:7 2>&1 | tee echojepa_L_pt230_an30_8k.log
+```
+
+
+
 # Training
 
 ### RVSP Regression
@@ -34,11 +113,30 @@ python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/config
 python -m evals.main --fname configs/eval/vitg-384/rvsp_regression.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee multi_rvsp_0122_v1.log
 ```
 
+```
+python -m evals.main --fname configs/eval/vitg-384/rvsp/echojepa_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa-g_rvsp_224px.log
+```
+
+```
+python -m evals.main --fname configs/eval/vitg-384/rvsp/echoprime_rvsp.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echoprime_rvsp_224px.log
+```
+
+VideoMAE
+```
+python -m evals.main --fname configs/eval/vitg-384/rvsp/videomae_rvsp.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee videomae_rvsp_224px.log
+```
+
 ### LVEF Regression
 ```
 python -m evals.main \
     --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef_regression.yaml \
     --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_regression_multi_336px_0121_v1.log
+```
+
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef/vjepa_lvef_224px.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_regression_vjepa_224px_ep7cont.log
 ```
 
 ### TAPSE Regression

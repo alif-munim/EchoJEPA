@@ -1,0 +1,72 @@
+# INFERENCE CONFIG
+app: vjepa
+cpus_per_task: 32
+# Output folder for inference logs (separate from training to avoid overwrite)
+folder: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitg-384/rvsp_inference
+mem_per_gpu: 80G
+nodes: 1
+tasks_per_node: 8
+num_workers: 8
+
+# Use the same evaluation infrastructure
+eval_name: video_classification_frozen_multi
+resume_checkpoint: true # <--- CHANGE THIS TO TRUE, OTHERWISE RANDOM WEIGHTS
+# Use a new tag for inference results
+tag: rvsp-panecho-224px-test
+
+# --- CRITICAL INFERENCE SETTINGS ---
+val_only: true
+# Path where the predictions CSV will be saved
+predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/panecho_224px_rvsp_test_predictions.csv
+
+# POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
+probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/rvsp/panecho_224px.pt
+
+experiment:
+  classifier:
+    task_type: regression      # NEW: Specify regression task  
+    num_heads: 16           # changed from 16 / <-- must divide 1408 (ViT-G). Valid: 16, 22, 32, 44...
+    num_probe_blocks: 4     # changed from 4
+    use_slot_embeddings: true   # default false keeps old behavior
+    num_views: 2
+    clips_per_view: 2
+    use_factorized: true
+    num_targets: 1            # CHANGED: Replace num_classes with num_targets  
+
+  data:
+    dataset_type: VideoGroupDataset
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/rvsp_train.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/rvsp_val.csv
+    num_classes: 1           # IMPORTANT: 1 for regression
+    resolution: 224 
+    frames_per_clip: 16      # change to 32 to match anneal, 16 to match pretrain
+    frame_step: 1            # change to 2 --> ~1.28 s coverage on ~50 fps; use step:1 (~0.64 s) if you want tighter windows; original fpc16xfs3=48
+    num_segments: 2          # Number of videos per group  
+    num_clips_per_video: 2   # Number of clips from each video 
+    num_views_per_segment: 1 # one spatial crop (reduce stochasticity); for echo—spatial variation is low; temporal coverage more important
+    
+    target_mean: 34.4650
+    target_std: 14.0130
+
+  optimization:
+    # Increase batch size for inference
+    batch_size: 4
+    
+    # Zero out learning rates (safety)
+    multihead_kwargs:
+    - final_lr: 0.0
+      final_weight_decay: 0.0
+      lr: 0.0
+      start_lr: 0.0
+      warmup: 0.0
+      weight_decay: 0.0
+
+    num_epochs: 1
+    use_bfloat16: true
+    use_pos_embed: false
+
+model_kwargs:
+  checkpoint: null  # Not used for PanEcho
+  module_name: evals.video_classification_frozen.modelcustom.panecho_encoder
+  pretrain_kwargs: {}  # Not used for PanEcho
+  wrapper_kwargs: {}  # Additional wrapper parameters if needed

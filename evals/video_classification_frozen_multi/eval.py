@@ -902,6 +902,26 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
 
     # -- loading classifier(s)
     pretrained_dict = checkpoint["classifiers"]
+    
+    # FIX: Handle DDP module prefix mismatch
+    def fix_state_dict(state_dict, model):
+        """Add or remove 'module.' prefix to match model structure."""
+        model_keys = set(model.state_dict().keys())
+        ckpt_keys = set(state_dict.keys())
+        
+        # Check if model expects module. prefix but checkpoint doesn't have it
+        if any(k.startswith("module.") for k in model_keys) and not any(k.startswith("module.") for k in ckpt_keys):
+            logger.info("Adding 'module.' prefix to checkpoint keys for DDP compatibility")
+            return {"module." + k: v for k, v in state_dict.items()}
+        
+        # Check if checkpoint has module. prefix but model doesn't expect it
+        if any(k.startswith("module.") for k in ckpt_keys) and not any(k.startswith("module.") for k in model_keys):
+            logger.info("Removing 'module.' prefix from checkpoint keys")
+            return {k.replace("module.", ""): v for k, v in state_dict.items()}
+        
+        return state_dict
+    
+    pretrained_dict = [fix_state_dict(pd, c) for pd, c in zip(pretrained_dict, classifiers)]
     msg = [c.load_state_dict(pd) for c, pd in zip(classifiers, pretrained_dict)]
 
     if val_only:
