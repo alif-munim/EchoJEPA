@@ -110,46 +110,49 @@ class ClipAggregation(nn.Module):
             self.pos_embed.copy_(torch.from_numpy(sincos).float().unsqueeze(0))
 
     def forward(self, x, clip_indices=None):
+    num_clips = len(x)              # = 4 (total view×clip combinations)
+    num_views_per_clip = len(x[0])  # = 1 (spatial augmentations)
+    B, C, F, H, W = x[0][0].size()
 
-        num_clips = len(x)
-        num_views_per_clip = len(x[0])
-        B, C, F, H, W = x[0][0].size()
+    # Concatenate all views along batch dimension
+    x = [torch.cat(xi, dim=0) for xi in x]
+    x = torch.cat(x, dim=0)
 
-        # Concatenate all spatial and temporal views along batch dimension
-        x = [torch.cat(xi, dim=0) for xi in x]
-        x = torch.cat(x, dim=0)
+    outputs = self.model(x)
+    outputs = torch.cat(outputs, dim=1)  # Multi-layer concat: [B*num_clips*num_views, N, D]
 
-        outputs = self.model(x)
-        outputs = torch.cat(outputs, dim=1)
+    def multiviews_postprocess(outputs):
+        _, N, D = outputs.size()
+        T = F // self.tubelet_size
+        S = N // T
 
-        def multiviews_postprocess(outputs):
-            _, N, D = outputs.size()
-            T = F // self.tubelet_size  # num temporal indices
-            S = N // T  # num spatial tokens
+        eff_B = B * num_views_per_clip
+        
+        # Return L = num_clips separate slot tensors (one per view×clip)
+        all_outputs = []
+        for i in range(num_clips):
+            o = outputs[i * eff_B : (i + 1) * eff_B]
+            # If multiple spatial views, average them; otherwise just take the single view
+            if num_views_per_clip > 1:
+                o = o.view(num_views_per_clip, B, N, D).mean(dim=0)  # [B, N, D]
+            else:
+                o = o  # Already [B, N, D]
+            
+            # Optional: add positional embedding
+            if (self.pos_embed is not None) and (clip_indices is not None):
+                o = o.reshape(B, T, S, D)
+                _indices = clip_indices[i][:, :: self.tubelet_size]
+                pos_embed = self.pos_embed.repeat(B, 1, 1)
+                pos_embed = torch.gather(
+                    pos_embed, 1,
+                    _indices.unsqueeze(-1).expand(-1, -1, D)
+                )
+                pos_embed = pos_embed.unsqueeze(2).expand(-1, -1, S, -1)
+                o = o + pos_embed
+                o = o.flatten(1, 2)
+            
+            all_outputs.append(o)
+        
+        return all_outputs  # List of 4 tensors, each [B, N, D]
 
-            # Unroll outputs into a 2D array [spatial_views x temporal_views]
-            eff_B = B * num_views_per_clip
-            all_outputs = [[] for _ in range(num_views_per_clip)]
-            for i in range(num_clips):
-                o = outputs[i * eff_B : (i + 1) * eff_B]
-                for j in range(num_views_per_clip):
-                    all_outputs[j].append(o[j * B : (j + 1) * B])
-
-            for i, outputs in enumerate(all_outputs):
-                # Concatenate along temporal dimension
-                outputs = [o.reshape(B, T, S, D) for o in outputs]
-                outputs = torch.cat(outputs, dim=1).flatten(1, 2)
-                # Compute positional embedding
-                if (self.pos_embed is not None) and (clip_indices is not None):
-                    _indices = [c[:, :: self.tubelet_size] for c in clip_indices]
-                    pos_embed = self.pos_embed.repeat(B, 1, 1)  # [B, max_T, D]
-                    pos_embed = apply_masks(pos_embed, _indices, concat=False)  # list(Tensor([B, T, D]))
-                    pos_embed = torch.cat(pos_embed, dim=1)  # concatenate along temporal dimension
-                    pos_embed = pos_embed.unsqueeze(2).repeat(1, 1, S, 1)  # [B, T*num_clips, S, D]
-                    pos_embed = pos_embed.flatten(1, 2)
-                    outputs += pos_embed
-                all_outputs[i] = outputs
-
-            return all_outputs
-
-        return multiviews_postprocess(outputs)
+    return multiviews_postprocess(outputs)
