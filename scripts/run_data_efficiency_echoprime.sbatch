@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p ml.p5e.48xlarge
+#SBATCH -p partition-1
 #SBATCH -N 1
 #SBATCH --gres=gpu:8
 #SBATCH --ntasks-per-node=1
@@ -42,12 +42,6 @@ TRAIN_FULL_NAME="uhn_views_22k_train.csv"
 VAL_NAME="uhn_views_22k_val.csv"
 TRAIN_FULL_S3="${S3_BASE}/data/csv/${TRAIN_FULL_NAME}"
 VAL_S3="${S3_BASE}/data/csv/${VAL_NAME}"
-
-# Pretrained Backbone (VideoMAE)
-# S3 Source: The specific run checkpoint you identified
-# ENC_CKPT_S3="${S3_BASE}/runs/videomae_115/training_folder/checkpoint-163.pth"
-# Local Dest: Where we save it on disk
-# ENC_CKPT_LOCAL="/opt/dlami/nvme/checkpoints/videomae_vitl_pretrain.pth"
 
 # Base Config (Relative path inside code.tar)
 BASE_CFG_REL="configs/eval/vitg-384/view/echoprime_view_classification.yaml"
@@ -134,7 +128,9 @@ for r in roots:
 PY
 
 # Install Code
+# [FIX] Added opencv-python-headless which is often needed for video loaders
 pip install -e . --no-deps --no-build-isolation || true
+pip install opencv-python-headless
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # ==============================================================================
@@ -146,13 +142,8 @@ mkdir -p data/csv
 aws s3 cp "$TRAIN_FULL_S3" "data/csv/${TRAIN_FULL_NAME}"
 aws s3 cp "$VAL_S3" "data/csv/${VAL_NAME}"
 
-# Download Checkpoint
-# mkdir -p "$(dirname "$ENC_CKPT_LOCAL")"
-# echo "[INFO] Downloading Checkpoint from $ENC_CKPT_S3"
-# aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_LOCAL"
-
 # ==============================================================================
-# 4. VIDEO SYNC & CSV PATCHING (CRITICAL PERFORMANCE STEP)
+# 4. VIDEO SYNC & CSV PATCHING
 # ==============================================================================
 echo "[INFO] Syncing video dataset from S3 to local NVMe..."
 
@@ -173,6 +164,19 @@ sed -i "s|${ESC_S3_PREFIX}|${ESC_LOCAL_DIR}|g" "data/csv/${TRAIN_FULL_NAME}"
 sed -i "s|${ESC_S3_PREFIX}|${ESC_LOCAL_DIR}|g" "data/csv/${VAL_NAME}"
 
 echo "[INFO] Local video cache ready: $LOCAL_VIDEO_DIR"
+
+# ==============================================================================
+# 4.5 ECHOPRIME WEIGHTS SETUP (CRITICAL FIX)
+# ==============================================================================
+echo "[INFO] Setting up EchoPrime weights..."
+EP_DIR="${WORKDIR}/EchoPrime"
+mkdir -p "$EP_DIR"
+
+# Download the public weights from GitHub
+wget -q https://github.com/echonet/EchoPrime/releases/download/v1.0.0/model_data.zip --no-check-certificate -O "${EP_DIR}/model_data.zip"
+unzip -q "${EP_DIR}/model_data.zip" "model_data/weights/*" -d "$EP_DIR"
+
+echo "[INFO] EchoPrime weights ready at ${EP_DIR}/model_data/weights"
 
 # ==============================================================================
 # 5. HELPER SCRIPTS
@@ -217,7 +221,7 @@ if __name__ == "__main__":
     make_stratified_subset(args.input, args.out, args.percent, args.seed, args.min)
 EOF
 
-# Script to inject specific run settings into YAML
+# [FIX] Updated generate_run_config to point to local EchoPrime folder
 cat << 'EOF' > generate_run_config.py
 import yaml, argparse, os
 parser = argparse.ArgumentParser()
@@ -238,7 +242,19 @@ cwd = os.getcwd()
 # --- PATCH PATHS ---
 cfg['experiment']['data']['dataset_train'] = os.path.join(cwd, args.train_csv)
 cfg['experiment']['data']['dataset_val'] = os.path.join(cwd, args.val_csv)
-cfg['model_kwargs']['checkpoint'] = os.path.join(cwd, args.ckpt)
+
+# Explicitly point EchoPrime to the local downloaded weights
+cfg['model_kwargs']['wrapper_kwargs'] = {
+    'echo_prime_root': os.path.join(cwd, 'EchoPrime'),
+    'force_fp32': True,
+    'bin_size': 50
+}
+
+# Only use the checkpoint argument if it's explicitly provided
+if args.ckpt and args.ckpt != "null":
+    cfg['model_kwargs']['checkpoint'] = os.path.join(cwd, args.ckpt)
+else:
+    cfg['model_kwargs']['checkpoint'] = None
 # -------------------
 
 if 'folder' in cfg:
@@ -318,7 +334,8 @@ run_training() {
         --out "$RUN_CFG" \
         --tag "$TAG" \
         --train_csv "$CSV_FILE" \
-        --val_csv "data/csv/${VAL_NAME}"
+        --val_csv "data/csv/${VAL_NAME}" \
+        --ckpt null
 
     local LOG_FILE="logs_${TAG}.txt"
 
