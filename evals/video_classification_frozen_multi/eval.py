@@ -33,6 +33,15 @@ from src.utils.checkpoint_loader import robust_checkpoint_loader
 from src.utils.distributed import AllReduce, init_distributed
 from src.utils.logging import AverageMeter, CSVLogger
 
+import os
+import tempfile  # <-- ADD THIS
+
+# Fix for "AF_UNIX path too long" error
+short_tmp = "/tmp/vjepa_run"
+os.makedirs(short_tmp, exist_ok=True)
+tempfile.tempdir = short_tmp
+os.environ["TMPDIR"] = short_tmp
+
 logging.basicConfig()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -646,7 +655,12 @@ def run_one_epoch(
                 logger.info(f"  > Loaded {len(clips)} distinct views/videos per patient.")
                 logger.info(f"  > View 0 contains {len(clips[0])} temporal clips.")
                 if len(clips[0]) > 0:
-                     logger.info(f"  > Tensor Shape: {clips[0][0].shape}")
+                    logger.info(f"  > Tensor Shape: {clips[0][0].shape}")
+                
+                # ADD THIS: Check total structure
+                total_clips = sum(len(v) for v in clips)
+                logger.info(f"  > Total clips across all views: {total_clips}")
+                logger.info(f"  > Expected by classifier: {num_views} × {clips_per_view} = {num_views * clips_per_view}")
 
             # --------------------------
             
@@ -753,8 +767,8 @@ def run_one_epoch(
                     meter.update(m)
         
                 if val_only and predictions_save_path is not None:
-                    p0 = outs[0].detach().cpu().numpy()
-                    y0 = y.detach().cpu().numpy()
+                    p0 = outs[0].detach().cpu().float().numpy()
+                    y0 = y.detach().cpu().float().numpy()
                     for i in range(B):
                         all_predictions.append(p0[i])
                         all_video_paths.append(video_paths[i])
