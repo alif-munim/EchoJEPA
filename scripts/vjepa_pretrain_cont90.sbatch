@@ -28,17 +28,17 @@ CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 RUN_S3="${S3_BASE}/runs/vjepa_mimic_pretrain_${SLURM_JOB_ID}"
 
-# Data & Config (S3) - UPDATED: new config for continuation from epoch 120
+# Data & Config (S3) - UPDATED: new config for continuation from epoch 130
 CSV_S3="${S3_BASE}/data/csv/mimic_annotations_s3.csv"
-CFG_S3="${S3_BASE}/configs/train/vitl16/pretrain-mimic-224px-16f-cont120.yaml"
-CFG_REL="configs/train/vitl16/pretrain-mimic-224px-16f-cont120.yaml"
+CFG_S3="${S3_BASE}/configs/train/vitl16/pretrain-mimic-224px-16f-cont90.yaml"
+CFG_REL="configs/train/vitl16/pretrain-mimic-224px-16f-cont130.yaml"
 
 # S3 Location of the Raw Checkpoint (for init if needed)
 VITL_RAW_S3="${S3_BASE}/checkpoints/vitl_raw.pth"
 
 # RESUME CHECKPOINT: epoch 120 from previous run
-# s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/vjepa_mimic_pretrain_125/training_folder/log_r7.csv
-RESUME_CKPT_S3="${S3_BASE}/runs/vjepa_mimic_pretrain_125/training_folder/e120.pt"
+# s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/vjepa_mimic_pretrain_129/training_folder/log_r7.csv
+RESUME_CKPT_S3="${S3_BASE}/runs/vjepa_mimic_pretrain_129/training_folder/e130.pt"
 
 # Define Log Name Globally
 RUNLOG="train_vitl_${SLURM_JOB_ID}.log"

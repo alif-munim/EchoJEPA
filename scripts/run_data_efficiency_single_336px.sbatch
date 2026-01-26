@@ -27,7 +27,7 @@ CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # Base Config
-BASE_CFG_REL="configs/eval/vitg-384/view/echojepa_view_classification_336.yaml"
+BASE_CFG_REL="configs/eval/vitg-384/view/echojepa_view_classification_336px.yaml"
 BASE_CFG_S3="${S3_BASE}/${BASE_CFG_REL}"
 
 # Data CSVs
