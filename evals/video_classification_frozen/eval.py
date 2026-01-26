@@ -37,6 +37,15 @@ from src.utils.checkpoint_loader import robust_checkpoint_loader
 from src.utils.distributed import AllReduce, init_distributed
 from src.utils.logging import AverageMeter, CSVLogger
 
+import os
+import tempfile  # <-- ADD THIS
+
+# Fix for "AF_UNIX path too long" error
+short_tmp = "/tmp/vjepa_run"
+os.makedirs(short_tmp, exist_ok=True)
+tempfile.tempdir = short_tmp
+os.environ["TMPDIR"] = short_tmp
+
 # from evals.action_anticipation_frozen.losses import sigmoid_focal_loss
 
 logging.basicConfig()
