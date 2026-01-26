@@ -38,7 +38,7 @@ VITL_RAW_S3="${S3_BASE}/checkpoints/vitl_raw.pth"
 
 # RESUME CHECKPOINT: epoch 130 from previous run
 # s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/vjepa_mimic_pretrain_129/training_folder/log_r7.csv
-RESUME_CKPT_S3="${S3_BASE}/runs/vjepa_mimic_pretrain_129/training_folder/e130.pt"
+RESUME_CKPT_S3="${S3_BASE}/runs/vjepa_mimic_pretrain_125/training_folder/e120.pt"
 
 # Define Log Name Globally
 RUNLOG="train_vitl_${SLURM_JOB_ID}.log"
