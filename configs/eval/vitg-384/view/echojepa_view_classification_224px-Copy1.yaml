@@ -9,7 +9,7 @@ num_workers: 8
 
 eval_name: video_classification_frozen
 resume_checkpoint: false
-tag: uhn22k-classifier-fs2-ns2-nvs1-echojepa-336px-cel
+tag: uhn22k-classifier-echojepa-g-multi
 
 experiment:
   classifier:
@@ -18,10 +18,10 @@ experiment:
 
   data:
     dataset_type: VideoDataset
-    dataset_train: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/data/csv/uhn_views_22k_train.csv
-    dataset_val:   /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/data/csv/uhn_views_22k_val.csv
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_train.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_val.csv
     num_classes: 13
-    resolution: 336
+    resolution: 224
     frames_per_clip: 16
     
     # SAMPLING (Optimized for Cardiac Cycle)
@@ -29,54 +29,53 @@ experiment:
     num_segments: 2         # Efficient temporal coverage
     num_views_per_segment: 1
 
-  optimization:
-    # use_focal_loss: True
-    batch_size: 1
-    # PRUNED GRID (6 Heads Total)
-    multihead_kwargs:
-    # --- Group 1: 1e-4 (Winner) ---
-    - final_lr: 0.0
-      final_weight_decay: 0.01
-      lr: 0.0001
-      start_lr: 0.0001
-      warmup: 0.0
-      weight_decay: 0.01
-    - final_lr: 0.0
-      final_weight_decay: 0.1
-      lr: 0.0001
-      start_lr: 0.0001
-      warmup: 0.0
-      weight_decay: 0.1
-    - final_lr: 0.0
-      final_weight_decay: 0.4
-      lr: 0.0001
-      start_lr: 0.0001
-      warmup: 0.0
-      weight_decay: 0.4
-
-    # --- Group 2: 5e-5 (Stability Check) ---
-    - final_lr: 0.0
-      final_weight_decay: 0.01
-      lr: 0.00005
-      start_lr: 0.00005
-      warmup: 0.0
-      weight_decay: 0.01
-    - final_lr: 0.0
-      final_weight_decay: 0.1
-      lr: 0.00005
-      start_lr: 0.00005
-      warmup: 0.0
-      weight_decay: 0.1
-    - final_lr: 0.0
-      final_weight_decay: 0.4
-      lr: 0.00005
-      start_lr: 0.00005
-      warmup: 0.0
-      weight_decay: 0.4
-      
-    num_epochs: 20
-    use_bfloat16: true
-    use_pos_embed: false
+  optimization:  
+    batch_size: 1  
+    # PRUNED REGRESSION GRID  
+    multihead_kwargs:  
+    # --- Group 1: 1e-4 ---  
+    - final_lr: 0.0  
+      final_weight_decay: 0.01  
+      lr: 0.0001  
+      start_lr: 0.0001  
+      warmup: 0.0  
+      weight_decay: 0.01  
+    - final_lr: 0.0  
+      final_weight_decay: 0.1  
+      lr: 0.0001  
+      start_lr: 0.0001  
+      warmup: 0.0  
+      weight_decay: 0.1  
+    - final_lr: 0.0  
+      final_weight_decay: 0.4  
+      lr: 0.0001  
+      start_lr: 0.0001  
+      warmup: 0.0  
+      weight_decay: 0.4  
+  
+    # --- Group 2: 5e-5 ---  
+    - final_lr: 0.0  
+      final_weight_decay: 0.01  
+      lr: 0.00005  
+      start_lr: 0.00005  
+      warmup: 0.0  
+      weight_decay: 0.01  
+    - final_lr: 0.0  
+      final_weight_decay: 0.1  
+      lr: 0.00005  
+      start_lr: 0.00005  
+      warmup: 0.0  
+      weight_decay: 0.1  
+    - final_lr: 0.0  
+      final_weight_decay: 0.4  
+      lr: 0.00005  
+      start_lr: 0.00005  
+      warmup: 0.0  
+      weight_decay: 0.4  
+        
+    num_epochs: 20  
+    use_bfloat16: true  
+    use_pos_embed: false  
 
 model_kwargs:
   # echo checkpoint

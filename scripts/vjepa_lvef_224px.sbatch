@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=96
 #SBATCH -t 4-12:00:00
 #SBATCH -J vjepa_lvef_224
-#SBATCH -o /tmp/vjepa_224px-lvef-%j.out
-#SBATCH -e /tmp/vjepa_224px-lvef-%j.err
+#SBATCH -o vjepa_224px-lvef-%j.out
+#SBATCH -e vjepa_224px-lvef-%j.err
 
 set -euxo pipefail
 
@@ -55,27 +55,36 @@ VAL_CSV_S3="${S3_BASE}/${VAL_CSV_REL}"
 ENC_CKPT_REL="checkpoints/anneal/keep/pt-280-an81.pt"
 ENC_CKPT_S3="${S3_BASE}/${ENC_CKPT_REL}"
 
+# 4. RESUME CHECKPOINT SOURCE (The one you want to download)
+RESUME_S3_SOURCE="s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/vjepa_lvef_224px_162/training_folder/video_classification_frozen/lvef-a4c-regression-vitg16-336-16f-pt280-an81-fs2-ns2-regression-224px/epoch_007.pt"
+
 # Run Output Location in S3
 RUN_S3="${S3_BASE}/runs/vjepa_lvef_224px_${SLURM_JOB_ID}"
-
-# === LOGGING & TRAPS ===
-upload_logs() {
-  # Upload master logs (stdout/stderr)
-  aws s3 cp "/tmp/vjepa_224px-lvef-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/job.out" --region us-west-2 2>/dev/null || true
-  aws s3 cp "/tmp/vjepa_224px-lvef-${SLURM_JOB_ID}.err" "${RUN_S3}/logs/job.err" --region us-west-2 2>/dev/null || true
-}
-trap 'rc=$?; upload_logs; exit $rc' EXIT
 
 # === HOST SETUP ===
 echo "[INFO] host=$(hostname) job=${SLURM_JOB_ID}"
 nvidia-smi -L || true
 
+# Setup Scratch on NVMe (Critical to avoid filling /tmp)
 SCRATCH="/opt/dlami/nvme"
 if [ ! -d "$SCRATCH" ]; then SCRATCH="/tmp"; fi
 WORKDIR="${SCRATCH}/vjepa_lvef_${SLURM_JOB_ID}"
 mkdir -p "$WORKDIR"
 cd "$WORKDIR"
 echo "[INFO] WORKDIR=$WORKDIR"
+
+# Define Log File in NVMe
+RUNLOG="${WORKDIR}/lvef_train_${SLURM_JOB_ID}.log"
+
+# === LOGGING & TRAPS ===
+upload_logs() {
+  echo "[INFO] Trapped EXIT: Uploading logs..."
+  # Upload the NVMe log file
+  if [ -f "$RUNLOG" ]; then
+      aws s3 cp "$RUNLOG" "${RUN_S3}/logs/job.out" --region us-west-2 2>/dev/null || true
+  fi
+}
+trap 'rc=$?; upload_logs; exit $rc' EXIT
 
 # === SETUP ENVIRONMENT ===
 aws s3 cp "$ENV_S3" env.tar --region us-west-2
@@ -149,33 +158,45 @@ aws s3 cp "$VAL_CSV_S3" "$VAL_CSV_REL" --region us-west-2
 mkdir -p "$(dirname "$ENC_CKPT_REL")"
 aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_REL" --region us-west-2
 
-# === PARSE OUTPUT FOLDER ===
-# FIX: Export variable so Python can see it
+# === PARSE CONFIG (FOLDER & TAG) ===
 export CFG_REL 
 
-CFG_FOLDER="$(python - <<'PY'
+# Parse both 'folder' and 'tag' from the YAML to construct the resume path
+eval $(python - <<'PY'
 import re
 import os
 from pathlib import Path
 
-# Use the environment variable for flexibility
 cfg_rel = os.environ["CFG_REL"]
+folder = ""
+tag = ""
+
 if os.path.exists(cfg_rel):
     t = Path(cfg_rel).read_text()
-    m = re.search(r'^\s*folder:\s*(.+)\s*$', t, re.M)
-    print(m.group(1).strip().strip('"').strip("'") if m else "")
-else:
-    print("")
-PY
-)"
+    
+    # Parse Folder
+    m_folder = re.search(r'^\s*folder:\s*(.+)\s*$', t, re.M)
+    if m_folder:
+        folder = m_folder.group(1).strip().strip('"').strip("'")
+        
+    # Parse Tag
+    m_tag = re.search(r'^\s*tag:\s*(.+)\s*$', t, re.M)
+    if m_tag:
+        tag = m_tag.group(1).strip().strip('"').strip("'")
 
-if [ -z "$CFG_FOLDER" ]; then
-    echo "[ERROR] Could not parse 'folder' from config $CFG_REL"
+print(f"export CFG_FOLDER='{folder}'")
+print(f"export CFG_TAG='{tag}'")
+PY
+)
+
+if [ -z "$CFG_FOLDER" ] || [ -z "$CFG_TAG" ]; then
+    echo "[ERROR] Could not parse 'folder' or 'tag' from config $CFG_REL"
     exit 5
 fi
 
 mkdir -p "$CFG_FOLDER"
-echo "[INFO] Training will output to: $CFG_FOLDER"
+echo "[INFO] Training Output: $CFG_FOLDER"
+echo "[INFO] Experiment Tag:  $CFG_TAG"
 
 # === RUN TRAINING ===
 GPU_COUNT=$(nvidia-smi -L | wc -l)
@@ -183,9 +204,7 @@ DEVICES=()
 for ((i=0; i<GPU_COUNT; i++)); do DEVICES+=("cuda:${i}"); done
 echo "[INFO] Detected ${GPU_COUNT} GPUs: ${DEVICES[*]}"
 
-RUNLOG="lvef_train_${SLURM_JOB_ID}.log"
-
-# === BACKGROUND SYNC (INTERMITTENT) ===
+# === BACKGROUND SYNC ===
 echo "[INFO] Starting background sync process (Every 10 mins)..."
 (
     while true; do
@@ -199,14 +218,48 @@ echo "[INFO] Starting background sync process (Every 10 mins)..."
             --include "*.json" \
             --region us-west-2 > /dev/null 2>&1 || true
             
-        # Sync Training Log
+        # Sync Training Log (from NVMe)
         if [ -f "$RUNLOG" ]; then
-            aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" --region us-west-2 > /dev/null 2>&1 || true
+            aws s3 cp "$RUNLOG" "${RUN_S3}/logs/job_latest.log" --region us-west-2 > /dev/null 2>&1 || true
         fi
     done
 ) &
 SYNC_PID=$!
-# ======================================
+
+# ======================================================
+# === FIX: INJECT CREDENTIALS FROM INSTANCE METADATA ===
+# ======================================================
+echo "[INFO] Refreshing credentials from Instance Metadata..."
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" 2>/dev/null)
+ROLE_NAME=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null)
+CREDS_JSON=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/$ROLE_NAME 2>/dev/null)
+
+export AWS_ACCESS_KEY_ID=$(echo "$CREDS_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['AccessKeyId'])")
+export AWS_SECRET_ACCESS_KEY=$(echo "$CREDS_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['SecretAccessKey'])")
+export AWS_SESSION_TOKEN=$(echo "$CREDS_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['Token'])")
+echo "[INFO] Credentials exported for Python process."
+# ======================================================
+
+# ======================================================
+# === MANUAL CHECKPOINT RESUME ===
+# ======================================================
+# eval.py looks for: os.path.join(folder, "video_classification_frozen", tag, "latest.pt")
+RESUME_DEST_DIR="${CFG_FOLDER}/video_classification_frozen/${CFG_TAG}"
+mkdir -p "$RESUME_DEST_DIR"
+
+echo "[INFO] Downloading Resume Checkpoint from S3..."
+echo "       Src: $RESUME_S3_SOURCE"
+echo "       Dst: ${RESUME_DEST_DIR}/latest.pt"
+
+aws s3 cp "$RESUME_S3_SOURCE" "${RESUME_DEST_DIR}/latest.pt" --region us-west-2
+
+if [ $? -eq 0 ]; then
+    echo "[INFO] Checkpoint downloaded successfully. Training should resume from Epoch 7."
+else
+    echo "[ERROR] Failed to download checkpoint!"
+    exit 1
+fi
+# ======================================================
 
 set +e
 python -m evals.main \
@@ -223,7 +276,7 @@ wait $SYNC_PID 2>/dev/null || true
 # === FINAL UPLOAD ===
 echo "[INFO] Uploading final artifacts..."
 
-aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" --region us-west-2 || true
+aws s3 cp "$RUNLOG" "${RUN_S3}/logs/job_final.log" --region us-west-2 || true
 aws s3 cp "$CFG_REL" "${RUN_S3}/config/run_config.yaml" --region us-west-2 || true
 
 aws s3 sync "$CFG_FOLDER" "${RUN_S3}/training_folder/" \
