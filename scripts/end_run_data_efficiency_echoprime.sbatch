@@ -1,18 +1,18 @@
 #!/bin/bash
-#SBATCH -p ml.p5e.48xlarge
+#SBATCH -p partition-1
 #SBATCH -N 1
 #SBATCH --gres=gpu:8
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=96
 #SBATCH -t 4-12:00:00
-#SBATCH -J echonet_eff
-#SBATCH -o /tmp/vmae_lveff-%j.out
-#SBATCH -e /tmp/vmae_lveff-%j.err
+#SBATCH -J echoprime_eff
+#SBATCH -o /tmp/echoprime_lveff-%j.out
+#SBATCH -e /tmp/echoprime_lveff-%j.err
 
 set -euxo pipefail
 
 # ==============================================================================
-# 0. CREDENTIAL FIX (CRITICAL)
+# 0. CREDENTIAL FIX
 # ==============================================================================
 unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 rm -rf ~/.aws
@@ -37,24 +37,20 @@ ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
 CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
-# Data CSVs (Using the S3 versions you created)
+# Data CSVs
 TRAIN_FULL_NAME="echonet_dynamic_train_s3.csv"
 VAL_NAME="echonet_dynamic_val_s3.csv"
 TRAIN_FULL_S3="${S3_BASE}/data/csv/${TRAIN_FULL_NAME}"
 VAL_S3="${S3_BASE}/data/csv/${VAL_NAME}"
 
-# Pretrained Backbone (VideoMAE)
-ENC_CKPT_S3="${S3_BASE}/runs/videomae_115/training_folder/checkpoint-163.pth" 
-ENC_CKPT_LOCAL="/opt/dlami/nvme/checkpoints/videomae_vitl_pretrain.pth"
-
 # Base Config (Relative path inside code.tar)
-BASE_CFG_REL="configs/eval/vitg-384/lvef/end_videomae_lvef.yaml"
+BASE_CFG_REL="configs/eval/vitg-384/lvef/end_echoprime_lvef.yaml"
 
 # Video Dataset Location (S3 -> Local NVMe)
 VIDEO_S3_PREFIX="${S3_BASE}/data/EchoNet-Dynamic/Videos"
 
 # Output S3 Location for this specific job
-JOB_S3="${S3_BASE}/runs/efficiency_exp_echonet_${SLURM_JOB_ID}"
+JOB_S3="${S3_BASE}/runs/efficiency_exp_echoprime_${SLURM_JOB_ID}"
 
 # ==============================================================================
 # 2. SETUP & HYDRATION
@@ -63,8 +59,8 @@ JOB_S3="${S3_BASE}/runs/efficiency_exp_echonet_${SLURM_JOB_ID}"
 # Error Trap & Log Upload
 upload_logs() {
   echo "[INFO] Uploading master logs..."
-  aws s3 cp "/tmp/echonet_eff-${SLURM_JOB_ID}.out" "${JOB_S3}/logs/master.out" 2>/dev/null || true
-  aws s3 cp "/tmp/echonet_eff-${SLURM_JOB_ID}.err" "${JOB_S3}/logs/master.err" 2>/dev/null || true
+  aws s3 cp "/tmp/echoprime_lveff-${SLURM_JOB_ID}.out" "${JOB_S3}/logs/master.out" 2>/dev/null || true
+  aws s3 cp "/tmp/echoprime_lveff-${SLURM_JOB_ID}.err" "${JOB_S3}/logs/master.err" 2>/dev/null || true
 
   if [ -n "${REFRESH_PID:-}" ]; then
     echo "Killing Background Service (PID $REFRESH_PID)"
@@ -79,7 +75,7 @@ nvidia-smi -L || true
 # Workspace Setup (Prefer NVMe)
 SCRATCH="/opt/dlami/nvme"
 if [ ! -d "$SCRATCH" ]; then SCRATCH="/tmp"; fi
-WORKDIR="${SCRATCH}/echonet_eff_${SLURM_JOB_ID}"
+WORKDIR="${SCRATCH}/echoprime_eff_${SLURM_JOB_ID}"
 mkdir -p "$WORKDIR"
 cd "$WORKDIR"
 echo "[INFO] WORKDIR=$WORKDIR"
@@ -108,7 +104,7 @@ if [ ! -f "$BASE_CFG_REL" ]; then
     exit 1
 fi
 
-# Path Patching (Studio -> Cluster) AND FIX FOR PYTORCH 2.6
+# Path Patching (Studio -> Cluster) + PyTorch 2.6 Fix
 python - <<'PY'
 from pathlib import Path
 import os, re
@@ -116,7 +112,6 @@ repo = os.getcwd()
 studio = "/home/sagemaker-user/user-default-efs/vjepa2"
 efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
 
-# ADDED "evals" to roots so it finds the file causing the error
 roots = ["src", "configs", "evals"]
 
 for r in roots:
@@ -126,15 +121,22 @@ for r in roots:
         if f.suffix in {".yaml", ".py"} and f.is_file():
             try:
                 t = f.read_text()
-                # 1. Path Fixes
+                
+                # 1. Standard Path Fixes
                 t2 = t.replace(studio, repo)
                 t2 = efs_pat.sub(repo, t2)
                 
                 # 2. PyTorch 2.6 Fix: Disable weights_only for trusted checkpoints
-                if 'torch.load(checkpoint, map_location="cpu")' in t2:
-                    print(f"Patching torch.load in {f}")
-                    t2 = t2.replace('torch.load(checkpoint, map_location="cpu")', 'torch.load(checkpoint, map_location="cpu", weights_only=False)')
-                
+                if 'torch.load' in t2 and 'weights_only' not in t2:
+                    t2 = t2.replace('torch.load(checkpoint, map_location="cpu")', 
+                                    'torch.load(checkpoint, map_location="cpu", weights_only=False)')
+                    # Catch cases where map_location isn't specified exactly like above
+                    t2 = t2.replace('torch.load(f, map_location=map_location)', 
+                                    'torch.load(f, map_location=map_location, weights_only=False)')
+                    # Specific to EchoPrime loader
+                    t2 = t2.replace('torch.load(encoder_ckpt, map_location="cpu")', 
+                                    'torch.load(encoder_ckpt, map_location="cpu", weights_only=False)')
+
                 if t2 != t:
                     f.write_text(t2)
             except: pass
@@ -145,7 +147,7 @@ pip install -e . --no-deps --no-build-isolation || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # ==============================================================================
-# 3. DOWNLOAD DATA & CHECKPOINT
+# 3. DOWNLOAD DATA & ECHOPRIME WEIGHTS
 # ==============================================================================
 
 # Download CSVs
@@ -153,13 +155,20 @@ mkdir -p data/csv
 aws s3 cp "$TRAIN_FULL_S3" "data/csv/${TRAIN_FULL_NAME}"
 aws s3 cp "$VAL_S3" "data/csv/${VAL_NAME}"
 
-# Download Checkpoint
-mkdir -p "$(dirname "$ENC_CKPT_LOCAL")"
-echo "[INFO] Downloading Checkpoint from $ENC_CKPT_S3"
-aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_LOCAL"
+# --- ECHOPRIME WEIGHTS SETUP (ADDED FROM REFERENCE SCRIPT) ---
+echo "[INFO] Setting up EchoPrime weights..."
+EP_DIR="${WORKDIR}/EchoPrime"
+mkdir -p "$EP_DIR"
+
+# Download from GitHub Release
+wget -q https://github.com/echonet/EchoPrime/releases/download/v1.0.0/model_data.zip --no-check-certificate -O "${EP_DIR}/model_data.zip"
+unzip -q "${EP_DIR}/model_data.zip" "model_data/weights/*" -d "$EP_DIR"
+
+echo "[INFO] EchoPrime weights ready at ${EP_DIR}/model_data/weights"
+# -------------------------------------------------------------
 
 # ==============================================================================
-# 4. VIDEO SYNC & CSV PATCHING (CRITICAL PERFORMANCE STEP)
+# 4. VIDEO SYNC & CSV PATCHING
 # ==============================================================================
 echo "[INFO] Syncing video dataset from S3 to local NVMe..."
 
@@ -171,11 +180,9 @@ aws s3 sync "$VIDEO_S3_PREFIX" "$LOCAL_VIDEO_DIR" --quiet
 
 echo "[INFO] Patching CSVs to point to local video files..."
 
-# Prepare escape strings for sed replacement
 ESC_S3_PREFIX=$(printf '%s\n' "$VIDEO_S3_PREFIX" | sed 's:[][\/.^$*]:\\&:g')
 ESC_LOCAL_DIR=$(printf '%s\n' "${LOCAL_VIDEO_DIR}" | sed 's:[][\/.^$*]:\\&:g')
 
-# Update CSVs in place
 sed -i "s|${ESC_S3_PREFIX}|${ESC_LOCAL_DIR}|g" "data/csv/${TRAIN_FULL_NAME}"
 sed -i "s|${ESC_S3_PREFIX}|${ESC_LOCAL_DIR}|g" "data/csv/${VAL_NAME}"
 
@@ -185,7 +192,7 @@ echo "[INFO] Local video cache ready: $LOCAL_VIDEO_DIR"
 # 5. HELPER SCRIPTS
 # ==============================================================================
 
-# Script to subset data for 1% and 10% runs (UPDATED FOR REGRESSION)
+# Stratified Subset Script
 cat << 'EOF' > make_stratified_subset.py
 import argparse, random, os, math
 from collections import defaultdict
@@ -193,14 +200,12 @@ from collections import defaultdict
 def make_stratified_subset(input_path, output_path, percentage, seed=42, min_per_class=1):
     with open(input_path, 'r') as f: lines = f.readlines()
     
-    # FOR REGRESSION: Bin the float targets to simulate "classes" for stratification
     label_to_lines = defaultdict(list)
     for line in lines:
         parts = line.strip().split()
         if len(parts) >= 2:
             try:
                 val = float(parts[1])
-                # Create a bin key, e.g., 55.2 -> 55, 62.1 -> 60
                 bin_key = int(val / 5) * 5
                 label_to_lines[bin_key].append(line)
             except ValueError:
@@ -233,7 +238,7 @@ if __name__ == "__main__":
     make_stratified_subset(args.input, args.out, args.percent, args.seed, args.min)
 EOF
 
-# Script to inject specific run settings into YAML
+# Config Generator (Updated to handle null checkpoints and EchoPrime Root)
 cat << 'EOF' > generate_run_config.py
 import yaml, argparse, os
 parser = argparse.ArgumentParser()
@@ -242,7 +247,7 @@ parser.add_argument("--out", required=True)
 parser.add_argument("--tag", required=True)
 parser.add_argument("--train_csv", required=True)
 parser.add_argument("--val_csv", required=True)
-parser.add_argument("--ckpt", required=True)
+parser.add_argument("--ckpt", default="None")
 args = parser.parse_args()
 
 with open(args.base) as f:
@@ -254,7 +259,13 @@ cwd = os.getcwd()
 # --- PATCH PATHS ---
 cfg['experiment']['data']['dataset_train'] = os.path.join(cwd, args.train_csv)
 cfg['experiment']['data']['dataset_val'] = os.path.join(cwd, args.val_csv)
-cfg['model_kwargs']['checkpoint'] = os.path.join(cwd, args.ckpt)
+
+# Only overwrite checkpoint if one is provided
+if args.ckpt != "None" and args.ckpt != "null":
+    cfg['model_kwargs']['checkpoint'] = os.path.join(cwd, args.ckpt)
+
+# FORCE EchoPrime Root to the downloaded directory
+cfg['model_kwargs']['wrapper_kwargs']['echo_prime_root'] = os.path.join(cwd, 'EchoPrime')
 # -------------------
 
 if 'folder' in cfg:
@@ -316,9 +327,9 @@ run_training() {
     local CSV_FILE=$3
 
     if [ "$SEED" == "none" ]; then
-        local TAG="echonet_lvef_${PCT_NAME}"
+        local TAG="echoprime_lvef_${PCT_NAME}"
     else
-        local TAG="echonet_lvef_${PCT_NAME}_s${SEED}"
+        local TAG="echoprime_lvef_${PCT_NAME}_s${SEED}"
     fi
 
     echo "------------------------------------------------------------------"
@@ -335,7 +346,7 @@ run_training() {
         --tag "$TAG" \
         --train_csv "$CSV_FILE" \
         --val_csv "data/csv/${VAL_NAME}" \
-        --ckpt "$ENC_CKPT_LOCAL"
+        --ckpt "None"
 
     local LOG_FILE="logs_${TAG}.txt"
 
