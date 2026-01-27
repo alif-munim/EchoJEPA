@@ -61,6 +61,17 @@ VideoMAE Inference (224px)
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/rvsp/videomae_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee videomae_224px_rvsp_v1.log
 ```
 
+### EchoNet-Dynamic
+
+EchoJEPA Inference (112px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef/echojepa_336px_end.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_336px_end_v1.log
+```
+
+EchoJEPA Inference (336px, Multi-Level)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef/echojepa_336px_multi_end.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_336px_multi_end_v1.log
+```
 
 
 
