@@ -1,5 +1,34 @@
 # EchoJEPA: Video World Models for Cardiac Ultrasound
 
+### Classification Inference
+
+EchoJEPA Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/view/echojepa_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_224px_classification.log
+```
+
+EchoJEPA Inference (224px, Multi)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/view/echojepa_224px_multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_224px_multi_classification.log
+```
+
+VideoMAE Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/view/videomae_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee videomae_224px_classification.log
+```
+
+EchoPrime Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/view/echoprime_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echoprime_224px_classification.log
+```
+
+PanEcho Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/view/panecho_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee panecho_224px_classification.log
+```
+
+
+
 ### LVEF Inference
 
 EchoJEPA Inference (336px)
@@ -30,6 +59,39 @@ python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/config
 VideoMAE Inference (224px)
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/videomae_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee videomae_224px_lvef_v1.log
+```
+
+### Noisy LVEF Inference (EchoNet-Dynamic)
+
+EchoJEPA Inference (336px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/depth_attenuation/echojepa_336px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_echonet_depth_attenuation_1p5.out
+```
+
+EchoJEPA Inference (336px, Multi)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/depth_attenuation/echojepa_336px_multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_multi_echonet_depth_attenuation_1p5.out
+```
+
+EchoPrime Inference (336px, Multi)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/depth_attenuation/echoprime_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_multi_echonet_depth_attenuation_1p5.out
+```
+
+### LVEF Inference (EchoNet-Dynamic)
+
+EchoJEPA Inference (336px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-dynamic/echojepa.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_echonet_dynamic.out
+```
+
+EchoJEPA Inference (336px, Multi)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-dynamic/echojepa_multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_multi_echonet_dynamic.out
+```
+EchoPrime Inference
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-dynamic/echoprime.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echoprime_echonet_dynamic.out
 ```
 
 

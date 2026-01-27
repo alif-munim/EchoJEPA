@@ -1,0 +1,57 @@
+# INFERENCE CONFIG for UHN22K probe  
+app: vjepa  
+cpus_per_task: 32  
+folder: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/classifier  
+mem_per_gpu: 80G  
+nodes: 1  
+tasks_per_node: 8  
+num_workers: 8  
+  
+eval_name: video_classification_frozen  
+resume_checkpoint: true  
+tag: uhn22k-classifier-videomae-224px
+val_only: true  # Critical: enables inference-only mode  
+predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/predictions/uhn22k-classifier-videomae-224px.csv  # NEW
+probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/classification/videomae_224px.pt
+  
+experiment:  
+  classifier:  
+    num_heads: 16  
+    num_probe_blocks: 4  
+  
+  data:  
+    dataset_type: VideoDataset  
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_test.csv  # CHANGE DATASET
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_test.csv   # CHANGE DATASET
+    num_classes: 13  # CHANGE NUM CLASSES
+    resolution: 224  
+    frames_per_clip: 16  
+    frame_step: 2  
+    num_segments: 2  
+    num_views_per_segment: 1
+
+  optimization:
+    # Increase batch size for inference
+    batch_size: 4
+    
+    # Zero out learning rates (safety)
+    multihead_kwargs:
+    - final_lr: 0.0
+      final_weight_decay: 0.0
+      lr: 0.0
+      start_lr: 0.0
+      warmup: 0.0
+      weight_decay: 0.0
+
+    num_epochs: 1
+    use_bfloat16: true
+    use_pos_embed: false
+
+model_kwargs:
+  checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/videomae-ep163.pt
+  module_name: evals.video_classification_frozen.modelcustom.videomae_encoder
+  pretrain_kwargs:
+    encoder:
+      model_name: vit_large_patch16_224
+      tubelet_size: 2
+  wrapper_kwargs: {}
