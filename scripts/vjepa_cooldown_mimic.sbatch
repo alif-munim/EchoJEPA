@@ -38,8 +38,8 @@ CFG_REL="configs/train/vitl16/cooldown-mimic-224px-16f.yaml"
 CFG_S3="${S3_BASE}/${CFG_REL}"
 
 # === CHECKPOINT SETUP (COOLDOWN) ===
-# S3 Location of the Checkpoint to resume from (Run 55, Epoch 230)
-INIT_CKPT_S3="${S3_BASE}/runs/55/training_folder/e230.pt"
+# UPDATED: S3 Location of the Checkpoint to resume from (Pretrain 150, Epoch 210)
+INIT_CKPT_S3="${S3_BASE}/runs/vjepa_mimic_pretrain_150/training_folder/e210.pt"
 
 # Define Log Name Globally
 RUNLOG="train_vitl_cooldown_${SLURM_JOB_ID}.log"
@@ -59,7 +59,7 @@ upload_logs() {
   echo "[INFO] Uploading Logs..."
   aws s3 cp "/tmp/vjepa2_cooldown-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/job.out" --only-show-errors || true
   aws s3 cp "/tmp/vjepa2_cooldown-${SLURM_JOB_ID}.err" "${RUN_S3}/logs/job.err" --only-show-errors || true
-   
+    
   if [ -f "$RUNLOG" ]; then
       aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" --only-show-errors || true
   fi
@@ -112,11 +112,9 @@ cd "${REPO_DIR}"
 pip install -e . --no-deps --no-build-isolation || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
-# Ensure config exists (The code tar should have it, but fallback just in case)
+# Ensure config exists
 if [ ! -f "$CFG_REL" ]; then
   echo "[WARN] Config not found in code.tar at $CFG_REL"
-  # Optional: Attempt download if you uploaded the config file separately
-  # aws s3 cp "$CFG_S3" "$CFG_REL" || echo "[FAIL] Could not fetch config from S3 either."
 fi
 
 # === 3. PREPARE INPUTS ===
@@ -124,7 +122,8 @@ echo "[INFO] Downloading Inputs..."
 
 export LOCAL_CSV="data/csv/mimic_annotations_s3.csv"
 export LOCAL_CKPT="checkpoints/cooldown_init.pt"      
-export LOCAL_CKPT_RAW="checkpoints/e230_raw.pt"    
+# UPDATED: Renamed local temp file to match the 210 epoch
+export LOCAL_CKPT_RAW="checkpoints/e210_raw.pt"     
 export CFG_REL
 
 mkdir -p "$(dirname "$LOCAL_CSV")"
@@ -132,12 +131,10 @@ aws s3 cp "$CSV_S3" "$LOCAL_CSV"
 
 # --- Download COOLDOWN INIT checkpoint from S3 ---
 mkdir -p "$(dirname "$LOCAL_CKPT_RAW")"
-echo "[INFO] Downloading Cooldown Init Checkpoint (e230.pt) from S3..."
+echo "[INFO] Downloading Cooldown Init Checkpoint (e210.pt) from S3..."
 aws s3 cp "$INIT_CKPT_S3" "$LOCAL_CKPT_RAW"
 
 # --- Process Checkpoint (Strip DDP prefixes only) ---
-# NOTE: Unlike ImageNet init, we DO NOT strip heads/predictors here.
-# We need the full JEPA state (encoder + predictor) to resume annealing.
 python - <<'PY'
 import os, torch
 
@@ -189,7 +186,7 @@ output_dir = os.path.join(repo_root, "output")
 # 1. Patch Dataset path
 text = re.sub(r'(\s*-\s*).*/mimic_annotations_s3.csv', f'\\g<1>{csv_path}', text)
 
-# 2. Patch anneal_ckpt path (points to our processed e230.pt)
+# 2. Patch anneal_ckpt path (points to our processed e210.pt)
 #    Matches: "anneal_ckpt: /any/path..."
 text = re.sub(r'anneal_ckpt:.*', f'anneal_ckpt: {ckpt_path}', text)
 

@@ -85,9 +85,9 @@ optimization:
   # IMPORTANT: not starting from latest.pt, so we force load checkpoint below
   force_load_pretrain: true
 
-  # Start cooldown from the END of your 240-epoch run (use the actual file that exists)
-  # Prefer the last checkpoint you saved (examples: latest.pt, e240.pt, checkpoint.pt, etc.)
-  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/mimic/vjepa2_vitl_224px_16f/e230.pt
+  # Start cooldown from the END of your 210-epoch run (use the actual file that exists)
+  # Prefer the last checkpoint you saved (examples: latest.pt, e210.pt, checkpoint.pt, etc.)
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/mimic/vjepa2_vitl_224px_16f/e210.pt
 
   ema: [0.99925, 0.99925]
   weight_decay: 0.04
@@ -107,7 +107,7 @@ optimization:
 
   warmup: 0
 
-  # pretrain stopped short at 230 epochs (instead of 240)
-  # so we extend cooldown from 40 epochs to 50
-  # 50 epochs * 300 iters/epoch = 15,000 updates
-  epochs: 50
+  # pretrain stopped short at 210 epochs (instead of 240)
+  # so we extend cooldown from 40 epochs to 80
+  # 80 epochs * 300 iters/epoch = 24,000 updates
+  epochs: 80
