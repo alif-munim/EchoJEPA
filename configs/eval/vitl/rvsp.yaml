@@ -92,7 +92,7 @@ experiment:
     
 model_kwargs:
   checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep/vitl-pt-210-an25.pt
-  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  module_name: evals.video_classification_frozen_multi.modelcustom.vit_encoder_multiclip
   pretrain_kwargs:
     encoder:
       checkpoint_key: target_encoder
