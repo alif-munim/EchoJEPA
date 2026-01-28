@@ -105,3 +105,4 @@ model_kwargs:
   wrapper_kwargs:
     max_frames: 128
     use_pos_embed: false
+    return_per_clip: true
