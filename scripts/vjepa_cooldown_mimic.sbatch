@@ -12,8 +12,19 @@
 
 set -euxo pipefail
 
-# === ENVIRONMENT VARIABLES ===
+# ==============================================================================
+# 0. CREDENTIAL FIX (CRITICAL)
+# ==============================================================================
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+rm -rf ~/.aws
+mkdir -p ~/.aws
 export AWS_DEFAULT_REGION="us-west-2"
+export AWS_REGION="us-west-2"
+export AWS_SDK_LOAD_CONFIG=1
+aws configure set default.region us-west-2
+aws configure set default.s3.signature_version s3v4
+
+# === ENVIRONMENT VARIABLES ===
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export MASTER_PORT=$((12000 + $RANDOM % 20000))
@@ -27,18 +38,16 @@ ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
 CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
-# New Run ID folder in S3 (Separates cooldown logs from pretrain logs)
+# New Run ID folder
 RUN_S3="${S3_BASE}/runs/vjepa_cooldown_${SLURM_JOB_ID}" 
 
-# Data & Config (S3)
+# Data & Config
 CSV_S3="${S3_BASE}/data/csv/mimic_annotations_s3.csv"
-# Point to the NEW cooldown config relative to repo root
 CFG_REL="configs/train/vitl16/cooldown-mimic-224px-16f.yaml"
-# Fallback S3 location if config isn't in code tar (optional but safe)
 CFG_S3="${S3_BASE}/${CFG_REL}"
 
 # === CHECKPOINT SETUP (COOLDOWN) ===
-# UPDATED: S3 Location of the Checkpoint to resume from (Pretrain 150, Epoch 210)
+# Resume from Pretrain 150 (Epoch 210)
 INIT_CKPT_S3="${S3_BASE}/runs/vjepa_mimic_pretrain_150/training_folder/e210.pt"
 
 # Define Log Name Globally
@@ -47,7 +56,6 @@ RUNLOG="train_vitl_cooldown_${SLURM_JOB_ID}.log"
 # === ROBUST LOGGING & SYNC SETUP ===
 sync_ckpts() {
   echo "[INFO] Syncing checkpoints to S3..."
-  # Syncs local output/ to s3://.../runs/<JOB_ID>/training_folder/
   aws s3 sync "output" "${RUN_S3}/training_folder/" \
     --exclude "*" \
     --include "*.pt" --include "*.pth" --include "*.ckpt" \
@@ -59,11 +67,12 @@ upload_logs() {
   echo "[INFO] Uploading Logs..."
   aws s3 cp "/tmp/vjepa2_cooldown-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/job.out" --only-show-errors || true
   aws s3 cp "/tmp/vjepa2_cooldown-${SLURM_JOB_ID}.err" "${RUN_S3}/logs/job.err" --only-show-errors || true
-    
+  
   if [ -f "$RUNLOG" ]; then
       aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" --only-show-errors || true
   fi
 }
+
 on_exit() {
   rc=$?
   echo "[INFO] Job Exiting with code $rc. Performing final sync..."
@@ -114,7 +123,9 @@ export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # Ensure config exists
 if [ ! -f "$CFG_REL" ]; then
-  echo "[WARN] Config not found in code.tar at $CFG_REL"
+  echo "[WARN] Config not found in code.tar, fetching from S3..."
+  mkdir -p "$(dirname "$CFG_REL")"
+  aws s3 cp "$CFG_S3" "$CFG_REL"
 fi
 
 # === 3. PREPARE INPUTS ===
@@ -122,7 +133,6 @@ echo "[INFO] Downloading Inputs..."
 
 export LOCAL_CSV="data/csv/mimic_annotations_s3.csv"
 export LOCAL_CKPT="checkpoints/cooldown_init.pt"      
-# UPDATED: Renamed local temp file to match the 210 epoch
 export LOCAL_CKPT_RAW="checkpoints/e210_raw.pt"     
 export CFG_REL
 
@@ -135,6 +145,8 @@ echo "[INFO] Downloading Cooldown Init Checkpoint (e210.pt) from S3..."
 aws s3 cp "$INIT_CKPT_S3" "$LOCAL_CKPT_RAW"
 
 # --- Process Checkpoint (Strip DDP prefixes only) ---
+# NOTE: Unlike ImageNet init, we DO NOT strip heads/predictors here.
+# We need the full JEPA state (encoder + predictor) to resume annealing.
 python - <<'PY'
 import os, torch
 
@@ -147,10 +159,8 @@ if not os.path.exists(raw_path):
 print(f"[INFO] Loading raw ckpt: {raw_path}")
 ckpt = torch.load(raw_path, map_location="cpu")
 
-# Handle various checkpoint formats (full object vs state_dict)
 sd = ckpt.get("model", ckpt.get("state_dict", ckpt))
 
-# Clean DDP 'module.' prefix if present, but keep all other keys
 clean = {}
 for k, v in sd.items():
     if k.startswith("module."):
@@ -183,15 +193,8 @@ csv_path = os.path.join(repo_root, local_csv)
 ckpt_path = os.path.join(repo_root, local_ckpt)
 output_dir = os.path.join(repo_root, "output")
 
-# 1. Patch Dataset path
 text = re.sub(r'(\s*-\s*).*/mimic_annotations_s3.csv', f'\\g<1>{csv_path}', text)
-
-# 2. Patch anneal_ckpt path (points to our processed e210.pt)
-#    Matches: "anneal_ckpt: /any/path..."
 text = re.sub(r'anneal_ckpt:.*', f'anneal_ckpt: {ckpt_path}', text)
-
-# 3. Patch Output folder
-#    Sets internal output to "output/" which we sync to S3
 text = re.sub(r'^\s*folder:.*$', f'folder: {output_dir}', text, flags=re.MULTILINE)
 
 config_path.write_text(text)

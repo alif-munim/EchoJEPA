@@ -132,6 +132,9 @@ def main(args_eval, resume_preempt=False):
     set_override("OVERRIDE_FOCAL_LOSS", opt, "use_focal_loss", bool)
     set_override("OVERRIDE_BATCH", opt, "batch_size", int)
 
+    # In main(), after other set_override calls:
+    set_override("OVERRIDE_LATE_FUSION", exp, "use_late_fusion", bool)
+
     # -- VAL ONLY
     val_only = args_eval.get("val_only", False)
     if val_only:
@@ -152,6 +155,9 @@ def main(args_eval, resume_preempt=False):
     args_wrapper = args_pretrain.get("wrapper_kwargs")
 
     args_exp = args_eval.get("experiment")
+
+    # Late fusion switch (default early fusion)
+    use_late_fusion = args_exp.get("use_late_fusion", False)
 
     # -- CLASSIFIER
     args_classifier = args_exp.get("classifier")
@@ -471,7 +477,8 @@ def main(args_eval, resume_preempt=False):
                 target_std=target_std,
                 num_views=num_views,
                 clips_per_view=clips_per_view,
-                rank=rank
+                rank=rank,
+                use_late_fusion=use_late_fusion,
             )
 
         val_scalar, val_heads = run_one_epoch(
@@ -494,7 +501,8 @@ def main(args_eval, resume_preempt=False):
             target_std=target_std,
             num_views=num_views,
             clips_per_view=clips_per_view,
-            rank=rank
+            rank=rank,
+            use_late_fusion=use_late_fusion,
         )
 
         # ---- update scalar running stats ----
@@ -577,14 +585,20 @@ def run_one_epoch(
     use_focal_loss=False,
     val_only=False,
     predictions_save_path=None,
-    # --- NEW: Arguments for un-normalization ---
+    # --- Arguments for un-normalization ---
     target_mean=None,
     target_std=None,
-    num_views=None, clips_per_view=None,
-    rank = dist.get_rank() if dist.is_available() and dist.is_initialized() else 0
+    num_views=None,
+    clips_per_view=None,
+    rank=None,
+    # --- NEW: Late fusion ablation toggle ---
+    use_late_fusion=False,
 ):
+    if rank is None:
+        rank = dist.get_rank() if dist.is_available() and dist.is_initialized() else 0
+    
     import inspect
-    import numpy as np  # Fixed UnboundLocalError by importing here or at top
+    import numpy as np
     import os
 
     try:
@@ -629,6 +643,11 @@ def run_one_epoch(
 
     from contextlib import nullcontext
 
+    # Log fusion mode once at start
+    if rank == 0:
+        fusion_mode = "LATE FUSION (post-hoc averaging)" if use_late_fusion else "EARLY FUSION (token concatenation)"
+        logger.info(f"Fusion mode: {fusion_mode}")
+
     for itr, data in enumerate(iterator):
         if training:
             [s.step() for s in scheduler]
@@ -657,13 +676,10 @@ def run_one_epoch(
                 if len(clips[0]) > 0:
                     logger.info(f"  > Tensor Shape: {clips[0][0].shape}")
                 
-                # ADD THIS: Check total structure
                 total_clips = sum(len(v) for v in clips)
                 logger.info(f"  > Total clips across all views: {total_clips}")
                 logger.info(f"  > Expected by classifier: {num_views} × {clips_per_view} = {num_views * clips_per_view}")
 
-            # --------------------------
-            
             labels = data[1].to(device)
             clip_indices = [d.to(device, non_blocking=True) for d in data[2]]
 
@@ -688,7 +704,6 @@ def run_one_epoch(
             if itr == 0 and rank == 0:
                 logger.info("video_paths (basenames): " + str([os.path.basename(p) for p in video_paths]))
 
-
             # ---- encoder forward (frozen) ----
             with torch.no_grad():
                 enc_outs = encoder(clips, clip_indices)  # list of slot tensors, each [B, Nslot, D]
@@ -702,49 +717,89 @@ def run_one_epoch(
                             f"(=num_views*clips_per_view)."
                         )
 
-            
-            # Early-fuse: [B, L*Nslot, D]
-            x = torch.cat(enc_outs, dim=1)
-            
-            # Build token-level padding mask aligned with the concatenation
-            key_padding_mask = None
-            if slot_present is not None:
-
-                if itr == 0 and rank == 0:
-                    logger.info(f"slot_present shape: {None if slot_present is None else tuple(slot_present.shape)}")
-                    logger.info(f"L (enc_outs): {len(enc_outs)} | Nslot: {enc_outs[0].shape[1]}")
-
+            # ---- probe forward ----
+            with torch.set_grad_enabled(training):
                 
-                slot_keep = slot_present.bool()     # [B, V] or [B, L]
-                L = len(enc_outs)
-                Nslot = enc_outs[0].shape[1]
-            
-                # If slot_present is per-view [B,V], expand to per-slot [B,L] where L=V*C
-                if num_views is not None and clips_per_view is not None:
-                    if slot_keep.shape[1] == num_views and L == num_views * clips_per_view:
-                        slot_keep = slot_keep.repeat_interleave(clips_per_view, dim=1)
-            
-                if slot_keep.shape[1] != L:
-                    raise RuntimeError(f"slot_present has {slot_keep.shape[1]} entries but encoder returned {L} slots")
-            
-                token_keep = slot_keep.repeat_interleave(Nslot, dim=1)  # [B, L*Nslot]
-                key_padding_mask = ~token_keep                          # True = ignore
-
-                if itr == 0 and rank == 0:
-                    B = key_padding_mask.shape[0]
+                if use_late_fusion:
+                    # ============================================================
+                    # LATE FUSION: Process each slot independently, average predictions
+                    # ============================================================
                     L = len(enc_outs)
                     Nslot = enc_outs[0].shape[1]
-                    slot_masked = key_padding_mask[0].view(L, Nslot).all(dim=1)  # True means entire slot masked
-                    logger.info(f"masked slots (per-slot): {slot_masked.tolist()}")
+                    
+                    # Build per-slot presence mask [B, L] for weighted averaging
+                    if slot_present is not None:
+                        slot_weights = slot_present.float()  # [B, V] or [B, L]
+                        # Expand from per-view to per-slot if needed
+                        if num_views is not None and clips_per_view is not None:
+                            if slot_weights.shape[1] == num_views and L == num_views * clips_per_view:
+                                slot_weights = slot_weights.repeat_interleave(clips_per_view, dim=1)  # [B, L]
+                    else:
+                        slot_weights = torch.ones(B, L, device=device)  # All present
+                    
+                    if itr == 0 and rank == 0:
+                        logger.info(f"Late fusion: processing {L} slots independently")
+                        logger.info(f"  > slot_weights shape: {tuple(slot_weights.shape)}")
+                        logger.info(f"  > slot_weights[0]: {slot_weights[0].tolist()}")
+                    
+                    outs = []
+                    for ci, c in enumerate(classifiers):
+                        # Collect predictions from each slot
+                        slot_preds = []
+                        for slot_idx, slot_tokens in enumerate(enc_outs):
+                            # slot_tokens: [B, Nslot, D]
+                            pred = c(slot_tokens, key_padding_mask=None)  # [B, num_classes] or [B, num_targets]
+                            slot_preds.append(pred)
+                        
+                        # Stack: [B, L, num_outputs]
+                        stacked_preds = torch.stack(slot_preds, dim=1)
+                        
+                        # Weighted average (missing slots get weight 0)
+                        # Normalize weights per sample
+                        weights_sum = slot_weights.sum(dim=1, keepdim=True).clamp(min=1e-8)  # [B, 1]
+                        normalized_weights = slot_weights / weights_sum  # [B, L]
+                        
+                        # Apply weights: [B, L, 1] * [B, L, num_outputs] -> sum over L
+                        weighted_pred = (stacked_preds * normalized_weights.unsqueeze(-1)).sum(dim=1)  # [B, num_outputs]
+                        outs.append(weighted_pred)
+                    
+                else:
+                    # ============================================================
+                    # EARLY FUSION: Concatenate all tokens, cross-attend jointly
+                    # ============================================================
+                    x = torch.cat(enc_outs, dim=1)  # [B, L*Nslot, D]
+                    
+                    # Build token-level padding mask aligned with the concatenation
+                    key_padding_mask = None
+                    if slot_present is not None:
+                        if itr == 0 and rank == 0:
+                            logger.info(f"slot_present shape: {tuple(slot_present.shape)}")
+                            logger.info(f"L (enc_outs): {len(enc_outs)} | Nslot: {enc_outs[0].shape[1]}")
 
+                        slot_keep = slot_present.bool()  # [B, V] or [B, L]
+                        L = len(enc_outs)
+                        Nslot = enc_outs[0].shape[1]
 
+                        # If slot_present is per-view [B,V], expand to per-slot [B,L] where L=V*C
+                        if num_views is not None and clips_per_view is not None:
+                            if slot_keep.shape[1] == num_views and L == num_views * clips_per_view:
+                                slot_keep = slot_keep.repeat_interleave(clips_per_view, dim=1)
 
-            # ---- probe forward (same structure for train + eval) ----
-            with torch.set_grad_enabled(training):
-                outs = []
-                for ci, c in enumerate(classifiers):
-                    outs.append(c(x, key_padding_mask=key_padding_mask) if supports_kpm[ci] else c(x))
-            
+                        if slot_keep.shape[1] != L:
+                            raise RuntimeError(f"slot_present has {slot_keep.shape[1]} entries but encoder returned {L} slots")
+
+                        token_keep = slot_keep.repeat_interleave(Nslot, dim=1)  # [B, L*Nslot]
+                        key_padding_mask = ~token_keep  # True = ignore
+
+                        if itr == 0 and rank == 0:
+                            slot_masked = key_padding_mask[0].view(L, Nslot).all(dim=1)
+                            logger.info(f"masked slots (per-slot): {slot_masked.tolist()}")
+
+                    outs = []
+                    for ci, c in enumerate(classifiers):
+                        outs.append(c(x, key_padding_mask=key_padding_mask) if supports_kpm[ci] else c(x))
+
+                # ---- Compute loss ----
                 if task_type == "regression":
                     y = labels.float()
                     if y.dim() == 1:
@@ -754,18 +809,16 @@ def run_one_epoch(
                     y = labels.long()
                     losses = [criterion(o, y) for o in outs]
 
-
-
         # ---- metrics + optional prediction collection ----
         with torch.no_grad():
             if task_type == "regression":
                 mae_vals = [F.l1_loss(o.squeeze().float(), y.squeeze().float()) for o in outs]
                 mae_vals = [float(AllReduce.apply(m)) for m in mae_vals]
                 t_std = target_std if target_std is not None else 1.0
-                mae_vals = [m * t_std for m in mae_vals]   # scale ONCE
+                mae_vals = [m * t_std for m in mae_vals]  # scale ONCE
                 for meter, m in zip(metric_meters, mae_vals):
                     meter.update(m)
-        
+
                 if val_only and predictions_save_path is not None:
                     p0 = outs[0].detach().cpu().float().numpy()
                     y0 = y.detach().cpu().float().numpy()
@@ -775,15 +828,15 @@ def run_one_epoch(
                         all_labels.append(y0[i])
 
                 _agg = np.array([m.avg for m in metric_meters])
-            
+
             else:
                 top1 = [100.0 * o.argmax(dim=1).eq(y).float().mean() for o in outs]
                 top1 = [float(AllReduce.apply(t)) for t in top1]
                 for meter, a in zip(top1_meters, top1):
                     meter.update(a)
-        
+
                 if val_only and predictions_save_path is not None:
-                    p0 = F.softmax(outs[0], dim=1).detach().cpu().numpy()  # if you want probs
+                    p0 = F.softmax(outs[0], dim=1).detach().cpu().numpy()
                     y0 = y.detach().cpu().numpy()
                     for i in range(B):
                         all_predictions.append(p0[i])
@@ -798,7 +851,6 @@ def run_one_epoch(
                 loss.backward()
                 opt.step()
                 opt.zero_grad()
-
 
         # ---- periodic logging ----
         if itr % 10 == 0:
@@ -834,7 +886,6 @@ def run_one_epoch(
 
     # ---- save predictions ----
     if val_only and predictions_save_path is not None and len(all_predictions) > 0:
-        import os
         import pandas as pd
 
         out_dir = os.path.dirname(predictions_save_path)
@@ -842,7 +893,6 @@ def run_one_epoch(
             os.makedirs(out_dir, exist_ok=True)
 
         if task_type == "regression":
-            # --- NEW: Un-normalize for CSV using passed mean/std ---
             t_mean = target_mean if target_mean is not None else 0.0
             t_std = target_std if target_std is not None else 1.0
 
@@ -850,7 +900,6 @@ def run_one_epoch(
 
             for l in all_labels:
                 l = np.asarray(l).reshape(-1)
-                # if multi-target, keep vector; otherwise scalar
                 if l.size == 1:
                     labels_real.append(float(l[0] * t_std + t_mean))
                 else:
@@ -863,7 +912,6 @@ def run_one_epoch(
                 else:
                     preds_real.append((p * t_std + t_mean).tolist())
 
-            # abs_error only meaningful for scalar targets
             abs_err = None
             if len(labels_real) > 0 and isinstance(labels_real[0], (float, int)):
                 abs_err = [abs(a - b) for a, b in zip(labels_real, preds_real)]

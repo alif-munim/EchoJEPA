@@ -12,16 +12,16 @@ num_workers: 8
 eval_name: video_classification_frozen
 resume_checkpoint: true # <--- CHANGE THIS TO TRUE, OTHERWISE RANDOM WEIGHTS
 # Use a new tag for inference results
-tag: echoprime-echonet-lvef-test
+tag: panecho-echonet-lvef-test
 
 # --- CRITICAL INFERENCE SETTINGS ---
 val_only: true
 # Path where the predictions CSV will be saved
-predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/echoprime-echonet-lvef-test.csv
+predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/panecho-echonet-lvef-test.csv
 
 # POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
 # Based on your previous config, it should be here:
-probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/lvef/echonet-dynamic/echoprime.pt
+probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/lvef/echonet-dynamic/panecho.pt
 
 experiment:
   classifier:
@@ -36,17 +36,16 @@ experiment:
     dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test.csv
     # Train path is ignored in val_only mode, but usually required by config parser
     dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test.csv
-    
-    resolution: 224  
-    frames_per_clip: 16  
-    frame_step: 2  
-    num_segments: 2  
-    num_views_per_segment: 1  
+    resolution: 112
+    frames_per_clip: 16
+    frame_step: 2
+    num_segments: 2
+    num_views_per_segment: 1
 
     target_mean: 55.7776
     target_std: 12.4064
 
-    # IMPORTANT: avoid ImageNet normalization; wrapper applies EchoPrime normalization
+    # Let wrapper handle normalization internally
     normalization:
       - [0.0, 0.0, 0.0]
       - [1.0, 1.0, 1.0]
@@ -69,16 +68,7 @@ experiment:
     use_pos_embed: false
 
 model_kwargs:
-  # Set to null so the wrapper looks for weights in 'wrapper_kwargs' or default root
-  checkpoint: null 
-  
-  # [FIX 1] Point to your custom EchoPrime module
-  module_name: evals.video_classification_frozen.modelcustom.echo_prime_encoder
-  
-  pretrain_kwargs: {}
-  
-  # [FIX 2] Use the arguments your custom init_module expects
-  wrapper_kwargs:
-    echo_prime_root: /home/sagemaker-user/user-default-efs/vjepa2/evals/video_classification_frozen/modelcustom/EchoPrime
-    force_fp32: true
-    bin_size: 50
+  checkpoint: null  # Not used for PanEcho
+  module_name: evals.video_classification_frozen.modelcustom.panecho_encoder
+  pretrain_kwargs: {}  # Not used for PanEcho
+  wrapper_kwargs: {}  # Additional wrapper parameters if needed

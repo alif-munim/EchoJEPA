@@ -10,10 +10,10 @@ num_workers: 8
 
 eval_name: video_classification_frozen
 resume_checkpoint: true
-tag: lvef-a4c-videomae-224px-multi
+tag: lvef-a4c-videomae-224px
 
 val_only: true
-predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/lvef-a4c-videomae-224px-multi_predictions.csv
+predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/lvef-a4c-videomae-224px-predictions.csv
 
 # POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
 probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/lvef/videomae_224px.pt
@@ -54,7 +54,7 @@ experiment:
     use_bfloat16: true 
 
 model_kwargs:
-  checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/videomae-ep163.pt
+  checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/videomae-ep163.pth
   module_name: evals.video_classification_frozen.modelcustom.videomae_encoder
   pretrain_kwargs:
     encoder:
