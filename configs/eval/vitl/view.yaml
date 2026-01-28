@@ -2,7 +2,7 @@
 # REGRESSION CONFIG  
 app: vjepa  
 cpus_per_task: 32  
-folder: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitl/lvef_regression
+folder: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitl/view_classification
 mem_per_gpu: 80G  
 nodes: 1  
 tasks_per_node: 8  
@@ -11,29 +11,27 @@ num_workers: 8
 # Use existing evaluation infrastructure  
 eval_name: video_classification_frozen  
 resume_checkpoint: true  
-tag: echojepa-vitl-lvef
+tag: echojepa-vitl-view
+
 
 experiment:
-  classifier:  
-    task_type: regression 
-    num_heads: 16  
-    num_probe_blocks: 4  
-    num_targets: 1
+  classifier:
+    num_heads: 16
+    num_probe_blocks: 4
     
-  data:  
-    dataset_type: VideoDataset  
-    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_train_224px.csv
-    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_val_224px.csv
-      
-    resolution: 224  
-    frames_per_clip: 16  
-    frame_step: 2  
-    num_segments: 2  
-    num_views_per_segment: 1  
-
-    target_mean: 57.0569
-    target_std: 11.3252
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_train.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_val.csv
+    num_classes: 13
+    resolution: 224
+    frames_per_clip: 16
     
+    # SAMPLING (Optimized for Cardiac Cycle)
+    frame_step: 2           # ~1.28s context
+    num_segments: 2         # Efficient temporal coverage
+    num_views_per_segment: 1
+  
   optimization:  
     batch_size: 1  
     # PRUNED REGRESSION GRID  
