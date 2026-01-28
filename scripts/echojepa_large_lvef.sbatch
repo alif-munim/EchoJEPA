@@ -4,15 +4,14 @@
 #SBATCH --gres=gpu:8
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
-#SBATCH -t 7-12:00:00
+#SBATCH -t 4-12:00:00           # Increased time for training (adjust as needed)
 #SBATCH -J vjepa_train
-#SBATCH -o /tmp/vjepa_rvsp_ablation_nse-%j.out
-#SBATCH -e /tmp/vjepa_rvsp_ablation_nse-%j.err
+#SBATCH -o /tmp/vitl_lvef-%j.out
+#SBATCH -e /tmp/vitl_lvef-%j.err
 
 set -euxo pipefail
 
 export AWS_DEFAULT_REGION="us-west-2"
-export AWS_REGION="us-west-2"
 
 ART_BUCKET="sagemaker-hyperpod-lifecycle-495467399120-usw2"
 ART_PREFIX="vjepa2-artifacts"
@@ -24,27 +23,28 @@ CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # --- Training Config ---
-CFG_REL="configs/eval/vitg-384/rvsp/ablations/echojepa_nse.yaml"
+# Ensure this matches the path inside your code.tar or is uploaded separately
+CFG_REL="configs/eval/vitl/lvef.yaml"
 CFG_S3="${S3_BASE}/${CFG_REL}"
 
 # --- Data (override-friendly) ---
-TRAIN_CSV_REL="${TRAIN_CSV_REL:-data/csv/rvsp_train.csv}"
-VAL_CSV_REL="${VAL_CSV_REL:-data/csv/rvsp_val.csv}"
+TRAIN_CSV_REL="${TRAIN_CSV_REL:-data/csv/a4c_b_lvef_train_224px.csv}"
+VAL_CSV_REL="${VAL_CSV_REL:-data/csv/a4c_b_lvef_val_224px.csv}"
 
+# Allow overriding S3 paths too; otherwise derive from S3_BASE + relpath
 TRAIN_CSV_S3="${TRAIN_CSV_S3:-${S3_BASE}/${TRAIN_CSV_REL}}"
 VAL_CSV_S3="${VAL_CSV_S3:-${S3_BASE}/${VAL_CSV_REL}}"
 
+
 # --- Pretrained Backbone ---
-ENC_CKPT_REL="checkpoints/anneal/keep/pt-280-an81.pt"
+ENC_CKPT_REL="checkpoints/anneal/keep/vitl-pt-210-an25.pt"
 ENC_CKPT_S3="${S3_BASE}/${ENC_CKPT_REL}"
 
-RUN_S3="${S3_BASE}/runs/vjepa_rvsp_ablation_nse_lf_${SLURM_JOB_ID}"
+RUN_S3="${S3_BASE}/runs/vitl_lvef_${SLURM_JOB_ID}"
 
-# --- Trap to upload SLURM logs on exit ---
 upload_logs() {
-  echo "[INFO] Uploading logs..."
-  aws s3 cp "/tmp/vjepa_rvsp_train-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/master.out" --region us-west-2 2>/dev/null || true
-  aws s3 cp "/tmp/vjepa_rvsp_train-${SLURM_JOB_ID}.err" "${RUN_S3}/logs/master.err" --region us-west-2 2>/dev/null || true
+  aws s3 cp "/tmp/vjepa_train-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/vjepa_train-${SLURM_JOB_ID}.out" 2>/dev/null || true
+  aws s3 cp "/tmp/vjepa_train-${SLURM_JOB_ID}.err" "${RUN_S3}/logs/vjepa_train-${SLURM_JOB_ID}.err" 2>/dev/null || true
 }
 trap 'rc=$?; upload_logs; exit $rc' EXIT
 
@@ -52,15 +52,6 @@ echo "[INFO] host=$(hostname) job=${SLURM_JOB_ID}"
 command -v aws
 aws --version
 nvidia-smi -L || true
-
-# --- CREDENTIAL SAFETY CHECK (Fixes 400 Bad Request) ---
-rm -rf ~/.aws
-mkdir -p ~/.aws
-aws configure set default.s3.signature_version s3v4
-aws configure set default.region us-west-2
-echo "[INFO] Verifying Identity..."
-aws sts get-caller-identity
-# -------------------------------------------------------
 
 SCRATCH="/opt/dlami/nvme"
 if [ ! -d "$SCRATCH" ]; then SCRATCH="/tmp"; fi
@@ -70,7 +61,7 @@ cd "$WORKDIR"
 echo "[INFO] WORKDIR=$WORKDIR"
 
 # --- Setup Environment ---
-aws s3 cp "$ENV_S3" env.tar --region us-west-2
+aws s3 cp "$ENV_S3" env.tar
 mkdir -p env
 tar -xf env.tar -C env
 set +u
@@ -79,13 +70,13 @@ set -u
 env/bin/conda-unpack || true
 
 # Install boto3
-aws s3 cp "$BOTO3_WHL_S3" boto3-wheelhouse.tar --region us-west-2
+aws s3 cp "$BOTO3_WHL_S3" boto3-wheelhouse.tar
 mkdir -p wheelhouse
 tar -xf boto3-wheelhouse.tar -C wheelhouse
 python -m pip install --no-index --find-links wheelhouse boto3
 
 # --- Setup Code ---
-aws s3 cp "$CODE_S3" code.tar --region us-west-2
+aws s3 cp "$CODE_S3" code.tar
 tar -xf code.tar
 REPO_DIR=$(find . -maxdepth 10 -type f -name run_inf.sh -print -quit | xargs -r dirname)
 cd "${REPO_DIR}"
@@ -94,10 +85,11 @@ cd "${REPO_DIR}"
 if [ ! -f "$CFG_REL" ]; then
   echo "[WARN] ${CFG_REL} not found in code.tar; trying S3: ${CFG_S3}"
   mkdir -p "$(dirname "$CFG_REL")"
-  aws s3 cp "$CFG_S3" "$CFG_REL" --region us-west-2
+  aws s3 cp "$CFG_S3" "$CFG_REL"
 fi
 
 # --- Patch Paths ---
+# Replaces hardcoded Studio paths with the current SLURM scratch path
 python - <<'PY'
 from pathlib import Path
 import os, re
@@ -129,79 +121,60 @@ pip install -e . --no-deps --no-build-isolation || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # --- Download Inputs ---
+# 1. CSVs
 mkdir -p "$(dirname "$TRAIN_CSV_REL")"
-aws s3 cp "$TRAIN_CSV_S3" "$TRAIN_CSV_REL" --region us-west-2
-aws s3 cp "$VAL_CSV_S3" "$VAL_CSV_REL" --region us-west-2
+aws s3 cp "$TRAIN_CSV_S3" "$TRAIN_CSV_REL"
+aws s3 cp "$VAL_CSV_S3" "$VAL_CSV_REL"
 
+# 2. Backbone Checkpoint
 mkdir -p "$(dirname "$ENC_CKPT_REL")"
-aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_REL" --region us-west-2
+aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_REL"
 
 # --- Parse Output Folder from Config ---
-CFG_FOLDER="$(python - <<PY
+# We need to know where the script writes logs so we can upload them later
+CFG_FOLDER="$(python - <<'PY'
 import re
 from pathlib import Path
-try:
-    t = Path("${CFG_REL}").read_text()
-    m = re.search(r'^\s*folder:\s*(.+)\s*$', t, re.M)
-    print(m.group(1).strip().strip('"').strip("'") if m else "")
-except: pass
+# Note: Using the specific config file name
+t = Path("configs/eval/vitg-384/lvef_regression.yaml").read_text()
+m = re.search(r'^\s*folder:\s*(.+)\s*$', t, re.M)
+print(m.group(1).strip().strip('"').strip("'") if m else "")
 PY
 )"
 
-if [ -z "$CFG_FOLDER" ]; then
-    echo "[WARN] Could not parse 'folder', defaulting to 'output'"
-    CFG_FOLDER="output"
-fi
+test -n "$CFG_FOLDER" || { echo "[ERROR] Could not parse 'folder' from config"; exit 5; }
 mkdir -p "$CFG_FOLDER"
 
-# --- Run Training with Periodic Sync ---
+# --- Run Training ---
 
-# 1. Detect GPUs
+# Uses evals.main (direct execution) instead of main_distributed (submitit)
+
+# 1. Detect GPUs dynamically (same logic as your inference script)
 GPU_COUNT=$(nvidia-smi -L | wc -l)
 DEVICES=()
 for ((i=0; i<GPU_COUNT; i++)); do DEVICES+=("cuda:${i}"); done
 echo "[INFO] Detected ${GPU_COUNT} GPUs: ${DEVICES[*]}"
 
-RUNLOG="rvsp_train_${SLURM_JOB_ID}.log"
+RUNLOG="lvef_train_${SLURM_JOB_ID}.log"
 
-# 2. Define Sync Function
-sync_loop() {
-    echo "[bg-sync] Starting periodic sync to ${RUN_S3}/training_folder/"
-    while true; do
-        sleep 600 # Sync every 10 minutes (600s)
-        # We suppress output to avoid cluttering the main log
-        aws s3 sync "$CFG_FOLDER" "${RUN_S3}/training_folder/" \
-            --exclude "*.pth" --include "*.pt" --include "*.csv" --include "*.log" --quiet --region us-west-2 || true
-    done
-}
-
-# 3. Start Sync in Background
-sync_loop &
-SYNC_PID=$!
-echo "[INFO] Background sync process started with PID: $SYNC_PID"
-
-set +e # Allow script to continue if python fails, so we can upload logs/final state
-# 4. Run Python Training
+set +e
+# 2. Run directly with --devices
 python -m evals.main \
   --fname "$CFG_REL" \
   --devices "${DEVICES[@]}" \
   2>&1 | tee "$RUNLOG"
 RC=${PIPESTATUS[0]}
-set -e # Re-enable error checking
+set -e
 
-# 5. Stop Sync Loop
-kill "$SYNC_PID" || true
-wait "$SYNC_PID" 2>/dev/null || true
 
-# --- Final Result Upload ---
-echo "[INFO] Uploading final logs and artifacts..."
+# --- Upload Results ---
+aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" || true
+aws s3 cp "$CFG_REL" "${RUN_S3}/config/lvef_regression.yaml" || true
 
-aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" --region us-west-2 || true
-aws s3 cp "$CFG_REL" "${RUN_S3}/config/rvsp_regression.yaml" --region us-west-2 || true
-
-# Final Sync of Output Folder
+# Upload the entire output folder (logs, checkpoints, best.pt, etc.)
+echo "[INFO] Uploading training artifacts..."
 aws s3 sync "$CFG_FOLDER" "${RUN_S3}/training_folder/" \
-  --exclude "*.pth" --include "*.pt" --include "*.csv" --include "*.log" --region us-west-2 || true
+  --exclude "*.pth" --include "*.pt" --include "*.csv" --include "*.log" || true
 
 if [ "$RC" -ne 0 ]; then
   echo "[ERROR] Training failed with exit code ${RC}"

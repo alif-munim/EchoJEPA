@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=32
 #SBATCH -t 7-12:00:00
 #SBATCH -J vjepa_train
-#SBATCH -o /tmp/vjepa_rvsp_ablation_nse-%j.out
-#SBATCH -e /tmp/vjepa_rvsp_ablation_nse-%j.err
+#SBATCH -o /tmp/vjepa_rvsp_ablation_nse_lf-%j.out
+#SBATCH -e /tmp/vjepa_rvsp_ablation_nse_lf-%j.err
 
 set -euxo pipefail
 
@@ -24,7 +24,7 @@ CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # --- Training Config ---
-CFG_REL="configs/eval/vitg-384/rvsp/ablations/echojepa_nse.yaml"
+CFG_REL="configs/eval/vitg-384/rvsp/ablations/echojepa_nse_lf.yaml"
 CFG_S3="${S3_BASE}/${CFG_REL}"
 
 # --- Data (override-friendly) ---
