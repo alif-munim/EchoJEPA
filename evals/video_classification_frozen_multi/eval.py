@@ -156,9 +156,6 @@ def main(args_eval, resume_preempt=False):
 
     args_exp = args_eval.get("experiment")
 
-    # Late fusion switch (default early fusion)
-    use_late_fusion = args_exp.get("use_late_fusion", False)
-
     # -- CLASSIFIER
     args_classifier = args_exp.get("classifier")
     num_probe_blocks = args_classifier.get("num_probe_blocks", 1)
@@ -166,6 +163,9 @@ def main(args_eval, resume_preempt=False):
 
     use_slot_embeddings = args_classifier.get("use_slot_embeddings", False)
     use_factorized = args_classifier.get("use_factorized", True)
+
+    # Late fusion switch (default early fusion)
+    use_late_fusion = args_exp.get("use_late_fusion", False) or args_classifier.get("use_late_fusion", False)
 
     # -- REGRESSION
     task_type = args_classifier.get("task_type", "classification")     # "classification" or "regression"

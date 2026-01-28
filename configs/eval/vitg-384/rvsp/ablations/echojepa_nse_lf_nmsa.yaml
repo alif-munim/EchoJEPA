@@ -23,7 +23,6 @@ experiment:
     num_targets: 1            # CHANGED: Replace num_classes with num_targets 
 
     use_slot_embeddings: false   # default false keeps old behavior
-    use_late_fusion: true
 
   data:
     miss_augment_prob: 0.0   # prob to flip a PRESENT view to MISS at train time
