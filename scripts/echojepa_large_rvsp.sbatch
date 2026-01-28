@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=32
 #SBATCH -t 4-12:00:00           # Increased time for training (adjust as needed)
 #SBATCH -J vjepa_train
-#SBATCH -o /tmp/vitl_lvef-%j.out
-#SBATCH -e /tmp/vitl_lvef-%j.err
+#SBATCH -o /tmp/vitl_rvsp-%j.out
+#SBATCH -e /tmp/vitl_rvsp-%j.err
 
 set -euxo pipefail
 
@@ -24,12 +24,12 @@ BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # --- Training Config ---
 # Ensure this matches the path inside your code.tar or is uploaded separately
-CFG_REL="configs/eval/vitl/lvef.yaml"
+CFG_REL="configs/eval/vitl/rvsp.yaml"
 CFG_S3="${S3_BASE}/${CFG_REL}"
 
 # --- Data (override-friendly) ---
-TRAIN_CSV_REL="${TRAIN_CSV_REL:-data/csv/a4c_b_lvef_train_224px.csv}"
-VAL_CSV_REL="${VAL_CSV_REL:-data/csv/a4c_b_lvef_val_224px.csv}"
+TRAIN_CSV_REL="${TRAIN_CSV_REL:-data/csv/rvsp_train.csv}"
+VAL_CSV_REL="${VAL_CSV_REL:-data/csv/rvsp_val.csv}"
 
 # Allow overriding S3 paths too; otherwise derive from S3_BASE + relpath
 TRAIN_CSV_S3="${TRAIN_CSV_S3:-${S3_BASE}/${TRAIN_CSV_REL}}"
@@ -40,7 +40,7 @@ VAL_CSV_S3="${VAL_CSV_S3:-${S3_BASE}/${VAL_CSV_REL}}"
 ENC_CKPT_REL="checkpoints/anneal/keep/vitl-pt-210-an25.pt"
 ENC_CKPT_S3="${S3_BASE}/${ENC_CKPT_REL}"
 
-RUN_S3="${S3_BASE}/runs/vitl_lvef_${SLURM_JOB_ID}"
+RUN_S3="${S3_BASE}/runs/vitl_rvsp_${SLURM_JOB_ID}"
 
 upload_logs() {
   aws s3 cp "/tmp/vjepa_train-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/vjepa_train-${SLURM_JOB_ID}.out" 2>/dev/null || true
@@ -136,7 +136,7 @@ CFG_FOLDER="$(python - <<'PY'
 import re
 from pathlib import Path
 # Note: Using the specific config file name
-t = Path("configs/eval/vitl/lvef.yaml").read_text()
+t = Path("configs/eval/vitl/rvsp.yaml").read_text()
 m = re.search(r'^\s*folder:\s*(.+)\s*$', t, re.M)
 print(m.group(1).strip().strip('"').strip("'") if m else "")
 PY
@@ -155,7 +155,7 @@ DEVICES=()
 for ((i=0; i<GPU_COUNT; i++)); do DEVICES+=("cuda:${i}"); done
 echo "[INFO] Detected ${GPU_COUNT} GPUs: ${DEVICES[*]}"
 
-RUNLOG="lvef_train_${SLURM_JOB_ID}.log"
+RUNLOG="rvsp_train_${SLURM_JOB_ID}.log"
 
 set +e
 # 2. Run directly with --devices
@@ -169,7 +169,7 @@ set -e
 
 # --- Upload Results ---
 aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" || true
-aws s3 cp "$CFG_REL" "${RUN_S3}/config/vitl_lvef_regression.yaml" || true
+aws s3 cp "$CFG_REL" "${RUN_S3}/config/vitl_rvsp_regression.yaml" || true
 
 # Upload the entire output folder (logs, checkpoints, best.pt, etc.)
 echo "[INFO] Uploading training artifacts..."
