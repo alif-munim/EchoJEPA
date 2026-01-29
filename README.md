@@ -1,11 +1,29 @@
 # EchoJEPA: Video World Models for Cardiac Ultrasound
 
-### EchoJEPA-L
+### EchoJEPA-L LVEF
 
-EchoJEPA-L Inference (224px)
+EchoJEPA-L LVEF Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitl/lvef.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_L_rvsp_v1.log
+```
+
+### EchoJEPA-L RVSP
+
+EchoJEPA-L RVSP Inference (224px)
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitl/rvsp.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_L_rvsp_v1.log
 ```
+
+EchoJEPA-G RVSP Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/rvsp/echojepa_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee vjepa-g-rvsp-nse-uhntest.log
+```
+
+VideoMAE LVEF Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/videomae_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee videomae_best_224px_lvef_v1.log
+```
+
 
 ### Classification Inference
 
