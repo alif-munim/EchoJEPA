@@ -1,5 +1,27 @@
 # EchoJEPA: Video World Models for Cardiac Ultrasound
 
+### Pediatric Inference
+
+EchoJEPA-G
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-pediatric/echojepa.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_enp_lvef_v1.log
+```
+
+VideoMAE
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-pediatric/videomae.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee videomae_enp_lvef_v1.log
+```
+
+PanEcho
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-pediatric/panecho.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee panecho_enp_lvef_v1.log
+```
+
+EchoPrime
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-pediatric/echoprime.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echoprime_enp_lvef_v1.log
+```
+
 ### EchoJEPA-L LVEF
 
 EchoJEPA-L LVEF Inference (224px)
@@ -237,6 +259,15 @@ PanEcho
 python -m evals.main \
     --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef/enp_panecho_lvef.yaml \
     --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee panecho_enp_lvef.log
+```
+
+### EchoNet-Dynamic Training
+
+EchoJEPA-L
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitl/echonet_dynamic_lvef.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_L_enp_lvef.log
 ```
 
 

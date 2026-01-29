@@ -12,7 +12,7 @@
 set -euxo pipefail
 
 # ==============================================================================
-# 0. CREDENTIAL FIX (FROM REFERENCE)
+# 0. CREDENTIAL CLEANUP
 # ==============================================================================
 unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 rm -rf ~/.aws
@@ -33,16 +33,13 @@ ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
 CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
-# === TRAINING CONFIGURATION ===
+# === TRAINING CONFIGURATION (ViT-G) ===
 CFG_REL="configs/eval/vitg-384/lvef/enp_echojepa_lvef.yaml"
 CFG_S3="${S3_BASE}/${CFG_REL}"
 
-# Data Paths (PEDIATRIC)
-# Source: S3 location where you synced the CSVs
+# Data Paths
 TRAIN_CSV_S3="${S3_BASE}/csv_pediatric/echonet_pediatric_train_s3.csv"
 VAL_CSV_S3="${S3_BASE}/csv_pediatric/echonet_pediatric_val_s3.csv"
-
-# Dest: Local paths expected by the YAML
 TRAIN_CSV_REL="data/csv/echonet_pediatric_train.csv"
 VAL_CSV_REL="data/csv/echonet_pediatric_val.csv"
 
@@ -50,7 +47,7 @@ VAL_CSV_REL="data/csv/echonet_pediatric_val.csv"
 ENC_CKPT_REL="checkpoints/anneal/keep/pt-280-an81.pt"
 ENC_CKPT_S3="${S3_BASE}/${ENC_CKPT_REL}"
 
-# Run Output Location in S3
+# Run Output
 RUN_S3="${S3_BASE}/runs/vjepa_enp_lvef_${SLURM_JOB_ID}"
 
 # === LOGGING TRAP ===
@@ -64,14 +61,11 @@ trap 'rc=$?; upload_logs; exit $rc' EXIT
 # === HOST SETUP ===
 echo "[INFO] host=$(hostname) job=${SLURM_JOB_ID}"
 nvidia-smi -L || true
-
-# Setup Scratch on NVMe
 SCRATCH="/opt/dlami/nvme"
 if [ ! -d "$SCRATCH" ]; then SCRATCH="/tmp"; fi
 WORKDIR="${SCRATCH}/vjepa_enp_lvef_${SLURM_JOB_ID}"
 mkdir -p "$WORKDIR"
 cd "$WORKDIR"
-echo "[INFO] WORKDIR=$WORKDIR"
 
 # === SETUP ENVIRONMENT ===
 aws s3 cp "$ENV_S3" env.tar --region us-west-2
@@ -94,9 +88,7 @@ tar -xf code.tar
 REPO_DIR=$(find . -maxdepth 10 -type f -name run_inf.sh -print -quit | xargs -r dirname)
 cd "${REPO_DIR}"
 
-# Ensure config exists
 if [ ! -f "$CFG_REL" ]; then
-  echo "[WARN] ${CFG_REL} not found in code.tar; trying S3: ${CFG_S3}"
   mkdir -p "$(dirname "$CFG_REL")"
   aws s3 cp "$CFG_S3" "$CFG_REL" --region us-west-2
 fi
@@ -123,29 +115,23 @@ for r in roots:
             except: pass
 PY
 
-# Make code importable
 pip install -e . --no-deps --no-build-isolation || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # === DOWNLOAD INPUTS ===
-echo "[INFO] Downloading Data & Checkpoints..."
-
-# 1. CSVs
 mkdir -p "$(dirname "$TRAIN_CSV_REL")"
 aws s3 cp "$TRAIN_CSV_S3" "$TRAIN_CSV_REL" --region us-west-2
 aws s3 cp "$VAL_CSV_S3" "$VAL_CSV_REL" --region us-west-2
-
-# 2. Backbone Checkpoint
 mkdir -p "$(dirname "$ENC_CKPT_REL")"
 aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_REL" --region us-west-2
 
-# === PARSE CONFIG (FOLDER & TAG) ===
+# === PARSE CONFIG ===
 export CFG_REL 
 eval $(python - <<'PY'
 import re, os
 from pathlib import Path
 cfg_rel = os.environ["CFG_REL"]
-folder, tag = "", ""
+folder, tag = "output", ""
 if os.path.exists(cfg_rel):
     t = Path(cfg_rel).read_text()
     m_folder = re.search(r'^\s*folder:\s*(.+)\s*$', t, re.M)
@@ -156,33 +142,57 @@ print(f"export CFG_FOLDER='{folder}'")
 print(f"export CFG_TAG='{tag}'")
 PY
 )
-if [ -z "$CFG_FOLDER" ]; then CFG_FOLDER="output"; fi
 mkdir -p "$CFG_FOLDER"
 
 # ==============================================================================
-# CRITICAL: REFRESH CREDENTIALS FOR DECORD
-# Decord/FFmpeg requires env vars to stream from S3. 
-# We fetch fresh ones from the Instance Metadata Service (IMDS).
+# ROBUST CREDENTIAL REFRESH (With Retries)
 # ==============================================================================
-echo "[INFO] Refreshing credentials from Instance Metadata..."
-TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" 2>/dev/null)
-ROLE_NAME=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null)
-CREDS_JSON=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/$ROLE_NAME 2>/dev/null)
+echo "[INFO] Refreshing credentials from IMDS with retry logic..."
 
+# 1. Fetch Token (Retry 5 times)
+TOKEN=""
+for i in {1..5}; do
+  TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s --fail) && break
+  echo "[WARN] Token fetch failed (attempt $i). Retrying..."
+  sleep 2
+done
+
+if [ -z "$TOKEN" ]; then
+  echo "[ERROR] Failed to obtain IMDS Token after 5 attempts."
+  exit 1
+fi
+
+# 2. Fetch Role Name
+ROLE_NAME=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/ -s --fail)
+if [ -z "$ROLE_NAME" ]; then
+  echo "[ERROR] Failed to obtain IAM Role Name."
+  exit 1
+fi
+
+# 3. Fetch Credentials JSON
+CREDS_JSON=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/$ROLE_NAME -s --fail)
+
+# 4. Export safely
 export AWS_ACCESS_KEY_ID=$(echo "$CREDS_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['AccessKeyId'])")
 export AWS_SECRET_ACCESS_KEY=$(echo "$CREDS_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['SecretAccessKey'])")
 export AWS_SESSION_TOKEN=$(echo "$CREDS_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['Token'])")
+
+# 5. Verification
+if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+  echo "[ERROR] Credentials parsed as empty! JSON was: $CREDS_JSON"
+  exit 1
+else
+  echo "[INFO] Successfully exported AWS Credentials for Role: $ROLE_NAME"
+fi
 # ==============================================================================
 
-# === RUN TRAINING ===
 GPU_COUNT=$(nvidia-smi -L | wc -l)
 DEVICES=()
 for ((i=0; i<GPU_COUNT; i++)); do DEVICES+=("cuda:${i}"); done
-echo "[INFO] Detected ${GPU_COUNT} GPUs: ${DEVICES[*]}"
+echo "[INFO] GPUs: ${DEVICES[*]}"
 
 RUNLOG="lvef_train_${SLURM_JOB_ID}.log"
 
-# Background Sync
 (
     while true; do
         sleep 600
@@ -202,7 +212,6 @@ set -e
 kill $SYNC_PID || true
 wait $SYNC_PID 2>/dev/null || true
 
-# === FINAL UPLOAD ===
 echo "[INFO] Uploading final artifacts..."
 aws s3 cp "$RUNLOG" "${RUN_S3}/logs/job_final.log" --region us-west-2 || true
 aws s3 cp "$CFG_REL" "${RUN_S3}/config/run_config.yaml" --region us-west-2 || true
@@ -212,3 +221,5 @@ if [ "$RC" -ne 0 ]; then
   echo "[ERROR] Training failed with exit code ${RC}"
   exit "$RC"
 fi
+
+echo "[INFO] DONE."
