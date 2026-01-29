@@ -1,5 +1,12 @@
 # EchoJEPA: Video World Models for Cardiac Ultrasound
 
+### EchoJEPA-L
+
+EchoJEPA-L Inference (224px)
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitl/rvsp.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_L_rvsp_v1.log
+```
+
 ### Classification Inference
 
 EchoJEPA Inference (224px)
@@ -26,8 +33,6 @@ PanEcho Inference (224px)
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/view/panecho_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee panecho_224px_classification.log
 ```
-
-
 
 ### LVEF Inference
 
@@ -89,11 +94,21 @@ EchoJEPA Inference (336px, Multi)
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-dynamic/echojepa_multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_multi_echonet_dynamic.out
 ```
+
 EchoPrime Inference
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-dynamic/echoprime.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echoprime_echonet_dynamic.out
 ```
 
+PanEcho Inference
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-dynamic/panecho.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee panecho_echonet_dynamic.out
+```
+
+VideoMAE Inference
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-dynamic/videomae.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee videomae_echonet_dynamic.out
+```
 
 
 ### RVSP Inference
@@ -134,6 +149,8 @@ EchoJEPA Inference (336px, Multi-Level)
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef/echojepa_336px_multi_end.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_336px_multi_end_v1.log
 ```
+
+
 
 
 
@@ -188,6 +205,29 @@ python -m evals.main \
 
 # Training
 
+### EchoNet-Pediatric
+
+EchoPrime
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef/enp_echoprime_lvef.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echoprime_enp_lvef.log
+```
+
+PanEcho
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef/enp_panecho_lvef.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee panecho_enp_lvef.log
+```
+
+
+### Classification
+```
+python -m evals.main --fname configs/eval/vitl/view.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa-l-view22k.log
+```
+
+
 ### RVSP Regression
 ```
 python -m evals.main --fname configs/eval/vitg-384/rvsp_regression.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee multi_rvsp_0122_v1.log
@@ -206,7 +246,21 @@ VideoMAE
 python -m evals.main --fname configs/eval/vitg-384/rvsp/videomae_rvsp.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee videomae_rvsp_224px.log
 ```
 
+Ablation; no slot embeddings, late fusion, no miss augmentation
+```
+python -m evals.main --fname configs/eval/vitg-384/rvsp/ablations/echojepa_nse_lf_nmsa.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee ablate_echojepa_224px_rvsp_nse_lf_nmsa.log
+```
+
 ### LVEF Regression
+
+VideoMAE Local
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef/local_videomae_lvef.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee h100_videomae_lvef.log
+```
+
+
 ```
 python -m evals.main \
     --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef_regression.yaml \
