@@ -19,7 +19,7 @@ val_only: true
 predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/lvef-a4c-panecho-224px_predictions.csv
 
 # POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
-probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/lvef/panecho_224px.pt
+probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/lvef/echonet-pediatric/panecho.pt
 
 experiment:
   classifier:
@@ -31,9 +31,8 @@ experiment:
   data:
     dataset_type: VideoDataset
     # Point 'dataset_val' to your TEST CSV
-    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test_da150_s3.csv
-    # Dummy path for train (ignored but required by parser)
-    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test_da150_s3.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_pediatric_test.csv
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_pediatric_test.csv
     
     resolution: 224
     frames_per_clip: 16
@@ -45,9 +44,18 @@ experiment:
     # This means it used the default ImageNet normalization defined in eval.py.
     # We omit the normalization block here to match training behavior.
 
-    # Regression Un-normalization stats (LVEF)
-    target_mean: 57.06
-    target_std: 11.33
+    # dynamic
+    # target_mean: 55.7776
+    # target_std: 12.4064
+
+    # pediatric
+    target_mean: 61.0272
+    target_std: 10.4406
+
+    # Let wrapper handle normalization internally
+    normalization:
+      - [0.0, 0.0, 0.0]
+      - [1.0, 1.0, 1.0]
 
   optimization:
     # Increase batch size for inference

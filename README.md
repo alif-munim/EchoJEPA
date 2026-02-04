@@ -1,10 +1,127 @@
 # EchoJEPA: Video World Models for Cardiac Ultrasound
 
+### Extract Embeddings (All)
+```
+# EchoJEPA-Giant
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/echojepa_224px.yaml \
+    --data /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_master.csv \
+    --output embeddings/echojepa_g_embeddings.npz \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5
+
+# EchoJEPA-Large
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/echojepa_large_224px.yaml \
+    --data /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_master.csv \
+    --output embeddings/echojepa_l_embeddings.npz \
+    --device cuda:6 cuda:7
+
+# PanEcho
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/panecho_224px.yaml \
+    --data /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_master.csv \
+    --output embeddings/panecho_embeddings.npz \
+    --devices cuda:2
+
+# VideoMAE
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/videomae_224px.yaml \
+    --data /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_master.csv \
+    --output embeddings/echomae_l_embeddings.npz \
+    --devices cuda:3
+
+# EchoPrime
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/echoprime_224px.yaml \
+    --data /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_master.csv \
+    --output embeddings/echoprime_embeddings.npz \
+    --devices cuda:4
+```
+
+### Extract Embeddings (Test)
+```
+# EchoJEPA-Giant
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/echojepa_224px.yaml \
+    --data /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_test.csv \
+    --output embeddings/test/echojepa_g_embeddings.npz \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5
+
+# EchoJEPA-Large
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/echojepa_large_224px.yaml \
+    --data /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_test.csv \
+    --output embeddings/test/echojepa_l_embeddings.npz \
+    --device cuda:6 cuda:7
+
+# PanEcho
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/panecho_224px.yaml \
+    --data /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_test.csv \
+    --output embeddings/test/panecho_embeddings.npz \
+    --devices cuda:2
+
+# VideoMAE
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/videomae_224px.yaml \
+    --data /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_test.csv \
+    --output embeddings/test/echomae_l_embeddings.npz \
+    --devices cuda:3
+
+# EchoPrime
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/echoprime_224px.yaml \
+    --data /home/sagemaker-user/user-default-efs/vjepa2/data/csv/uhn_views_22k_test.csv \
+    --output embeddings/test/echoprime_embeddings.npz \
+    --devices cuda:4
+```
+
+### Plot U-MAP
+
+```
+# Default (balanced)
+python data/plot_umap.py --n_neighbors 15 --min_dist 0.1
+
+# Tight local clusters (might show EchoJEPA separation better)
+python data/plot_umap.py --n_neighbors 10 --min_dist 0.0 --output figures/umap_tight.pdf
+
+# More global structure
+python data/plot_umap.py --n_neighbors 50 --min_dist 0.25 --output figures/umap_global.pdf
+
+# Very spread out
+python data/plot_umap.py --n_neighbors 15 --min_dist 0.5 --spread 2.0 --output figures/umap_spread.pdf
+
+# Try euclidean metric
+python data/plot_umap.py --metric euclidean --output figures/umap_euclidean.pdf
+
+# Different random seed (layouts will differ but structure should be consistent)
+python data/plot_umap.py --seed 123 --output figures/umap_seed123.pdf
+```
+
+### Metrics
+
+```
+# 1. Get the quantitative numbers
+python data/plot_umap.py --metrics_only --embeddings_dir ./embeddings/test
+
+# 2. Supervised UMAP (cleanest visualization)
+python data/plot_umap.py --supervised --n_neighbors 15 --min_dist 0.05 --no_show_metrics --output figures/umap_paper.pdf
+
+# 3. Unsupervised UMAP (shows "true" structure without label guidance)
+python data/plot_umap.py --n_neighbors 15 --min_dist 0.1 --no_show_metrics --output figures/umap_unsupervised.pdf
+```
+
+
 ### Pediatric Inference
 
 EchoJEPA-G
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-pediatric/echojepa.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_enp_lvef_v1.log
+```
+
+EchoJEPA-L
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echonet-pediatric/echojepa-l.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_enp_lvef_v1.log
 ```
 
 VideoMAE
@@ -81,15 +198,11 @@ EchoJEPA Inference (336px)
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echojepa_336px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_inference_0123.log
 ```
 
-EchoJEPA Multi-level Inference (336px)
+EchoJEPA Large Inference (336px)
 ```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echojepa_336px_multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_336multi_inference_ep6.log
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echojepa_large.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee lvef_336multi_inference_ep6.log
 ```
 
-EchoJEPA Multi-level Inference (224px)
-```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/echojepa_224px_multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_224px_multi_infv1.log
-```
 
 EchoPrime Inference (224px)
 ```
@@ -108,20 +221,32 @@ python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/config
 
 ### Noisy LVEF Inference (EchoNet-Dynamic)
 
-EchoJEPA Inference (336px)
+EchoJEPA Inference 
 ```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/depth_attenuation/echojepa_336px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_echonet_depth_attenuation_1p5.out
-```
-
-EchoJEPA Inference (336px, Multi)
-```
-python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/depth_attenuation/echojepa_336px_multi.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_multi_echonet_depth_attenuation_1p5.out
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/depth_attenuation/echojepa_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_echonet_depth_attenuation_1p5.out
 ```
 
-EchoPrime Inference (336px, Multi)
+
+EchoJEPA-L Inference 
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/depth_attenuation/echojepa_224px_large.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_echonet_depth_attenuation_1p5.out
+```
+
+EchoPrime Inference 
 ```
 python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/depth_attenuation/echoprime_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_multi_echonet_depth_attenuation_1p5.out
 ```
+
+PanEcho Inference 
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/depth_attenuation/panecho_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_multi_echonet_depth_attenuation_1p5.out
+```
+
+VideoMAE Inference 
+```
+python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/inference/vitg-384/lvef/depth_attenuation/videomae_224px.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_multi_echonet_depth_attenuation_1p5.out
+```
+
 
 ### LVEF Inference (EchoNet-Dynamic)
 
@@ -246,6 +371,13 @@ python -m evals.main \
 # Training
 
 ### EchoNet-Pediatric
+
+EchoJEPA
+```
+python -m evals.main \
+    --fname /home/sagemaker-user/user-default-efs/vjepa2/configs/eval/vitg-384/lvef/enp_echojepa_lvef.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 2>&1 | tee echojepa_enp_lvef.log
+```
 
 EchoPrime
 ```

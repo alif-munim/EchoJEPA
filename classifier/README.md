@@ -143,7 +143,7 @@ To map to the actual mp4 directories, use this script (additional args include `
 ```
 python3 map_labels_to_mp4.py \
   --in labels_patient_split.csv \
-  --root /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_607_224px/ \
+  --root /cluster/projects/bwanggroup/echo_reports/uhn_studies_22k_607/ \
   --out labels_patient_split_mp4.csv
 ```
 
@@ -155,8 +155,8 @@ Rewrite the old cluster paths to the S3 uris:
 python3 rewrite_mp4_paths_to_s3.py \
   --in labels_patient_split_mp4.csv \
   --out labels_patient_split_mp4_s3.csv \
-  --s3-prefix s3://echodata25/results/uhn_studies_22k_607_224px \
-  --root-marker uhn_studies_22k_607_224px
+  --s3-prefix s3://echodata25/results/uhn_studies_22k_607 \
+  --root-marker uhn_studies_22k_607
 ```
 
 Randomly sample S3 paths, ensure they exist, and verify video shapes:
@@ -172,19 +172,19 @@ Create train, test, val splits in JEPA data format:
 ```
 python3 make_view_labels_space_sep.py \
   --in labels_patient_split_mp4_s3.csv \
-  --out ../data/csv/uhn_views_22k_train.csv \
+  --out ../data/csv/uhn_views_22k_train_336px.csv \
   --mapping uhn_views_22k_mapping_train.txt \
   --split train
 
 python3 make_view_labels_space_sep.py \
   --in labels_patient_split_mp4_s3.csv \
-  --out ../data/csv/uhn_views_22k_test.csv \
+  --out ../data/csv/uhn_views_22k_test_336px.csv \
   --mapping uhn_views_22k_mapping_test.txt \
   --split test
 
 python3 make_view_labels_space_sep.py \
   --in labels_patient_split_mp4_s3.csv \
-  --out ../data/csv/uhn_views_22k_val.csv \
+  --out ../data/csv/uhn_views_22k_val_336px.csv \
   --mapping uhn_views_22k_mapping_val.txt \
   --split val
 ```

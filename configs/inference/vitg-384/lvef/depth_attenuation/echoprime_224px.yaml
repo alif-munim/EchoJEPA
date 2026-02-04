@@ -16,7 +16,7 @@ val_only: true
 predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/echonet-lvef-a4c-echoprime-224px-depth-attenuation-1p5.csv
 
 # POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
-probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/lvef/echonet-dynamic/echoprime_10pct_s3.pt
+probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/lvef/echonet-pediatric/echoprime.pt
 
 experiment:
   classifier:
@@ -28,9 +28,8 @@ experiment:
   data:
     dataset_type: VideoDataset
     # Point 'dataset_val' to your TEST CSV
-    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test_da150_s3.csv
-    # Train path is ignored in val_only mode, but usually required by config parser
-    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test_da150_s3.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_pediatric_test.csv
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_pediatric_test.csv
     
     resolution: 112  
     frames_per_clip: 16  
@@ -38,8 +37,13 @@ experiment:
     num_segments: 2  
     num_views_per_segment: 1  
 
-    target_mean: 55.7776
-    target_std: 12.4064
+    # dynamic
+    # target_mean: 55.7776
+    # target_std: 12.4064
+
+    # pediatric
+    target_mean: 61.0272
+    target_std: 10.4406
 
     # [CRITICAL] Disable dataloader normalization so your wrapper receives raw (0-1) tensors
     normalization:
