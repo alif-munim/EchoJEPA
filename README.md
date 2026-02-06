@@ -1,5 +1,15 @@
-# EchoJEPA: Video World Models for Cardiac Ultrasound
+<h1 align="center"><b>EchoJEPA</b></h1>
+<h3 align="center">A Latent Predictive Foundation Model for Echocardiography</h3>
 
+<p align="center">
+    <a href="https://arxiv.org/abs/2602.02603" target="_blank"><img src="https://img.shields.io/badge/arXiv-Paper-B31B1B?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"></a>
+    <a href="https://github.com/alif-munim/EchoJEPA"><img src="https://img.shields.io/badge/GitHub-Code-4A90E2?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
+    <a href="https://echojepa.com/"><img src="https://img.shields.io/badge/Website-Online-00B89E?style=for-the-badge&logo=internet-explorer&logoColor=white" alt="Website"></a>
+</p>
+
+<br>
+
+## Code
 ### Extract Embeddings (All)
 ```
 # EchoJEPA-Giant
@@ -319,7 +329,7 @@ python -m evals.main --fname /home/sagemaker-user/user-default-efs/vjepa2/config
 
 
 
-# Probe Tests
+## Probe Tests
 
 
 ```
@@ -368,7 +378,7 @@ python -m evals.main \
 
 
 
-# Training
+## Training
 
 ### EchoNet-Pediatric
 
@@ -834,12 +844,6 @@ V-JEPA 2 is a self-supervised approach to training video encoders, using interne
 	<img src="assets/flowchart.png" width=100%>
 </p>
 
-<!---
-## Updates
-
-* **[Jun-6-25]:** V-JEPA 2 is released. [[`Blog`](https://ai.meta.com/blog/v-jepa-2-world-model-benchmarks)]
---->
-
 ## V-JEPA 2 Pre-training
 
 **(Top)** The encoder and predictor are pre-trained through self-supervised learning from video using a masked latent feature prediction objective, leveraging abundant natural videos to bootstrap physical world understanding and prediction. **(Bottom)** Performance of V-JEPA 2 on downstream understanding and prediction tasks.
@@ -1243,7 +1247,21 @@ are licensed under the Apache 2.0 license.
 
 
 ## Citation
-If you find this repository useful in your research, please consider giving a star :star: and a citation
+Please cite us!
+
+```bibtex
+@misc{munim2026echojepalatentpredictivefoundation,
+      title={EchoJEPA: A Latent Predictive Foundation Model for Echocardiography}, 
+      author={Alif Munim and Adibvafa Fallahpour and Teodora Szasz and Ahmadreza Attarpour and River Jiang and Brana Sooriyakanthan and Maala Sooriyakanthan and Heather Whitney and Jeremy Slivnick and Barry Rubin and Wendy Tsang and Bo Wang},
+      year={2026},
+      eprint={2602.02603},
+      archivePrefix={arXiv},
+      primaryClass={eess.IV},
+      url={https://arxiv.org/abs/2602.02603}, 
+}
+```bibtex
+
+And the VJEPA2 paper:
 ```bibtex
 @article{assran2025vjepa2,
   title={V-JEPA~2: Self-Supervised Video Models Enable Understanding, Prediction and Planning},
