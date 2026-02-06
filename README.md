@@ -1259,10 +1259,7 @@ Please cite us!
       primaryClass={eess.IV},
       url={https://arxiv.org/abs/2602.02603}, 
 }
-```bibtex
 
-And the VJEPA2 paper:
-```bibtex
 @article{assran2025vjepa2,
   title={V-JEPA~2: Self-Supervised Video Models Enable Understanding, Prediction and Planning},
   author={Assran, Mahmoud and Bardes, Adrien and Fan, David and Garrido, Quentin and Howes, Russell and
