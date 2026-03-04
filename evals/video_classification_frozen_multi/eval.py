@@ -27,7 +27,8 @@ from evals.video_classification_frozen_multi.models import init_module
 from evals.video_classification_frozen_multi.utils import make_transforms
 from src.datasets.data_manager import init_data
 from src.models.attentive_pooler import AttentiveClassifier, AttentiveRegressor
-
+from src.models.linear_pooler import LinearClassifier, LinearRegressor
+from src.models.linear_pooler import MLPClassifier, MLPRegressor
 
 from src.utils.checkpoint_loader import robust_checkpoint_loader
 from src.utils.distributed import AllReduce, init_distributed
@@ -170,6 +171,9 @@ def main(args_eval, resume_preempt=False):
     # -- REGRESSION
     task_type = args_classifier.get("task_type", "classification")     # "classification" or "regression"
     num_targets = args_classifier.get("num_targets", None)             # regression only
+    probe_type = args_classifier.get("probe_type", "attentive")        # "attentive", "linear", or "mlp"
+    use_layernorm = args_classifier.get("use_layernorm", True)
+    probe_dropout = args_classifier.get("dropout", 0.0)
 
     probe_checkpoint = args_eval.get("probe_checkpoint", None)
 
@@ -274,31 +278,63 @@ def main(args_eval, resume_preempt=False):
         allowed = set(sig.parameters.keys())
         return {k: v for k, v in kwargs.items() if k in allowed}
 
-    common_probe_kwargs = dict(
-        embed_dim=encoder.embed_dim,
-        num_heads=num_heads,
-        depth=num_probe_blocks,
-        use_activation_checkpointing=True,
-        use_slot_embeddings=use_slot_embeddings,
-        num_views=num_views,
-        clips_per_view=clips_per_view,
-        use_factorized=use_factorized,
-    )
+    def make_probe(task, probe, embed_dim, num_classes, num_targets, num_heads, depth,
+                   use_ln, dropout, use_slot_embeddings, num_views, clips_per_view, use_factorized):
+        if task == "regression":
+            if num_targets is None:
+                raise ValueError("task_type='regression' requires args_classifier['num_targets']")
+            if probe == "linear":
+                return LinearRegressor(
+                    embed_dim=embed_dim, num_targets=num_targets,
+                    use_layernorm=use_ln, dropout=dropout,
+                )
+            elif probe == "mlp":
+                return MLPRegressor(
+                    embed_dim=embed_dim, num_targets=num_targets,
+                    use_layernorm=use_ln, dropout=dropout,
+                )
+            else:  # attentive (default)
+                kwargs = dict(
+                    embed_dim=embed_dim, num_heads=num_heads, depth=depth,
+                    num_targets=num_targets, use_activation_checkpointing=True,
+                    use_slot_embeddings=use_slot_embeddings, num_views=num_views,
+                    clips_per_view=clips_per_view, use_factorized=use_factorized,
+                )
+                return AttentiveRegressor(**_filter_kwargs(AttentiveRegressor, kwargs))
+        else:  # classification
+            if num_classes is None:
+                raise ValueError("task_type='classification' requires args_data['num_classes']")
+            if probe == "linear":
+                return LinearClassifier(
+                    embed_dim=embed_dim, num_classes=num_classes,
+                    use_layernorm=use_ln, dropout=dropout,
+                )
+            elif probe == "mlp":
+                return MLPClassifier(
+                    embed_dim=embed_dim, num_classes=num_classes,
+                    use_layernorm=use_ln, dropout=dropout,
+                )
+            else:  # attentive (default)
+                kwargs = dict(
+                    embed_dim=embed_dim, num_heads=num_heads, depth=depth,
+                    num_classes=num_classes, use_activation_checkpointing=True,
+                    use_slot_embeddings=use_slot_embeddings, num_views=num_views,
+                    clips_per_view=clips_per_view, use_factorized=use_factorized,
+                )
+                return AttentiveClassifier(**_filter_kwargs(AttentiveClassifier, kwargs))
 
-    if task_type == "regression":
-        if num_targets is None:
-            raise ValueError("task_type='regression' requires args_classifier['num_targets']")
-        reg_kwargs = dict(common_probe_kwargs)
-        reg_kwargs["num_targets"] = num_targets
-        reg_kwargs = _filter_kwargs(AttentiveRegressor, reg_kwargs)
-        classifiers = [AttentiveRegressor(**reg_kwargs).to(device) for _ in opt_kwargs]
-    else:
-        if num_classes is None:
-            raise ValueError("task_type='classification' requires args_data['num_classes']")
-        cls_kwargs = dict(common_probe_kwargs)
-        cls_kwargs["num_classes"] = num_classes
-        cls_kwargs = _filter_kwargs(AttentiveClassifier, cls_kwargs)
-        classifiers = [AttentiveClassifier(**cls_kwargs).to(device) for _ in opt_kwargs]
+    classifiers = [
+        make_probe(
+            task=task_type, probe=probe_type, embed_dim=encoder.embed_dim,
+            num_classes=num_classes, num_targets=num_targets, num_heads=num_heads,
+            depth=num_probe_blocks, use_ln=use_layernorm, dropout=probe_dropout,
+            use_slot_embeddings=use_slot_embeddings, num_views=num_views,
+            clips_per_view=clips_per_view, use_factorized=use_factorized,
+        ).to(device)
+        for _ in opt_kwargs
+    ]
+
+    logger.info(f"Initialized {len(classifiers)} {probe_type} probes for {task_type}")
 
     # -- DDP guard
     from torch import distributed as dist

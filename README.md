@@ -152,7 +152,15 @@ If you are not training from scratch, set `optimization.checkpoint` to your down
 
 ### Probe-based evaluation
 
-Probe-based evaluation consists in training an attentive probe on top of frozen V-JEPA 2 features. We provide training scripts for training your own probes, and checkpoints to run inference directly.
+Probe-based evaluation consists in training a lightweight probe on top of frozen V-JEPA 2 features. We support three probe types via the `probe_type` config field:
+
+| Probe Type | Architecture | Pooling | Use Case |
+|-----------|-------------|---------|----------|
+| `attentive` (default) | Cross-attention + self-attention blocks | Learned query token | Best downstream performance (ICML paper) |
+| `linear` | Single linear layer | Mean pooling | Tests linear separability of representations (Nature Medicine paper) |
+| `mlp` | Two-layer MLP with GELU | Mean pooling | Middle ground between linear and attentive |
+
+We provide training scripts for training your own probes, and checkpoints to run inference directly.
 
 <p align="center">
 	<img src="assets/echo_fig2.png" width=100%>
@@ -246,8 +254,9 @@ experiment:
   classifier:
     task_type: regression         # <--- Make sure to specify the task type is regression
     num_targets: 1                # <--- For regression, set the targets to 1
-    num_heads: 16
-    num_probe_blocks: 4
+    probe_type: attentive         # <--- "attentive" (default), "linear", or "mlp"
+    num_heads: 16                 # <--- Attentive probe only (ignored for linear/mlp)
+    num_probe_blocks: 4           # <--- Attentive probe only (ignored for linear/mlp)
 
     # num_views: 2                # <--- (MULTI-VIEW ONLY) Number of total views (e.g. A4C.mp4, PSAX-AV.mp4)
     # clips_per_view: 2           # <--- (MULTI-VIEW ONLY) Number of clips to sample from each view (e.g. A4C_1, A4C_2, PSAX-AV_1, PSAX-AV_2)
@@ -273,8 +282,52 @@ experiment:
     # min_present: 1             # <--- (MULTI-VIEW ONLY) Keep at least this many views per study during augmentation
 ```
 
-The settings are largely the same for classification, except we change `task_type: regression` to `task_type: classification` and we replace `num_targets: 1` with `num_classes: N`. 
+The settings are largely the same for classification, except we change `task_type: regression` to `task_type: classification` and we replace `num_targets: 1` with `num_classes: N`.
 For multi-view, set `model_kwargs.module_name` to `evals.video_classification_frozen_multi.modelcustom.vit_encoder_multiclip`. See `configs/eval/vitg-384` for more examples.
+
+#### Using linear probes instead of attentive probes
+
+To use a linear probe, set `probe_type: linear` in the classifier config. Linear probes use mean pooling instead of learned cross-attention, making them a stricter test of representation quality. The only trainable parameters are a LayerNorm and a single linear layer.
+
+```
+experiment:
+  classifier:
+    task_type: classification     # or regression
+    probe_type: linear            # <--- Switch to linear probe
+    use_layernorm: true           # <--- Linear/MLP probe setting
+    dropout: 0.0                  # <--- Linear/MLP probe setting
+    num_classes: 13               # classification only
+    # num_targets: 1              # regression only
+```
+
+Linear probes typically use higher learning rates and less regularization than attentive probes:
+```
+  optimization:
+    batch_size: 1
+    num_epochs: 10
+    use_bfloat16: true
+    multihead_kwargs:
+    - lr: 0.001
+      start_lr: 0.001
+      final_lr: 0.0
+      weight_decay: 0.0
+      final_weight_decay: 0.0
+      warmup: 0.0
+    - lr: 0.0005
+      start_lr: 0.0005
+      final_lr: 0.0
+      weight_decay: 0.001
+      final_weight_decay: 0.001
+      warmup: 0.0
+    - lr: 0.0001
+      start_lr: 0.0001
+      final_lr: 0.0
+      weight_decay: 0.01
+      final_weight_decay: 0.01
+      warmup: 0.0
+```
+
+The rest of the config (model_kwargs, data, etc.) stays the same as the attentive probe config. See `configs/eval/vitg-384/view/echojepa_view_linear.yaml` for a complete example. Linear probes are supported in both single-view and multi-view evaluation.
 
 Evaluations can be run either locally, or distributed via SLURM. (Running locally is useful for debugging and validation).
 Use provided training configs under "Evaluation Attentive Probes". These configs allow to train multiple probes in parallel with various optimization parameters.
@@ -317,8 +370,9 @@ probe_checkpoint: /path/to/probe.pt
 
 experiment:
   classifier:              # <--- Keep identical to train config.
-    task_type: regression  
-    num_targets: 1         
+    task_type: regression
+    num_targets: 1
+    probe_type: attentive  # <--- Must match your trained probe type
     num_heads: 16
     num_probe_blocks: 4
 
@@ -380,10 +434,11 @@ The other settings should be identical to your training config. See configs unde
 │   └── main.py                            #   entrypoint for locally-run evaluations
 ├── src                                    # the package
 │   ├── datasets                           #   datasets, data loaders, ...
-│   ├── models                             #   model definitions
+│   ├── models                             #   model definitions (ViT, attentive pooler, linear pooler, ...)
 │   ├── masks                              #   mask collators, masking utilities, ...
 │   └── utils                              #   shared utilities
 ├── tests                                  # unit tests for some modules in `src`
+├── claude                                 # architecture docs and project reference files
 
 ```
 
@@ -399,7 +454,7 @@ are licensed under the Apache 2.0 license.
 
 
 ## Citation
-**Alif Munim, Adibvafa Fallahpour, Teodora Szasz**, Ahmadreza Attarpour, River Jiang, Brana Sooriyakanthan, Maala Sooriyakanthan, Heather Whitney, Jeremy Slivnick, Barry Rubin, Wendy Tsang, Bo Wang
+**Alif Munim, Adibvafa Fallahpour, Teodora Szasz, Ahmadreza Attarpour**, River Jiang, Brana Sooriyakanthan, Maala Sooriyakanthan, Heather Whitney, Jeremy Slivnick, Barry Rubin, Wendy Tsang, Bo Wang
 
 If you find this repository useful in your research, please consider giving a star :star: and a citation
 ```bibtex
