@@ -32,6 +32,8 @@ from evals.video_classification_frozen.utils import make_transforms
 from src.datasets.data_manager import init_data
 from src.models.attentive_pooler import AttentiveClassifier
 from src.models.attentive_pooler import AttentiveRegressor
+from src.models.linear_pooler import LinearClassifier, LinearRegressor
+from src.models.linear_pooler import MLPClassifier, MLPRegressor
 
 from src.utils.checkpoint_loader import robust_checkpoint_loader
 from src.utils.distributed import AllReduce, init_distributed
@@ -164,6 +166,9 @@ def main(args_eval, resume_preempt=False):
     # -- REGRESSION
     task_type = args_classifier.get("task_type", "classification")  # "classification" or "regression"  
     num_targets = args_classifier.get("num_targets", None)  # Only for regression
+    probe_type = args_classifier.get("probe_type", "attentive")  # "attentive", "linear", or "mlp"
+    use_layernorm = args_classifier.get("use_layernorm", True)
+    probe_dropout = args_classifier.get("dropout", 0.0)
 
     # -- DATA
     args_data = args_exp.get("data")
@@ -251,29 +256,71 @@ def main(args_eval, resume_preempt=False):
         device=device,
     )
 
-    # -- init classifier (disable activation checkpointing; you have headroom)
-    if task_type == "regression":
-        classifiers = [
-            AttentiveRegressor(
-                embed_dim=encoder.embed_dim,
-                num_heads=num_heads,  
-                depth=num_probe_blocks,  
-                num_targets=num_targets,  
-                use_activation_checkpointing=True,  
-            ).to(device)  
-            for _ in opt_kwargs  
-        ]  
-    else:  # classification  
-        classifiers = [  
-            AttentiveClassifier(  
-                embed_dim=encoder.embed_dim,  
-                num_heads=num_heads,  
-                depth=num_probe_blocks,  
-                num_classes=num_classes,  
-                use_activation_checkpointing=True,  
-            ).to(device)  
-            for _ in opt_kwargs  
-        ]
+    # -- init classifier based on probe_type
+    def make_probe(task, probe, embed_dim, num_classes, num_targets, num_heads, depth, use_ln, dropout):
+        if task == "regression":
+            if probe == "linear":
+                return LinearRegressor(
+                    embed_dim=embed_dim,
+                    num_targets=num_targets,
+                    use_layernorm=use_ln,
+                    dropout=dropout,
+                )
+            elif probe == "mlp":
+                return MLPRegressor(
+                    embed_dim=embed_dim,
+                    num_targets=num_targets,
+                    use_layernorm=use_ln,
+                    dropout=dropout,
+                )
+            else:  # attentive (default)
+                return AttentiveRegressor(
+                    embed_dim=embed_dim,
+                    num_heads=num_heads,
+                    depth=depth,
+                    num_targets=num_targets,
+                    use_activation_checkpointing=True,
+                )
+        else:  # classification
+            if probe == "linear":
+                return LinearClassifier(
+                    embed_dim=embed_dim,
+                    num_classes=num_classes,
+                    use_layernorm=use_ln,
+                    dropout=dropout,
+                )
+            elif probe == "mlp":
+                return MLPClassifier(
+                    embed_dim=embed_dim,
+                    num_classes=num_classes,
+                    use_layernorm=use_ln,
+                    dropout=dropout,
+                )
+            else:  # attentive (default)
+                return AttentiveClassifier(
+                    embed_dim=embed_dim,
+                    num_heads=num_heads,
+                    depth=depth,
+                    num_classes=num_classes,
+                    use_activation_checkpointing=True,
+                )
+
+    classifiers = [
+        make_probe(
+            task=task_type,
+            probe=probe_type,
+            embed_dim=encoder.embed_dim,
+            num_classes=num_classes,
+            num_targets=num_targets,
+            num_heads=num_heads,
+            depth=num_probe_blocks,
+            use_ln=use_layernorm,
+            dropout=probe_dropout,
+        ).to(device)
+        for _ in opt_kwargs
+    ]
+    
+    logger.info(f"Initialized {len(classifiers)} {probe_type} probes for {task_type}")
 
     
     # classifiers = [DistributedDataParallel(c, static_graph=True) for c in classifiers

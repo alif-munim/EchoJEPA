@@ -1,0 +1,7 @@
+{
+  "trace": 0,
+  "mild": 1,
+  "moderate": 2,
+  "mild_to_moderate": 3,
+  "severe": 4
+}

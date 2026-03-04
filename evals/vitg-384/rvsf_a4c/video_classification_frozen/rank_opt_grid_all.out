@@ -1,0 +1,900 @@
+================================================================================
+CKPT: mrvsf-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/epoch_001.pt
+exp_dir=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/mrvsf-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2
+ckpt=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/mrvsf-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/epoch_001.pt
+metric=best_val_acc_per_head  grid_key=opt_grid  device=meta
+Heads=20  Grids=20  mapping=auto
+
+Top 10 grids (rank_by=max, secondary=mean):
+ 1. grid=13 max=91.1492 (head 13) mean=91.1492 over 1 heads ref_lr=0.00015 ref_wd=0.4 warmup=0.0
+ 2. grid= 9 max=91.0539 (head 9) mean=91.0539 over 1 heads ref_lr=5e-05 ref_wd=0.1 warmup=0.0
+ 3. grid=14 max=90.9586 (head 14) mean=90.9586 over 1 heads ref_lr=5e-05 ref_wd=0.4 warmup=0.0
+ 4. grid= 4 max=90.9178 (head 4) mean=90.9178 over 1 heads ref_lr=5e-05 ref_wd=0.01 warmup=0.0
+ 5. grid=19 max=90.8361 (head 19) mean=90.8361 over 1 heads ref_lr=5e-05 ref_wd=0.8 warmup=0.0
+ 6. grid=18 max=90.8224 (head 18) mean=90.8224 over 1 heads ref_lr=0.00015 ref_wd=0.8 warmup=0.0
+ 7. grid= 3 max=90.6863 (head 3) mean=90.6863 over 1 heads ref_lr=0.00015 ref_wd=0.01 warmup=0.0
+ 8. grid=17 max=90.4548 (head 17) mean=90.4548 over 1 heads ref_lr=0.0005 ref_wd=0.8 warmup=0.0
+ 9. grid= 7 max=90.4412 (head 7) mean=90.4412 over 1 heads ref_lr=0.0005 ref_wd=0.1 warmup=0.0
+10. grid= 8 max=90.4003 (head 8) mean=90.4003 over 1 heads ref_lr=0.00015 ref_wd=0.1 warmup=0.0
+
+Grid dicts:
+
+# 1. grid=13 max_acc=91.1492 mean_acc=91.1492
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.00015,
+ 'ref_lr': 0.00015,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 2. grid=9 max_acc=91.0539 mean_acc=91.0539
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 5e-05,
+ 'ref_lr': 5e-05,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 3. grid=14 max_acc=90.9586 mean_acc=90.9586
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 5e-05,
+ 'ref_lr': 5e-05,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 4. grid=4 max_acc=90.9178 mean_acc=90.9178
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 5e-05,
+ 'ref_lr': 5e-05,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 5. grid=19 max_acc=90.8361 mean_acc=90.8361
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 5e-05,
+ 'ref_lr': 5e-05,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 6. grid=18 max_acc=90.8224 mean_acc=90.8224
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.00015,
+ 'ref_lr': 0.00015,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 7. grid=3 max_acc=90.6863 mean_acc=90.6863
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.00015,
+ 'ref_lr': 0.00015,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 8. grid=17 max_acc=90.4548 mean_acc=90.4548
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0005,
+ 'ref_lr': 0.0005,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 9. grid=7 max_acc=90.4412 mean_acc=90.4412
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0005,
+ 'ref_lr': 0.0005,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 10. grid=8 max_acc=90.4003 mean_acc=90.4003
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.00015,
+ 'ref_lr': 0.00015,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+================================================================================
+CKPT: mrvsf-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/epoch_002.pt
+exp_dir=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/mrvsf-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2
+ckpt=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/mrvsf-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/epoch_002.pt
+metric=best_val_acc_per_head  grid_key=opt_grid  device=meta
+Heads=20  Grids=20  mapping=auto
+
+Top 10 grids (rank_by=max, secondary=mean):
+ 1. grid=19 max=91.2718 (head 19) mean=91.2718 over 1 heads ref_lr=5e-05 ref_wd=0.8 warmup=0.0
+ 2. grid=13 max=91.1492 (head 13) mean=91.1492 over 1 heads ref_lr=0.00015 ref_wd=0.4 warmup=0.0
+ 3. grid= 9 max=91.1356 (head 9) mean=91.1356 over 1 heads ref_lr=5e-05 ref_wd=0.1 warmup=0.0
+ 4. grid= 4 max=91.1220 (head 4) mean=91.1220 over 1 heads ref_lr=5e-05 ref_wd=0.01 warmup=0.0
+ 5. grid= 3 max=91.1084 (head 3) mean=91.1084 over 1 heads ref_lr=0.00015 ref_wd=0.01 warmup=0.0
+ 6. grid=14 max=91.0539 (head 14) mean=91.0539 over 1 heads ref_lr=5e-05 ref_wd=0.4 warmup=0.0
+ 7. grid=18 max=90.8224 (head 18) mean=90.8224 over 1 heads ref_lr=0.00015 ref_wd=0.8 warmup=0.0
+ 8. grid=17 max=90.4548 (head 17) mean=90.4548 over 1 heads ref_lr=0.0005 ref_wd=0.8 warmup=0.0
+ 9. grid= 7 max=90.4412 (head 7) mean=90.4412 over 1 heads ref_lr=0.0005 ref_wd=0.1 warmup=0.0
+10. grid= 8 max=90.4003 (head 8) mean=90.4003 over 1 heads ref_lr=0.00015 ref_wd=0.1 warmup=0.0
+
+Grid dicts:
+
+# 1. grid=19 max_acc=91.2718 mean_acc=91.2718
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 5e-05,
+ 'ref_lr': 5e-05,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 2. grid=13 max_acc=91.1492 mean_acc=91.1492
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.00015,
+ 'ref_lr': 0.00015,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 3. grid=9 max_acc=91.1356 mean_acc=91.1356
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 5e-05,
+ 'ref_lr': 5e-05,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 4. grid=4 max_acc=91.1220 mean_acc=91.1220
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 5e-05,
+ 'ref_lr': 5e-05,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 5. grid=3 max_acc=91.1084 mean_acc=91.1084
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.00015,
+ 'ref_lr': 0.00015,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 6. grid=14 max_acc=91.0539 mean_acc=91.0539
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 5e-05,
+ 'ref_lr': 5e-05,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 7. grid=18 max_acc=90.8224 mean_acc=90.8224
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.00015,
+ 'ref_lr': 0.00015,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 8. grid=17 max_acc=90.4548 mean_acc=90.4548
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0005,
+ 'ref_lr': 0.0005,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 9. grid=7 max_acc=90.4412 mean_acc=90.4412
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0005,
+ 'ref_lr': 0.0005,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 10. grid=8 max_acc=90.4003 mean_acc=90.4003
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.00015,
+ 'ref_lr': 0.00015,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+================================================================================
+CKPT: rvsf-a4c-full-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/epoch_001.pt
+exp_dir=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2
+ckpt=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/epoch_001.pt
+metric=best_val_acc_per_head  grid_key=opt_grid  device=meta
+Heads=20  Grids=20  mapping=auto
+
+Top 10 grids (rank_by=max, secondary=mean):
+ 1. grid= 4 max=90.2459 (head 4) mean=90.2459 over 1 heads ref_lr=0.0001 ref_wd=0.01 warmup=0.0
+ 2. grid=14 max=90.2029 (head 14) mean=90.2029 over 1 heads ref_lr=0.0001 ref_wd=0.4 warmup=0.0
+ 3. grid= 9 max=90.1979 (head 9) mean=90.1979 over 1 heads ref_lr=0.0001 ref_wd=0.1 warmup=0.0
+ 4. grid=19 max=90.0740 (head 19) mean=90.0740 over 1 heads ref_lr=0.0001 ref_wd=0.8 warmup=0.0
+ 5. grid=13 max=89.8908 (head 13) mean=89.8908 over 1 heads ref_lr=0.0003 ref_wd=0.4 warmup=0.0
+ 6. grid= 7 max=89.8327 (head 7) mean=89.8327 over 1 heads ref_lr=0.001 ref_wd=0.1 warmup=0.0
+ 7. grid=18 max=89.8238 (head 18) mean=89.8238 over 1 heads ref_lr=0.0003 ref_wd=0.8 warmup=0.0
+ 8. grid=12 max=89.7834 (head 12) mean=89.7834 over 1 heads ref_lr=0.001 ref_wd=0.4 warmup=0.0
+ 9. grid= 2 max=89.4991 (head 2) mean=89.4991 over 1 heads ref_lr=0.001 ref_wd=0.01 warmup=0.0
+10. grid=17 max=89.3677 (head 17) mean=89.3677 over 1 heads ref_lr=0.001 ref_wd=0.8 warmup=0.0
+
+Grid dicts:
+
+# 1. grid=4 max_acc=90.2459 mean_acc=90.2459
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 2. grid=14 max_acc=90.2029 mean_acc=90.2029
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 3. grid=9 max_acc=90.1979 mean_acc=90.1979
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 4. grid=19 max_acc=90.0740 mean_acc=90.0740
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 5. grid=13 max_acc=89.8908 mean_acc=89.8908
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 6. grid=7 max_acc=89.8327 mean_acc=89.8327
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 7. grid=18 max_acc=89.8238 mean_acc=89.8238
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 8. grid=12 max_acc=89.7834 mean_acc=89.7834
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 9. grid=2 max_acc=89.4991 mean_acc=89.4991
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 10. grid=17 max_acc=89.3677 mean_acc=89.3677
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+================================================================================
+CKPT: rvsf-a4c-full-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/latest.pt
+exp_dir=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2
+ckpt=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pt-e279-an-e78-fs1-ns3-nvs2/latest.pt
+metric=best_val_acc_per_head  grid_key=opt_grid  device=meta
+Heads=20  Grids=20  mapping=auto
+
+Top 10 grids (rank_by=max, secondary=mean):
+ 1. grid= 4 max=90.2459 (head 4) mean=90.2459 over 1 heads ref_lr=0.0001 ref_wd=0.01 warmup=0.0
+ 2. grid=14 max=90.2029 (head 14) mean=90.2029 over 1 heads ref_lr=0.0001 ref_wd=0.4 warmup=0.0
+ 3. grid= 9 max=90.1979 (head 9) mean=90.1979 over 1 heads ref_lr=0.0001 ref_wd=0.1 warmup=0.0
+ 4. grid=19 max=90.0740 (head 19) mean=90.0740 over 1 heads ref_lr=0.0001 ref_wd=0.8 warmup=0.0
+ 5. grid=13 max=89.8908 (head 13) mean=89.8908 over 1 heads ref_lr=0.0003 ref_wd=0.4 warmup=0.0
+ 6. grid= 7 max=89.8327 (head 7) mean=89.8327 over 1 heads ref_lr=0.001 ref_wd=0.1 warmup=0.0
+ 7. grid=18 max=89.8238 (head 18) mean=89.8238 over 1 heads ref_lr=0.0003 ref_wd=0.8 warmup=0.0
+ 8. grid=12 max=89.7834 (head 12) mean=89.7834 over 1 heads ref_lr=0.001 ref_wd=0.4 warmup=0.0
+ 9. grid= 2 max=89.4991 (head 2) mean=89.4991 over 1 heads ref_lr=0.001 ref_wd=0.01 warmup=0.0
+10. grid=17 max=89.3677 (head 17) mean=89.3677 over 1 heads ref_lr=0.001 ref_wd=0.8 warmup=0.0
+
+Grid dicts:
+
+# 1. grid=4 max_acc=90.2459 mean_acc=90.2459
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 2. grid=14 max_acc=90.2029 mean_acc=90.2029
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 3. grid=9 max_acc=90.1979 mean_acc=90.1979
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 4. grid=19 max_acc=90.0740 mean_acc=90.0740
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 5. grid=13 max_acc=89.8908 mean_acc=89.8908
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 6. grid=7 max_acc=89.8327 mean_acc=89.8327
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 7. grid=18 max_acc=89.8238 mean_acc=89.8238
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 8. grid=12 max_acc=89.7834 mean_acc=89.7834
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 9. grid=2 max_acc=89.4991 mean_acc=89.4991
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 10. grid=17 max_acc=89.3677 mean_acc=89.3677
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+================================================================================
+CKPT: rvsf-a4c-full-vitg16-336-16f-pt280-an80-fs1-ns2-nvs2/epoch_001.pt
+exp_dir=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pt280-an80-fs1-ns2-nvs2
+ckpt=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pt280-an80-fs1-ns2-nvs2/epoch_001.pt
+metric=best_val_acc_per_head  grid_key=opt_grid  device=meta
+Heads=20  Grids=20  mapping=auto
+
+Top 10 grids (rank_by=max, secondary=mean):
+ 1. grid= 9 max=90.4590 (head 9) mean=90.4590 over 1 heads ref_lr=0.0001 ref_wd=0.1 warmup=0.0
+ 2. grid= 4 max=90.3964 (head 4) mean=90.3964 over 1 heads ref_lr=0.0001 ref_wd=0.01 warmup=0.0
+ 3. grid=14 max=90.2540 (head 14) mean=90.2540 over 1 heads ref_lr=0.0001 ref_wd=0.4 warmup=0.0
+ 4. grid=19 max=90.2319 (head 19) mean=90.2319 over 1 heads ref_lr=0.0001 ref_wd=0.8 warmup=0.0
+ 5. grid= 8 max=90.1867 (head 8) mean=90.1867 over 1 heads ref_lr=0.0003 ref_wd=0.1 warmup=0.0
+ 6. grid=18 max=90.0436 (head 18) mean=90.0436 over 1 heads ref_lr=0.0003 ref_wd=0.8 warmup=0.0
+ 7. grid=13 max=90.0066 (head 13) mean=90.0066 over 1 heads ref_lr=0.0003 ref_wd=0.4 warmup=0.0
+ 8. grid= 7 max=89.9368 (head 7) mean=89.9368 over 1 heads ref_lr=0.001 ref_wd=0.1 warmup=0.0
+ 9. grid=12 max=89.6181 (head 12) mean=89.6181 over 1 heads ref_lr=0.001 ref_wd=0.4 warmup=0.0
+10. grid=17 max=88.3892 (head 17) mean=88.3892 over 1 heads ref_lr=0.001 ref_wd=0.8 warmup=0.0
+
+Grid dicts:
+
+# 1. grid=9 max_acc=90.4590 mean_acc=90.4590
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 2. grid=4 max_acc=90.3964 mean_acc=90.3964
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 3. grid=14 max_acc=90.2540 mean_acc=90.2540
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 4. grid=19 max_acc=90.2319 mean_acc=90.2319
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 5. grid=8 max_acc=90.1867 mean_acc=90.1867
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 6. grid=18 max_acc=90.0436 mean_acc=90.0436
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 7. grid=13 max_acc=90.0066 mean_acc=90.0066
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 8. grid=7 max_acc=89.9368 mean_acc=89.9368
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 9. grid=12 max_acc=89.6181 mean_acc=89.6181
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 10. grid=17 max_acc=88.3892 mean_acc=88.3892
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+================================================================================
+CKPT: rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/epoch_001.pt
+exp_dir=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2
+ckpt=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/epoch_001.pt
+metric=best_val_acc_per_head  grid_key=opt_grid  device=meta
+Heads=20  Grids=20  mapping=auto
+
+Top 10 grids (rank_by=max, secondary=mean):
+ 1. grid= 9 max=90.2295 (head 9) mean=90.2295 over 1 heads ref_lr=0.0001 ref_wd=0.1 warmup=0.0
+ 2. grid= 4 max=90.1840 (head 4) mean=90.1840 over 1 heads ref_lr=0.0001 ref_wd=0.01 warmup=0.0
+ 3. grid=14 max=90.1145 (head 14) mean=90.1145 over 1 heads ref_lr=0.0001 ref_wd=0.4 warmup=0.0
+ 4. grid= 8 max=89.9818 (head 8) mean=89.9818 over 1 heads ref_lr=0.0003 ref_wd=0.1 warmup=0.0
+ 5. grid=19 max=89.8858 (head 19) mean=89.8858 over 1 heads ref_lr=0.0001 ref_wd=0.8 warmup=0.0
+ 6. grid=18 max=89.8302 (head 18) mean=89.8302 over 1 heads ref_lr=0.0003 ref_wd=0.8 warmup=0.0
+ 7. grid=13 max=89.5901 (head 13) mean=89.5901 over 1 heads ref_lr=0.0003 ref_wd=0.4 warmup=0.0
+ 8. grid=12 max=89.5319 (head 12) mean=89.5319 over 1 heads ref_lr=0.001 ref_wd=0.4 warmup=0.0
+ 9. grid=17 max=89.0429 (head 17) mean=89.0429 over 1 heads ref_lr=0.001 ref_wd=0.8 warmup=0.0
+10. grid= 2 max=88.8660 (head 2) mean=88.8660 over 1 heads ref_lr=0.001 ref_wd=0.01 warmup=0.0
+
+Grid dicts:
+
+# 1. grid=9 max_acc=90.2295 mean_acc=90.2295
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 2. grid=4 max_acc=90.1840 mean_acc=90.1840
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 3. grid=14 max_acc=90.1145 mean_acc=90.1145
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 4. grid=8 max_acc=89.9818 mean_acc=89.9818
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 5. grid=19 max_acc=89.8858 mean_acc=89.8858
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 6. grid=18 max_acc=89.8302 mean_acc=89.8302
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 7. grid=13 max_acc=89.5901 mean_acc=89.5901
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 8. grid=12 max_acc=89.5319 mean_acc=89.5319
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 9. grid=17 max_acc=89.0429 mean_acc=89.0429
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 10. grid=2 max_acc=88.8660 mean_acc=88.8660
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+================================================================================
+CKPT: rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/epoch_002.pt
+exp_dir=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2
+ckpt=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/epoch_002.pt
+metric=best_val_acc_per_head  grid_key=opt_grid  device=meta
+Heads=20  Grids=20  mapping=auto
+
+Top 10 grids (rank_by=max, secondary=mean):
+ 1. grid= 9 max=90.4026 (head 9) mean=90.4026 over 1 heads ref_lr=0.0001 ref_wd=0.1 warmup=0.0
+ 2. grid= 4 max=90.2636 (head 4) mean=90.2636 over 1 heads ref_lr=0.0001 ref_wd=0.01 warmup=0.0
+ 3. grid=14 max=90.1954 (head 14) mean=90.1954 over 1 heads ref_lr=0.0001 ref_wd=0.4 warmup=0.0
+ 4. grid= 8 max=90.0867 (head 8) mean=90.0867 over 1 heads ref_lr=0.0003 ref_wd=0.1 warmup=0.0
+ 5. grid=19 max=90.0778 (head 19) mean=90.0778 over 1 heads ref_lr=0.0001 ref_wd=0.8 warmup=0.0
+ 6. grid=13 max=89.9578 (head 13) mean=89.9578 over 1 heads ref_lr=0.0003 ref_wd=0.4 warmup=0.0
+ 7. grid=18 max=89.8302 (head 18) mean=89.8302 over 1 heads ref_lr=0.0003 ref_wd=0.8 warmup=0.0
+ 8. grid=12 max=89.5319 (head 12) mean=89.5319 over 1 heads ref_lr=0.001 ref_wd=0.4 warmup=0.0
+ 9. grid=17 max=89.0429 (head 17) mean=89.0429 over 1 heads ref_lr=0.001 ref_wd=0.8 warmup=0.0
+10. grid= 2 max=88.8660 (head 2) mean=88.8660 over 1 heads ref_lr=0.001 ref_wd=0.01 warmup=0.0
+
+Grid dicts:
+
+# 1. grid=9 max_acc=90.4026 mean_acc=90.4026
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 2. grid=4 max_acc=90.2636 mean_acc=90.2636
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 3. grid=14 max_acc=90.1954 mean_acc=90.1954
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 4. grid=8 max_acc=90.0867 mean_acc=90.0867
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 5. grid=19 max_acc=90.0778 mean_acc=90.0778
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 6. grid=13 max_acc=89.9578 mean_acc=89.9578
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 7. grid=18 max_acc=89.8302 mean_acc=89.8302
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 8. grid=12 max_acc=89.5319 mean_acc=89.5319
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 9. grid=17 max_acc=89.0429 mean_acc=89.0429
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 10. grid=2 max_acc=88.8660 mean_acc=88.8660
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+================================================================================
+CKPT: rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/epoch_003.pt
+exp_dir=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2
+ckpt=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/epoch_003.pt
+metric=best_val_acc_per_head  grid_key=opt_grid  device=meta
+Heads=20  Grids=20  mapping=auto
+
+Top 10 grids (rank_by=max, secondary=mean):
+ 1. grid= 9 max=90.7248 (head 9) mean=90.7248 over 1 heads ref_lr=0.0001 ref_wd=0.1 warmup=0.0
+ 2. grid= 4 max=90.4746 (head 4) mean=90.4746 over 1 heads ref_lr=0.0001 ref_wd=0.01 warmup=0.0
+ 3. grid= 8 max=90.4392 (head 8) mean=90.4392 over 1 heads ref_lr=0.0003 ref_wd=0.1 warmup=0.0
+ 4. grid=14 max=90.3521 (head 14) mean=90.3521 over 1 heads ref_lr=0.0001 ref_wd=0.4 warmup=0.0
+ 5. grid=19 max=90.2055 (head 19) mean=90.2055 over 1 heads ref_lr=0.0001 ref_wd=0.8 warmup=0.0
+ 6. grid=13 max=90.0210 (head 13) mean=90.0210 over 1 heads ref_lr=0.0003 ref_wd=0.4 warmup=0.0
+ 7. grid=18 max=89.9553 (head 18) mean=89.9553 over 1 heads ref_lr=0.0003 ref_wd=0.8 warmup=0.0
+ 8. grid=12 max=89.8150 (head 12) mean=89.8150 over 1 heads ref_lr=0.001 ref_wd=0.4 warmup=0.0
+ 9. grid=17 max=89.0429 (head 17) mean=89.0429 over 1 heads ref_lr=0.001 ref_wd=0.8 warmup=0.0
+10. grid= 2 max=88.8660 (head 2) mean=88.8660 over 1 heads ref_lr=0.001 ref_wd=0.01 warmup=0.0
+
+Grid dicts:
+
+# 1. grid=9 max_acc=90.7248 mean_acc=90.7248
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 2. grid=4 max_acc=90.4746 mean_acc=90.4746
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 3. grid=8 max_acc=90.4392 mean_acc=90.4392
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 4. grid=14 max_acc=90.3521 mean_acc=90.3521
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 5. grid=19 max_acc=90.2055 mean_acc=90.2055
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 6. grid=13 max_acc=90.0210 mean_acc=90.0210
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 7. grid=18 max_acc=89.9553 mean_acc=89.9553
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 8. grid=12 max_acc=89.8150 mean_acc=89.8150
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 9. grid=17 max_acc=89.0429 mean_acc=89.0429
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 10. grid=2 max_acc=88.8660 mean_acc=88.8660
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+================================================================================
+CKPT: rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/latest.pt
+exp_dir=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2
+ckpt=/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitg-384/rvsf_a4c/video_classification_frozen/rvsf-a4c-full-vitg16-336-16f-pretrain-e279-fs1-ns3-nvs2/latest.pt
+metric=best_val_acc_per_head  grid_key=opt_grid  device=meta
+Heads=20  Grids=20  mapping=auto
+
+Top 10 grids (rank_by=max, secondary=mean):
+ 1. grid= 9 max=90.7248 (head 9) mean=90.7248 over 1 heads ref_lr=0.0001 ref_wd=0.1 warmup=0.0
+ 2. grid= 4 max=90.4746 (head 4) mean=90.4746 over 1 heads ref_lr=0.0001 ref_wd=0.01 warmup=0.0
+ 3. grid= 8 max=90.4392 (head 8) mean=90.4392 over 1 heads ref_lr=0.0003 ref_wd=0.1 warmup=0.0
+ 4. grid=14 max=90.3521 (head 14) mean=90.3521 over 1 heads ref_lr=0.0001 ref_wd=0.4 warmup=0.0
+ 5. grid=19 max=90.2055 (head 19) mean=90.2055 over 1 heads ref_lr=0.0001 ref_wd=0.8 warmup=0.0
+ 6. grid=13 max=90.0210 (head 13) mean=90.0210 over 1 heads ref_lr=0.0003 ref_wd=0.4 warmup=0.0
+ 7. grid=18 max=89.9553 (head 18) mean=89.9553 over 1 heads ref_lr=0.0003 ref_wd=0.8 warmup=0.0
+ 8. grid=12 max=89.8150 (head 12) mean=89.8150 over 1 heads ref_lr=0.001 ref_wd=0.4 warmup=0.0
+ 9. grid=17 max=89.0429 (head 17) mean=89.0429 over 1 heads ref_lr=0.001 ref_wd=0.8 warmup=0.0
+10. grid= 2 max=88.8660 (head 2) mean=88.8660 over 1 heads ref_lr=0.001 ref_wd=0.01 warmup=0.0
+
+Grid dicts:
+
+# 1. grid=9 max_acc=90.7248 mean_acc=90.7248
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 2. grid=4 max_acc=90.4746 mean_acc=90.4746
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 3. grid=8 max_acc=90.4392 mean_acc=90.4392
+{'ref_wd': 0.1,
+ 'final_wd': 0.1,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 4. grid=14 max_acc=90.3521 mean_acc=90.3521
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 5. grid=19 max_acc=90.2055 mean_acc=90.2055
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0001,
+ 'ref_lr': 0.0001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 6. grid=13 max_acc=90.0210 mean_acc=90.0210
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 7. grid=18 max_acc=89.9553 mean_acc=89.9553
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.0003,
+ 'ref_lr': 0.0003,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 8. grid=12 max_acc=89.8150 mean_acc=89.8150
+{'ref_wd': 0.4,
+ 'final_wd': 0.4,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 9. grid=17 max_acc=89.0429 mean_acc=89.0429
+{'ref_wd': 0.8,
+ 'final_wd': 0.8,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}
+
+# 10. grid=2 max_acc=88.8660 mean_acc=88.8660
+{'ref_wd': 0.01,
+ 'final_wd': 0.01,
+ 'start_lr': 0.001,
+ 'ref_lr': 0.001,
+ 'final_lr': 0.0,
+ 'warmup': 0.0}

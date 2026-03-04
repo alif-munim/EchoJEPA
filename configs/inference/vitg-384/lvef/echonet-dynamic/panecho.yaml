@@ -33,9 +33,9 @@ experiment:
   data:
     dataset_type: VideoDataset
     # Point 'dataset_val' to your TEST CSV
-    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test.csv # echonet_dynamic_test.csv 
     # Train path is ignored in val_only mode, but usually required by config parser
-    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test.csv
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test.csv # echonet_dynamic_test.csv
     resolution: 112
     frames_per_clip: 16
     frame_step: 2

@@ -52,20 +52,21 @@ VIEW_CLASSES = {
 }
 
 # Color palette - distinct colors for each view
+# Get the 'rainbow' colormap
+cmap = plt.get_cmap('rainbow')
+
+# Create a list of keys (0, 1, 2... 12)
+keys = sorted(VIEW_CLASSES.keys())
+
+# Generate evenly spaced values between 0 and 1
+# This ensures distinct colors for each class across the full spectrum
+vals = np.linspace(0, 1, len(keys))
+
+# Re-create the COLORS dictionary dynamically
+# This maps class_id -> RGBA color tuple
 COLORS = {
-    0: '#1f77b4',   # A2C - blue
-    1: '#aec7e8',   # A3C - light blue
-    2: '#ff7f0e',   # A4C - orange
-    3: '#ffbb78',   # A5C - light orange
-    4: '#7f7f7f',   # Other - gray
-    5: '#2ca02c',   # PLAX - green
-    6: '#d62728',   # PSAX-AP - red
-    7: '#ff9896',   # PSAX-AV - light red
-    8: '#9467bd',   # PSAX-MV - purple
-    9: '#c5b0d5',   # PSAX-PM - light purple
-    10: '#8c564b',  # SSN - brown
-    11: '#e377c2',  # Subcostal - pink
-    12: '#17becf',  # TEE - cyan
+    k: cmap(val) 
+    for k, val in zip(keys, vals)
 }
 
 
@@ -339,8 +340,6 @@ def plot_comparison(
             title += f"\nSil={m['silhouette_cosine']:.2f}, Acc={m['linear_acc']:.0%}"
         
         ax.set_title(title, fontsize=11, fontweight='bold', pad=8)
-        ax.set_xticks([])
-        ax.set_yticks([])
         
         if normalize_axes and centers[i] is not None:
             center = centers[i]
@@ -349,9 +348,8 @@ def plot_comparison(
         
         ax.set_aspect('equal')
         
-        for spine in ax.spines.values():
-            spine.set_edgecolor('#cccccc')
-            spine.set_linewidth(1)
+        # Remove borders (spines) and axis ticks completely
+        ax.axis('off')
     
     # Shared legend
     all_present_classes = set()
@@ -369,7 +367,7 @@ def plot_comparison(
         loc='center left',
         bbox_to_anchor=(1.0, 0.5),
         fontsize=9,
-        frameon=True,
+        frameon=False, # Removed border from legend as well
         title='View Class',
         title_fontsize=10,
     )
@@ -521,14 +519,14 @@ Examples:
     
     args = parser.parse_args()
     
-    # Define model paths
+    # Define model paths with requested order
     emb_dir = args.embeddings_dir
     model_paths = {
-        'EchoJEPA-G': f'{emb_dir}/echojepa_g_embeddings.npz',
-        'EchoJEPA-L': f'{emb_dir}/echojepa_l_embeddings.npz',
-        'EchoMAE-L': f'{emb_dir}/echomae_l_embeddings.npz',
-        'EchoPrime': f'{emb_dir}/echoprime_embeddings.npz',
         'PanEcho': f'{emb_dir}/panecho_embeddings.npz',
+        'EchoPrime': f'{emb_dir}/echoprime_embeddings.npz',
+        'EchoMAE-L': f'{emb_dir}/echomae_l_embeddings.npz',
+        'EchoJEPA-L': f'{emb_dir}/echojepa_l_embeddings.npz',
+        'EchoJEPA-G': f'{emb_dir}/echojepa_g_embeddings.npz',
     }
     
     # Filter to available models

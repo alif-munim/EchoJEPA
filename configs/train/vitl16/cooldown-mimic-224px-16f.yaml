@@ -6,7 +6,7 @@ cpus_per_task: 16
 mem_per_gpu: 220G
 
 # Write cooldown outputs to a NEW folder (recommended; don't overwrite pretrain)
-folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/cooldown/mimic/vjepa2_vitl_224px_16f
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/cooldown/mimic/vjepa2_vitl_224px_16f_kinetics
 
 data:
   dataset_type: VideoDataset
@@ -87,7 +87,7 @@ optimization:
 
   # Start cooldown from the END of your 210-epoch run (use the actual file that exists)
   # Prefer the last checkpoint you saved (examples: latest.pt, e210.pt, checkpoint.pt, etc.)
-  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/mimic/vjepa2_vitl_224px_16f/e210.pt
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/anneal/keep/vitl-kinetics-pt220.pt
 
   ema: [0.99925, 0.99925]
   weight_decay: 0.04
@@ -107,7 +107,7 @@ optimization:
 
   warmup: 0
 
-  # pretrain stopped short at 210 epochs (instead of 240)
-  # so we extend cooldown from 40 epochs to 80
-  # 80 epochs * 300 iters/epoch = 24,000 updates
-  epochs: 80
+  # pretrain stopped short at 220 epochs (instead of 240)
+  # so we extend cooldown from 40 epochs to 60
+  # 60 epochs * 300 iters/epoch = 18,000 updates
+  epochs: 60

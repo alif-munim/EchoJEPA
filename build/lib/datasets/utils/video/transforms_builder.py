@@ -3,6 +3,8 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+from typing import Optional
+
 import torch
 import torchvision.transforms as transforms
 
@@ -19,8 +21,9 @@ def make_transforms(
     motion_shift=False,
     crop_size=224,
     normalize=((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    pad_frame_count: Optional[int] = None,
+    pad_frame_method: str = "circulant",
 ):
-
     _frames_augmentation = VideoTransform(
         random_horizontal_flip=random_horizontal_flip,
         random_resize_aspect_ratio=random_resize_aspect_ratio,
@@ -30,6 +33,8 @@ def make_transforms(
         motion_shift=motion_shift,
         crop_size=crop_size,
         normalize=normalize,
+        pad_frame_count=pad_frame_count,
+        pad_frame_method=pad_frame_method,
     )
     return _frames_augmentation
 
@@ -46,8 +51,9 @@ class VideoTransform(object):
         motion_shift=False,
         crop_size=224,
         normalize=((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        pad_frame_count: Optional[int] = None,
+        pad_frame_method: str = "circulant",
     ):
-
         self.random_horizontal_flip = random_horizontal_flip
         self.random_resize_aspect_ratio = random_resize_aspect_ratio
         self.random_resize_scale = random_resize_scale
@@ -56,6 +62,9 @@ class VideoTransform(object):
         self.crop_size = crop_size
         self.mean = torch.tensor(normalize[0], dtype=torch.float32)
         self.std = torch.tensor(normalize[1], dtype=torch.float32)
+        self.pad_frame_count = pad_frame_count
+        self.pad_frame_method = pad_frame_method
+
         if not self.auto_augment:
             # Without auto-augment, PIL and tensor conversions simply scale uint8 space by 255.
             self.mean *= 255.0
@@ -63,7 +72,6 @@ class VideoTransform(object):
 
         self.autoaug_transform = video_transforms.create_random_augment(
             input_size=(crop_size, crop_size),
-            # auto_augment="rand-m4-n4-w1-mstd0.5-inc1",
             auto_augment="rand-m7-n4-mstd0.5-inc1",
             interpolation="bicubic",
         )
@@ -112,6 +120,9 @@ class VideoTransform(object):
             buffer = buffer.permute(1, 0, 2, 3)
             buffer = self.erase_transform(buffer)
             buffer = buffer.permute(1, 0, 2, 3)
+
+        if self.pad_frame_count is not None:
+            buffer = video_transforms.frame_pad(buffer, self.pad_frame_count, self.pad_frame_method)
 
         return buffer
 
