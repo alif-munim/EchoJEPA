@@ -182,7 +182,7 @@ print(
 
 
 # Initialize the classifier
-classifier_model_path = "probes/ssv2-vitg-384-64x2x3.pt"
+classifier_model_path = "checkpoints/ssv2-vitg-384-64x2x3.pt"
 classifier = (
     AttentiveClassifier(embed_dim=model_pt.embed_dim, num_heads=16, depth=4, num_classes=174).cuda().eval()
 )

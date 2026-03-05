@@ -416,42 +416,83 @@ For inference, we simply zero out the optimization parameters and set the `num_e
 The other settings should be identical to your training config. See configs under `configs/inference/vitg-384` or `configs/inference/vitl` for more examples.
 
 
+## Embedding Extraction
+
+Extract frozen embeddings from any model and save as `.npz` files using `evals/extract_embeddings.py`. Supports multi-GPU extraction, both classification and regression CSVs, and any backbone with a config YAML.
+
+```bash
+# Single GPU
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/echojepa_224px.yaml \
+    --data data/csv/uhn_views_22k_test_224px.csv \
+    --output embeddings/views/echojepa_g_embeddings.npz \
+    --devices cuda:0
+
+# Multi-GPU (4x faster)
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/echojepa_224px.yaml \
+    --data data/csv/uhn_views_22k_test_224px.csv \
+    --output embeddings/views/echojepa_g_embeddings.npz \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3
+
+# Regression (LVEF)
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/lvef/echojepa_336px.yaml \
+    --data data/csv/a4c_b_lvef_test_224px.csv \
+    --output embeddings/lvef/echojepa_g_embeddings.npz \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3
+```
+
+Output `.npz` files contain `embeddings` (`[N, D]`), `labels` (`[N]`), and `paths` (`[N]`). See `embeddings/README.md` for full format details and available options.
+
+
 ## Code Structure
 
 ```
 .
-├── app                                    # training loops
-│   ├── vjepa                              #   video JEPA pre-training
+├── app/                                   # training loops
+│   ├── vjepa/                             #   video JEPA pre-training
 │   ├── main_distributed.py                #   entrypoint for launch app on slurm cluster
 │   └── main.py                            #   entrypoint for launch app locally on your machine
-├── configs                                # config files with experiment params for training and evaluation
-│   ├── train                              #   pretraining (phase 1), cooldown (phase 2), and action-conditioned training
-│   └── eval                               #   frozen evaluations
-├── evals                                  # evaluation loops training an attentive probe with frozen backbone...
-│   ├── video_classification_frozen        #   single-view echocardiogram probes
-│   ├── video_classification_frozen_multi  #   multi-view echocardiogram probes
+├── configs/                               # YAML experiment configs (see README.md in each subdir)
+│   ├── train/                             #   pretraining and cooldown, by model size (vitl16, vith16, vitg16)
+│   ├── eval/                              #   frozen probe training, by model and task (lvef, rvsp, view, ...)
+│   └── inference/                         #   inference-only configs (val_only: true)
+├── evals/                                 # evaluation loops training an attentive probe with frozen backbone...
+│   ├── video_classification_frozen/       #   single-view echocardiogram probes
+│   ├── video_classification_frozen_multi/ #   multi-view echocardiogram probes
+│   ├── extract_embeddings.py              #   embedding extraction script
 │   ├── main_distributed.py                #   entrypoint for distributed evaluations
 │   └── main.py                            #   entrypoint for locally-run evaluations
-├── src                                    # the package
-│   ├── datasets                           #   datasets, data loaders, ...
-│   ├── models                             #   model definitions (ViT, attentive pooler, linear pooler, ...)
-│   ├── masks                              #   mask collators, masking utilities, ...
-│   └── utils                              #   shared utilities
-├── data                                   # data assets (splits, labels, scalers, notebooks)
-│   ├── csv                                #   JEPA-format splits (referenced by eval configs)
-│   ├── scalers                            #   sklearn scalers for Z-score normalization
-│   ├── labels                             #   raw label CSVs
-│   ├── notebooks                          #   data exploration and split generation
-│   └── scripts                            #   processing and augmentation scripts
-├── classifier                             # ConvNeXt/Swin echo classifiers
+├── src/                                   # the package
+│   ├── datasets/                          #   datasets, data loaders, ...
+│   ├── models/                            #   model definitions (ViT, attentive pooler, linear pooler, ...)
+│   ├── masks/                             #   mask collators, masking utilities, ...
+│   └── utils/                             #   shared utilities
+├── data/                                  # data assets (splits, labels, scalers, notebooks)
+│   ├── csv/                               #   JEPA-format splits (referenced by eval configs)
+│   ├── scalers/                           #   sklearn scalers for Z-score normalization
+│   ├── labels/                            #   raw label CSVs
+│   ├── notebooks/                         #   data exploration and split generation
+│   └── scripts/                           #   processing and augmentation scripts
+├── classifier/                            # ConvNeXt/Swin echo classifiers
 │   ├── train_convnext.py                  #   distributed DDP training
 │   ├── inference_18m.py                   #   unified inference (view/color/quality/zoom)
-│   ├── data_prep                          #   data preparation pipeline
-│   ├── mappings                           #   canonical label-to-int JSON maps
-│   └── utils                              #   checkpoint fixing, resizing, format conversion
-├── tests                                  # unit tests for some modules in `src`
-├── claude                                 # architecture docs and project reference files
-
+│   ├── data_prep/                         #   data preparation pipeline
+│   ├── mappings/                          #   canonical label-to-int JSON maps
+│   └── utils/                             #   checkpoint fixing, resizing, format conversion
+├── checkpoints/                           #   model weights (pretrain, anneal, cooldown, eval probes)
+├── indices/                               #   S3 URI manifests for 18M dataset
+├── embeddings/                            #   precomputed embeddings (NPZ by task and model)
+├── predictions/                           #   probe and classifier prediction CSVs
+├── results/                               #   data efficiency experiment runs
+├── scripts/                               #   SBATCH scripts, Python utilities, demos
+├── notebooks/                             #   analysis and demo Jupyter notebooks
+├── figures/                               #   publication-quality plots (UMAP, etc.)
+├── logs/                                  #   training/evaluation logs and SLURM outputs
+├── tests/                                 #   unit tests for some modules in `src`
+├── uhn_echo/                              #   UHN research data and Nature Medicine analysis
+└── claude/                                #   architecture docs and project reference files
 ```
 
 ## License

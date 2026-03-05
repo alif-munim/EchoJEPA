@@ -13,7 +13,7 @@ resume_checkpoint: true
 tag: lvef-a4c-videomae-224px
 
 val_only: true
-predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/lvef-a4c-videomae-224px-predictions.csv
+predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/predictions/lvef-a4c-videomae-224px-predictions.csv
 
 # POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
 probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/lvef/videomae_224px.pt

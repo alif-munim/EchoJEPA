@@ -17,7 +17,7 @@ tag: echojepa-l-echonet-pediatric-lvef-test
 # --- CRITICAL INFERENCE SETTINGS ---
 val_only: true
 # Path where the predictions CSV will be saved
-predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/echojepa-l-echonet-pediatric-lvef-test.csv
+predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/predictions/echojepa-l-echonet-pediatric-lvef-test.csv
 
 # POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
 # Based on your previous config, it should be here:

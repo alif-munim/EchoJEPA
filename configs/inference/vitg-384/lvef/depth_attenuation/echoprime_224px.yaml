@@ -13,7 +13,7 @@ resume_checkpoint: true
 tag: echonet-lvef-a4c-echoprime-224px-depth-attenuation-1p5
 
 val_only: true
-predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/echonet-lvef-a4c-echoprime-224px-depth-attenuation-1p5.csv
+predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/predictions/echonet-lvef-a4c-echoprime-224px-depth-attenuation-1p5.csv
 
 # POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
 probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/lvef/echonet-pediatric/echoprime.pt

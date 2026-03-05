@@ -17,7 +17,7 @@ tag: rvsp-echoprime-224px-test
 # --- CRITICAL INFERENCE SETTINGS ---
 val_only: true
 # Path where the predictions CSV will be saved
-predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/echoprime_224px_rvsp_test_predictions.csv
+predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/predictions/echoprime_224px_rvsp_test_predictions.csv
 
 # POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
 probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/rvsp/echoprime_224px.pt

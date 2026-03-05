@@ -15,8 +15,10 @@ The active research objective is a **Nature Medicine paper** demonstrating that 
 **Architecture** (`claude/architecture/`):
 - `pretraining-and-cooldown.md` — two-phase training (pretrain vs cooldown), LR schedules, masking, kinetics vs echo config differences, resume/force-load behavior
 - `probe-system.md` — frozen probe evaluation: attentive/linear/MLP heads, classification vs regression, multi-view fusion, hyperparameter grid search, inference mode, prediction output
+- `classifier-pipeline.md` — ConvNeXt/Swin classifier pipeline: training, cooldown, 18M inference, data prep stages, label mappings, experiment history
 
 **Data & Manuscript** (`claude/data/`):
+- `data-directory.md` — `data/` directory layout: CSV splits (153 files, do not rename), scalers, labels, parquet exports, notebooks, scripts, sample data
 - `nature-medicine-manuscript.md` — manuscript scope, ICML vs Nature Medicine delineation, models, evaluation protocol
 - `uhn-database.md` — UHN echocardiography database (echo.db, Syngo/HeartLab schemas, rare disease cohorts)
 - `mimic-database.md` — MIMIC-IV linked to echo (prediction targets, biomarker coverage, data engineering notes)
@@ -105,10 +107,10 @@ See `claude/architecture/probe-system.md` for full details including attentive-v
 
 ### Config System
 
-All experiments driven by YAML configs in `configs/`. Key structure:
-- `configs/train/` — pretraining (by model size: vitl16, vith16, vitg16)
-- `configs/eval/` — probe training (by model: vitg-384, vitl; by task: lvef, rvsp, view, etc.)
-- `configs/inference/` — inference-only configs (set `val_only: true`)
+All experiments driven by YAML configs in `configs/`. Each subdirectory has a README.md with full details:
+- `configs/train/` — pretraining and cooldown, by model size (vitl16, vith16, vitg16). Naming: `{phase}-{dataset}-{resolution}-{frames}.yaml`
+- `configs/eval/` — probe training, by model (vitg-384, vitl) and task (lvef, rvsp, view, color, quality, zoom, tapse). `old/` contains archived configs. `multihead_kwargs` list trains multiple probes in parallel with different hyperparameters.
+- `configs/inference/` — inference-only configs (set `val_only: true`, require `probe_checkpoint`). Specialized subdirs: `depth_attenuation/`, `echonet-dynamic/`, `echonet-pediatric/`
 
 ### Dataset CSV Formats
 
@@ -130,19 +132,21 @@ Available via torch.hub (`facebookresearch/vjepa2`): `vjepa2_vit_large`, `vjepa2
 
 ### Classifier Pipeline (`classifier/`)
 
-ConvNeXt/Swin image classifiers for echo view/color/quality/zoom, plus distributed inference on the 18M dataset. Key files:
-- `train_convnext.py` — distributed DDP training (S3, video-based)
-- `cooldown.py` — low-LR fine-tuning (single-GPU, local, image-based)
-- `inference_18m.py` — unified inference with `--task view|color|quality|zoom`
-- `data_prep/` — sequential pipeline: patient splits → MP4 mapping → S3 URIs → verification → JEPA format
-- `mappings/` — canonical label→int JSON maps (`views.json`, `color.json`, `quality.json`, `zoom.json`)
+ConvNeXt/Swin image classifiers for echo view/color/quality/zoom, plus distributed inference on the 18M dataset. See `claude/architecture/classifier-pipeline.md` for full details.
 
 ### Data Directory (`data/`)
 
-- `csv/` — JEPA-format splits (153 files, referenced by eval configs — do not rename without updating configs)
-- `scalers/` — sklearn StandardScaler pickles for Z-score normalization (ef, lvef, rvsp, tapse, pediatric)
-- `labels/` — raw label CSVs (mimic_annotations, pacemaker, mvr, master lists)
-- `parquet/` — large structured data exports (all_es_*.parquet)
-- `notebooks/` — data exploration and split generation notebooks
-- `scripts/` — processing and augmentation scripts (masking, depth attenuation, DICOM conversion)
-- `training_logs/` — pretraining/cooldown loss curves
+JEPA-format splits, raw labels, scalers, notebooks, and scripts. See `claude/data/data-directory.md` for full details. **Do not rename files in `csv/`** without updating corresponding eval configs.
+
+### Other Root Directories
+
+- `checkpoints/` — all model weights: pretrain, anneal, cooldown, eval probes, SSv2 probe
+- `indices/` — S3 URI manifests for the 18M dataset (`master_index_18M.csv`, `master_index_18M_cleaned.csv`, `s3_pretrain.csv`, annotations)
+- `embeddings/` — precomputed NPZ embeddings by task (lvef, views) and model (echojepa, echoprime, panecho, videomae)
+- `predictions/` — probe and classifier prediction CSVs (LVEF, RVSP, EchoNet, view, quality, zoom)
+- `results/` — data efficiency experiment runs (epoch checkpoints + logs)
+- `scripts/` — SBATCH scripts, Python utilities, demos, `run_details.md`
+- `notebooks/` — project-level analysis and demo Jupyter notebooks
+- `figures/` — publication-quality UMAP plots (PDF + PNG)
+- `logs/` — training and evaluation logs (`.log` files, SLURM `.out` files, training plots)
+- `uhn_echo/` — UHN research data, Nature Medicine analysis, MIMIC-IV linkage

@@ -278,7 +278,7 @@ fi
 # ---- Verify predictions exist and are non-empty ----
 if [ ! -s "$PRED_PATH" ]; then
   echo "[ERROR] Predictions file missing/empty: $PRED_PATH"
-  echo "[DEBUG] preds/:"; ls -lh preds 2>/dev/null || true
+  echo "[DEBUG] predictions/:"; ls -lh preds 2>/dev/null || true
   echo "[DEBUG] predictions/:"; ls -lh predictions 2>/dev/null || true
   aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" 2>/dev/null || true
   exit 10
@@ -287,7 +287,7 @@ fi
 # ---- Upload outputs ----
 aws s3 cp "$CFG_REL" "${RUN_S3}/config/lvef.yaml" || true
 aws s3 cp "$RUNLOG" "${RUN_S3}/logs/${RUNLOG}" || true
-aws s3 cp "$PRED_PATH" "${RUN_S3}/preds/$(basename "$PRED_PATH")" || true
+aws s3 cp "$PRED_PATH" "${RUN_S3}/predictions/$(basename "$PRED_PATH")" || true
 
 # Upload inference folder contents (logs/metrics/etc)
 aws s3 sync "$CFG_FOLDER" "${RUN_S3}/inference_folder/" \

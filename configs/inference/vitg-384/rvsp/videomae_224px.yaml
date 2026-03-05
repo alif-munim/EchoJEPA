@@ -17,7 +17,7 @@ tag: rvsp-videomae-224px-test
 # --- CRITICAL INFERENCE SETTINGS ---
 val_only: true
 # Path where the predictions CSV will be saved
-predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/preds/videomae_224px_rvsp_test_predictions.csv
+predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/predictions/videomae_224px_rvsp_test_predictions.csv
 
 # POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
 probe_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/eval_probes/rvsp/videomae_ep16.pt
