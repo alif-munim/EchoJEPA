@@ -437,6 +437,18 @@ The other settings should be identical to your training config. See configs unde
 │   ├── models                             #   model definitions (ViT, attentive pooler, linear pooler, ...)
 │   ├── masks                              #   mask collators, masking utilities, ...
 │   └── utils                              #   shared utilities
+├── data                                   # data assets (splits, labels, scalers, notebooks)
+│   ├── csv                                #   JEPA-format splits (referenced by eval configs)
+│   ├── scalers                            #   sklearn scalers for Z-score normalization
+│   ├── labels                             #   raw label CSVs
+│   ├── notebooks                          #   data exploration and split generation
+│   └── scripts                            #   processing and augmentation scripts
+├── classifier                             # ConvNeXt/Swin echo classifiers
+│   ├── train_convnext.py                  #   distributed DDP training
+│   ├── inference_18m.py                   #   unified inference (view/color/quality/zoom)
+│   ├── data_prep                          #   data preparation pipeline
+│   ├── mappings                           #   canonical label-to-int JSON maps
+│   └── utils                              #   checkpoint fixing, resizing, format conversion
 ├── tests                                  # unit tests for some modules in `src`
 ├── claude                                 # architecture docs and project reference files
 

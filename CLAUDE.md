@@ -127,3 +127,22 @@ All experiments driven by YAML configs in `configs/`. Key structure:
 ### Pretrained Checkpoints
 
 Available via torch.hub (`facebookresearch/vjepa2`): `vjepa2_vit_large`, `vjepa2_vit_huge`, `vjepa2_vit_giant`, `vjepa2_vit_giant_384`. Hub entry point is `scripts/hubconf.py`.
+
+### Classifier Pipeline (`classifier/`)
+
+ConvNeXt/Swin image classifiers for echo view/color/quality/zoom, plus distributed inference on the 18M dataset. Key files:
+- `train_convnext.py` — distributed DDP training (S3, video-based)
+- `cooldown.py` — low-LR fine-tuning (single-GPU, local, image-based)
+- `inference_18m.py` — unified inference with `--task view|color|quality|zoom`
+- `data_prep/` — sequential pipeline: patient splits → MP4 mapping → S3 URIs → verification → JEPA format
+- `mappings/` — canonical label→int JSON maps (`views.json`, `color.json`, `quality.json`, `zoom.json`)
+
+### Data Directory (`data/`)
+
+- `csv/` — JEPA-format splits (153 files, referenced by eval configs — do not rename without updating configs)
+- `scalers/` — sklearn StandardScaler pickles for Z-score normalization (ef, lvef, rvsp, tapse, pediatric)
+- `labels/` — raw label CSVs (mimic_annotations, pacemaker, mvr, master lists)
+- `parquet/` — large structured data exports (all_es_*.parquet)
+- `notebooks/` — data exploration and split generation notebooks
+- `scripts/` — processing and augmentation scripts (masking, depth attenuation, DICOM conversion)
+- `training_logs/` — pretraining/cooldown loss curves
