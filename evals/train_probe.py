@@ -23,6 +23,12 @@ Usage:
         --task regression --cv 5 \
         --output_dir results/probes/lvef/echojepa_g
 
+    # Labels-only mode (master embeddings + task labels file from remap_embeddings)
+    python -m evals.train_probe \
+        --data embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
+        --labels embeddings/nature_medicine/mimic/labels/mortality_1yr.npz \
+        --cv 5 --output_dir results/probes/nature_medicine/mortality_1yr
+
     # Multi-model comparison
     python -m evals.train_probe \
         --train embeddings/views/echojepa_g_embeddings.npz \
@@ -59,13 +65,31 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 
-def load_npz(path):
-    """Load embeddings, labels, and paths from an NPZ file."""
+def load_npz(path, labels_path=None):
+    """Load embeddings, labels, and paths from an NPZ file.
+
+    If labels_path is provided, loads embeddings from path but uses indices/labels
+    from labels_path (created by remap_embeddings.py). This avoids duplicating
+    embeddings across tasks.
+    """
     data = np.load(path, allow_pickle=True)
     embeddings = data["embeddings"]
-    labels = data["labels"]
-    paths = data["paths"] if "paths" in data else np.array([f"sample_{i}" for i in range(len(labels))])
-    logger.info(f"Loaded {path}: {embeddings.shape[0]} samples, {embeddings.shape[1]}-dim embeddings")
+
+    if labels_path is not None:
+        label_data = np.load(labels_path)
+        indices = label_data["indices"]
+        labels = label_data["labels"]
+        embeddings = embeddings[indices]
+        paths = np.array([f"sample_{i}" for i in range(len(labels))])
+        logger.info(
+            f"Loaded {path} ({data['embeddings'].shape[0]} total) + {labels_path} "
+            f"-> {embeddings.shape[0]} samples, {embeddings.shape[1]}-dim embeddings"
+        )
+    else:
+        labels = data["labels"]
+        paths = data["paths"] if "paths" in data else np.array([f"sample_{i}" for i in range(len(labels))])
+        logger.info(f"Loaded {path}: {embeddings.shape[0]} samples, {embeddings.shape[1]}-dim embeddings")
+
     return embeddings, labels, paths
 
 
@@ -374,6 +398,11 @@ def main():
     parser.add_argument("--train", nargs="+", help="Training NPZ file(s)")
     parser.add_argument("--val", nargs="+", help="Validation NPZ file(s)")
     parser.add_argument("--data", nargs="+", help="Single NPZ file(s) for k-fold CV")
+    parser.add_argument(
+        "--labels",
+        help="Labels-only NPZ (indices + labels) from remap_embeddings.py. "
+        "Embeddings loaded from --data/--train, labels and subset indices from this file.",
+    )
 
     # Task
     parser.add_argument("--task", choices=["auto", "classification", "regression"], default="auto")
@@ -453,7 +482,7 @@ def main():
 
         if is_kfold:
             # K-fold mode
-            embeddings, labels, paths = load_npz(npz_list[idx])
+            embeddings, labels, paths = load_npz(npz_list[idx], labels_path=args.labels)
             task = args.task if args.task != "auto" else detect_task(labels)
 
             metrics, predictions_df = kfold_probe(
@@ -478,8 +507,8 @@ def main():
 
         else:
             # Train/val mode
-            X_train, y_train, p_train = load_npz(args.train[idx])
-            X_val, y_val, p_val = load_npz(args.val[idx])
+            X_train, y_train, p_train = load_npz(args.train[idx], labels_path=args.labels)
+            X_val, y_val, p_val = load_npz(args.val[idx], labels_path=args.labels)
             task = args.task if args.task != "auto" else detect_task(y_train)
 
             X_train_sc, X_val_sc, emb_scaler = scale_embeddings(X_train, X_val)

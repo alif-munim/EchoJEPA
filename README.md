@@ -217,6 +217,235 @@ For the full pipeline (extracting your own embeddings from videos, training GPU-
 ---
 
 
+## MIMIC-IV-Echo Precomputed Embeddings
+
+We provide precomputed EchoJEPA-G embeddings for all 525K MIMIC-IV-Echo clips, with label mappings for 23 clinical tasks. These are the embeddings used for the Nature Medicine paper.
+
+### Contents of the zip
+
+Download `echojepa_g_mimic_all.zip` (3.96 GB) and unzip from the repository root:
+
+```bash
+unzip echojepa_g_mimic_all.zip
+```
+
+This restores the following files in-place:
+
+```
+embeddings/nature_medicine/mimic/
+├── echojepa_g_mimic_embeddings.npz    # 2.8GB — clip-level embeddings (525,312 × 1408)
+├── clip_index.npz               # 169MB — maps each embedding row to its S3 path, study_id, patient_id
+├── patient_split.json           # global patient-level train/val/test assignment (70/15/15)
+└── labels/                      # 123MB — per-task label NPZs (23 files)
+    ├── mortality_1yr.npz
+    ├── creatinine.npz
+    └── ...
+
+data/csv/nature_medicine/mimic/  # source label CSVs (23 files, VJEPA format: "s3_path label")
+├── mortality_1yr.csv
+├── creatinine.csv
+└── ...
+```
+
+**`echojepa_g_mimic_embeddings.npz`** — the master embedding file:
+
+| Array | Shape | Dtype | Description |
+|-------|-------|-------|-------------|
+| `embeddings` | `(525312, 1408)` | float32 | Mean-pooled EchoJEPA-G encoder output per clip |
+| `labels` | `(525312,)` | int64 | Labels from the extraction source CSV (mortality_1yr; ignore these) |
+| `paths` | `(525312,)` | str | Placeholder indices (`sample_0`, ...) — use `clip_index.npz` for real paths |
+
+**`clip_index.npz`** — maps row index to identifiers:
+
+| Array | Shape | Description |
+|-------|-------|-------------|
+| `s3_paths` | `(525312,)` | Full S3 URI for each MP4 clip |
+| `study_ids` | `(525312,)` | MIMIC study ID (int64) — groups clips into studies |
+| `patient_ids` | `(525312,)` | MIMIC patient ID (int64) — groups studies into patients |
+
+**`labels/<task>.npz`** — per-task label files (lightweight, no embedding duplication):
+
+| Array | Shape | Description |
+|-------|-------|-------------|
+| `indices` | `(N_task,)` | Row positions into the master NPZ |
+| `labels` | `(N_task,)` | Task-specific label per clip |
+
+### Available tasks (23)
+
+| Category | Task | Studies | Type | Notes |
+|----------|------|---------|------|-------|
+| Mortality | `mortality_30d`, `mortality_90d`, `mortality_1yr` | 7,243 | Binary | |
+| Mortality | `in_hospital_mortality` | 3,437 | Binary | Inpatient only |
+| Outcomes | `readmission_30d` | 3,145 | Binary | Inpatient only |
+| Outcomes | `icu_transfer` | 2,496 | Binary | |
+| Outcomes | `discharge_destination` | 2,758 | Binary | Institutional vs home |
+| Outcomes | `los_remaining` | 3,156 | Regression | Days remaining |
+| Diseases | `disease_afib`, `disease_hf`, `disease_hcm`, `disease_dcm` | 7,243 | Binary | ICD-coded |
+| Diseases | `disease_stemi`, `disease_amyloidosis`, `disease_takotsubo`, `disease_tamponade` | 7,243 | Binary | Rare |
+| Biomarkers | `creatinine`, `troponin_t`, `nt_probnp`, `lactate` | 852–3,883 | Regression | Lab within ±24h |
+| Clinical | `ef_note_extracted` | 2,580 | Regression | EF from discharge notes |
+| Clinical | `drg_severity`, `triage_acuity` | 2,614–3,103 | Ordinal (1–4) | |
+
+### Mapping embeddings to studies and DICOMs
+
+Each clip (MP4) corresponds to one DICOM file. The S3 path encodes the hierarchy:
+
+```
+s3://echodata25/mimic-echo-224px/files/p{group}/p{patient_id}/s{study_id}/{study_id}_{clip_num}.mp4
+```
+
+Use `clip_index.npz` to map any embedding row back to its source:
+
+```python
+import numpy as np
+
+master = np.load("embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz")
+index = np.load("embeddings/nature_medicine/mimic/clip_index.npz", allow_pickle=True)
+
+# Row 42 in the embedding matrix
+print(index["s3_paths"][42])      # s3://echodata25/mimic-echo-224px/files/p15/p15690862/s90001295/90001295_0006.mp4
+print(index["study_ids"][42])     # 90001295
+print(index["patient_ids"][42])   # 15690862
+print(master["embeddings"][42].shape)  # (1408,)
+```
+
+### Pooling to study-level embeddings
+
+For linear probing, pool clip embeddings to one vector per study (mean across all clips in the study):
+
+```bash
+# Pool a specific task
+python -m evals.pool_embeddings \
+    --embeddings embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
+    --clip_index embeddings/nature_medicine/mimic/clip_index.npz \
+    --labels embeddings/nature_medicine/mimic/labels/mortality_1yr.npz \
+    --output embeddings/nature_medicine/mimic/study_level/mortality_1yr.npz
+```
+
+The study-level NPZ contains:
+
+| Array | Shape | Description |
+|-------|-------|-------------|
+| `embeddings` | `(N_studies, 1408)` | Mean-pooled across all clips per study |
+| `labels` | `(N_studies,)` | Task label (constant within study) |
+| `study_ids` | `(N_studies,)` | MIMIC study ID |
+| `patient_ids` | `(N_studies,)` | MIMIC patient ID |
+| `clips_per_study` | `(N_studies,)` | Number of clips averaged |
+
+### Creating patient-level train/val/test splits
+
+After pooling, split by patient to prevent data leakage (no patient in both train and test):
+
+```python
+import numpy as np, json
+
+data = np.load("embeddings/nature_medicine/mimic/study_level/mortality_1yr.npz")
+split = json.load(open("embeddings/nature_medicine/mimic/patient_split.json"))
+
+train_mask = np.array([split[str(pid)] == "train" for pid in data["patient_ids"]])
+val_mask   = np.array([split[str(pid)] == "val"   for pid in data["patient_ids"]])
+test_mask  = np.array([split[str(pid)] == "test"  for pid in data["patient_ids"]])
+
+# Save splits
+for name, mask in [("train", train_mask), ("val", val_mask), ("test", test_mask)]:
+    np.savez(f"splits/mortality_1yr/{name}.npz",
+             embeddings=data["embeddings"][mask],
+             labels=data["labels"][mask],
+             study_ids=data["study_ids"][mask],
+             patient_ids=data["patient_ids"][mask])
+```
+
+The provided `patient_split.json` assigns 3,205 / 686 / 688 patients to train / val / test (70/15/15).
+
+### Running linear probes
+
+```bash
+# Train/val mode on study-level splits
+python -m evals.train_probe \
+    --train embeddings/nature_medicine/mimic/splits/mortality_1yr/train.npz \
+    --val embeddings/nature_medicine/mimic/splits/mortality_1yr/test.npz \
+    --task classification \
+    --output_dir results/probes/nature_medicine/mortality_1yr
+
+# K-fold on clip-level embeddings (using --labels to avoid duplication)
+python -m evals.train_probe \
+    --data embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
+    --labels embeddings/nature_medicine/mimic/labels/creatinine.npz \
+    --task regression --cv 5 \
+    --output_dir results/probes/nature_medicine/creatinine
+```
+
+### Using embeddings for UMAP, clustering, and other analyses
+
+The embeddings and index files can be loaded directly for custom analyses:
+
+```python
+import numpy as np
+
+# Load study-level embeddings with metadata
+data = np.load("embeddings/nature_medicine/mimic/study_level/mortality_1yr.npz")
+embeddings = data["embeddings"]   # (7243, 1408)
+study_ids = data["study_ids"]     # (7243,)
+patient_ids = data["patient_ids"] # (7243,)
+
+# Load labels for any task to color the same embeddings
+mortality = np.load("embeddings/nature_medicine/mimic/labels/mortality_1yr.npz")
+afib = np.load("embeddings/nature_medicine/mimic/labels/disease_afib.npz")
+creat = np.load("embeddings/nature_medicine/mimic/labels/creatinine.npz")
+
+# Build a study-level label lookup from clip-level labels
+index = np.load("embeddings/nature_medicine/mimic/clip_index.npz", allow_pickle=True)
+all_study_ids = index["study_ids"]
+
+def study_labels(label_npz):
+    """Map clip-level labels to study-level using first clip per study."""
+    d = np.load(label_npz)
+    clip_study_ids = all_study_ids[d["indices"]]
+    lookup = {}
+    for sid, lab in zip(clip_study_ids, d["labels"]):
+        if sid not in lookup:
+            lookup[sid] = lab
+    return lookup
+
+mort_lookup = study_labels("embeddings/nature_medicine/mimic/labels/mortality_1yr.npz")
+afib_lookup = study_labels("embeddings/nature_medicine/mimic/labels/disease_afib.npz")
+
+# UMAP colored by different outcomes on the same embedding space
+from umap import UMAP
+
+reducer = UMAP(n_components=2, random_state=42)
+coords = reducer.fit_transform(embeddings)
+
+# Color by 1-year mortality
+mort_colors = np.array([mort_lookup.get(sid, -1) for sid in study_ids])
+
+# Color by atrial fibrillation
+afib_colors = np.array([afib_lookup.get(sid, -1) for sid in study_ids])
+
+# Plot with matplotlib, seaborn, etc.
+```
+
+### Regenerating derived files
+
+If you only have the zip contents (master NPZ + clip index + labels), you can regenerate study-level embeddings and splits:
+
+```bash
+# 1. Pool all tasks to study level
+for f in embeddings/nature_medicine/mimic/labels/*.npz; do
+    task=$(basename "$f" .npz)
+    python -m evals.pool_embeddings \
+        --embeddings embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
+        --clip_index embeddings/nature_medicine/mimic/clip_index.npz \
+        --labels "$f" \
+        --output "embeddings/nature_medicine/mimic/study_level/${task}.npz"
+done
+
+# 2. Create splits using patient_split.json (see Python snippet above)
+```
+
+---
+
+
 ## Working with Video Files (MP4)
 
 EchoJEPA expects echocardiogram videos as MP4 files. This section covers how to prepare your videos and organize them into dataset CSVs for training, evaluation, and embedding extraction.
@@ -767,6 +996,8 @@ This avoids redundant GPU computation when multiple tasks share the same video p
 │   ├── video_classification_frozen/       #   single-view echocardiogram probes
 │   ├── video_classification_frozen_multi/ #   multi-view echocardiogram probes
 │   ├── extract_embeddings.py              #   embedding extraction script
+│   ├── remap_embeddings.py                #   create per-task label NPZs from master embeddings
+│   ├── pool_embeddings.py                 #   pool clip-level to study-level embeddings
 │   ├── train_probe.py                     #   sklearn probe training on NPZ embeddings
 │   ├── main_distributed.py                #   entrypoint for distributed evaluations
 │   └── main.py                            #   entrypoint for locally-run evaluations
