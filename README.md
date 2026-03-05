@@ -354,10 +354,31 @@ The same label `indices` work with any model's master NPZ (e.g., `panecho_mimic_
 
 ### Pooling to study-level embeddings
 
-For linear probing, pool clip embeddings to one vector per study (mean across all clips in the study):
+For linear probing, pool clip embeddings to one vector per study. The provided `{model}_study_level/` and `{model}_splits/` directories use **mean-pooling** (average across all clips in the study), but since the zips include the raw clip-level embeddings and study mappings, you can implement any pooling strategy:
+
+```python
+import numpy as np
+
+# Load clip-level embeddings and study mapping
+master = np.load("embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz")
+index = np.load("embeddings/nature_medicine/mimic/clip_index.npz", allow_pickle=True)
+task = np.load("embeddings/nature_medicine/mimic/labels/mortality_1yr.npz")
+
+embeddings = master["embeddings"][task["indices"]]
+study_ids = index["study_ids"][task["indices"]]
+
+# Pool per study with any strategy
+unique_ids, inverse = np.unique(study_ids, return_inverse=True)
+for i, sid in enumerate(unique_ids):
+    clips = embeddings[inverse == i]
+    mean_pooled = clips.mean(axis=0)
+    max_pooled = clips.max(axis=0)
+    # attention-weighted, etc.
+```
+
+Or use the provided mean-pooling script:
 
 ```bash
-# Pool a specific task
 python -m evals.pool_embeddings \
     --embeddings embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
     --clip_index embeddings/nature_medicine/mimic/clip_index.npz \
@@ -369,11 +390,11 @@ The study-level NPZ contains:
 
 | Array | Shape | Description |
 |-------|-------|-------------|
-| `embeddings` | `(N_studies, D)` | Mean-pooled across all clips per study (D=1408 for EchoJEPA-g, 768 for PanEcho) |
+| `embeddings` | `(N_studies, D)` | Pooled embedding per study (D=1408 for EchoJEPA-g, 768 for PanEcho, 512 for EchoPrime) |
 | `labels` | `(N_studies,)` | Task label (constant within study) |
 | `study_ids` | `(N_studies,)` | MIMIC study ID |
 | `patient_ids` | `(N_studies,)` | MIMIC patient ID |
-| `clips_per_study` | `(N_studies,)` | Number of clips averaged |
+| `clips_per_study` | `(N_studies,)` | Number of clips in study |
 
 ### Creating patient-level train/val/test splits
 
