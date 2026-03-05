@@ -40,6 +40,103 @@ conda activate vjepa2-312
 pip install .  # or `pip install -e .` for development mode
 ```
 
+### Quickstart: Working with Embeddings
+
+If you've been given precomputed embedding files (`.npz`), you can start training probes immediately — no GPU or video data needed.
+
+**1. Inspect an embedding file**
+
+```python
+import numpy as np
+
+data = np.load("embeddings/views/echojepa_g_embeddings.npz", allow_pickle=True)
+print(f"Embeddings: {data['embeddings'].shape}")  # e.g. [27216, 1408]
+print(f"Labels:     {data['labels'].shape}")       # [27216] — int for classification, float for regression
+print(f"Paths:      {data['paths'].shape}")        # [27216] — video file paths or sample IDs
+```
+
+**2. Train a probe (k-fold cross-validation)**
+
+The script auto-detects classification vs regression from the label type.
+
+```bash
+# Classification (e.g. echo view classification — integer labels)
+python -m evals.train_probe \
+    --data embeddings/views/echojepa_g_embeddings.npz \
+    --cv 5 --output_dir results/probes/views/echojepa_g
+
+# Regression (e.g. LVEF estimation — float labels)
+python -m evals.train_probe \
+    --data embeddings/lvef/echojepa_g_embeddings.npz \
+    --task regression --cv 5 \
+    --output_dir results/probes/lvef/echojepa_g
+```
+
+**3. Check results**
+
+```bash
+cat results/probes/views/echojepa_g/echojepa_g_embeddings/metrics.json
+# → accuracy, balanced_accuracy, F1, AUC-ROC, confusion matrix, ...
+
+head results/probes/views/echojepa_g/echojepa_g_embeddings/predictions.csv
+# → video_path, true_label, predicted_class, prediction_confidence, fold
+```
+
+**4. Compare multiple models**
+
+If you have embeddings from different models, compare them side by side:
+
+```bash
+python -m evals.train_probe \
+    --data embeddings/views/echojepa_g_embeddings.npz \
+           embeddings/views/echoprime_embeddings.npz \
+           embeddings/views/panecho_embeddings.npz \
+    --model_names EchoJEPA-G EchoPrime PanEcho \
+    --cv 5 --output_dir results/probes/views/comparison
+```
+
+This prints a comparison table and saves `comparison.json`.
+
+**5. Tune hyperparameters**
+
+```bash
+# Custom regularization grid for classification
+python -m evals.train_probe \
+    --data embeddings/views/echojepa_g_embeddings.npz \
+    --C 0.001 0.01 0.1 1.0 10.0 100.0 \
+    --cv 5 --output_dir results/probes/views/tuned
+
+# Regression with Lasso instead of Ridge
+python -m evals.train_probe \
+    --data embeddings/lvef/echojepa_g_embeddings.npz \
+    --task regression --regression_model lasso \
+    --alpha 0.0001 0.001 0.01 0.1 1.0 \
+    --cv 5 --output_dir results/probes/lvef/lasso
+
+# Regression with denormalization (if labels are z-scored)
+python -m evals.train_probe \
+    --data embeddings/lvef/echojepa_g_embeddings.npz \
+    --task regression --labels_are_zscored \
+    --target_mean 57.06 --target_std 11.33 \
+    --cv 5 --output_dir results/probes/lvef/denormed
+```
+
+**6. Train/val mode (separate files)**
+
+If you have separate train and validation embeddings:
+
+```bash
+python -m evals.train_probe \
+    --train embeddings/views/echojepa_g_embeddings.npz \
+    --val   embeddings/test/echojepa_g_embeddings.npz \
+    --save_model --output_dir results/probes/views/echojepa_g
+```
+
+Use `--save_model` to save the trained sklearn model as `probe.joblib` for later inference. Run `python -m evals.train_probe --help` for all options.
+
+For the full pipeline (extracting your own embeddings from videos, training GPU-based probes, pretraining), continue reading below.
+
+
 ### Pretraining
 
 Pretraining can also be run locally or distributed. Pretraining and cooldown training phases are run with the same command using different configs. These sample commands launch initial training of a ViT-L model on [MIMIC-IV-ECHO](https://physionet.org/content/mimic-iv-echo/0.1/), a dataset of 525K echocardiograms which can be accessed through PhysioNet.
@@ -445,33 +542,7 @@ python -m evals.extract_embeddings \
 
 Output `.npz` files contain `embeddings` (`[N, D]`), `labels` (`[N]`), and `paths` (`[N]`). See `embeddings/README.md` for full format details and available options.
 
-### Probe Training on Embeddings
-
-Train sklearn linear probes directly on precomputed NPZ embeddings (no GPU required):
-
-```bash
-# K-fold cross-validation (auto-detects classification vs regression)
-python -m evals.train_probe \
-    --data embeddings/views/echojepa_g_embeddings.npz \
-    --cv 5 --output_dir results/probes/views/echojepa_g
-
-# Train/val split with separate NPZ files
-python -m evals.train_probe \
-    --train embeddings/views/echojepa_g_embeddings.npz \
-    --val   embeddings/test/echojepa_g_embeddings.npz \
-    --output_dir results/probes/views/echojepa_g
-
-# Multi-model comparison
-python -m evals.train_probe \
-    --train embeddings/views/echojepa_g_embeddings.npz \
-            embeddings/views/echoprime_embeddings.npz \
-    --val   embeddings/test/echojepa_g_embeddings.npz \
-            embeddings/test/echoprime_embeddings.npz \
-    --model_names echojepa_g echoprime \
-    --output_dir results/probes/views/comparison
-```
-
-Outputs `metrics.json`, `predictions.csv`, and `hp_search.json` per model. See `python -m evals.train_probe --help` for all options including regression model selection, denormalization, and hyperparameter grids.
+To train sklearn probes on extracted embeddings, see the [Quickstart](#quickstart-working-with-embeddings) section above.
 
 
 ## Code Structure
