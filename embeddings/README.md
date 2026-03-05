@@ -98,6 +98,34 @@ path/to/video3.mp4 -1.234
 
 The label column is preserved in the output but not used during extraction. Both integer (classification) and float (regression) labels are supported.
 
+## Probe Training
+
+Use `evals/train_probe.py` to train sklearn linear probes directly on NPZ embeddings (no GPU needed).
+
+```bash
+# K-fold cross-validation on a single NPZ
+python -m evals.train_probe \
+    --data embeddings/views/echojepa_g_embeddings.npz \
+    --cv 5 --output_dir results/probes/views/echojepa_g
+
+# Train/val split (separate NPZ files)
+python -m evals.train_probe \
+    --train embeddings/views/echojepa_g_embeddings.npz \
+    --val   embeddings/test/echojepa_g_embeddings.npz \
+    --output_dir results/probes/views/echojepa_g
+
+# Multi-model comparison
+python -m evals.train_probe \
+    --train embeddings/views/echojepa_g_embeddings.npz \
+            embeddings/views/echoprime_embeddings.npz \
+    --val   embeddings/test/echojepa_g_embeddings.npz \
+            embeddings/test/echoprime_embeddings.npz \
+    --model_names echojepa_g echoprime \
+    --output_dir results/probes/views/comparison
+```
+
+Outputs `metrics.json`, `predictions.csv`, and `hp_search.json` per model. See `python -m evals.train_probe --help` for all options.
+
 ## Common Uses
 
 - **UMAP visualization** — plot embedding space colored by view/LVEF/etc.

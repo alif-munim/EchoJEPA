@@ -63,6 +63,13 @@ python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echo
     --data /path/to/test.csv --output embeddings/out.npz --devices cuda:0 cuda:1
 ```
 
+### Probe Training on Embeddings (sklearn, no GPU)
+```bash
+python -m evals.train_probe --data embeddings/views/echojepa_g_embeddings.npz --cv 5 \
+    --output_dir results/probes/views/echojepa_g
+python -m evals.train_probe --train train.npz --val val.npz --output_dir results/probes/out
+```
+
 ## Code Style
 
 - **black** (line-length 119), **isort** (profile=black), **flake8** (max-line-length 119, ignore E203/E701/W503)

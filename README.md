@@ -445,6 +445,34 @@ python -m evals.extract_embeddings \
 
 Output `.npz` files contain `embeddings` (`[N, D]`), `labels` (`[N]`), and `paths` (`[N]`). See `embeddings/README.md` for full format details and available options.
 
+### Probe Training on Embeddings
+
+Train sklearn linear probes directly on precomputed NPZ embeddings (no GPU required):
+
+```bash
+# K-fold cross-validation (auto-detects classification vs regression)
+python -m evals.train_probe \
+    --data embeddings/views/echojepa_g_embeddings.npz \
+    --cv 5 --output_dir results/probes/views/echojepa_g
+
+# Train/val split with separate NPZ files
+python -m evals.train_probe \
+    --train embeddings/views/echojepa_g_embeddings.npz \
+    --val   embeddings/test/echojepa_g_embeddings.npz \
+    --output_dir results/probes/views/echojepa_g
+
+# Multi-model comparison
+python -m evals.train_probe \
+    --train embeddings/views/echojepa_g_embeddings.npz \
+            embeddings/views/echoprime_embeddings.npz \
+    --val   embeddings/test/echojepa_g_embeddings.npz \
+            embeddings/test/echoprime_embeddings.npz \
+    --model_names echojepa_g echoprime \
+    --output_dir results/probes/views/comparison
+```
+
+Outputs `metrics.json`, `predictions.csv`, and `hp_search.json` per model. See `python -m evals.train_probe --help` for all options including regression model selection, denormalization, and hyperparameter grids.
+
 
 ## Code Structure
 
@@ -462,6 +490,7 @@ Output `.npz` files contain `embeddings` (`[N, D]`), `labels` (`[N]`), and `path
 │   ├── video_classification_frozen/       #   single-view echocardiogram probes
 │   ├── video_classification_frozen_multi/ #   multi-view echocardiogram probes
 │   ├── extract_embeddings.py              #   embedding extraction script
+│   ├── train_probe.py                     #   sklearn probe training on NPZ embeddings
 │   ├── main_distributed.py                #   entrypoint for distributed evaluations
 │   └── main.py                            #   entrypoint for locally-run evaluations
 ├── src/                                   # the package
