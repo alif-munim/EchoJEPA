@@ -655,12 +655,12 @@ python -m evals.extract_embeddings \
     --output embeddings/views/echojepa_g_embeddings.npz \
     --devices cuda:0
 
-# Multi-GPU (4x faster)
+# Multi-GPU (8x A100s)
 python -m evals.extract_embeddings \
     --config configs/inference/vitg-384/view/echojepa_224px.yaml \
     --data data/csv/uhn_views_22k_test_224px.csv \
     --output embeddings/views/echojepa_g_embeddings.npz \
-    --devices cuda:0 cuda:1 cuda:2 cuda:3
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
 
 # Regression (LVEF)
 python -m evals.extract_embeddings \
@@ -673,6 +673,80 @@ python -m evals.extract_embeddings \
 Output `.npz` files contain `embeddings` (`[N, D]`), `labels` (`[N]`), and `paths` (`[N]`). See `embeddings/README.md` for full format details and available options.
 
 To train sklearn probes on extracted embeddings, see the [Quickstart](#quickstart-working-with-embeddings) section above.
+
+### Supported models
+
+The extraction script is model-agnostic — it works with any backbone that has an inference config. The config's `model_kwargs.module_name` controls which encoder is loaded. Four model backends are provided:
+
+| Model | `module_name` | Embed dim | Config examples |
+|-------|---------------|-----------|-----------------|
+| EchoJEPA (V-JEPA 2) | `...modelcustom.vit_encoder_multiclip` | 1408 (ViT-g) | `configs/inference/vitg-384/view/echojepa_224px.yaml` |
+| EchoPrime | `...modelcustom.echo_prime_encoder` | 768 | `configs/inference/vitg-384/view/echoprime_224px.yaml` |
+| PanEcho | `...modelcustom.panecho_encoder` | 768 | `configs/inference/vitg-384/view/panecho_224px.yaml` |
+| VideoMAE | `...modelcustom.videomae_encoder` | 1024 | `configs/inference/vitg-384/view/videomae_224px.yaml` |
+
+To extract embeddings with a different model, just swap the `--config`:
+
+```bash
+# EchoPrime
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/echoprime_224px.yaml \
+    --data data/csv/your_dataset.csv \
+    --output embeddings/echoprime_embeddings.npz \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3
+
+# PanEcho
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/panecho_224px.yaml \
+    --data data/csv/your_dataset.csv \
+    --output embeddings/panecho_embeddings.npz \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3
+
+# VideoMAE
+python -m evals.extract_embeddings \
+    --config configs/inference/vitg-384/view/videomae_224px.yaml \
+    --data data/csv/your_dataset.csv \
+    --output embeddings/videomae_embeddings.npz \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3
+```
+
+The `--data` CSV and `--devices` flags are independent of the model — only the config changes. This makes it easy to extract embeddings from all models on the same dataset for comparison, then feed them into `evals.train_probe`:
+
+```bash
+# Compare all models on the same task
+python -m evals.train_probe \
+    --data embeddings/echojepa_embeddings.npz \
+           embeddings/echoprime_embeddings.npz \
+           embeddings/panecho_embeddings.npz \
+           embeddings/videomae_embeddings.npz \
+    --model_names EchoJEPA EchoPrime PanEcho VideoMAE \
+    --cv 5 --output_dir results/probes/comparison
+```
+
+### Efficiency tip: extract once, probe many tasks
+
+Embeddings are label-independent (frozen encoder output), so datasets that share the same videos produce identical embeddings. Extract once on the superset, then relabel for each downstream task:
+
+```python
+import numpy as np
+
+# Load embeddings extracted with dummy or any labels
+data = np.load("embeddings/mimic_all.npz", allow_pickle=True)
+paths = data["paths"]  # contains S3 paths with study_id
+
+# Extract study_id from each path: .../s{study_id}/...
+study_ids = [p.split("/")[-2].lstrip("s") for p in paths]
+
+# Filter to a specific task and remap labels
+task_labels = {"90001295": 0, "90002730": 1, ...}  # from your task CSV
+mask = [sid in task_labels for sid in study_ids]
+np.savez("embeddings/task_specific.npz",
+         embeddings=data["embeddings"][mask],
+         labels=np.array([task_labels[sid] for sid, m in zip(study_ids, mask) if m]),
+         paths=data["paths"][mask])
+```
+
+This avoids redundant GPU computation when multiple tasks share the same video pool (e.g., mortality, readmission, and LOS all use MIMIC-IV-Echo studies).
 
 ---
 

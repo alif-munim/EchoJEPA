@@ -10,20 +10,16 @@ EchoJEPA — a latent predictive foundation model for echocardiography built on 
 
 The active research objective is a **Nature Medicine paper** demonstrating that EchoJEPA's frozen representations encode clinical information far beyond standard echocardiographic measurements. The paper establishes capabilities not previously shown from frozen echo representations: rare disease detection, clinical outcome/biomarker prediction, latent forward prediction, SAE interpretability, and fairness analysis. All downstream tasks use **frozen linear probes** (no fine-tuning) on mean-pooled study-level embeddings. The companion ICML preprint covers the method and standard benchmarks; Nature Medicine covers novel clinical findings. Datasets: UHN (18M echos, pretraining), MIMIC-IV-Echo linked to MIMIC-IV clinical data (outcomes, labs, ICD codes, notes).
 
-### Reference Files
+### Reference Documentation (`claude/`)
 
-**Architecture** (`claude/architecture/`):
-- `pretraining-and-cooldown.md` — two-phase training (pretrain vs cooldown), LR schedules, masking, kinetics vs echo config differences, resume/force-load behavior
-- `probe-system.md` — frozen probe evaluation: attentive/linear/MLP heads, classification vs regression, multi-view fusion, hyperparameter grid search, inference mode, prediction output
-- `classifier-pipeline.md` — ConvNeXt/Swin classifier pipeline: training, cooldown, 18M inference, data prep stages, label mappings, experiment history
+The `claude/` directory contains persistent reference docs organized by topic. See `claude/DIRECTORY.md` for the full index with file-level descriptions.
 
-**Data & Manuscript** (`claude/data/`):
-- `data-directory.md` — `data/` directory layout: CSV splits (153 files, do not rename), scalers, labels, parquet exports, notebooks, scripts, sample data
-- `nature-medicine-manuscript.md` — manuscript scope, ICML vs Nature Medicine delineation, models, evaluation protocol
-- `uhn-database.md` — UHN echocardiography database (echo.db, Syngo/HeartLab schemas, rare disease cohorts)
-- `mimic-database.md` — MIMIC-IV linked to echo (prediction targets, biomarker coverage, data engineering notes)
+- **`claude/architecture/`** — codebase internals: pretraining pipeline, probe system (attentive/linear/MLP), classifier pipeline
+- **`claude/data/`** — datasets and manuscript: `data/` directory layout, Nature Medicine scope, UHN database schemas, MIMIC-IV linkage
+- **`claude/preprint/`** — ICML preprint analysis: encoder fairness confounds, probe architecture mismatch (attentive vs linear inversion), claim validity assessment, hindsight recommendations for camera-ready
+- **`claude/rebuttals/`** — ICML rebuttal preparation: TIER 1-4 vulnerability inventory, response templates, worst-case scenarios, competitive positioning, camera-ready action items
 
-Full source references: `uhn_echo/nature_medicine/CLAUDE.md`, `uhn_echo/nature_medicine/data_exploration/CLAUDE.md`, `uhn_echo/nature_medicine/data_exploration/mimic/CLAUDE.md`
+Additional source references: `uhn_echo/nature_medicine/CLAUDE.md`, `uhn_echo/nature_medicine/data_exploration/CLAUDE.md`, `uhn_echo/nature_medicine/data_exploration/mimic/CLAUDE.md`
 
 ## Common Commands
 

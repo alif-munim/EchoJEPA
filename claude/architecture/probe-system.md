@@ -245,7 +245,7 @@ The `modelcustom/` directories contain encoder adapters that make different back
 - `panecho_encoder.py` — PanEcho
 - `videomae_encoder.py` — VideoMAE
 
-Switch backbone by changing `module_name` in config.
+Switch backbone by changing `module_name` in config. See `claude/preprint/encoder-fairness.md` for detailed analysis of encoder output differences and fairness considerations for model comparison.
 
 ## Key Config Fields
 
