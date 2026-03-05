@@ -109,7 +109,7 @@ Encoder processes visible (context) tokens; predictor takes encoder output + mas
 
 - `evals/video_classification_frozen/` — single-view probe (classification or regression)
 - `evals/video_classification_frozen_multi/` — multi-view probe (multiple echo views per study)
-- Both support `probe_type: attentive | linear | mlp` in config, and contain `modelcustom/` backbone adapters for VJepa2, EchoPrime, PanEcho, VideoMAE
+- Both support `probe_type: attentive | linear | mlp` in config, and contain `modelcustom/` backbone adapters for VJepa2, EchoPrime, PanEcho, VideoMAE, EchoFM
 
 ### Probe Types
 

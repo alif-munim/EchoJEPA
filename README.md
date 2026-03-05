@@ -223,22 +223,30 @@ We provide precomputed embeddings for all 525K MIMIC-IV-Echo clips from multiple
 
 ### Available models
 
-| Model | Architecture | Params | Embed dim | Zip | Size |
-|-------|-------------|--------|-----------|-----|------|
-| EchoJEPA-G | ViT-g/16 384px | 1.1B | 1408 | `echojepa_g_mimic_all.zip` | 4.86 GB |
-| PanEcho | ConvNeXt-T + Transformer | 28M | 768 | `panecho_mimic_all.zip` | 3.08 GB |
+| Model | Architecture | Pretraining | Params | Embed dim | Zip |
+|-------|-------------|-------------|--------|-----------|-----|
+| EchoJEPA-G | ViT-g/16 384px | JEPA on 18M echo clips | 1.1B | 1408 | `echojepa_g_mimic_all.zip` |
+| EchoJEPA-L | ViT-L/16 224px | JEPA on 18M echo clips | 304M | 1024 | `echojepa_l_mimic_all.zip` |
+| EchoJEPA-L Kinetics | ViT-L/16 224px | JEPA on Kinetics-400 | 304M | 1024 | `echojepa_l_kinetics_mimic_all.zip` |
+| EchoMAE | ViT-L/16 (VideoMAE) | MAE on 1.5M echo clips | 304M | 1024 | `echomae_mimic_all.zip` |
+| EchoFM | ViT-L/16 (MAE+triplet) | MAE on 290K echo clips | 304M | 1024 | `echofm_mimic_all.zip` |
+| PanEcho | ConvNeXt-T + Transformer | Supervised on 1.1M echo clips | 28M | 768 | `panecho_mimic_all.zip` |
+| EchoPrime | MViT-v2-S | Supervised on 700K echo clips | 34M | 512 | `echoprime_mimic_all.zip` |
 
-All models were extracted from the same 525,312 clips in the same order, so shared metadata files (`clip_index.npz`, `patient_split.json`, `labels/`) are interchangeable and included in both zips.
+All 7 models were extracted from the same 525,312 clips in the same order, so shared metadata files (`clip_index.npz`, `patient_split.json`, `labels/`) are interchangeable and included in every zip. Key controlled comparisons:
+- **Objective**: EchoJEPA-L vs EchoMAE (same ViT-L arch, JEPA vs MAE objective)
+- **Data**: EchoJEPA-L vs EchoJEPA-L Kinetics (same arch, echo vs natural video pretraining)
+- **Scale**: EchoJEPA-G vs EchoJEPA-L (1.1B vs 304M, same objective and data)
 
 ### Contents of the zip
 
 Download a model zip and unzip from the repository root:
 
 ```bash
-unzip echojepa_g_mimic_all.zip   # or panecho_mimic_all.zip
+unzip echojepa_g_mimic_all.zip   # or any model zip
 ```
 
-This restores the following files in-place (shown for EchoJEPA-G; PanEcho follows the same structure with `panecho_` prefix):
+This restores the following files in-place (shown for EchoJEPA-G; all models follow the same structure with their respective prefix):
 
 ```
 embeddings/nature_medicine/mimic/
@@ -267,7 +275,7 @@ data/csv/nature_medicine/mimic/        # source label CSVs (23 files, VJEPA form
 
 | Array | Shape | Dtype | Description |
 |-------|-------|-------|-------------|
-| `embeddings` | `(525312, D)` | float32 | Mean-pooled encoder output per clip (D=1408 for EchoJEPA-G, 768 for PanEcho) |
+| `embeddings` | `(525312, D)` | float32 | Mean-pooled encoder output per clip (D varies by model: 1408/1024/768/512) |
 | `labels` | `(525312,)` | int64 | Labels from the extraction source CSV (mortality_1yr; ignore these — use task-specific labels instead) |
 | `paths` | `(525312,)` | str | Placeholder indices (`sample_0`, ...) — use `clip_index.npz` for real paths |
 
@@ -390,7 +398,7 @@ The study-level NPZ contains:
 
 | Array | Shape | Description |
 |-------|-------|-------------|
-| `embeddings` | `(N_studies, D)` | Pooled embedding per study (D=1408 for EchoJEPA-g, 768 for PanEcho, 512 for EchoPrime) |
+| `embeddings` | `(N_studies, D)` | Pooled embedding per study (D varies by model: 1408/1024/768/512) |
 | `labels` | `(N_studies,)` | Task label (constant within study) |
 | `study_ids` | `(N_studies,)` | MIMIC study ID |
 | `patient_ids` | `(N_studies,)` | MIMIC patient ID |
@@ -502,7 +510,7 @@ If you only have the master NPZ + shared files (clip index, labels, patient spli
 
 ```bash
 # Set the model prefix
-MODEL=echojepa_g  # or panecho
+MODEL=echojepa_g  # or echojepa_l, echojepa_l_kinetics, echomae, echofm, panecho, echoprime
 
 # 1. Pool all tasks to study level
 for f in embeddings/nature_medicine/mimic/labels/*.npz; do

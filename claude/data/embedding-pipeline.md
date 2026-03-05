@@ -20,10 +20,17 @@ Source CSV (525K S3 paths)
 
 ## Models
 
-| Model | Architecture | Params | Embed dim | File | Size |
-|-------|-------------|--------|-----------|------|------|
-| EchoJEPA-G | ViT-g/16 384px | 1.1B | 1408 | `echojepa_g_mimic_embeddings.npz` | 2.8GB |
-| PanEcho | ConvNeXt-T + Transformer | 28M | 768 | `panecho_mimic_embeddings.npz` | 1.6GB |
+| Model | Architecture | Pretraining | Params | Embed dim | File |
+|-------|-------------|-------------|--------|-----------|------|
+| EchoJEPA-G | ViT-g/16 384px | JEPA on 18M echo clips | 1.1B | 1408 | `echojepa_g_mimic_embeddings.npz` |
+| EchoJEPA-L | ViT-L/16 224px | JEPA on 18M echo clips | 304M | 1024 | `echojepa_l_mimic_embeddings.npz` |
+| EchoJEPA-L Kinetics | ViT-L/16 224px | JEPA on Kinetics-400 | 304M | 1024 | `echojepa_l_kinetics_mimic_embeddings.npz` |
+| EchoMAE | ViT-L/16 (VideoMAE) | MAE on 1.5M echo clips | 304M | 1024 | `echomae_mimic_embeddings.npz` |
+| EchoFM | ViT-L/16 (MAE+triplet) | MAE on 290K echo clips | 304M | 1024 | `echofm_mimic_embeddings.npz` |
+| PanEcho | ConvNeXt-T + Transformer | Supervised on 1.1M echo clips | 28M | 768 | `panecho_mimic_embeddings.npz` |
+| EchoPrime | MViT-v2-S | Supervised on 700K echo clips | 34M | 512 | `echoprime_mimic_embeddings.npz` |
+
+Key controlled comparisons: EchoJEPA-L vs EchoMAE (same arch, JEPA vs MAE), EchoJEPA-L vs Kinetics (same arch, echo vs natural video data), EchoJEPA-G vs EchoJEPA-L (scale).
 
 All models are extracted from the same source CSV (`data/csv/nature_medicine/mimic/mortality_1yr.csv`, 525,312 clips) using `evals.extract_embeddings`, ensuring row-aligned outputs. This means `clip_index.npz`, `patient_split.json`, and all label NPZs are shared across models.
 
@@ -32,25 +39,27 @@ All models are extracted from the same source CSV (`data/csv/nature_medicine/mim
 ```
 embeddings/nature_medicine/mimic/
 ├── echojepa_g_mimic_embeddings.npz    # clip-level (525,312 × 1408)
+├── echojepa_l_mimic_embeddings.npz    # clip-level (525,312 × 1024)
+├── echojepa_l_kinetics_mimic_embeddings.npz  # clip-level (525,312 × 1024)
+├── echomae_mimic_embeddings.npz       # clip-level (525,312 × 1024)
+├── echofm_mimic_embeddings.npz        # clip-level (525,312 × 1024)
 ├── panecho_mimic_embeddings.npz       # clip-level (525,312 × 768)
+├── echoprime_mimic_embeddings.npz     # clip-level (525,312 × 512)
 ├── clip_index.npz                     # shared: s3_paths, study_ids, patient_ids
 ├── patient_split.json                 # shared: {patient_id: "train"|"val"|"test"}
 ├── labels/                            # shared: 23 task label NPZs
 │   ├── mortality_1yr.npz
 │   └── ...
-├── echojepa_g_study_level/            # study-pooled (7,243 × 1408 for full tasks)
+├── {model}_study_level/               # study-pooled per model (7 dirs)
 │   ├── mortality_1yr.npz
 │   └── ...
-├── echojepa_g_splits/                 # patient-level train/val/test
+├── {model}_splits/                    # patient-level train/val/test per model (7 dirs)
 │   ├── mortality_1yr/
 │   │   ├── train.npz
 │   │   ├── val.npz
 │   │   └── test.npz
 │   └── ...
-├── panecho_study_level/               # study-pooled (7,243 × 768 for full tasks)
-├── panecho_splits/                    # patient-level train/val/test
-├── echojepa_g_mimic_all.zip           # self-contained distribution (4.86GB)
-└── panecho_mimic_all.zip              # self-contained distribution (3.08GB)
+└── {model}_mimic_all.zip              # self-contained distribution per model (7 zips)
 ```
 
 ## Shared Files
@@ -159,19 +168,37 @@ The same label indices work with any model's master NPZ (e.g., `panecho_mimic_em
 ## Extraction Commands
 
 ```bash
-# EchoJEPA-G (ViT-g, 384px, 1408-d)
-python -m evals.extract_embeddings \
-    --config configs/inference/vitg-384/view/echojepa_224px.yaml \
-    --data data/csv/nature_medicine/mimic/mortality_1yr.csv \
-    --output embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
-    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+DEVICES="cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7"
+DATA="data/csv/nature_medicine/mimic/mortality_1yr.csv"
+OUT="embeddings/nature_medicine/mimic"
 
-# PanEcho (ConvNeXt-T, 768-d)
-python -m evals.extract_embeddings \
-    --config configs/inference/vitg-384/view/panecho_224px.yaml \
-    --data data/csv/nature_medicine/mimic/mortality_1yr.csv \
-    --output embeddings/nature_medicine/mimic/panecho_mimic_embeddings.npz \
-    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+# EchoJEPA-G (ViT-g, 384px, 1408-d)
+python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echojepa_224px.yaml \
+    --data $DATA --output $OUT/echojepa_g_mimic_embeddings.npz --devices $DEVICES
+
+# EchoJEPA-L (ViT-L, 224px, 1024-d)
+python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echojepa_large_224px.yaml \
+    --data $DATA --output $OUT/echojepa_l_mimic_embeddings.npz --devices $DEVICES
+
+# EchoJEPA-L Kinetics (ViT-L, 224px, 1024-d, Kinetics pretrained)
+python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echojepa_large_kinetics_224px.yaml \
+    --data $DATA --output $OUT/echojepa_l_kinetics_mimic_embeddings.npz --devices $DEVICES
+
+# EchoMAE (ViT-L VideoMAE, 224px, 1024-d)
+python -m evals.extract_embeddings --config configs/inference/vitg-384/view/videomae_224px.yaml \
+    --data $DATA --output $OUT/echomae_mimic_embeddings.npz --devices $DEVICES
+
+# EchoFM (ViT-L MAE+triplet, 224px, 1024-d)
+python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echofm_224px.yaml \
+    --data $DATA --output $OUT/echofm_mimic_embeddings.npz --devices $DEVICES
+
+# PanEcho (ConvNeXt-T, 224px, 768-d)
+python -m evals.extract_embeddings --config configs/inference/vitg-384/view/panecho_224px.yaml \
+    --data $DATA --output $OUT/panecho_mimic_embeddings.npz --devices $DEVICES
+
+# EchoPrime (MViT-v2-S, 224px, 512-d)
+python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echoprime_224px.yaml \
+    --data $DATA --output $OUT/echoprime_mimic_embeddings.npz --devices $DEVICES
 ```
 
 ## Deriving Study-Level and Splits
