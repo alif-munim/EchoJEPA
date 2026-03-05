@@ -14,7 +14,7 @@ Usage:
         --embeddings embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
         --clip_index embeddings/nature_medicine/mimic/clip_index.npz \
         --labels embeddings/nature_medicine/mimic/labels/mortality_1yr.npz \
-        --output embeddings/nature_medicine/mimic/study_level/mortality_1yr.npz
+        --output embeddings/nature_medicine/mimic/echojepa_g_study_level/mortality_1yr.npz
 """
 
 import argparse

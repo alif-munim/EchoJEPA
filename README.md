@@ -219,40 +219,56 @@ For the full pipeline (extracting your own embeddings from videos, training GPU-
 
 ## MIMIC-IV-Echo Precomputed Embeddings
 
-We provide precomputed EchoJEPA-G embeddings for all 525K MIMIC-IV-Echo clips, with label mappings for 23 clinical tasks. These are the embeddings used for the Nature Medicine paper.
+We provide precomputed embeddings for all 525K MIMIC-IV-Echo clips from multiple frozen encoders, with label mappings for 23 clinical tasks. These are the embeddings used for the Nature Medicine paper.
+
+### Available models
+
+| Model | Architecture | Params | Embed dim | Zip | Size |
+|-------|-------------|--------|-----------|-----|------|
+| EchoJEPA-G | ViT-g/16 384px | 1.1B | 1408 | `echojepa_g_mimic_all.zip` | 4.86 GB |
+| PanEcho | ConvNeXt-T + Transformer | 28M | 768 | `panecho_mimic_all.zip` | 3.08 GB |
+
+All models were extracted from the same 525,312 clips in the same order, so shared metadata files (`clip_index.npz`, `patient_split.json`, `labels/`) are interchangeable and included in both zips.
 
 ### Contents of the zip
 
-Download `echojepa_g_mimic_all.zip` (3.96 GB) and unzip from the repository root:
+Download a model zip and unzip from the repository root:
 
 ```bash
-unzip echojepa_g_mimic_all.zip
+unzip echojepa_g_mimic_all.zip   # or panecho_mimic_all.zip
 ```
 
-This restores the following files in-place:
+This restores the following files in-place (shown for EchoJEPA-G; PanEcho follows the same structure with `panecho_` prefix):
 
 ```
 embeddings/nature_medicine/mimic/
 ├── echojepa_g_mimic_embeddings.npz    # 2.8GB — clip-level embeddings (525,312 × 1408)
-├── clip_index.npz               # 169MB — maps each embedding row to its S3 path, study_id, patient_id
-├── patient_split.json           # global patient-level train/val/test assignment (70/15/15)
-└── labels/                      # 123MB — per-task label NPZs (23 files)
-    ├── mortality_1yr.npz
-    ├── creatinine.npz
-    └── ...
+├── clip_index.npz                     # shared: maps each row to S3 path, study_id, patient_id
+├── patient_split.json                 # shared: global patient-level train/val/test (70/15/15)
+├── labels/                            # shared: per-task label NPZs (23 files)
+│   ├── mortality_1yr.npz
+│   └── ...
+├── echojepa_g_study_level/            # study-level pooled embeddings (23 tasks)
+│   ├── mortality_1yr.npz
+│   └── ...
+├── echojepa_g_splits/                 # patient-level train/val/test splits (23 tasks)
+│   ├── mortality_1yr/
+│   │   ├── train.npz
+│   │   ├── val.npz
+│   │   └── test.npz
+│   └── ...
 
-data/csv/nature_medicine/mimic/  # source label CSVs (23 files, VJEPA format: "s3_path label")
+data/csv/nature_medicine/mimic/        # source label CSVs (23 files, VJEPA format: "s3_path label")
 ├── mortality_1yr.csv
-├── creatinine.csv
 └── ...
 ```
 
-**`echojepa_g_mimic_embeddings.npz`** — the master embedding file:
+**`{model}_mimic_embeddings.npz`** — the master clip-level embedding file:
 
 | Array | Shape | Dtype | Description |
 |-------|-------|-------|-------------|
-| `embeddings` | `(525312, 1408)` | float32 | Mean-pooled EchoJEPA-G encoder output per clip |
-| `labels` | `(525312,)` | int64 | Labels from the extraction source CSV (mortality_1yr; ignore these) |
+| `embeddings` | `(525312, D)` | float32 | Mean-pooled encoder output per clip (D=1408 for EchoJEPA-G, 768 for PanEcho) |
+| `labels` | `(525312,)` | int64 | Labels from the extraction source CSV (mortality_1yr; ignore these — use task-specific labels instead) |
 | `paths` | `(525312,)` | str | Placeholder indices (`sample_0`, ...) — use `clip_index.npz` for real paths |
 
 **`clip_index.npz`** — maps row index to identifiers:
@@ -309,6 +325,33 @@ print(index["patient_ids"][42])   # 15690862
 print(master["embeddings"][42].shape)  # (1408,)
 ```
 
+### Connecting embeddings to task labels
+
+Label NPZs store row indices into the master NPZ, avoiding duplication of the large embedding matrix. To get labeled embeddings for any task:
+
+```python
+import numpy as np
+
+# Load master embeddings (works with any model)
+master = np.load("embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz")
+index = np.load("embeddings/nature_medicine/mimic/clip_index.npz", allow_pickle=True)
+
+# Load a task's labels
+task = np.load("embeddings/nature_medicine/mimic/labels/mortality_1yr.npz")
+indices = task["indices"]   # row positions into master
+labels = task["labels"]     # task-specific label per clip
+
+# Subset to this task's clips
+task_embeddings = master["embeddings"][indices]   # (N_task, 1408)
+task_study_ids = index["study_ids"][indices]       # (N_task,)
+task_patient_ids = index["patient_ids"][indices]   # (N_task,)
+
+print(f"{len(indices)} clips, {len(np.unique(task_study_ids))} studies, "
+      f"{len(np.unique(task_patient_ids))} patients")
+```
+
+The same label `indices` work with any model's master NPZ (e.g., `panecho_mimic_embeddings.npz`) since all were extracted from the same source CSV in the same row order.
+
 ### Pooling to study-level embeddings
 
 For linear probing, pool clip embeddings to one vector per study (mean across all clips in the study):
@@ -319,14 +362,14 @@ python -m evals.pool_embeddings \
     --embeddings embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
     --clip_index embeddings/nature_medicine/mimic/clip_index.npz \
     --labels embeddings/nature_medicine/mimic/labels/mortality_1yr.npz \
-    --output embeddings/nature_medicine/mimic/study_level/mortality_1yr.npz
+    --output embeddings/nature_medicine/mimic/echojepa_g_study_level/mortality_1yr.npz
 ```
 
 The study-level NPZ contains:
 
 | Array | Shape | Description |
 |-------|-------|-------------|
-| `embeddings` | `(N_studies, 1408)` | Mean-pooled across all clips per study |
+| `embeddings` | `(N_studies, D)` | Mean-pooled across all clips per study (D=1408 for EchoJEPA-g, 768 for PanEcho) |
 | `labels` | `(N_studies,)` | Task label (constant within study) |
 | `study_ids` | `(N_studies,)` | MIMIC study ID |
 | `patient_ids` | `(N_studies,)` | MIMIC patient ID |
@@ -339,7 +382,7 @@ After pooling, split by patient to prevent data leakage (no patient in both trai
 ```python
 import numpy as np, json
 
-data = np.load("embeddings/nature_medicine/mimic/study_level/mortality_1yr.npz")
+data = np.load("embeddings/nature_medicine/mimic/echojepa_g_study_level/mortality_1yr.npz")
 split = json.load(open("embeddings/nature_medicine/mimic/patient_split.json"))
 
 train_mask = np.array([split[str(pid)] == "train" for pid in data["patient_ids"]])
@@ -348,7 +391,7 @@ test_mask  = np.array([split[str(pid)] == "test"  for pid in data["patient_ids"]
 
 # Save splits
 for name, mask in [("train", train_mask), ("val", val_mask), ("test", test_mask)]:
-    np.savez(f"splits/mortality_1yr/{name}.npz",
+    np.savez(f"echojepa_g_splits/mortality_1yr/{name}.npz",
              embeddings=data["embeddings"][mask],
              labels=data["labels"][mask],
              study_ids=data["study_ids"][mask],
@@ -360,19 +403,26 @@ The provided `patient_split.json` assigns 3,205 / 686 / 688 patients to train / 
 ### Running linear probes
 
 ```bash
-# Train/val mode on study-level splits
+# Train/val mode on study-level splits (EchoJEPA-G)
 python -m evals.train_probe \
-    --train embeddings/nature_medicine/mimic/splits/mortality_1yr/train.npz \
-    --val embeddings/nature_medicine/mimic/splits/mortality_1yr/test.npz \
+    --train embeddings/nature_medicine/mimic/echojepa_g_splits/mortality_1yr/train.npz \
+    --val embeddings/nature_medicine/mimic/echojepa_g_splits/mortality_1yr/test.npz \
     --task classification \
-    --output_dir results/probes/nature_medicine/mortality_1yr
+    --output_dir results/probes/nature_medicine/echojepa_g/mortality_1yr
+
+# Same task with PanEcho (same splits, different embeddings)
+python -m evals.train_probe \
+    --train embeddings/nature_medicine/mimic/panecho_splits/mortality_1yr/train.npz \
+    --val embeddings/nature_medicine/mimic/panecho_splits/mortality_1yr/test.npz \
+    --task classification \
+    --output_dir results/probes/nature_medicine/panecho/mortality_1yr
 
 # K-fold on clip-level embeddings (using --labels to avoid duplication)
 python -m evals.train_probe \
     --data embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
     --labels embeddings/nature_medicine/mimic/labels/creatinine.npz \
     --task regression --cv 5 \
-    --output_dir results/probes/nature_medicine/creatinine
+    --output_dir results/probes/nature_medicine/echojepa_g/creatinine
 ```
 
 ### Using embeddings for UMAP, clustering, and other analyses
@@ -383,7 +433,7 @@ The embeddings and index files can be loaded directly for custom analyses:
 import numpy as np
 
 # Load study-level embeddings with metadata
-data = np.load("embeddings/nature_medicine/mimic/study_level/mortality_1yr.npz")
+data = np.load("embeddings/nature_medicine/mimic/echojepa_g_study_level/mortality_1yr.npz")
 embeddings = data["embeddings"]   # (7243, 1408)
 study_ids = data["study_ids"]     # (7243,)
 patient_ids = data["patient_ids"] # (7243,)
@@ -427,21 +477,38 @@ afib_colors = np.array([afib_lookup.get(sid, -1) for sid in study_ids])
 
 ### Regenerating derived files
 
-If you only have the zip contents (master NPZ + clip index + labels), you can regenerate study-level embeddings and splits:
+If you only have the master NPZ + shared files (clip index, labels, patient split), you can regenerate study-level embeddings and splits for any model:
 
 ```bash
+# Set the model prefix
+MODEL=echojepa_g  # or panecho
+
 # 1. Pool all tasks to study level
 for f in embeddings/nature_medicine/mimic/labels/*.npz; do
     task=$(basename "$f" .npz)
     python -m evals.pool_embeddings \
-        --embeddings embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
+        --embeddings "embeddings/nature_medicine/mimic/${MODEL}_mimic_embeddings.npz" \
         --clip_index embeddings/nature_medicine/mimic/clip_index.npz \
         --labels "$f" \
-        --output "embeddings/nature_medicine/mimic/study_level/${task}.npz"
+        --output "embeddings/nature_medicine/mimic/${MODEL}_study_level/${task}.npz"
 done
 
 # 2. Create splits using patient_split.json (see Python snippet above)
 ```
+
+### Adding a new model
+
+To add embeddings for a new encoder, extract with the same source CSV to ensure row alignment:
+
+```bash
+python -m evals.extract_embeddings \
+    --config configs/inference/your_model_config.yaml \
+    --data data/csv/nature_medicine/mimic/mortality_1yr.csv \
+    --output embeddings/nature_medicine/mimic/newmodel_mimic_embeddings.npz \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3
+```
+
+Then reuse the existing shared files (`clip_index.npz`, `patient_split.json`, `labels/`) and run the pooling/splitting steps above with `MODEL=newmodel`. Results are directly comparable across models since all use the same patient-level splits.
 
 ---
 

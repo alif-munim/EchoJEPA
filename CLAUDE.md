@@ -64,6 +64,18 @@ python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echo
 python -m evals.train_probe --data embeddings/views/echojepa_g_embeddings.npz --cv 5 \
     --output_dir results/probes/views/echojepa_g
 python -m evals.train_probe --train train.npz --val val.npz --output_dir results/probes/out
+
+# Using label-only NPZs (avoids duplicating master embeddings per task)
+python -m evals.train_probe \
+    --data embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
+    --labels embeddings/nature_medicine/mimic/labels/creatinine.npz \
+    --task regression --cv 5 --output_dir results/probes/nature_medicine/creatinine
+
+# Using precomputed study-level splits
+python -m evals.train_probe \
+    --train embeddings/nature_medicine/mimic/echojepa_g_splits/mortality_1yr/train.npz \
+    --val embeddings/nature_medicine/mimic/echojepa_g_splits/mortality_1yr/test.npz \
+    --task classification --output_dir results/probes/nature_medicine/mortality_1yr
 ```
 
 ## Code Style
@@ -108,6 +120,16 @@ Three probe architectures in `src/models/`. Set via `experiment.classifier.probe
 
 See `claude/architecture/probe-system.md` for full details including attentive-vs-linear comparison and hyperparameter guidance.
 
+### Embedding Pipeline (`evals/`)
+
+Scripts for the MIMIC multi-model embedding pipeline (see `claude/data/embedding-pipeline.md`):
+- `evals/extract_embeddings.py` — multi-GPU clip-level extraction from frozen encoder → master NPZ
+- `evals/remap_embeddings.py` — create per-task label NPZs referencing master by row index (avoids duplicating embeddings)
+- `evals/pool_embeddings.py` — mean-pool clip embeddings to study-level using `clip_index.npz`
+- `evals/train_probe.py` — sklearn linear probes on embeddings; supports `--labels` for label-only NPZs and `--train`/`--val` for precomputed splits
+
+All models share the same `clip_index.npz`, `patient_split.json`, and `labels/` directory. Per-model outputs use the naming convention `{model}_study_level/` and `{model}_splits/`.
+
 ### Config System
 
 All experiments driven by YAML configs in `configs/`. Each subdirectory has a README.md with full details:
@@ -145,7 +167,7 @@ JEPA-format splits, raw labels, scalers, notebooks, and scripts. See `claude/dat
 
 - `checkpoints/` — all model weights: pretrain, anneal, cooldown, eval probes, SSv2 probe
 - `indices/` — S3 URI manifests for the 18M dataset (`master_index_18M.csv`, `master_index_18M_cleaned.csv`, `s3_pretrain.csv`, annotations)
-- `embeddings/` — precomputed NPZ embeddings by task (lvef, views) and model (echojepa, echoprime, panecho, videomae)
+- `embeddings/` — precomputed NPZ embeddings by task and model. `embeddings/nature_medicine/mimic/` contains the MIMIC multi-model pipeline: clip-level master NPZs (per model), shared `clip_index.npz` + `patient_split.json` + `labels/`, and per-model `{model}_study_level/` + `{model}_splits/` directories. See `claude/data/embedding-pipeline.md`
 - `predictions/` — probe and classifier prediction CSVs (LVEF, RVSP, EchoNet, view, quality, zoom)
 - `results/` — data efficiency experiment runs (epoch checkpoints + logs)
 - `scripts/` — SBATCH scripts, Python utilities, demos, `run_details.md`
