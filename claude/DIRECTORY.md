@@ -22,6 +22,7 @@ Datasets, database schemas, and manuscript scope.
 | `embedding-pipeline.md` | MIMIC multi-model embedding pipeline: extraction, label remapping, study-level pooling, patient-level splits, directory layout, adding new models |
 | `nature-medicine-manuscript.md` | Manuscript scope, ICML vs Nature Medicine delineation, models, evaluation protocol |
 | `uhn-database.md` | UHN echocardiography database (echo.db, Syngo/HeartLab schemas, rare disease cohorts) |
+| `uhn-mapping.md` | DICOM UID → Syngo StudyRef mapping chain: deid key files, date extraction patterns, coverage analysis, patient ID systems, HeartLab bridge, action items |
 | `mimic-database.md` | MIMIC-IV linked to echo (prediction targets, biomarker coverage, data engineering notes) |
 
 ## preprint/

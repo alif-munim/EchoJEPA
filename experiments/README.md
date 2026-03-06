@@ -15,6 +15,8 @@ experiments/
 │   └── misc/                          #   Miscellaneous (echojepa_g only)
 │
 └── nature_medicine/                   # Nature Medicine experiments
+    ├── uhn/                           #   UHN experiments (18M echos, 153K patients)
+    │   └── mapping/                   #   DICOM↔Syngo deid key files (gitignored CSVs)
     └── mimic/                         #   MIMIC-IV-Echo multi-model pipeline
         ├── {model}_mimic_embeddings.npz   # clip-level master NPZs (7 models)
         ├── clip_index.npz                 # shared: s3_paths, study_ids, patient_ids
@@ -31,7 +33,18 @@ experiments/
 
 UHN benchmark embeddings from the ICML preprint: LVEF regression, view classification. 5 models: EchoJEPA-G, EchoJEPA-L, EchoMAE-L, EchoPrime, PanEcho.
 
-## Nature Medicine (`nature_medicine/mimic/`)
+## Nature Medicine — UHN (`nature_medicine/uhn/`)
+
+UHN experiments (in progress). The `mapping/` subdirectory contains the DICOM deidentification keys that link S3 echocardiogram paths to clinical labels in echo.db. These are **gitignored** (sensitive, never track). See `claude/data/uhn-mapping.md` for the full mapping chain and file descriptions. Pipeline plan at `uhn_echo/nature_medicine/data_exploration/todo/mvp_uhn_embedding_pipeline.md`.
+
+| File | Rows | Purpose |
+|------|------|---------|
+| `mapping/deid_key.csv` | 232,835 | Core mapping: deidentified ↔ original study/patient IDs |
+| `mapping/echo_study_deid.csv` | 237,022 | Complete deid mapping (superset, loaded into echo.db) |
+| `mapping/patient_to_study.csv` | 232,848 | Patient → study ID groupings |
+| `mapping/ecs_master.csv` | 216,807 | HeartLab-linked master (deid → REP_ID, dates, modalities) |
+
+## Nature Medicine — MIMIC (`nature_medicine/mimic/`)
 
 Multi-model embedding pipeline for MIMIC-IV-Echo (7,243 studies, 4,579 patients, 525K clips). 7 frozen encoders, 23 clinical tasks, patient-level splits. See `claude/data/embedding-pipeline.md` for the full pipeline reference.
 

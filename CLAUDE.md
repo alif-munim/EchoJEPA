@@ -154,11 +154,13 @@ ConvNeXt/Swin image classifiers for echo view/color/quality/zoom, plus distribut
 
 JEPA-format splits, raw labels, scalers, notebooks, and scripts. See `claude/data/data-directory.md` for full details. **Do not rename files in `csv/`** without updating corresponding eval configs.
 
+`data/data/` contains the UHN deidentification key and mapping notebooks (deid_key.csv, identifiers.ipynb, ecs_mappings.ipynb, syngo.ipynb). Working copies of the key mapping files are at `experiments/nature_medicine/uhn/mapping/` (gitignored). See `claude/data/uhn-mapping.md` for the full mapping chain documentation.
+
 ### Other Root Directories
 
 - `checkpoints/` — all model weights: pretrain, anneal, cooldown, eval probes, SSv2 probe
 - `indices/` — S3 URI manifests for the 18M dataset (`master_index_18M.csv`, `master_index_18M_cleaned.csv`, `s3_pretrain.csv`, annotations)
-- `experiments/` — precomputed frozen embeddings organized by paper: `icml/` (UHN benchmarks) and `nature_medicine/mimic/` (7 models, 23 tasks). See `experiments/README.md` and `claude/data/embedding-pipeline.md`
+- `experiments/` — precomputed frozen embeddings organized by paper: `icml/` (UHN benchmarks), `nature_medicine/mimic/` (7 models, 23 tasks), `nature_medicine/uhn/mapping/` (DICOM↔Syngo deid keys, gitignored). See `experiments/README.md`, `claude/data/embedding-pipeline.md`, `claude/data/uhn-mapping.md`
 - `predictions/` — probe and classifier prediction CSVs (LVEF, RVSP, EchoNet, view, quality, zoom)
 - `results/` — data efficiency experiment runs (epoch checkpoints + logs)
 - `scripts/` — SBATCH scripts, Python utilities, demos, `run_details.md`
