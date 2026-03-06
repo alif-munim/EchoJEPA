@@ -34,6 +34,17 @@ Key controlled comparisons: EchoJEPA-L vs EchoMAE (same arch, JEPA vs MAE), Echo
 
 All models are extracted from the same source CSV (`data/csv/nature_medicine/mimic/mortality_1yr.csv`, 525,312 clips) using `evals.extract_embeddings`, ensuring row-aligned outputs. This means `clip_index.npz`, `patient_split.json`, and all label NPZs are shared across models.
 
+### Transform Pipeline & Normalization
+
+The shared `make_transforms(training=False)` pipeline applies: Resize(short_side=256) → CenterCrop(224) → ClipToTensor → ImageNet Normalize. All encoder adapters receive this ImageNet-normalized input.
+
+- **EchoJEPA-G/L, EchoMAE (VideoMAE):** trained with ImageNet normalization — use input directly.
+- **PanEcho:** trained with ImageNet normalization — uses input directly (spatial resize to 224 if needed).
+- **EchoPrime:** trained with custom normalization in 0-255 space — adapter undoes ImageNet norm, scales to 255, applies EchoPrime norm.
+- **EchoFM:** trained on [0,1] range (no normalization) — adapter undoes ImageNet norm to recover [0,1].
+
+**Note:** PanEcho, EchoPrime, and EchoFM normalization was fixed on 2026-03-06. Existing MIMIC embeddings for these three models should be re-extracted.
+
 ## Directory Layout
 
 ```

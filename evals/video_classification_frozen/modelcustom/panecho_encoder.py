@@ -35,12 +35,13 @@ logger.setLevel(logging.INFO)
 class PanEchoWrapper(nn.Module):
     """
     PanEcho wrapper for V-JEPA2 eval system.
-    
+
     Handles:
-    - ImageNet normalization (required by PanEcho)
-    - Spatial upscaling to 224x224 (PanEcho trained resolution)
+    - Spatial upscaling to 224x224 if needed (PanEcho trained resolution)
     - V-JEPA2 input/output format conversion
-    
+
+    ImageNet normalization is handled by the shared make_transforms pipeline.
+
     Output embedding: 768 dimensions (ConvNeXt-Tiny + Transformer)
     """
 
@@ -49,12 +50,8 @@ class PanEchoWrapper(nn.Module):
         self.panecho_model = panecho_model
         self.embed_dim = embed_dim
 
-        # ImageNet normalization constants (required by PanEcho)
-        # Shape: [C, 1, 1, 1] for broadcasting over [B, C, T, H, W]
-        mean = torch.tensor([0.485, 0.456, 0.406]).reshape(3, 1, 1, 1)
-        std = torch.tensor([0.229, 0.224, 0.225]).reshape(3, 1, 1, 1)
-        self.register_buffer("mean", mean, persistent=False)
-        self.register_buffer("std", std, persistent=False)
+        # NOTE: ImageNet normalization is already applied by the shared
+        # make_transforms pipeline (eval_transform). Do NOT re-normalize here.
 
         # Freeze model
         self.eval()
@@ -65,36 +62,25 @@ class PanEchoWrapper(nn.Module):
     def _preprocess(self, x: torch.Tensor) -> torch.Tensor:
         """
         Preprocess input tensor for PanEcho.
-        
+
+        The shared make_transforms pipeline already applies ImageNet
+        normalization, so this method only handles spatial resizing.
+
         Args:
-            x: [B, C, T, H, W] tensor, expected in [0, 1] range
-            
+            x: [B, C, T, H, W] tensor, already ImageNet-normalized
+
         Returns:
-            [B, C, T, 224, 224] tensor, ImageNet-normalized
+            [B, C, T, 224, 224] tensor
         """
         B, C, T, H, W = x.shape
 
-        # 1. Upscale spatial dimensions to 224x224 if needed
+        # Upscale spatial dimensions to 224x224 if needed
         if H != 224 or W != 224:
-            # Reshape to [B*T, C, H, W] for interpolation
             x = x.permute(0, 2, 1, 3, 4).reshape(B * T, C, H, W)
             x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
             x = x.reshape(B, T, C, 224, 224).permute(0, 2, 1, 3, 4)
-            # Now x is [B, C, T, 224, 224]
 
-        # 2. Apply ImageNet normalization
-        # Ensure float32 for normalization
-        x = x.float()
-        
-        # Handle case where input might be in 0-255 range
-        if x.max() > 2.0:
-            x = x / 255.0
-            
-        # Normalize: (x - mean) / std
-        # mean/std are [C, 1, 1, 1], broadcasts over [B, C, T, H, W]
-        x = (x - self.mean) / self.std
-
-        return x
+        return x.float()
 
     @torch.no_grad()
     def forward(self, x, clip_indices=None):

@@ -7,7 +7,7 @@ EchoFM: ViT-L MAE pretrained on 290K echo clips with triplet loss.
 - Architecture: ViT-L/16, t_patch_size=4, 32 frames, sep_pos_embed, cls_embed
 - embed_dim: 1024
 - Checkpoint: pretrain format (no decoder keys in released weights)
-- Normalization: expects [0, 1] range (standard torchvision transforms)
+- Normalization: trained on [0, 1] range (T.ToTensor only, no ImageNet norm)
 
 Reference: https://github.com/SekeunKim/EchoFM
 """
@@ -154,6 +154,14 @@ class EchoFMWrapper(nn.Module):
         self.target_frames = num_frames
         self.t_patch_size = t_patch_size
 
+        # ImageNet normalization constants used by the shared make_transforms
+        # pipeline. EchoFM was trained on [0, 1] range data (T.Resize + T.ToTensor
+        # only), so we must undo the ImageNet normalization before inference.
+        inet_mean = torch.tensor([0.485, 0.456, 0.406]).reshape(3, 1, 1, 1)
+        inet_std = torch.tensor([0.229, 0.224, 0.225]).reshape(3, 1, 1, 1)
+        self.register_buffer("inet_mean", inet_mean, persistent=False)
+        self.register_buffer("inet_std", inet_std, persistent=False)
+
         self.eval()
         for p in self.parameters():
             p.requires_grad = False
@@ -204,6 +212,9 @@ class EchoFMWrapper(nn.Module):
 
         # Flatten leaves: [L*B, C, T, H, W]
         x_flat = torch.cat(leaves, dim=0)
+
+        # Undo ImageNet normalization → [0, 1] range expected by EchoFM
+        x_flat = x_flat * self.inet_std + self.inet_mean
 
         # Adapt to EchoFM's expected input
         x_flat = self._adapt_temporal(x_flat)

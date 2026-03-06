@@ -35,14 +35,32 @@ UHN benchmark embeddings from the ICML preprint: LVEF regression, view classific
 
 ## Nature Medicine — UHN (`nature_medicine/uhn/`)
 
-UHN experiments (in progress). The `mapping/` subdirectory contains the DICOM deidentification keys that link S3 echocardiogram paths to clinical labels in echo.db. These are **gitignored** (sensitive, never track). See `claude/data/uhn-mapping.md` for the full mapping chain and file descriptions. Pipeline plan at `uhn_echo/nature_medicine/data_exploration/todo/mvp_uhn_embedding_pipeline.md`.
+UHN experiments for 18.1M echocardiographic clips across 320K studies. The primary mapping source is `data/aws/aws_syngo.csv` (320K studies, 2002-2019) which maps STUDY_REF ↔ DeidentifiedStudyID ↔ s3_key ↔ PATIENT_ID. See `claude/data/uhn-mapping.md` for full details.
 
-| File | Rows | Purpose |
+### Pipeline Status
+
+| Stage | Status | Output |
+|-------|--------|--------|
+| P0 Mapping | **DONE** | `data/aws/aws_syngo.csv` (320K studies) |
+| P1 Clip Index | **DONE** | `uhn_clip_index.npz` (18.1M clips, 320K studies) |
+| P2 Splits | **DONE** | `patient_split.json` (138K patients, 70/10/20 temporal) |
+| P3 Labels | **DONE** | `labels/` — 53 NPZs (20 regression, 17 classification, 9 rare disease, 6 trajectory, 1 RWMA) |
+| P4 Extraction | **IN PROGRESS** | `echojepa_g_embeddings/` — ViT-G bf16, 8×A100, ~25h ETA |
+| P5 Pooling | Built into P4 | Study-level pooling auto-runs after extraction |
+
+### Key Files
+
+| File | Size | Purpose |
 |------|------|---------|
-| `mapping/deid_key.csv` | 232,835 | Core mapping: deidentified ↔ original study/patient IDs |
-| `mapping/echo_study_deid.csv` | 237,022 | Complete deid mapping (superset, loaded into echo.db) |
-| `mapping/patient_to_study.csv` | 232,848 | Patient → study ID groupings |
-| `mapping/ecs_master.csv` | 216,807 | HeartLab-linked master (deid → REP_ID, dates, modalities) |
+| `uhn_clip_index.npz` | 7.5 GB | s3_paths, study_uids, series_uids, instance_uids (18.1M clips) |
+| `uhn_all_clips.csv` | 3.8 GB | VideoDataset-format CSV: `s3://echodata25/.../INSTANCE.mp4 0` |
+| `patient_split.json` | 2.8 MB | `{patient_id: "train"/"val"/"test"}` (138K patients) |
+| `labels/*.npz` | 53 files | `study_refs`, `labels`, `patient_ids` per task |
+| `mapping/` | gitignored | Older deid key files (superseded by aws_syngo.csv) |
+
+### Extraction Details
+
+Native video resolution: **336×336**. The eval transform pipeline resizes to 256 (short side) then center-crops to 224×224 before feeding to the encoder. Extraction uses `evals/extract_uhn_embeddings.py` with bf16 autocast and chunked saving (crash-safe resume). Config: `configs/inference/vitg-384/extract_uhn.yaml`.
 
 ## Nature Medicine — MIMIC (`nature_medicine/mimic/`)
 

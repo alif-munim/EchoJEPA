@@ -60,6 +60,13 @@ class EchoPrimeEncoderOnlyWrapper(nn.Module):
         self.register_buffer("mean_255", mean, persistent=False)
         self.register_buffer("std_255", std, persistent=False)
 
+        # ImageNet normalization constants used by the shared make_transforms
+        # pipeline. We must undo this before applying EchoPrime normalization.
+        inet_mean = torch.tensor([0.485, 0.456, 0.406]).reshape(3, 1, 1, 1)
+        inet_std = torch.tensor([0.229, 0.224, 0.225]).reshape(3, 1, 1, 1)
+        self.register_buffer("inet_mean", inet_mean, persistent=False)
+        self.register_buffer("inet_std", inet_std, persistent=False)
+
         self.embed_dim = 512 
 
         # Freeze explicitly
@@ -70,27 +77,26 @@ class EchoPrimeEncoderOnlyWrapper(nn.Module):
     @torch.no_grad()
     def _normalize_like_echoprime(self, x: torch.Tensor) -> torch.Tensor:
         """
-        x: [N, C, T, H, W], typically in 0..1 after V-JEPA2 transforms.
+        x: [N, C, T, H, W], ImageNet-normalized by the shared make_transforms pipeline.
         EchoPrime normalizes in 0..255 space AND expects 224x224 spatial resolution.
+
+        Steps: undo ImageNet norm → scale to 0-255 → apply EchoPrime norm.
         """
         # Resize spatial dimensions to 224x224 if needed
         H, W = x.shape[-2], x.shape[-1]
         if H != 224 or W != 224:
-            # Reshape to [N*T, C, H, W] for F.interpolate, then back
             N, C, T = x.shape[:3]
             x = x.permute(0, 2, 1, 3, 4).reshape(N * T, C, H, W)
             x = torch.nn.functional.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
             x = x.reshape(N, T, C, 224, 224).permute(0, 2, 1, 3, 4)
-        
-        if x.dtype.is_floating_point:
-            xmax = float(x.detach().max().cpu())
-        else:
-            xmax = 255.0
-    
-        if xmax <= 5.0:
-            x = x * 255.0
-    
+
         x = x.float()
+
+        # Undo ImageNet normalization → [0, 1]
+        x = x * self.inet_std + self.inet_mean
+
+        # Scale to [0, 255] and apply EchoPrime normalization
+        x = x * 255.0
         x = (x - self.mean_255) / self.std_255
         return x
 

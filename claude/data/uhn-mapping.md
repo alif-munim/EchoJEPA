@@ -179,8 +179,41 @@ Three separate patient ID namespaces exist:
 
 **`original_patient_id` = `PATIENT_ID` in syngo** (confirmed). HeartLab `PATI_ID` is a separate internal ID that joins to `patients.ID` but NOT to the hospital patient ID.
 
+## AWS Pre-Built Mapping Files (at `user-default-efs/vjepa2/data/aws/`)
+
+These files resolve the temporal mismatch by providing the complete 2002-2019 mapping. The updated deid key is `R_21_009_011_echo_study_parts2and3_results.csv`.
+
+| File | Rows | Purpose |
+|------|------|---------|
+| `aws_syngo.csv` | 320,854 | **Master mapping**: STUDY_REF ↔ DeidentifiedStudyID ↔ s3_key ↔ PATIENT_ID. All 320K studies with S3 video. |
+| `R_21_009_011_echo_study_parts2and3_results.csv` | 342,763 | Updated deid key (2002-2019). STUDY_REF + OriginalStudyID + DeidentifiedStudyID. |
+| `aws_syngo_msmt_v2.csv` | 67,690 | Pre-extracted Syngo measurements (18 types) with DeidentifiedStudyID, group_tag |
+| `aws_syngo_findings_v2.csv` | 542,428 | Pre-extracted Syngo observations (69 conditions) with condition_tag, common_label |
+| `aws_heartlab_msmt_v2.csv` | 255,176 | Pre-extracted HeartLab measurements (20 types) with DeidentifiedStudyID |
+| `aws_heartlab_findings_v2.csv` | 1,263,258 | Pre-extracted HeartLab findings (69 conditions) with condition_tag, common_label |
+| `es_union.csv` | 201,803 | Per-study union of all findings + measurements as dicts |
+| `label2tag.csv` | 20 | Measurement group tag dictionary (N0-N19) |
+| `condition_dict.csv` | 74 | Condition tag dictionary (C0-C78) |
+
+**100% of labeled studies (272K union) have S3 paths via aws_syngo.csv.**
+
+For full measurement coverage (e.g., 51K LVEF studies), query echo.db and join with `aws_syngo.csv` on STUDY_REF. The pre-extracted v2 files cover a curated subset (~6K Syngo measurement studies, ~54K Syngo finding studies, ~217K HeartLab finding studies).
+
 ## Action Items
 
-1. **Request updated deid key from Joe** — covers the 106K unmapped studies (35% of clips). Single highest-impact action.
-2. **Build `uhn_uid_to_studyref.csv`** — run the mapping script on the 214K studies we can map now. ~0.5 day.
-3. **Validate against ICML CSVs** — confirm the mapping reproduces known LVEF/view labels for existing CSVs.
+1. ~~Request updated deid key from Joe~~ — **DONE.** `R_21_009_011_echo_study_parts2and3_results.csv` IS the updated key (342K rows, 2002-2019).
+2. ~~Build `uhn_uid_to_studyref.csv`~~ — **DONE** (224K rows), but superseded by `aws_syngo.csv` (320K rows).
+3. ~~Build patient splits~~ — **DONE.** `experiments/nature_medicine/uhn/patient_split.json` (138K patients, 70/10/20 temporal split).
+4. ~~Build label NPZs~~ — **DONE.** 53 NPZs at `experiments/nature_medicine/uhn/labels/` (20 regression + 17 classification + 9 rare disease + 6 trajectory + 1 RWMA).
+5. ~~Start GPU extraction~~ — **IN PROGRESS.** EchoJEPA-G (ViT-G, bf16) on 8×A100-80GB, 18.1M clips, ~25h ETA. Script: `evals/extract_uhn_embeddings.py`. Config: `configs/inference/vitg-384/extract_uhn.yaml`. Output: `experiments/nature_medicine/uhn/echojepa_g_embeddings/`.
+6. **Re-extract MIMIC embeddings** for PanEcho, EchoPrime, EchoFM — normalization bugs fixed (see below).
+
+## Normalization Bug Fixes (2026-03-06)
+
+Three encoder adapters had incorrect normalization when used with the shared `make_transforms` pipeline (which applies ImageNet normalization):
+
+- **PanEcho** (`panecho_encoder.py`): was applying ImageNet normalization a second time (double-normalization). Fixed: removed redundant normalization from `_preprocess`.
+- **EchoPrime** (`echo_prime_encoder.py`): was multiplying ImageNet-normalized values by 255 then applying EchoPrime norm. Fixed: undo ImageNet norm → scale to [0,255] → apply EchoPrime norm.
+- **EchoFM** (`echofm_encoder.py`): was passing ImageNet-normalized values to a model trained on [0,1] range. Fixed: undo ImageNet norm before encoder.
+
+EchoJEPA (ViT-G/L) and VideoMAE (EchoMAE-L) are unaffected — both trained with ImageNet normalization.
