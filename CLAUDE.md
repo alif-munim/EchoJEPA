@@ -56,27 +56,18 @@ python -m evals.main --fname configs/inference/vitl/lvef.yaml --devices cuda:0 -
 ### Embedding Extraction
 ```bash
 python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echojepa_224px.yaml \
-    --data /path/to/test.csv --output embeddings/out.npz --devices cuda:0 cuda:1
+    --data /path/to/test.csv --output experiments/out.npz --devices cuda:0 cuda:1
 ```
 
 ### Probe Training on Embeddings (sklearn, no GPU)
 ```bash
-python -m evals.train_probe --data embeddings/views/echojepa_g_embeddings.npz --cv 5 \
-    --output_dir results/probes/views/echojepa_g
-python -m evals.train_probe --train train.npz --val val.npz --output_dir results/probes/out
-
-# Using label-only NPZs (avoids duplicating master embeddings per task)
 python -m evals.train_probe \
-    --data embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz \
-    --labels embeddings/nature_medicine/mimic/labels/creatinine.npz \
-    --task regression --cv 5 --output_dir results/probes/nature_medicine/creatinine
-
-# Using precomputed study-level splits
-python -m evals.train_probe \
-    --train embeddings/nature_medicine/mimic/echojepa_g_splits/mortality_1yr/train.npz \
-    --val embeddings/nature_medicine/mimic/echojepa_g_splits/mortality_1yr/test.npz \
+    --train experiments/nature_medicine/mimic/echojepa_g_splits/mortality_1yr/train.npz \
+    --val experiments/nature_medicine/mimic/echojepa_g_splits/mortality_1yr/test.npz \
     --task classification --output_dir results/probes/nature_medicine/mortality_1yr
 ```
+
+See `README.md` Quickstart and MIMIC sections for full examples (k-fold, label-only NPZs, model comparison, hyperparameter tuning).
 
 ## Code Style
 
@@ -167,7 +158,7 @@ JEPA-format splits, raw labels, scalers, notebooks, and scripts. See `claude/dat
 
 - `checkpoints/` — all model weights: pretrain, anneal, cooldown, eval probes, SSv2 probe
 - `indices/` — S3 URI manifests for the 18M dataset (`master_index_18M.csv`, `master_index_18M_cleaned.csv`, `s3_pretrain.csv`, annotations)
-- `embeddings/` — precomputed NPZ embeddings by task and model. `embeddings/nature_medicine/mimic/` contains the MIMIC multi-model pipeline: clip-level master NPZs (per model), shared `clip_index.npz` + `patient_split.json` + `labels/`, and per-model `{model}_study_level/` + `{model}_splits/` directories. See `claude/data/embedding-pipeline.md`
+- `experiments/` — precomputed frozen embeddings organized by paper: `icml/` (UHN benchmarks) and `nature_medicine/mimic/` (7 models, 23 tasks). See `experiments/README.md` and `claude/data/embedding-pipeline.md`
 - `predictions/` — probe and classifier prediction CSVs (LVEF, RVSP, EchoNet, view, quality, zoom)
 - `results/` — data efficiency experiment runs (epoch checkpoints + logs)
 - `scripts/` — SBATCH scripts, Python utilities, demos, `run_details.md`

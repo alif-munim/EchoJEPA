@@ -37,7 +37,7 @@ All models are extracted from the same source CSV (`data/csv/nature_medicine/mim
 ## Directory Layout
 
 ```
-embeddings/nature_medicine/mimic/
+experiments/nature_medicine/mimic/
 ├── echojepa_g_mimic_embeddings.npz    # clip-level (525,312 × 1408)
 ├── echojepa_l_mimic_embeddings.npz    # clip-level (525,312 × 1024)
 ├── echojepa_l_kinetics_mimic_embeddings.npz  # clip-level (525,312 × 1024)
@@ -98,8 +98,8 @@ Each clip (MP4) corresponds to one DICOM file. The S3 path encodes the full hier
 ```python
 import numpy as np
 
-master = np.load("embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz")
-index = np.load("embeddings/nature_medicine/mimic/clip_index.npz", allow_pickle=True)
+master = np.load("experiments/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz")
+index = np.load("experiments/nature_medicine/mimic/clip_index.npz", allow_pickle=True)
 
 # Row 42 in the embedding matrix
 print(index["s3_paths"][42])      # s3://echodata25/.../s90001295/90001295_0006.mp4
@@ -127,11 +127,11 @@ Label NPZs store row indices into the master embedding NPZ, not the embeddings t
 import numpy as np
 
 # Load master embeddings (any model)
-master = np.load("embeddings/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz")
-index = np.load("embeddings/nature_medicine/mimic/clip_index.npz", allow_pickle=True)
+master = np.load("experiments/nature_medicine/mimic/echojepa_g_mimic_embeddings.npz")
+index = np.load("experiments/nature_medicine/mimic/clip_index.npz", allow_pickle=True)
 
 # Load a task's labels
-task = np.load("embeddings/nature_medicine/mimic/labels/mortality_1yr.npz")
+task = np.load("experiments/nature_medicine/mimic/labels/mortality_1yr.npz")
 indices = task["indices"]   # row positions into master
 labels = task["labels"]     # task-specific label per clip
 
@@ -147,7 +147,7 @@ for sid, lab in zip(task_study_ids, labels):
         study_label[sid] = lab
 
 # Use with study-level pooled embeddings for UMAP, clustering, etc.
-pooled = np.load("embeddings/nature_medicine/mimic/echojepa_g_study_level/mortality_1yr.npz")
+pooled = np.load("experiments/nature_medicine/mimic/echojepa_g_study_level/mortality_1yr.npz")
 # pooled["embeddings"]: (N_studies, 1408)
 # pooled["labels"]:     (N_studies,)
 # pooled["study_ids"]:  (N_studies,)
@@ -170,7 +170,7 @@ The same label indices work with any model's master NPZ (e.g., `panecho_mimic_em
 ```bash
 DEVICES="cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7"
 DATA="data/csv/nature_medicine/mimic/mortality_1yr.csv"
-OUT="embeddings/nature_medicine/mimic"
+OUT="experiments/nature_medicine/mimic"
 
 # EchoJEPA-G (ViT-g, 384px, 1408-d)
 python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echojepa_224px.yaml \
@@ -208,19 +208,19 @@ Given a new model's master NPZ, the same shared files produce study-level and sp
 ```bash
 # 1. Remap labels (only needed once, shared across models)
 python -m evals.remap_embeddings \
-    --embeddings embeddings/nature_medicine/mimic/{model}_mimic_embeddings.npz \
+    --embeddings experiments/nature_medicine/mimic/{model}_mimic_embeddings.npz \
     --source_csv data/csv/nature_medicine/mimic/mortality_1yr.csv \
     --task_dir data/csv/nature_medicine/mimic/ \
-    --output_dir embeddings/nature_medicine/mimic/labels/
+    --output_dir experiments/nature_medicine/mimic/labels/
 
 # 2. Pool to study level (per model)
-for f in embeddings/nature_medicine/mimic/labels/*.npz; do
+for f in experiments/nature_medicine/mimic/labels/*.npz; do
     task=$(basename "$f" .npz)
     python -m evals.pool_embeddings \
-        --embeddings embeddings/nature_medicine/mimic/{model}_mimic_embeddings.npz \
-        --clip_index embeddings/nature_medicine/mimic/clip_index.npz \
+        --embeddings experiments/nature_medicine/mimic/{model}_mimic_embeddings.npz \
+        --clip_index experiments/nature_medicine/mimic/clip_index.npz \
         --labels "$f" \
-        --output "embeddings/nature_medicine/mimic/{model}_study_level/${task}.npz"
+        --output "experiments/nature_medicine/mimic/{model}_study_level/${task}.npz"
 done
 
 # 3. Create patient-level splits (Python, see README.md)
