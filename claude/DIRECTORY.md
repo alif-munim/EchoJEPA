@@ -37,6 +37,14 @@ Analysis of the ICML preprint's experimental methodology — probe fairness, enc
 | `hindsight-recommendations.md` | 9 recommendations for the camera-ready, ranked by impact/effort. Top 3: linear probes in main tables, PCA-512 baseline, comparison taxonomy table |
 | `claude-chat-probes.md` | Raw conversation export (source material for the distilled docs above) |
 
+## ops/
+
+Operational guides for running large-scale experiments — performance tuning, failure modes, and lessons learned.
+
+| File | Contents |
+|------|----------|
+| `uhn-extraction.md` | UHN 18M embedding extraction: launch commands, DataLoader tuning (prefetch_factor, batch_size, num_workers), S3 bottleneck analysis, what was tried (bs=128 crashed, bs=64 optimal), process management, crash recovery, timing reference, failure modes |
+
 ## rebuttals/
 
 ICML rebuttal preparation — vulnerability inventory, response templates, worst-case scenarios. See `rebuttals/README.md` for the full index.

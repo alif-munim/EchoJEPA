@@ -171,10 +171,13 @@ The same label indices work with any model's master NPZ (e.g., `panecho_mimic_em
 
 | Script | Purpose |
 |--------|---------|
-| `evals/extract_embeddings.py` | Multi-GPU clip-level embedding extraction from frozen encoder |
+| `evals/extract_embeddings.py` | Multi-GPU clip-level embedding extraction from frozen encoder (MIMIC) |
+| `evals/extract_uhn_embeddings.py` | Chunked multi-GPU extraction for UHN 18M (crash-safe resume, built-in study pooling) |
 | `evals/remap_embeddings.py` | Create per-task label NPZs referencing master by index (single or batch mode) |
 | `evals/pool_embeddings.py` | Mean-pool clip embeddings to study-level |
 | `evals/train_probe.py` | Train sklearn linear probes on embeddings (supports `--labels` for label-only NPZs) |
+
+For UHN extraction performance tuning, DataLoader settings, and operational details, see **`claude/ops/uhn-extraction.md`**.
 
 ## Extraction Commands
 
