@@ -7,6 +7,7 @@ Optimized for large-scale S3-based extraction with:
 - Larger batch sizes (ViT-G fits batch 32 per A100-80GB in bf16)
 - Chunked saving every N batches (crash-safe resume)
 - Study-level pooling built-in (no separate P5 step)
+- Sequential (non-shuffled) sampling for correct clip_index alignment and efficient resume
 
 Usage:
     python -m evals.extract_uhn_embeddings \
@@ -21,6 +22,7 @@ Usage:
 
 import argparse
 import logging
+import math
 import os
 import time
 from pathlib import Path
@@ -29,6 +31,7 @@ import numpy as np
 import torch
 import torch.multiprocessing as mp
 import yaml
+from torch.utils.data.sampler import BatchSampler
 from tqdm import tqdm
 
 # Fix for "AF_UNIX path too long" error
@@ -47,6 +50,19 @@ from src.datasets.data_manager import init_data
 DEFAULT_NORMALIZATION = ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
+
+
+class ListSampler:
+    """Sampler that yields a fixed list of indices in order."""
+
+    def __init__(self, indices):
+        self.indices = indices
+
+    def __iter__(self):
+        return iter(self.indices)
+
+    def __len__(self):
+        return len(self.indices)
 
 
 def extract_worker(
@@ -119,8 +135,10 @@ def extract_worker(
         drop_last=False,
     )
 
-    total_batches = len(data_loader)
-    log.info(f"[Rank {rank}] {total_batches} batches, save every {save_every}")
+    # CRITICAL: Disable shuffle so embeddings align with clip_index.npz order.
+    # With shuffle=True, the DistributedSampler permutes clip order, but the
+    # merge step assumes CSV-order alignment with clip_index for study pooling.
+    data_loader.sampler.shuffle = False
 
     # Check for resume
     chunk_dir = os.path.join(output_dir, f"chunks_rank{rank}")
@@ -132,21 +150,46 @@ def extract_worker(
     start_batch = 0
     if existing_chunks:
         last_chunk = existing_chunks[-1]
-        # chunk_00000500.npz means batches 0-499 are done
         start_batch = int(last_chunk.replace("chunk_", "").replace(".npz", ""))
         log.info(f"[Rank {rank}] Resuming from batch {start_batch} ({len(existing_chunks)} chunks)")
+
+    # Compute this rank's sequential indices (matches DistributedSampler with shuffle=False)
+    n_dataset = len(data_loader.dataset)
+    total_size = math.ceil(n_dataset / world_size) * world_size
+    all_indices = list(range(n_dataset))
+    # Pad for even distribution (same as DistributedSampler)
+    all_indices += all_indices[: (total_size - len(all_indices))]
+    rank_indices = all_indices[rank:total_size:world_size]
+
+    if start_batch > 0:
+        # Efficient resume: replace the batch sampler to skip already-done clips.
+        # This avoids iterating through the dataloader (and downloading from S3)
+        # for clips that were already extracted.
+        samples_done = start_batch * batch_size
+        remaining_indices = rank_indices[samples_done:]
+        data_loader.batch_sampler = BatchSampler(
+            ListSampler(remaining_indices), batch_size, drop_last=False
+        )
+        total_batches = len(data_loader.batch_sampler)
+        log.info(
+            f"[Rank {rank}] Efficient resume: skipping {samples_done} clips, "
+            f"{total_batches} batches remaining"
+        )
+    else:
+        total_batches = len(data_loader)
+
+    log.info(f"[Rank {rank}] {total_batches} batches, save every {save_every}")
 
     # Extract
     chunk_embeddings = []
     chunk_indices = []
     batches_in_chunk = 0
 
-    iterator = tqdm(data_loader, desc=f"GPU {device_id}", disable=(rank != 0))
+    iterator = tqdm(data_loader, desc=f"GPU {device_id}", total=total_batches, disable=(rank != 0))
 
     with torch.no_grad(), torch.amp.autocast("cuda", dtype=torch.bfloat16):
-        for batch_idx, data in enumerate(iterator):
-            if batch_idx < start_batch:
-                continue
+        for batch_idx_local, data in enumerate(iterator):
+            batch_idx = batch_idx_local + start_batch
 
             clips = [[dij.to(device) for dij in di] for di in data[0]]
             clip_indices_batch = [d.to(device) for d in data[2]]
@@ -170,7 +213,7 @@ def extract_worker(
             batches_in_chunk += 1
 
             # Save chunk
-            if batches_in_chunk >= save_every or batch_idx == total_batches - 1:
+            if batches_in_chunk >= save_every or batch_idx_local == total_batches - 1:
                 emb = np.concatenate(chunk_embeddings, axis=0)
                 idx = np.array(chunk_indices)
                 chunk_path = os.path.join(chunk_dir, f"chunk_{batch_idx + 1:08d}.npz")
@@ -179,7 +222,7 @@ def extract_worker(
                 if rank == 0:
                     log.info(
                         f"Saved chunk {chunk_path} ({emb.shape[0]} clips, "
-                        f"batch {batch_idx + 1}/{total_batches})"
+                        f"batch {batch_idx + 1}/{start_batch + total_batches})"
                     )
 
                 chunk_embeddings = []
@@ -209,7 +252,7 @@ def merge_and_pool(output_dir: str, clip_index_path: str, world_size: int):
     embeddings = np.concatenate(all_embeddings, axis=0)
     indices = np.concatenate(all_indices, axis=0)
 
-    # Sort by global index
+    # Sort by global index to restore CSV order
     sort_order = np.argsort(indices)
     embeddings = embeddings[sort_order]
 

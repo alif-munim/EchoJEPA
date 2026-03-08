@@ -214,6 +214,9 @@ class VideoDataset(torch.utils.data.Dataset):
         self.samples = samples
         self.labels = labels
 
+        # Track load-failure substitutions (per-worker counter; not shared across processes)
+        self._substitution_count = 0
+
         logger.info(f"Loaded {len(self.samples)} samples")
         if len(self.samples) > 0:
             logger.info(f"First 5 samples: {self.samples[:5]}")
@@ -230,8 +233,14 @@ class VideoDataset(torch.utils.data.Dataset):
                 ),
             )
 
+    @property
+    def substitution_count(self):
+        """Number of times a failed load was replaced with a random sample."""
+        return self._substitution_count
+
     # ---------- Dataset API ----------
     def __getitem__(self, index):
+        original_index = index
         # Keep trying new indices until a valid sample is loaded (matches default behavior)
         while True:
             sample_path = self.samples[index]
@@ -239,6 +248,13 @@ class VideoDataset(torch.utils.data.Dataset):
                 is_image = sample_path.split(".")[-1].lower() in ("jpg", "jpeg", "png")
                 loaded = self.get_item_image(index) if is_image else self.get_item_video(index)
                 if loaded:
+                    if index != original_index:
+                        self._substitution_count += 1
+                        logger.warning(
+                            f"Load-failure substitution: requested index {original_index} "
+                            f"({self.samples[original_index]}), served index {index} "
+                            f"({self.samples[index]})"
+                        )
                     return loaded
             warnings.warn(f"Retrying with new sample, failed to load: {self.samples[index]}")
             index = np.random.randint(len(self))

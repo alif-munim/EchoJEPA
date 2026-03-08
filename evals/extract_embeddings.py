@@ -142,6 +142,12 @@ def extract_worker(
         normalization=data_cfg.get("normalization"),
     )
     
+    # CRITICAL: Disable shuffle so embeddings align with source CSV order.
+    # With shuffle=True, the DistributedSampler permutes clip order, but the
+    # merge step and downstream scripts (remap_embeddings, pool_embeddings)
+    # assume CSV-order alignment with clip_index.npz for study pooling.
+    loader.sampler.shuffle = False
+
     logger.info(f"[Rank {rank}] Processing {len(loader)} batches")
     
     all_embeddings = []

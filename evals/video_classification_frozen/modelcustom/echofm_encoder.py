@@ -175,14 +175,8 @@ class EchoFMWrapper(nn.Module):
         T = x.shape[2]
         if T == self.target_frames:
             return x
-        if T > self.target_frames:
-            # Subsample
-            idx = torch.linspace(0, T - 1, self.target_frames, device=x.device).round().long()
-            return x.index_select(2, idx)
-        # Pad by repeating last frame
-        pad_size = self.target_frames - T
-        pad = x[:, :, -1:, :, :].expand(-1, -1, pad_size, -1, -1)
-        return torch.cat([x, pad], dim=2)
+        idx = torch.linspace(0, T - 1, self.target_frames, device=x.device).round().long()
+        return x.index_select(2, idx)
 
     @torch.no_grad()
     def _adapt_spatial(self, x: torch.Tensor) -> torch.Tensor:

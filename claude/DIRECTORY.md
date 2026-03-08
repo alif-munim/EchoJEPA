@@ -37,13 +37,23 @@ Analysis of the ICML preprint's experimental methodology — probe fairness, enc
 | `hindsight-recommendations.md` | 9 recommendations for the camera-ready, ranked by impact/effort. Top 3: linear probes in main tables, PCA-512 baseline, comparison taxonomy table |
 | `claude-chat-probes.md` | Raw conversation export (source material for the distilled docs above) |
 
-## ops/
+## dev/
 
-Operational guides for running large-scale experiments — performance tuning, failure modes, and lessons learned.
+Development log: bug tracker, changelog, operational guides, and code review findings. Single source of truth for what's broken, fixed, and planned.
 
 | File | Contents |
 |------|----------|
-| `uhn-extraction.md` | UHN 18M embedding extraction: launch commands, DataLoader tuning (prefetch_factor, batch_size, num_workers), S3 bottleneck analysis, what was tried (bs=128 crashed, bs=64 optimal), process management, crash recovery, timing reference, failure modes |
+| `README.md` | Bug tracker index (6 issues with severity/status), planned fixes with priority, file index |
+| `roadmap.md` | Consolidated outstanding work: blocking extractions (UHN + MIMIC), MVP tasks, strong additions, completion checklist |
+| `changelog.md` | Chronological record of code changes, bug fixes, extraction runs, config changes |
+| `code-review.md` | Full-repo review: 5 encoder adapters, extraction scripts, pooling, remapping, probe training, eval scaffold. Per-component verdict table |
+| `ops.md` | UHN 18M extraction operational guide: launch commands, DataLoader tuning (prefetch_factor, batch_size, num_workers), S3 bottleneck, crash recovery, timing reference, failure modes |
+| `bugs/001-shuffle-bug.md` | **CRITICAL**: DistributedSampler shuffle=True corrupts embedding-CSV alignment. Root cause, impact, post-hoc fix scripts, verification |
+| `bugs/002-normalization-bugs.md` | **HIGH**: PanEcho double norm, EchoPrime/EchoFM missing de-norm. 3 MIMIC models need re-extraction |
+| `bugs/003-echofm-padding.md` | Moderate: Last-frame repetition → linspace interleave. Fixed |
+| `bugs/004-video-load-substitution.md` | **HIGH**: Failed video loads return random replacement, silent index misalignment. Fixed (tracking added) |
+| `bugs/005-drop-last-not-forwarded.md` | **MEDIUM**: `drop_last` param ignored by DataLoader. Up to 248 clips silently dropped. Fixed |
+| `bugs/006-labels-trainval-mode.md` | **MEDIUM**: `--labels` with `--train`/`--val` applies wrong indices. Latent, not triggered by documented workflows |
 
 ## rebuttals/
 

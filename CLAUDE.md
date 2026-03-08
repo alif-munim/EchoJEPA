@@ -16,7 +16,7 @@ The `claude/` directory contains persistent reference docs organized by topic. S
 
 - **`claude/architecture/`** — codebase internals: pretraining pipeline, probe system (attentive/linear/MLP), classifier pipeline
 - **`claude/data/`** — datasets and manuscript: `data/` directory layout, Nature Medicine scope, UHN database schemas, MIMIC-IV linkage
-- **`claude/ops/`** — operational guides: UHN 18M extraction (performance tuning, S3 bottleneck, failure modes, timing reference)
+- **`claude/dev/`** — development log: bug tracker (6 issues), changelog, code review findings, UHN extraction ops guide. See `dev/README.md` for the bug index and planned fixes
 - **`claude/preprint/`** — ICML preprint analysis: encoder fairness confounds, probe architecture mismatch (attentive vs linear inversion), claim validity assessment, hindsight recommendations for camera-ready
 - **`claude/rebuttals/`** — ICML rebuttal preparation: TIER 1-4 vulnerability inventory, response templates, worst-case scenarios, competitive positioning, camera-ready action items
 

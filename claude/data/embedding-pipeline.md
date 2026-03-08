@@ -43,7 +43,7 @@ The shared `make_transforms(training=False)` pipeline applies: Resize(short_side
 - **EchoPrime:** trained with custom normalization in 0-255 space — adapter undoes ImageNet norm, scales to 255, applies EchoPrime norm.
 - **EchoFM:** trained on [0,1] range (no normalization) — adapter undoes ImageNet norm to recover [0,1].
 
-**Note:** PanEcho, EchoPrime, and EchoFM normalization was fixed on 2026-03-06. Existing MIMIC embeddings for these three models should be re-extracted.
+**Note:** PanEcho, EchoPrime, and EchoFM normalization was fixed on 2026-03-06 (see `claude/dev/bugs/002-normalization-bugs.md`). Additionally, all 7 MIMIC models have a shuffle ordering bug requiring re-extraction (see `claude/dev/bugs/001-shuffle-bug.md`). All existing MIMIC embeddings should be re-extracted.
 
 ## Directory Layout
 
@@ -173,11 +173,14 @@ The same label indices work with any model's master NPZ (e.g., `panecho_mimic_em
 |--------|---------|
 | `evals/extract_embeddings.py` | Multi-GPU clip-level embedding extraction from frozen encoder (MIMIC) |
 | `evals/extract_uhn_embeddings.py` | Chunked multi-GPU extraction for UHN 18M (crash-safe resume, built-in study pooling) |
+| `evals/fix_shuffle_order.py` | Post-hoc fix for extractions done with shuffle=True (reorders to CSV order) |
 | `evals/remap_embeddings.py` | Create per-task label NPZs referencing master by index (single or batch mode) |
 | `evals/pool_embeddings.py` | Mean-pool clip embeddings to study-level |
 | `evals/train_probe.py` | Train sklearn linear probes on embeddings (supports `--labels` for label-only NPZs) |
 
-For UHN extraction performance tuning, DataLoader settings, and operational details, see **`claude/ops/uhn-extraction.md`**.
+For UHN extraction performance tuning, DataLoader settings, and operational details, see **`claude/dev/ops.md`**.
+
+> **Important**: Both extraction scripts now set `DistributedSampler.shuffle=False` to maintain CSV-order alignment with `clip_index.npz`. Any existing embeddings extracted before 2026-03-07 have shuffled ordering and need either post-hoc reordering or re-extraction. See `claude/dev/bugs/001-shuffle-bug.md`.
 
 ## Extraction Commands
 

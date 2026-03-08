@@ -2,6 +2,8 @@
 
 Operational guide for extracting embeddings from the 18M UHN echocardiogram dataset. Covers infrastructure, performance tuning, failure modes, and lessons learned.
 
+> **CRITICAL BUG (resolved)**: The original extraction code used `DistributedSampler(shuffle=True)`, which permuted clip order relative to CSV/clip_index. This was fixed on 2026-03-07 by setting `shuffle=False`. EchoJEPA-G embeddings extracted before the fix need post-hoc reordering via `evals/fix_shuffle_order.py`. See `claude/dev/bugs/001-shuffle-bug.md` for full details.
+
 ## Infrastructure
 
 - **Machine**: AWS SageMaker p4de.24xlarge — 8x A100-80GB, 96 vCPUs, 1.2TB RAM
