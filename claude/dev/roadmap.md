@@ -1,57 +1,78 @@
 # Roadmap
 
-Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-07.
+Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-08.
 
-Detailed specs live in `uhn_echo/nature_medicine/data_exploration/todo/` (MIMIC) and `data_exploration/ongoing/uhn_pipeline_status.md` (UHN). This file is the cross-cutting summary.
+Detailed specs live in `uhn_echo/nature_medicine/context_files/planning/tasks/`. Pipeline status at `uhn_echo/nature_medicine/context_files/dev/`. This file is the cross-cutting summary.
 
-## Blocking — Must complete before any probe results
+## MIMIC Embeddings — COMPLETE
 
-### UHN Embedding Extractions (GPU, ~10h each)
+All 7 models extracted, study-level pooled, and split into train/val/test for 23 tasks. Ready for probing.
 
-| Model | Checkpoint | Status | Notes |
-|-------|-----------|--------|-------|
-| EchoJEPA-G | `pt-280-an81.pt` | **DONE** | 319,815 studies, 1408-dim |
-| EchoJEPA-L | `vitl-pt-210-an25.pt` | **DONE** | 319,802 studies, 1024-dim |
-| EchoJEPA-L-K | `vitl-kinetics-pt220-an55.pt` | **DONE** | In progress or complete |
-| EchoMAE-L | VideoMAE checkpoint | TODO | Controlled JEPA-vs-MAE comparison |
-| Random Init | Untrained ViT-L | TODO | Baseline for all tables |
+| Model | Clips | Dim | Status |
+|-------|-------|-----|--------|
+| EchoJEPA-G | 525,320 | 1408 | Ready (shuffle-fixed post-hoc) |
+| EchoJEPA-L | 525,320 | 1024 | Ready (shuffle-fixed post-hoc) |
+| EchoJEPA-L-K | 525,320 | 1024 | Ready (shuffle-fixed post-hoc) |
+| EchoMAE-L | 525,320 | 1024 | Ready (shuffle-fixed post-hoc) |
+| PanEcho | 525,320 | 768 | Ready (re-extracted 2026-03-08) |
+| EchoPrime | 525,320 | 512 | Ready (re-extracted 2026-03-08) |
+| EchoFM | 525,320 | 1024 | Ready (re-extracted 2026-03-08) |
 
-EchoJEPA-G/L embeddings are ready — UHN probes can run now for those two models.
+## UHN Embeddings — In Progress
 
-PanEcho, EchoPrime, EchoFM UHN extractions are not planned yet (lower priority — these models are primarily compared on MIMIC).
+### Extraction Status
 
-### MIMIC Re-extractions (GPU, ~1h each)
+| Model | Checkpoint | Clip Extraction | Study-Level | Notes |
+|-------|-----------|-----------------|-------------|-------|
+| EchoJEPA-G | `pt-280-an81.pt` | **DONE** (95GB, 18.1M clips) | **DONE** (319,815 × 1408) | |
+| EchoJEPA-L | `vitl-pt-210-an25.pt` | **DONE** (70GB, 18.1M clips) | **DONE** (319,802 × 1024) | |
+| EchoJEPA-L-K | `vitl-kinetics-pt220-an55.pt` | **~17% done** (crashed/interrupted) | Missing | Chunk-based, supports resume. ~8-9h remaining |
+| EchoMAE-L | `videomae-ep163.pt` | **IN PROGRESS** (~19h est.) | — | Controlled JEPA-vs-MAE comparison. MVP |
+| Random Init | Untrained ViT-L | **TODO** | — | Baseline for all tables. MVP |
 
-3 models need re-extraction due to normalization bugs (bug 002):
+PanEcho, EchoPrime, EchoFM UHN extractions are not planned (these models are primarily compared on MIMIC).
 
-| Model | Bug | Status |
-|-------|-----|--------|
-| PanEcho | Double ImageNet norm | **IN PROGRESS** — running via `scripts/reextract_mimic_3models.sh` |
-| EchoPrime | Missing de-norm → [0,255] | **QUEUED** — runs after PanEcho |
-| EchoFM | Missing de-norm → [0,1] + padding fix | **QUEUED** — runs after EchoPrime |
+### UHN Per-Task Split Pipeline — DONE
 
-After re-extraction: re-run `pool_embeddings.py` and `remap_embeddings.py` to rebuild study-level NPZs and splits.
+Built `evals/regenerate_uhn_downstream.py`. Joins study-level embeddings with label NPZs on study_ids, splits by label-embedded split assignments. Handles both standard (single-study) and trajectory (paired-study) formats.
 
-4 MIMIC models are correct: EchoJEPA-G, EchoJEPA-L, EchoJEPA-L-K, EchoMAE. Shuffle was fixed post-hoc (verified 100% label match). Downstream pipeline regenerated 2026-03-07.
+Generated splits for G and L (53 tasks each):
+- `echojepa_g_splits/{task}/train.npz`, `val.npz`, `test.npz`
+- `echojepa_l_splits/{task}/train.npz`, `val.npz`, `test.npz`
 
-### MIMIC Downstream Pipeline Re-run — DONE
+Re-run for L-K, EchoMAE, Random Init when their study-level embeddings are available.
 
-Regenerated 2026-03-07 via `evals/regenerate_mimic_downstream.py`:
-- All 7 models × 23 tasks: study-level NPZs + train/val/test splits
-- Label NPZs in `labels/` were already correct (store CSV-order indices, which now match fixed master NPZs)
-- 4 correct models (echojepa_g/l/l_kinetics, echomae) are fully ready for probing
-- 3 norm-bugged models (panecho, echoprime, echofm) have correct ordering but wrong embedding values
+## Blocking Work — Priority Order
+
+1. **Resume EchoJEPA-L-K UHN extraction** (~8-9h GPU)
+   - Script supports auto-resume: just re-run same command
+   - Then pool to study-level
+
+2. ~~**Build UHN per-task split pipeline**~~ — **DONE**
+   - G and L splits generated (53 tasks each). Probing unblocked.
+   - Re-run `evals/regenerate_uhn_downstream.py` for L-K/EchoMAE/Random Init when ready
+
+3. **EchoMAE-L UHN extraction** (~19h GPU) — **IN PROGRESS**
+   - Config: `configs/inference/vitl/extract_uhn_echomae.yaml`
+   - 8×A100, bs=64, w=12. Log: `logs/echomae_uhn_extraction.log`
+   - Then pool to study-level (automatic)
+
+4. **Random Init UHN extraction** (~10-12h GPU)
+   - Need config for untrained ViT-L
+   - Baseline column (every table)
 
 ## MVP — Required for submission
 
 | Task | Owner | Status | Blocks |
 |------|-------|--------|--------|
-| UHN EchoMAE-L extraction | Alif | TODO | JEPA-vs-MAE comparison (every table) |
+| UHN L-K extraction (resume) | Alif | **~17% done** | L-K in all UHN tables |
+| UHN per-task split pipeline | Alif | **DONE** | All UHN probing |
+| UHN EchoMAE-L extraction | Alif | **IN PROGRESS** (~19h) | JEPA-vs-MAE comparison (every table) |
 | UHN Random Init extraction | Alif | TODO | Baseline column (every table) |
-| MIMIC PanEcho/EchoPrime/EchoFM re-extraction | Alif | **IN PROGRESS** | 9-model comparison tables |
+| MIMIC PanEcho/EchoPrime/EchoFM re-extraction | Alif | **DONE** | 7-model comparison tables |
 | MIMIC downstream pipeline re-run | Alif | **DONE** | All MIMIC probe results |
 | UHN probe training (53 tasks × 5 models) | Alif | TODO | Section 2.1 benchmarks, Extended Data |
-| MIMIC probe training (23 tasks × 9 models) | Team | TODO | Sections 2.3-2.4 |
+| MIMIC probe training (23 tasks × 7 models) | Team | TODO | Sections 2.3-2.4 |
 
 ## Strong Additions — Significantly elevates paper
 
@@ -65,7 +86,7 @@ Regenerated 2026-03-07 via `evals/regenerate_mimic_downstream.py`:
 
 ## Deferrable — Can wait for revision
 
-See `data_exploration/todo/deferrable.md` for the full list (10 items including cross-institution validation, SAE training data, extended fairness analysis).
+See `uhn_echo/nature_medicine/context_files/planning/tasks/deferrable.md` for the full list (10 items including cross-institution validation, SAE training data, extended fairness analysis).
 
 ## What's Done
 
@@ -76,12 +97,14 @@ See `data_exploration/todo/deferrable.md` for the full list (10 items including 
 - [x] P3: Label NPZs (53 tasks: 20 regression + 17 classification + 9 rare disease + 6 trajectory + 1 RWMA)
 - [x] P4a: EchoJEPA-G embeddings (319,815 studies, 1408-dim)
 - [x] P4b: EchoJEPA-L embeddings (319,802 studies, 1024-dim)
+- [x] P4c: EchoJEPA-L-K extraction started (17% complete, chunk-based resume available)
 - [x] Label cleaning (physiological range filters, 1,582 rows dropped)
 - [x] Rare disease confound audit (hard negative controls verified)
 
 ### MIMIC Pipeline
 - [x] 23 label CSVs (mortality, diseases, biomarkers, outcomes)
-- [x] 7 model clip-level extractions (shuffle-fixed)
+- [x] 7 model clip-level extractions (all correct)
+- [x] 7 model study-level pooling + 23 task splits
 - [x] Shared infrastructure (clip_index, patient_split, labels/)
 - [x] Charlson/Elixhauser comorbidity scores (7,243 studies)
 - [x] Demographics/fairness CSV (sex, race, age, insurance)
@@ -90,7 +113,9 @@ See `data_exploration/todo/deferrable.md` for the full list (10 items including 
 
 ### Bug Fixes
 - [x] Shuffle ordering (bug 001) — code fix + post-hoc reordering
-- [x] Encoder normalization (bug 002) — code fix applied, re-extraction pending
+- [x] Encoder normalization (bug 002) — code fix + re-extraction complete
 - [x] EchoFM temporal padding (bug 003) — code fix applied
-- [x] Video load substitution tracking (bug 004) — logging added
+- [x] Video load substitution tracking (bug 004) — logging added (no threading.Lock)
 - [x] drop_last forwarding (bug 005) — code fix applied
+- [x] PanEcho hubconf.py local tasks.pkl cache — prevents GitHub rate-limiting
+- [x] EchoFM simplejson dependency — installed

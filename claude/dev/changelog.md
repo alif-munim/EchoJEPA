@@ -52,3 +52,44 @@ Chronological record of code changes, bug fixes, and extraction runs.
 - **PanEcho `hubconf.py` local tasks.pkl cache** — `pd.read_pickle()` was fetching `tasks.pkl` from GitHub on every worker init. With 8 workers hitting simultaneously, GitHub returned HTTP 429. Fixed by downloading `tasks.pkl` to `PanEcho/content/tasks.pkl` and loading from local path via `os.path.join(os.path.dirname(__file__), 'content', 'tasks.pkl')`.
 
 - **VideoDataset pickle compatibility** — Removed `threading.Lock` from `_substitution_count` tracking (bug 004 fix). Lock objects cannot be pickled, which broke `mp.spawn` multi-GPU extraction. The lock was unnecessary since DataLoader workers are separate processes (each gets its own counter copy). Per-worker counter + WARNING logging is sufficient.
+
+- **EchoFM missing `simplejson`** — `EchoFM/util/logging.py` imports `simplejson` which was not installed. Added `pip install simplejson`.
+
+## 2026-03-08
+
+### MIMIC Re-extraction Complete
+
+All 3 norm-bugged models re-extracted with fixed adapters (8×A100, bs=32, w=8):
+
+| Model | Clips | Dim | Size | Time |
+|-------|-------|-----|------|------|
+| PanEcho | 525,320 | 768 | 1.6GB | ~30min |
+| EchoPrime | 525,320 | 512 | 1.1GB | ~17min |
+| EchoFM | 525,320 | 1024 | 2.1GB | ~100min |
+
+Downstream pipeline regenerated for all 3 models: study-level pooling + 23 task splits (train/val/test). All 7 MIMIC models now have correct embeddings and are ready for probing.
+
+### Embedding Audit
+
+Full audit of extraction status across UHN + MIMIC:
+- **MIMIC**: All 7 models complete with downstream splits. Nothing to re-run.
+- **UHN EchoJEPA-G**: Complete (319,815 × 1408). No per-task splits yet.
+- **UHN EchoJEPA-L**: Complete (319,802 × 1024). No per-task splits yet.
+- **UHN EchoJEPA-L-K**: ~17% done (crashed/interrupted). Chunk-based, supports auto-resume. ~8-9h remaining.
+- **UHN EchoMAE-L**: Not started. MVP requirement.
+- **UHN Random Init**: Not started. MVP requirement.
+- **UHN per-task split pipeline**: Not built. Blocks all UHN probing.
+
+See `roadmap.md` for updated priority order and blocking dependencies.
+
+### Extraction Runs
+
+- **EchoMAE-L UHN** — Started (8×A100, bs=64, w=12, pf=1). 18.1M clips, 1024-dim. Config: `configs/inference/vitl/extract_uhn_echomae.yaml`. Checkpoint: `videomae-ep163.pt` (pretrain format, auto-converted to finetune). Estimated ~19h. Log: `logs/echomae_uhn_extraction.log`.
+
+### UHN Per-Task Split Pipeline
+
+Built `evals/regenerate_uhn_downstream.py` — joins study-level embeddings with label NPZs on `study_ids`, creates per-task train/val/test splits. Handles standard tasks (47) and trajectory paired-study tasks (6). Generated splits for EchoJEPA-G and EchoJEPA-L (53 tasks × 2 models = 106 task dirs). Unblocks all UHN probing for these models.
+
+### Config Changes
+
+- Created `configs/inference/vitl/extract_uhn_echomae.yaml` (EchoMAE-L UHN extraction)
