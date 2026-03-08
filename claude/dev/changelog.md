@@ -18,8 +18,8 @@ Chronological record of code changes, bug fixes, and extraction runs.
 ### Extraction Runs
 
 - **EchoJEPA-G UHN** — 319,815 studies, 1408-dim, ~25.5h (bs=32, w=8, pf=1, pre-optimization). Post-hoc shuffle fix applied.
-- **EchoJEPA-L UHN** — 319,802 studies, 1024-dim, ~12.5h (bs=128→64, w=12, pf=4). Extracted after shuffle fix.
-- **EchoJEPA-L-K UHN** — in progress (bs=64, w=12, pf=4). Extracted after shuffle fix.
+- **EchoJEPA-L UHN** — 319,802 studies, 1024-dim, ~12.5h (bs=128→64, w=12, pf=4). Extracted BEFORE shuffle fix (corrected 2026-03-08: post-hoc fix applied, 948 clips zero-filled).
+- **EchoJEPA-L-K UHN** — restarted 2026-03-08 with fixed code (bs=64, w=6, pf=4). Previous attempts crashed (worker death from S3 connection storm with w=12).
 
 ### Downstream Pipeline
 
