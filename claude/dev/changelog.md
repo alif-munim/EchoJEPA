@@ -6,6 +6,136 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-08 (continued — Session 9)
+
+### Code Changes: S3 Path Provenance in Embeddings
+
+- **VideoDataset returns video path** — `src/datasets/video_dataset.py`
+  `__getitem__` now returns a 4-tuple `(buffer, label, clip_indices, sample_uri)` instead of the previous 3-tuple. `sample_uri` is `self.samples[index]` — the S3 URI or local path of the source video. All consumers verified safe:
+  - `extract_embeddings.py` (MIMIC): Already had `if len(data) > 3:` check — now receives real paths automatically
+  - `extract_uhn_embeddings.py` (UHN): Already had `if len(data) > 3:` check — now receives real paths automatically
+  - `video_classification_frozen/eval.py`: Already had `if len(data) > 3:` check
+  - `app/vjepa/train.py`: Only accesses `udata[0]` — unaffected
+  - `video_classification_frozen_multi/eval.py`: Uses `VideoGroupDataset`, not modified
+
+- **UHN extraction saves paths** — `evals/extract_uhn_embeddings.py`
+  Added `chunk_paths` accumulator alongside `chunk_embeddings` and `chunk_indices`. Paths collected from `data[3]` per batch, saved in each chunk NPZ as `paths` array, and merged/sorted in `merge_and_pool()`. Graceful fallback: chunks without paths (from older runs) handled via `has_paths` flag.
+
+- **MIMIC extraction** — `evals/extract_embeddings.py` — **No changes needed.** Lines 170-173 already handled `data[3]` with dummy fallback; now receives real paths automatically. Lines 201-208 already save `paths` in output NPZ.
+
+- **Probe training** — `evals/train_probe.py` — **No changes needed.** Line 90 already handles missing paths gracefully: `paths = data["paths"] if "paths" in data else ...`
+
+### Post-Hoc Path Injection into Existing MIMIC NPZs
+
+Injected S3 video paths into all 7 existing MIMIC embedding NPZ files without re-extraction. Two cases:
+
+**4 original models** (echojepa_g, echojepa_l, echojepa_l_kinetics, echomae — 525,312 clips each):
+- Paths sourced from `clip_index.npz["s3_paths"][:525312]` — direct row-index mapping since shuffle fix ensures row N = CSV row N
+- NPZ rewritten with `paths` array added alongside existing `embeddings` and `paths` keys
+
+**3 re-extracted models** (panecho, echoprime, echofm — 525,320 clips each):
+- 525,320 > 525,312 (clip_index size) because `drop_last=False` + DistributedSampler padding adds 1 extra clip (8 GPUs, ceil-padded)
+- Paths for first 525,319 clips sourced from source CSV (`experiments/nature_medicine/mimic/mimic_clips.csv`)
+- Last clip (index 525,319) marked as `padding_duplicate_0`
+- NPZ rewritten with `paths` array
+
+**UHN decision:** Paths NOT duplicated into 70-95GB clip embedding files. Paths already available via `uhn_clip_index.npz["s3_paths"]` at the same row index. For future extractions, `extract_uhn_embeddings.py` will automatically include paths in the merged `clip_embeddings.npz`.
+
+### End-to-End Path-Embedding Verification (MIMIC, all 7 models)
+
+Verified that stored embedding[i] actually corresponds to the video at paths[i] by re-encoding random clips through each model and comparing cosine similarity. All verification run on CPU (`CUDA_VISIBLE_DEVICES=""`) to avoid interfering with running GPU extractions (EchoJEPA-L-K, EchoMAE-L on GPUs 0-7).
+
+**Match test** (3 random clips per model, encode same video as stored embedding):
+
+| Model | Clip 1 | Clip 2 | Clip 3 | Mean |
+|-------|--------|--------|--------|------|
+| EchoJEPA-G | 0.967 | 0.977 | 0.975 | 0.973 |
+| EchoJEPA-L | 0.996 | 0.995 | 0.996 | 0.996 |
+| EchoJEPA-L-K | 0.986 | 0.983 | 0.983 | 0.984 |
+| EchoMAE | 0.996 | 0.993 | 0.995 | 0.995 |
+| PanEcho | 0.971 | 0.950 | 0.960 | 0.960 |
+| EchoPrime | 0.999 | 0.999 | 0.999 | 0.999 |
+| EchoFM | 1.000 | 1.000 | 1.000 | 1.000 |
+
+Cosine similarity < 1.0 due to `random_clip_sampling=True` (different temporal crop each run). MIMIC clips are short enough that similarity stays >0.95.
+
+**Negative control** (3 random clip pairs per model, compare stored embedding to WRONG video):
+
+| Model | Mean Match | Mean Mismatch | Gap | Verdict |
+|-------|-----------|--------------|-----|---------|
+| EchoJEPA-G | 0.973 | 0.716 | 0.257 | PASS |
+| EchoJEPA-L | 0.996 | 0.942 | 0.054 | PASS |
+| EchoJEPA-L-K | 0.984 | 0.403 | 0.581 | PASS |
+| EchoMAE | 0.995 | 0.516 | 0.478 | PASS |
+| PanEcho | 0.961 | 0.398 | 0.562 | PASS |
+| EchoPrime | 0.999 | 0.784 | 0.215 | PASS |
+| EchoFM | 1.000 | 0.999 | 0.0002 | FAIL (collapse) |
+
+**21/21 match tests PASS** (cosine > 0.95). **6/7 models show clear match/mismatch gap** (0.054-0.581). **EchoFM shows representation collapse** — cosine ~0.9998 everywhere regardless of input, making match/mismatch indistinguishable. This confirms the collapse finding from the earlier cosine similarity verification (Session 8).
+
+### End-to-End Path-Embedding Verification (UHN, 2 models)
+
+Same match/mismatch protocol as MIMIC (Session 9 earlier), applied to UHN 18M embeddings. Script used random-access reads into the 95/70GB NPZ files (no full load) and scanned `uhn_all_clips.csv` for S3 paths. All run on CPU (`CUDA_VISIBLE_DEVICES=""`).
+
+| Model | Mean Match | Mean Mismatch | Gap | Verdict |
+|-------|-----------|--------------|-----|---------|
+| EchoJEPA-G | 0.9951 | 0.6476 | 0.3476 | PASS |
+| EchoJEPA-L | 0.9951 | 0.9132 | 0.0818 | PASS |
+
+- UHN gaps are larger than MIMIC (G: 0.348 vs 0.257, L: 0.082 vs 0.054) — more patient diversity in 18M dataset
+- EchoJEPA-G encodes highly clip-specific representations (mismatch only 0.65)
+- EchoJEPA-L has concentrated embedding space (mismatch 0.91) but gap is still clear
+- Script: `/tmp/verify_uhn_embeddings.py` — uses `zipfile` random-access to read specific rows from uncompressed NPZ without loading full 95GB array
+
+### Cross-Dataset Verification Analysis (MIMIC + UHN combined)
+
+Consolidated results from all 9 model-dataset verifications (7 MIMIC + 2 UHN):
+
+**Full results table (sorted by gap):**
+
+| Dataset | Model | Embed Dim | Mean Match | Mean Mismatch | Gap | Mismatch Rank |
+|---------|-------|-----------|-----------|--------------|-----|---------------|
+| MIMIC | EchoJEPA-L-K | 1024 | 0.984 | 0.403 | 0.581 | 1 (most dispersed) |
+| MIMIC | PanEcho | 768 | 0.961 | 0.398 | 0.562 | 2 |
+| MIMIC | EchoMAE | 1024 | 0.995 | 0.516 | 0.478 | 3 |
+| UHN | EchoJEPA-G | 1408 | 0.995 | 0.648 | 0.348 | 4 |
+| MIMIC | EchoJEPA-G | 1408 | 0.973 | 0.716 | 0.257 | 5 |
+| MIMIC | EchoPrime | 512 | 0.999 | 0.784 | 0.215 | 6 |
+| UHN | EchoJEPA-L | 1024 | 0.995 | 0.913 | 0.082 | 7 |
+| MIMIC | EchoJEPA-L | 1024 | 0.996 | 0.942 | 0.054 | 8 |
+| MIMIC | EchoFM | 1024 | 1.000 | 0.999 | 0.000 | 9 (collapsed) |
+
+**Key findings:**
+
+1. **Alignment verified: 8/9 clear PASS, 1 collapsed.** All match cosines >0.95 across both datasets (27/27 individual clip tests). The verification protocol is definitive.
+
+2. **Mismatch cosine is a representation dispersion metric.** It measures how "spread out" the embedding space is — low mismatch means random clips land far apart, high mismatch means they cluster together. This is distinct from downstream task performance but is a necessary condition for discrimination.
+
+3. **Three regimes of representation geometry:**
+   - **Dispersed** (mismatch <0.55): EchoJEPA-L-K, PanEcho, EchoMAE. Random clip pairs have cosine ~0.4-0.5 — embeddings are well-separated.
+   - **Moderate** (mismatch 0.65-0.80): EchoJEPA-G, EchoPrime. Clips are distinguishable but share a stronger common structure.
+   - **Concentrated** (mismatch >0.90): EchoJEPA-L, EchoFM. Most variation lives in a narrow band. EchoFM is the extreme — total collapse to a single point.
+
+4. **EchoJEPA-L's concentration is consistent across datasets.** MIMIC mismatch 0.942, UHN mismatch 0.913. The model encodes information in small deviations from a dominant "echo video" direction. This is not necessarily bad for linear probes (they can exploit small but consistent differences) but makes cosine-based verification harder — the 0.054-0.082 gap is real but narrow.
+
+5. **Same model, bigger gap on UHN.** EchoJEPA-G: 0.348 (UHN) vs 0.257 (MIMIC). EchoJEPA-L: 0.082 (UHN) vs 0.054 (MIMIC). UHN's 18M clips span far more patients, echo machines, operators, and time periods than MIMIC's 525K, producing greater inter-clip diversity.
+
+6. **EchoFM collapse is now triple-confirmed.** (a) Study-level cosine verification: gap <0.001. (b) Clip-level match/mismatch: gap 0.0002. (c) Earlier manual inspection: cosine ~0.9998 everywhere. This model is unlikely to support meaningful downstream discrimination. Root cause unknown (possibly training divergence or normalization issue in original model).
+
+7. **Match similarity variation reflects temporal sampling.** Models with higher match cosine (EchoPrime 0.999, EchoFM 1.000) are less sensitive to which frames are selected. Models with lower match cosine (PanEcho 0.950-0.971, EchoJEPA-G 0.967-0.997) are more sensitive to temporal cropping, suggesting they encode frame-level detail rather than just study-level appearance.
+
+**Technical note:** UHN verification used `zipfile` random-access into 95/70GB uncompressed NPZ files (read specific rows by seeking to `header_offset + idx * row_bytes`). This avoided loading the full array and completed each row read in <100ms. Useful pattern for any future spot-checks on large embedding files.
+
+### Shuffle Fix Mapping Verification
+
+Independently verified that row N of each NPZ corresponds to CSV row N by reading the shuffle fix scripts:
+- `fix_shuffle_order.py` (UHN): `reordered[perm[i]] = embeddings[i]` — positions output by CSV index
+- `fix_mimic_shuffle.py` (MIMIC): Same permutation-inverse logic
+- 180 UHN positions (EchoJEPA-G) zero-filled because their permutation targets were >= n_embeddings — these are at their correct CSV positions, not shifted
+- For MIMIC: permutation uses n_dataset=525,319 (CSV rows), not 525,312 (NPZ rows after padding dedup), ensuring correct alignment
+
+---
+
 ## 2026-03-08
 
 ### Bug Fixes

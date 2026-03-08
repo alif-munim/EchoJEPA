@@ -281,7 +281,7 @@ class VideoDataset(torch.utils.data.Dataset):
         if self.transform is not None:
             buffer = [self.transform(clip) for clip in buffer]
 
-        return buffer, label, clip_indices
+        return buffer, label, clip_indices, sample_uri
 
     def get_item_image(self, index):
         sample_uri = self.samples[index]
@@ -318,7 +318,7 @@ class VideoDataset(torch.utils.data.Dataset):
         if self.transform is not None:
             buffer = [self.transform(buffer)]
 
-        return buffer, label, clip_indices
+        return buffer, label, clip_indices, sample_uri
 
     def debug_sample_loading(self, index):
         sample_uri = self.samples[index]

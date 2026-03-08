@@ -190,6 +190,7 @@ def extract_worker(
     # Extract
     chunk_embeddings = []
     chunk_indices = []
+    chunk_paths = []
     batches_in_chunk = 0
 
     iterator = tqdm(data_loader, desc=f"GPU {device_id}", total=total_batches, disable=(rank != 0))
@@ -202,6 +203,12 @@ def extract_worker(
             clip_indices_batch = [d.to(device) for d in data[2]]
             batch_size_actual = len(data[1])
 
+            # Get paths if available
+            if len(data) > 3:
+                batch_paths = list(data[3])
+            else:
+                batch_paths = [f"sample_{batch_idx * batch_size * world_size + rank + i * world_size}" for i in range(batch_size_actual)]
+
             # Forward
             outputs = encoder(clips, clip_indices_batch)
             pooled_segments = [o.mean(dim=1) for o in outputs]
@@ -211,6 +218,7 @@ def extract_worker(
                 pooled = pooled_segments[0]
 
             chunk_embeddings.append(pooled.float().cpu().numpy())
+            chunk_paths.extend(batch_paths)
 
             # Track global indices for ordering
             for i in range(batch_size_actual):
@@ -223,8 +231,9 @@ def extract_worker(
             if batches_in_chunk >= save_every or batch_idx_local == total_batches - 1:
                 emb = np.concatenate(chunk_embeddings, axis=0)
                 idx = np.array(chunk_indices)
+                paths_arr = np.array(chunk_paths, dtype=object)
                 chunk_path = os.path.join(chunk_dir, f"chunk_{batch_idx + 1:08d}.npz")
-                np.savez_compressed(chunk_path, embeddings=emb, indices=idx)
+                np.savez_compressed(chunk_path, embeddings=emb, indices=idx, paths=paths_arr)
 
                 if rank == 0:
                     log.info(
@@ -234,6 +243,7 @@ def extract_worker(
 
                 chunk_embeddings = []
                 chunk_indices = []
+                chunk_paths = []
                 batches_in_chunk = 0
 
     log.info(f"[Rank {rank}] Done. Chunks saved to {chunk_dir}/")
@@ -245,6 +255,8 @@ def merge_and_pool(output_dir: str, clip_index_path: str, world_size: int):
 
     all_embeddings = []
     all_indices = []
+    all_paths = []
+    has_paths = True
 
     for rank in range(world_size):
         chunk_dir = os.path.join(output_dir, f"chunks_rank{rank}")
@@ -252,9 +264,13 @@ def merge_and_pool(output_dir: str, clip_index_path: str, world_size: int):
             [f for f in os.listdir(chunk_dir) if f.startswith("chunk_") and f.endswith(".npz")]
         )
         for chunk_file in chunks:
-            d = np.load(os.path.join(chunk_dir, chunk_file))
+            d = np.load(os.path.join(chunk_dir, chunk_file), allow_pickle=True)
             all_embeddings.append(d["embeddings"])
             all_indices.append(d["indices"])
+            if "paths" in d:
+                all_paths.append(d["paths"])
+            else:
+                has_paths = False
 
     embeddings = np.concatenate(all_embeddings, axis=0)
     indices = np.concatenate(all_indices, axis=0)
@@ -267,8 +283,13 @@ def merge_and_pool(output_dir: str, clip_index_path: str, world_size: int):
 
     # Save clip-level master
     clip_output = os.path.join(output_dir, "clip_embeddings.npz")
-    np.savez(clip_output, embeddings=embeddings)
-    logger.info(f"Clip-level embeddings saved to {clip_output}")
+    if has_paths and all_paths:
+        paths = np.concatenate(all_paths, axis=0)[sort_order]
+        np.savez(clip_output, embeddings=embeddings, paths=paths)
+        logger.info(f"Clip-level embeddings + paths saved to {clip_output}")
+    else:
+        np.savez(clip_output, embeddings=embeddings)
+        logger.info(f"Clip-level embeddings saved to {clip_output} (no paths available)")
 
     # Pool to study level using clip index
     logger.info("Pooling to study level...")
