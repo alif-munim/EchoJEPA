@@ -119,6 +119,8 @@ def extract_worker(
         normalize=data_cfg.get("normalization", DEFAULT_NORMALIZATION),
     )
 
+    # Build dataset (via init_data) then construct DataLoader manually for resume support.
+    # init_data creates a DistributedSampler which we need to bypass for resume.
     data_loader, _ = init_data(
         data="VideoDataset",
         root_path=[data_path],
@@ -136,9 +138,8 @@ def extract_worker(
     )
 
     # CRITICAL: Disable shuffle so embeddings align with clip_index.npz order.
-    # With shuffle=True, the DistributedSampler permutes clip order, but the
-    # merge step assumes CSV-order alignment with clip_index for study pooling.
     data_loader.sampler.shuffle = False
+    dataset = data_loader.dataset
 
     # Check for resume
     chunk_dir = os.path.join(output_dir, f"chunks_rank{rank}")
@@ -154,7 +155,7 @@ def extract_worker(
         log.info(f"[Rank {rank}] Resuming from batch {start_batch} ({len(existing_chunks)} chunks)")
 
     # Compute this rank's sequential indices (matches DistributedSampler with shuffle=False)
-    n_dataset = len(data_loader.dataset)
+    n_dataset = len(dataset)
     total_size = math.ceil(n_dataset / world_size) * world_size
     all_indices = list(range(n_dataset))
     # Pad for even distribution (same as DistributedSampler)
@@ -162,15 +163,21 @@ def extract_worker(
     rank_indices = all_indices[rank:total_size:world_size]
 
     if start_batch > 0:
-        # Efficient resume: replace the batch sampler to skip already-done clips.
-        # This avoids iterating through the dataloader (and downloading from S3)
-        # for clips that were already extracted.
+        # Efficient resume: create a NEW DataLoader with a sampler that skips
+        # already-done clips. PyTorch doesn't allow reassigning batch_sampler
+        # after DataLoader initialization.
         samples_done = start_batch * batch_size
         remaining_indices = rank_indices[samples_done:]
-        data_loader.batch_sampler = BatchSampler(
-            ListSampler(remaining_indices), batch_size, drop_last=False
+        data_loader = torch.utils.data.DataLoader(
+            dataset,
+            batch_sampler=BatchSampler(
+                ListSampler(remaining_indices), batch_size, drop_last=False
+            ),
+            num_workers=num_workers,
+            pin_memory=True,
+            prefetch_factor=4,
         )
-        total_batches = len(data_loader.batch_sampler)
+        total_batches = len(data_loader)
         log.info(
             f"[Rank {rank}] Efficient resume: skipping {samples_done} clips, "
             f"{total_batches} batches remaining"
