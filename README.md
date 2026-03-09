@@ -46,7 +46,7 @@ Clinical echocardiography reduces a rich spatiotemporal recording to a handful o
 5. **Latent forward prediction** — forecasting future cardiac state from past echoes
 6. **SAE interpretability** — sparse autoencoder decomposition of learned features
 
-All downstream tasks use **frozen linear probes** on mean-pooled study-level embeddings (no fine-tuning), testing representation quality rather than task-specific adaptation.
+All downstream tasks use **frozen probes** on study-level embeddings (no fine-tuning), testing representation quality rather than task-specific adaptation. The primary evaluation uses depth=1 attentive probes (single cross-attention layer; V-JEPA 1 protocol), with linear probes as a sensitivity analysis.
 
 ### Datasets
 
@@ -231,9 +231,29 @@ We provide precomputed embeddings for all 525K MIMIC-IV-Echo clips from multiple
 | EchoMAE | ViT-L/16 (VideoMAE) | MAE on 1.5M echo clips | 304M | 1024 | `echomae_mimic_all.zip` |
 | EchoFM | ViT-L/16 (MAE+triplet) | MAE on 290K echo clips | 304M | 1024 | `echofm_mimic_all.zip` |
 | PanEcho | ConvNeXt-T + Transformer | Supervised on 1.1M echo clips | 28M | 768 | `panecho_mimic_all.zip` |
-| EchoPrime | MViT-v2-S | Supervised on 700K echo clips | 34M | 512 | `echoprime_mimic_all.zip` |
+| EchoPrime | MViT-v2-S | CLIP-style contrastive on 12M echo clips + cardiologist reports | 34M | 512 | `echoprime_mimic_all.zip` |
 
-All 7 models were extracted from the same 525,312 clips in the same order, so shared metadata files (`clip_index.npz`, `patient_split.json`, `labels/`) are interchangeable and included in every zip. Key controlled comparisons:
+All 7 models were extracted from the same 525,312 clips in the same order, so shared metadata files (`clip_index.npz`, `patient_split.json`, `labels/`) are interchangeable and included in every zip.
+
+### Downloading
+
+Embedding zips are hosted on S3 at `s3://echodata25/nature_medicine/mimic/`. Download with the AWS CLI:
+
+```bash
+# Download a single model (e.g. EchoJEPA-G, 5.0 GiB)
+aws s3 cp s3://echodata25/nature_medicine/mimic/echojepa_g_mimic_all.zip .
+
+# Download all models + covariates (~26.3 GiB total)
+aws s3 sync s3://echodata25/nature_medicine/mimic/ . --exclude "*" \
+    --include "*.zip"
+
+# Unzip from repository root (restores to experiments/nature_medicine/mimic/)
+unzip echojepa_g_mimic_all.zip
+```
+
+If you don't have AWS CLI access, contact the team for presigned download URLs (7-day TTL, regenerated on request).
+
+Key controlled comparisons:
 - **Objective**: EchoJEPA-L vs EchoMAE (same ViT-L arch, JEPA vs MAE objective)
 - **Data**: EchoJEPA-L vs EchoJEPA-L Kinetics (same arch, echo vs natural video pretraining)
 - **Scale**: EchoJEPA-G vs EchoJEPA-L (1.1B vs 304M, same objective and data)
@@ -811,9 +831,11 @@ Probe evaluation trains a lightweight head on top of frozen EchoJEPA features. W
 
 | Probe Type | Architecture | Pooling | Use Case |
 |-----------|-------------|---------|----------|
-| `attentive` (default) | Cross-attention + self-attention blocks | Learned query token | Best downstream performance (ICML paper) |
-| `linear` | Single linear layer | Mean pooling | Tests linear separability of representations (Nature Medicine paper) |
+| `attentive` (default) | Cross-attention with learnable query token | Learned (single CA layer at depth=1) | Primary evaluation for Nature Medicine. Depth=1 (V-JEPA 1 protocol) is the default for cross-model comparison; depth=4 (V-JEPA 2 protocol) available for ceiling analysis. |
+| `linear` | Single linear layer | Mean pooling | Tests linear separability; sensitivity analysis. Standard in SimCLR/DINOv2 comparisons. |
 | `mlp` | Two-layer MLP with GELU | Mean pooling | Middle ground between linear and attentive |
+
+**Why depth=1?** At depth=1 (cross-attention only, no self-attention blocks), the probe architecture is identical regardless of input token count. Models with 1568 tokens (EchoJEPA, EchoMAE) benefit from learned spatial/temporal aggregation, while models with 1 token (EchoPrime, PanEcho) get a lightweight nonlinear readout. V-JEPA 2 Table 18 shows depth=4 adds only +1.0-1.6pp over depth=1, confirming most benefit comes from cross-attention alone. See `uhn_echo/nature_medicine/context_files/probe_implementation_analysis.md` for the full analysis.
 
 We provide training scripts for training your own probes, and checkpoints to run inference directly.
 
@@ -843,8 +865,8 @@ experiment:
     task_type: regression         # "classification" or "regression"
     num_targets: 1                # for classification, use num_classes: N instead
     probe_type: attentive         # "attentive" (default), "linear", or "mlp"
-    num_heads: 16                 # attentive probe only (ignored for linear/mlp)
-    num_probe_blocks: 4           # attentive probe only (ignored for linear/mlp)
+    num_heads: 16                 # attentive probe only — must divide embed_dim (ignored for linear/mlp)
+    num_probe_blocks: 1           # depth=1 (default): cross-attention only. Set to 4 for V-JEPA 2 protocol.
 
     # --- Multi-view only ---
     # num_views: 2               # number of views (e.g. A4C + PSAX-AV)
