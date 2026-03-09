@@ -27,10 +27,10 @@ Source CSV (525K S3 paths)
 | EchoJEPA-L Kinetics | ViT-L/16 224px | JEPA on Kinetics-400 | 304M | 1024 | `echojepa_l_kinetics_mimic_embeddings.npz` |
 | EchoMAE | ViT-L/16 (VideoMAE) | MAE on 1.5M echo clips | 304M | 1024 | `echomae_mimic_embeddings.npz` |
 | EchoFM | ViT-L/16 (MAE+triplet) | MAE on 290K echo clips | 304M | 1024 | `echofm_mimic_embeddings.npz` |
-| PanEcho | ConvNeXt-T + Transformer | Supervised on 1.1M echo clips | 28M | 768 | `panecho_mimic_embeddings.npz` |
-| EchoPrime | MViT-v2-S | Supervised on 700K echo clips | 34M | 512 | `echoprime_mimic_embeddings.npz` |
+| PanEcho | ConvNeXt-T + Transformer | Multi-task supervised on 1.1M echo clips | 28M | 768 | `panecho_mimic_embeddings.npz` |
+| EchoPrime | MViT-v2-S | CLIP-style contrastive on 12M echo clips + report text | 35M | 512 | `echoprime_mimic_embeddings.npz` |
 
-Key controlled comparisons: EchoJEPA-L vs EchoMAE (same arch, JEPA vs MAE), EchoJEPA-L vs Kinetics (same arch, echo vs natural video data), EchoJEPA-G vs EchoJEPA-L (scale).
+Key controlled comparisons: EchoJEPA-L vs EchoMAE (same arch, JEPA vs MAE), EchoJEPA-L vs Kinetics (same arch, echo vs natural video data), EchoJEPA-G vs EchoJEPA-L (scale). EchoPrime is text-supervised (contrastive alignment with BiomedBERT report embeddings), not purely self-supervised.
 
 All models are extracted from the same source CSV (`data/csv/nature_medicine/mimic/mortality_1yr.csv`, 525,312 clips) using `evals.extract_embeddings`, ensuring row-aligned outputs. This means `clip_index.npz`, `patient_split.json`, and all label NPZs are shared across models.
 
@@ -43,7 +43,7 @@ The shared `make_transforms(training=False)` pipeline applies: Resize(short_side
 - **EchoPrime:** trained with custom normalization in 0-255 space — adapter undoes ImageNet norm, scales to 255, applies EchoPrime norm.
 - **EchoFM:** trained on [0,1] range (no normalization) — adapter undoes ImageNet norm to recover [0,1].
 
-**Note:** PanEcho, EchoPrime, and EchoFM normalization was fixed on 2026-03-06 (see `claude/dev/bugs/002-normalization-bugs.md`). Additionally, all 7 MIMIC models have a shuffle ordering bug requiring re-extraction (see `claude/dev/bugs/001-shuffle-bug.md`). All existing MIMIC embeddings should be re-extracted.
+**Note:** PanEcho, EchoPrime, and EchoFM normalization was fixed on 2026-03-06 (see `claude/dev/bugs/002-normalization-bugs.md`) and re-extracted on 2026-03-08. All 7 MIMIC models had a shuffle ordering bug (see `claude/dev/bugs/001-shuffle-bug.md`); original 4 models were fixed post-hoc, 3 re-extracted models have correct ordering. All 7 models are now probe-ready with 161/161 probe runs complete.
 
 ## Directory Layout
 
