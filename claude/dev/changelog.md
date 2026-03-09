@@ -6,6 +6,132 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-09 (Session 13)
+
+### MIMIC Zip Regeneration and S3 Upload
+
+Regenerated all 8 MIMIC zip files with current verified embeddings (now including S3 path provenance columns) and uploaded to `s3://echodata25/nature_medicine/mimic/`.
+
+**Why re-zipped:** Previous zips (from March 5) contained pre-shuffle-fix, pre-normalization-fix embeddings without `paths` arrays. After the shuffle fix (Bug 001), normalization fix (Bug 002, PanEcho/EchoPrime/EchoFM re-extracted March 8), and path injection (Session 9), the master NPZ files now contain `['embeddings', 'labels', 'paths']` keys with verified end-to-end alignment.
+
+**Zip contents** (each model, ~141 files per zip):
+- Master embedding NPZ with S3 path column
+- `clip_index.npz`, `patient_split.json` (shared)
+- `labels/*.npz` (23 task label files)
+- `{model}_study_level/*.npz` (23 study-level files)
+- `{model}_splits/{task}/train|val|test.npz` (23 × 3 split files)
+- `data/csv/nature_medicine/mimic/*.csv` (23 source CSVs)
+
+**Script:** `scripts/rezip_mimic.py` — ZIP_STORED (no compression), atomic writes via `.tmp` + `os.replace()`.
+
+**Files on S3** (`s3://echodata25/nature_medicine/mimic/`):
+
+| File | Size |
+|------|------|
+| `echojepa_g_mimic_all.zip` | 5.0 GiB |
+| `echojepa_l_mimic_all.zip` | 3.9 GiB |
+| `echojepa_l_kinetics_mimic_all.zip` | 3.9 GiB |
+| `echomae_mimic_all.zip` | 3.9 GiB |
+| `panecho_mimic_all.zip` | 3.2 GiB |
+| `echoprime_mimic_all.zip` | 2.5 GiB |
+| `echofm_mimic_all.zip` | 3.9 GiB |
+| `mimic_covariates.zip` | 730.5 KiB |
+
+Presigned URLs (7-day TTL, expire ~2026-03-16) generated and saved to `uhn_echo/nature_medicine/context_files/dev/embedding-status.md`.
+
+### UHN Path Injection into Existing NPZs
+
+Injected S3 paths from `uhn_clip_index.npz` into 4 UHN clip embedding files (previously contained only `embeddings` array). Required loading full arrays into RAM (70-105 GB each) sequentially on 1.1 TiB system. Originals backed up as `.no_paths_backup`.
+
+| Model | Shape | Paths injected | New size |
+|-------|-------|---------------|----------|
+| EchoJEPA-G | 18,111,232 × 1408 | paths[:18111232] | 105.8 GB |
+| EchoJEPA-L | 18,110,464 × 1024 | paths[:18110464] | 78.0 GB |
+| EchoJEPA-L-K | 18,111,416 × 1024 | 18,111,412 real + 4 padding | 78.0 GB |
+| EchoMAE | 18,111,416 × 1024 | 18,111,412 real + 4 padding | 78.0 GB |
+
+### UHN Path-Embedding Verification (4 models)
+
+Extended verification from Session 9 (which covered G and L only) to include L-K and EchoMAE on UHN. Script: `scripts/verify_uhn_paths.py` — uses `MmapNpzReader` (memory-mapped random access into 70-105GB NPZ files).
+
+| Model | Mean Match | Mean Mismatch | Gap | Verdict |
+|-------|-----------|--------------|-----|---------|
+| EchoJEPA-G | >0.95 | ~0.65 | ~0.35 | PASS |
+| EchoJEPA-L | >0.99 | ~0.91 | ~0.08 | PASS |
+| EchoJEPA-L-K | >0.98 | ~0.40 | ~0.58 | PASS |
+| EchoMAE | >0.99 | ~0.52 | ~0.48 | PASS |
+
+All 4 models show clear match > mismatch discrimination. Alignment chain verified end-to-end.
+
+---
+
+## 2026-03-08 (Session 12)
+
+### MViT GPU Memory Leak Fix
+
+Progressive GPU memory growth caused repeated OOMs during EchoPrime (MViT-v2-S) extraction — memory grew ~25 MB/batch (55→75 GB over 1000 batches) even with `cudnn.benchmark=False` and `expandable_segments:True`. Root cause: CUDA allocator retains freed blocks but doesn't return them to the pool without explicit prompting. Not a true tensor leak — `gc.collect()` + `torch.cuda.empty_cache()` at chunk saves dropped memory from 66 GB → 33 GB instantly.
+
+**Changes to `evals/extract_uhn_embeddings.py`:**
+- Added `import gc`
+- Added `del clips, clip_indices_batch, outputs, pooled_segments, pooled, data` after each batch (explicit GPU tensor release)
+- Added `gc.collect()` + `torch.cuda.empty_cache()` every 100 batches (periodic cleanup, ~2.5 GB max growth between cleanups) and at chunk saves
+- Comment documents the 25 MB/batch growth rate and the 66→33 GB cleanup effect
+
+**DataLoader Bus error fix:** Reduced `num_workers` from 12 → 8 for EchoPrime. With w=12 × 8 ranks = 96 workers, a transient Bus error (SIGBUS) killed a DataLoader worker mid-forward-pass. Shared memory (144 GB) and system RAM (1.1 TiB) were not exhausted — likely a sporadic S3/decord issue amplified by high worker count. w=8 (64 total workers) is more stable with minimal throughput loss.
+
+**Final stable EchoPrime settings:** bs=64, w=8, pf=8, fp32+TF32, `cudnn.benchmark=False`, `expandable_segments:True`, gc every 100 batches. Memory stable at 38-43 GB (well under 80 GB limit). Throughput ~1.0-1.3 it/s. ETA ~8h.
+
+## 2026-03-08 (Session 11)
+
+### Extraction Performance Optimizations
+
+Systematic optimization of `extract_uhn_embeddings.py` for fp32 models (EchoPrime) and S3-bottlenecked workloads. Combined changes yield ~2x wall-clock speedup on UHN 18M extraction.
+
+**TF32 matmul was disabled** — the single biggest finding. PyTorch 2.6 defaults `torch.backends.cuda.matmul.allow_tf32 = False`, meaning all fp32 matmuls on A100 ran at 19.5 TFLOPS instead of ~156 TFLOPS. EchoPrime (MViT-v2-S) runs entirely in fp32 (adapter disables autocast at `echo_prime_encoder.py:147-149`), so enabling TF32 gives up to 8x throughput on matmul operations.
+
+**Changes to `evals/extract_uhn_embeddings.py`:**
+- Added `torch.backends.cuda.matmul.allow_tf32 = True` in each worker (TF32 for fp32 matmuls)
+- Added `torch.backends.cudnn.allow_tf32 = True` (TF32 for cuDNN conv ops)
+- `torch.backends.cudnn.benchmark = False` (explicitly disabled — see note below)
+- Changed `np.savez_compressed` → `np.savez` for chunk saves (avoid compression overhead)
+
+**Changes to `src/datasets/video_dataset.py`:**
+- `prefetch_factor` increased from 4 → 8. With TF32, the GPU outruns the S3 download pipeline; deeper prefetch buffer (64 batches vs 32 per GPU) smooths S3 latency spikes. RAM cost: ~45 GB per GPU process (1.1 TiB system has headroom).
+
+**EchoPrime UHN extraction launched** with optimized settings:
+- Config: `configs/inference/vitl/extract_uhn_echoprime.yaml` (new file)
+- Settings: bs=128, num_workers=8, prefetch_factor=8, fp32+TF32, 8×A100
+- Output: `experiments/nature_medicine/uhn/echoprime_embeddings/`
+
+**Measured impact** (EchoPrime, 8×A100-80GB, 18.1M clips):
+
+| Setting | bs=32, pf=4, no TF32 | bs=64, pf=8, TF32, bench ON | bs=64, pf=8, TF32, bench OFF, w=12 |
+|---------|----------------------|-----------------------------|--------------------------------------|
+| Non-stall rate | ~1.1-1.5 s/batch | ~0.83 s/batch | ~0.71 s/batch (1.41 it/s) |
+| S3 stall peaks | ~2.3 s | 2.5-3.0 s | 2.0-2.8 s |
+| GPU util | intermittent | 94-98% sustained | 87-98% sustained |
+| GPU memory | ~40/80 GB | 47→80 GB (OOM!) | ~55-58/80 GB (stable) |
+| Total batches | 70,748 | 35,374 | 35,374 |
+| Est. wall time | ~20-25h | OOM at batch 504 | ~7-8h |
+
+**bs=128 OOMs for MViT-v2-S** — MViT `_add_rel_pos` requires a 3.66 GiB intermediate tensor at bs=128, exceeding 80 GB. Max safe batch size for EchoPrime is bs=64.
+
+**cuDNN benchmark is HARMFUL for MViT** — `cudnn.benchmark=True` caches workspace memory for every unique (layer, input_size) combination. MViT's multi-scale pooling attention has many unique configurations, causing GPU memory to grow from ~43 GB → 73 GB → 80 GB over ~500 batches, eventually OOMing on the same `_add_rel_pos` 3.66 GiB allocation. Disabling it keeps memory stable at ~55-58 GB with no throughput loss (1.41 it/s without vs 1.35 it/s with). **Do not enable cuDNN benchmark for MViT/EchoPrime.**
+
+**`PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`** added as env var for the extraction launch. Reduces CUDA memory fragmentation ("reserved but unallocated" pool). Recommended for all long-running extraction jobs.
+
+Key insight: S3 download latency is the true bottleneck. GPU-side optimizations (TF32) reduce per-batch compute time, but the gains are partially eaten by S3 stalls when the prefetch buffer drains. Increasing prefetch_factor and num_workers was critical for sustaining GPU utilization.
+
+**Note:** TF32 benefits all models (bf16 included) by accelerating any remaining fp32 ops. cuDNN benchmark may be safe for ViT-based models (fixed attention sizes) but should be tested carefully — the MViT OOM was silent and progressive.
+
+### EchoPrime fp32 Compatibility Fix
+
+`extract_uhn_embeddings.py` was hardcoded to cast all models to bf16 and use bf16 autocast. EchoPrime requires fp32 (adapter disables autocast internally, normalization calls `x.float()` explicitly).
+
+- Added `use_bf16 = not model_kwargs.get("wrapper_kwargs", {}).get("force_fp32", False)` check
+- bf16 cast and autocast now conditional on `use_bf16` flag
+- Config `extract_uhn_echoprime.yaml` sets `force_fp32: true` in wrapper_kwargs
+
 ## 2026-03-08 (continued — Session 9)
 
 ### Code Changes: S3 Path Provenance in Embeddings
