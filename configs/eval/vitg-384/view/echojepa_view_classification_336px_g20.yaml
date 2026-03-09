@@ -13,7 +13,7 @@ tag: uhn22k-classifier-fs2-ns2-nvs1-echojepa-336px-fcl-a1g2-ep50
 
 experiment:
   classifier:
-    num_heads: 16           # ARCHITECTURE: Must divide 1408 (1408/16 = 88). Do not change.
+    num_heads: 16           # Must divide embed_dim: 512/16=32, 768/16=48, 1024/16=64, 1408/16=88
     num_probe_blocks: 4     # Standard attentive probe depth
 
   data:
