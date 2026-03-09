@@ -14,7 +14,7 @@ tag: uhn22k-zoom-fs2-ns2-nvs1-echojepa-336px
 experiment:
   classifier:
     num_heads: 16           # ARCHITECTURE: Must divide 1408 (1408/16 = 88). Do not change.
-    num_probe_blocks: 4     # Standard attentive probe depth
+    num_probe_blocks: 1     # Standard attentive probe depth
 
   data:
     dataset_type: VideoDataset

@@ -159,8 +159,8 @@ def main(args_eval, resume_preempt=False):
 
     # -- CLASSIFIER
     args_classifier = args_exp.get("classifier")
-    num_probe_blocks = args_classifier.get("num_probe_blocks", 1)
-    num_heads = args_classifier.get("num_heads", 16)
+    num_probe_blocks = args_classifier.get("num_probe_blocks", 1)  # depth=1 default: cross-attention only (V-JEPA 1 protocol). depth=4 for V-JEPA 2 protocol (3 SA + 1 CA).
+    num_heads = args_classifier.get("num_heads", 16)  # Must divide embed_dim of each model
     probe_checkpoint = args_eval.get("probe_checkpoint", None)
 
     # -- REGRESSION

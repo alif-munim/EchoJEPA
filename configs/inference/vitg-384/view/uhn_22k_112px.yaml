@@ -17,7 +17,7 @@ probe_checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145
 experiment:  
   classifier:  
     num_heads: 16  
-    num_probe_blocks: 4  
+    num_probe_blocks: 1  
   
   data:  
     dataset_type: VideoDataset  

@@ -16,7 +16,7 @@ experiment:
   classifier:
     task_type: regression      # NEW: Specify regression task  
     num_heads: 16           # changed from 16 / <-- must divide 1408 (ViT-G). Valid: 16, 22, 32, 44...
-    num_probe_blocks: 4     # changed from 4
+    num_probe_blocks: 1     # changed from 4
     use_slot_embeddings: true   # default false keeps old behavior
     num_views: 2
     clips_per_view: 2

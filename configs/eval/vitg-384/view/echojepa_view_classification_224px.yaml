@@ -14,7 +14,7 @@ tag: uhn22k-classifier-echojepa-g-multi
 experiment:
   classifier:
     num_heads: 16           # Must divide embed_dim: 512/16=32, 768/16=48, 1024/16=64, 1408/16=88
-    num_probe_blocks: 4     # Standard attentive probe depth
+    num_probe_blocks: 1     # Standard attentive probe depth
 
   data:
     dataset_type: VideoDataset

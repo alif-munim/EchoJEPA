@@ -159,7 +159,7 @@ def main(args_eval, resume_preempt=False):
 
     # -- CLASSIFIER
     args_classifier = args_exp.get("classifier")
-    num_probe_blocks = args_classifier.get("num_probe_blocks", 1)
+    num_probe_blocks = args_classifier.get("num_probe_blocks", 1)  # depth=1 default: cross-attention only (V-JEPA 1 protocol)
     num_heads = args_classifier.get("num_heads", 16)
 
     use_slot_embeddings = args_classifier.get("use_slot_embeddings", False)

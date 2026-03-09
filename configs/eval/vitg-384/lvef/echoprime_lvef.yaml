@@ -14,7 +14,7 @@ experiment:
   classifier:
     task_type: regression
     num_targets: 1
-    num_probe_blocks: 4
+    num_probe_blocks: 1
     num_heads: 16
 
   data:
