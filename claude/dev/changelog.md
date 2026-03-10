@@ -6,6 +6,34 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-09 (Session 14)
+
+### UHN Linear Probe Training — EchoJEPA-G and EchoJEPA-L
+
+Trained frozen linear probes on all available UHN study-level embeddings: 26 classification + 21 regression + 5 trajectory tasks × 2 models = 104 jobs. Script: `scripts/run_uhn_probes.py`. Protocol: StandardScaler → HP grid search on val split → evaluate on held-out test split.
+
+- **Classification**: LogisticRegression(C, max_iter=2000, solver='lbfgs'), C ∈ {1e-4, 1e-3, 1e-2, 0.1, 1, 10}
+- **Regression**: Ridge(alpha), alpha ∈ {1e-4, 1e-3, 1e-2, 0.1, 1, 10, 100}
+- **Trajectory**: Ridge on concat(emb_1, emb_2) → predict delta between paired studies
+
+**BLAS thread contention fix:** Initial run with `--workers 4` stalled — 4 workers × ~24 BLAS threads = 96 threads saturating the 96-core machine. Fixed with `OMP_NUM_THREADS=8 MKL_NUM_THREADS=8 OPENBLAS_NUM_THREADS=8` and `--workers 8` (8 × 8 = 64 threads, well under limit).
+
+**EchoJEPA-G results (in-domain):**
+- Classification mean AUC: 0.874 (26 tasks). Top: AS severity 0.947, pericardial effusion 0.940, LV systolic function 0.936, LV cavity size 0.934, diastolic function 0.918
+- Regression mean R²: 0.625 (21 tasks). Top: ESV 0.853, EDV 0.798, LVEF 0.775, LV mass 0.738, LA vol 0.726
+- Trajectory: LVEF delta R²=0.456, MR severity R²=0.234, TAPSE R²=0.129
+- Rare diseases detectable from frozen representations: amyloidosis 0.835, HCM 0.877, STEMI 0.828, takotsubo 0.815
+
+**EchoJEPA-L results (out-of-domain — complete failure):**
+- All 26 classification tasks: AUC ~0.50 (chance)
+- All 21 regression tasks: R² ≤ 0 (worse than mean predictor)
+- All 5 trajectory tasks: R² < 0
+- Root cause: L pretrained on ~7K MIMIC studies → extreme embedding concentration on UHN (mean pairwise cosine 0.998, var/dim ratio 0.0005 vs G's 0.293). Confirmed L works in-domain on MIMIC (HF AUC 0.761).
+
+**Output:** `results/probes/nature_medicine/uhn/all_results.json`, per-task metrics in `results/probes/nature_medicine/uhn/{model}/{task}/test_metrics.json`. Runtime: 58.3 min on 96-core CPU instance.
+
+---
+
 ## 2026-03-09 (Session 13)
 
 ### MIMIC Zip Regeneration and S3 Upload

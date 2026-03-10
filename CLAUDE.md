@@ -106,8 +106,8 @@ Encoder processes visible (context) tokens; predictor takes encoder output + mas
 ### Probe Types
 
 Three probe architectures in `src/models/`. Set via `experiment.classifier.probe_type` in YAML config:
-- **`attentive`** (default) — learned cross-attention pooling + self-attention blocks. Used in ICML paper. Config: `num_heads`, `num_probe_blocks`
-- **`linear`** — mean-pool + LayerNorm + single linear layer. Used in Nature Medicine paper. Config: `use_layernorm`, `dropout`
+- **`attentive`** (default) — learned cross-attention pooling + self-attention blocks. Used in ICML paper. Nature Medicine: ceiling analysis for EchoJEPA/EchoMAE (pre-specified sensitivity). Config: `num_heads`, `num_probe_blocks`
+- **`linear`** — mean-pool + LayerNorm + single linear layer. Nature Medicine: primary cross-model comparison for all models. Config: `use_layernorm`, `dropout`
 - **`mlp`** — mean-pool + LayerNorm + 2-layer MLP. Middle ground
 
 See `claude/architecture/probe-system.md` for full details including attentive-vs-linear comparison and hyperparameter guidance.
