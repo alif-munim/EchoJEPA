@@ -118,7 +118,7 @@ def make_videodataset(
         worker_init_fn=_worker_init_fn,
     )
     if num_workers > 0:
-        dl_kwargs["prefetch_factor"] = 4  # increased from 1 for S3 throughput
+        dl_kwargs["prefetch_factor"] = 8  # increased from 4; buffers more S3 downloads ahead of GPU
 
     if deterministic:
         data_loader = torch.utils.data.DataLoader(**dl_kwargs)

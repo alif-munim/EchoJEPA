@@ -1,0 +1,20 @@
+# Extraction config for EchoPrime on UHN 18M dataset
+# Used by: python -m evals.extract_uhn_embeddings --config THIS_FILE --data CSV --output_dir DIR --devices cuda:0..7
+
+experiment:
+  data:
+    dataset_type: VideoDataset
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 2
+    num_segments: 1
+    num_views_per_segment: 1
+
+model_kwargs:
+  checkpoint: null
+  module_name: evals.video_classification_frozen.modelcustom.echo_prime_encoder
+  pretrain_kwargs: {}
+  wrapper_kwargs:
+    echo_prime_root: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/video_classification_frozen/modelcustom/EchoPrime
+    force_fp32: true
+    bin_size: 50

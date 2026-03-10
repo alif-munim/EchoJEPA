@@ -52,6 +52,29 @@ These used the old `archive/convnext_training.py` (single-GPU, local filesystem)
 
 With EchoJEPA, test F1 reached 0.877 (224px).
 
+## View Classification Dataset
+
+13-class echo view classification from 607 CVAT-annotated UHN studies (27K clips). Patient-disjoint splits (80/10/10). CSVs at `data/csv/uhn_views_22k_*.csv` (space-separated: `<s3_path> <int_label>`). Label mapping: `mappings/views.json`.
+
+| ID | View | Train | Val | Test |
+|----|------|-------|-----|------|
+| 0 | A2C | 1,779 | 240 | 230 |
+| 1 | A3C | 1,430 | 180 | 190 |
+| 2 | A4C | 4,190 | 557 | 550 |
+| 3 | A5C | 885 | 124 | 116 |
+| 4 | Exclude | 2,023 | 256 | 263 |
+| 5 | PLAX | 3,244 | 436 | 452 |
+| 6 | PSAX-AP | 379 | 53 | 49 |
+| 7 | PSAX-AV | 2,003 | 266 | 268 |
+| 8 | PSAX-MV | 440 | 54 | 59 |
+| 9 | PSAX-PM | 1,460 | 194 | 198 |
+| 10 | SSN | 256 | 47 | 47 |
+| 11 | Subcostal | 1,663 | 232 | 241 |
+| 12 | TEE | 1,613 | 194 | 185 |
+| | **Total** | **21,365** | **2,833** | **2,848** |
+
+Cleaned versions (`*_cleaned.csv`) have broken S3 files removed. 336px variants (`*_336px.csv`) point to resized copies. Data efficiency subsets: 1%, 5%, 10%, 50% of training set (stratified).
+
 ## Data Preparation Pipeline
 
 ### 1. Compile studies and download from S3

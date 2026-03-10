@@ -21,6 +21,7 @@ Usage:
 """
 
 import argparse
+import gc
 import logging
 import math
 import os
@@ -81,6 +82,13 @@ def extract_worker(
     os.environ["CUDA_VISIBLE_DEVICES"] = device_id
     device = torch.device("cuda:0")
 
+    # Enable TF32 for fp32 models (up to 8x matmul throughput on A100)
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    # NOTE: cudnn.benchmark disabled — it caches workspace per unique layer config,
+    # growing GPU memory from ~43GB to ~77GB over time, causing OOM on MViT.
+    torch.backends.cudnn.benchmark = False
+
     log = logging.getLogger(f"rank{rank}")
     log.setLevel(logging.INFO if rank == 0 else logging.WARNING)
 
@@ -100,10 +108,12 @@ def extract_worker(
         device=device,
     )
     encoder.eval()
-    encoder = encoder.to(dtype=torch.bfloat16)  # Cast model to bf16
+    use_bf16 = not model_kwargs.get("wrapper_kwargs", {}).get("force_fp32", False)
+    if use_bf16:
+        encoder = encoder.to(dtype=torch.bfloat16)
 
     if rank == 0:
-        log.info(f"Encoder embed_dim: {encoder.embed_dim}, dtype: bf16")
+        log.info(f"Encoder embed_dim: {encoder.embed_dim}, dtype: {'bf16' if use_bf16 else 'fp32'}")
 
     # Create dataloader
     transform = make_transforms(
@@ -195,7 +205,8 @@ def extract_worker(
 
     iterator = tqdm(data_loader, desc=f"GPU {device_id}", total=total_batches, disable=(rank != 0))
 
-    with torch.no_grad(), torch.amp.autocast("cuda", dtype=torch.bfloat16):
+    autocast_ctx = torch.amp.autocast("cuda", dtype=torch.bfloat16) if use_bf16 else torch.amp.autocast("cuda", enabled=False)
+    with torch.no_grad(), autocast_ctx:
         for batch_idx_local, data in enumerate(iterator):
             batch_idx = batch_idx_local + start_batch
 
@@ -225,7 +236,19 @@ def extract_worker(
                 global_idx = batch_idx * batch_size * world_size + rank + i * world_size
                 chunk_indices.append(global_idx)
 
+            # Explicitly free GPU tensors to prevent memory growth.
+            # MViT's _add_rel_pos allocates 3.66 GiB spikes; without explicit del,
+            # deferred Python GC lets GPU memory grow ~25 MB/batch → OOM after ~1000 batches.
+            del clips, clip_indices_batch, outputs, pooled_segments, pooled, data
+
             batches_in_chunk += 1
+
+            # Periodic GPU memory cleanup. CUDA allocator holds freed blocks;
+            # gc.collect() + empty_cache() reclaims them (66 GB → 33 GB observed).
+            # Every 100 batches keeps peak growth under ~2.5 GB between cleanups.
+            if batches_in_chunk % 100 == 0:
+                gc.collect()
+                torch.cuda.empty_cache()
 
             # Save chunk
             if batches_in_chunk >= save_every or batch_idx_local == total_batches - 1:
@@ -233,7 +256,7 @@ def extract_worker(
                 idx = np.array(chunk_indices)
                 paths_arr = np.array(chunk_paths, dtype=object)
                 chunk_path = os.path.join(chunk_dir, f"chunk_{batch_idx + 1:08d}.npz")
-                np.savez_compressed(chunk_path, embeddings=emb, indices=idx, paths=paths_arr)
+                np.savez(chunk_path, embeddings=emb, indices=idx, paths=paths_arr)
 
                 if rank == 0:
                     log.info(
@@ -245,6 +268,8 @@ def extract_worker(
                 chunk_indices = []
                 chunk_paths = []
                 batches_in_chunk = 0
+                gc.collect()
+                torch.cuda.empty_cache()
 
     log.info(f"[Rank {rank}] Done. Chunks saved to {chunk_dir}/")
 

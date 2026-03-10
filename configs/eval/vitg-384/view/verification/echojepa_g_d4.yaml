@@ -31,35 +31,35 @@ experiment:
 
   optimization:
     batch_size: 1
-    num_epochs: 50        # Generous (ICML: 20-30)
+    num_epochs: 20        # Generous (ICML: 20-30)
     use_bfloat16: true
     use_pos_embed: false
     multihead_kwargs:
     # LR=1e-3 x 4 WD values
-    - {lr: 0.001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
-    - {lr: 0.001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
-    - {lr: 0.001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
-    - {lr: 0.001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
+    - {lr: 0.001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    - {lr: 0.001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
     # LR=5e-4
-    - {lr: 0.0005, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
-    - {lr: 0.0005, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
-    - {lr: 0.0005, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
-    - {lr: 0.0005, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
+    - {lr: 0.0005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.0005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.0005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    - {lr: 0.0005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
     # LR=1e-4
-    - {lr: 0.0001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
-    - {lr: 0.0001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
-    - {lr: 0.0001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
-    - {lr: 0.0001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
+    - {lr: 0.0001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.0001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.0001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    - {lr: 0.0001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
     # LR=5e-5
-    - {lr: 0.00005, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
-    - {lr: 0.00005, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
-    - {lr: 0.00005, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
-    - {lr: 0.00005, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
+    - {lr: 0.00005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.00005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.00005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    - {lr: 0.00005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
     # LR=1e-5
-    - {lr: 0.00001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
-    - {lr: 0.00001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
-    - {lr: 0.00001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
-    - {lr: 0.00001, start_lr: 0.0, warmup: 5.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
+    - {lr: 0.00001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.00001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.00001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    - {lr: 0.00001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
 
 model_kwargs:
   checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/anneal/keep/pt-280-an81.pt
