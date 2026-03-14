@@ -42,8 +42,6 @@ experiment:
     num_segments: 2
     num_views_per_segment: 1
 
-    target_mean: 55.7776
-    target_std: 12.4064
 
     # Let wrapper handle normalization internally
     normalization:

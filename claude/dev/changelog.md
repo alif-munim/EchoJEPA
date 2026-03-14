@@ -6,6 +6,111 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-12 (Session 17)
+
+### UHN Probe CSVs, Trajectory CSVs, MIMIC Fix, and Phase 1 Run Scripts
+
+**UHN all-clip probe CSVs built (47 tasks):**
+- `experiments/nature_medicine/uhn/build_probe_csvs.py --all` — builds train/val/test CSVs for every label NPZ
+- Loads `study_to_clips_index.pkl` (cached study → clips mapping from 18.1M S3 paths)
+- ALL clips per study emitted. DistributedStudySampler handles 1-per-study selection at training time
+- Regression targets Z-scored using training-set mean/std; `zscore_params.json` saved per task
+- 47 tasks × 3 splits = 141 CSVs at `experiments/nature_medicine/uhn/probe_csvs/{task}/`
+
+**UHN view-filtered CSVs built (41 tasks):**
+- `experiments/nature_medicine/uhn/build_viewfiltered_csvs.py --all` — joins all-clip CSVs with view/color classifier predictions
+- 41 view-filtered tasks + 6 unfiltered tasks (cardiac_rhythm, gls, disease_dcm/endocarditis/stemi/takotsubo)
+- View filters: task-specific echo views (e.g., A4C for TAPSE). B-mode filter for hemodynamics (MR/AS/TR severity).
+- 41 tasks × 3 splits = 123 filtered CSVs (`train_vf.csv`, `val_vf.csv`, `test_vf.csv`)
+
+**UHN trajectory CSVs built (5 tasks):**
+- New script: `experiments/nature_medicine/uhn/build_trajectory_csvs.py`
+- Builds train/val/test CSVs for 5 delta-prediction tasks: trajectory_lvef, trajectory_tapse, trajectory_lv_mass, trajectory_rv_sp, trajectory_mr_severity
+- 1 random clip from study_1 per pair; view-filtered using same view definitions as base measurement
+- Standard DataLoader (no study_sampling) — each pair is one training example
+- `pairs_metadata.json` saved per task for future multi-clip aggregation
+
+**MIMIC probe CSV regression bug fix:**
+- `experiments/nature_medicine/mimic/build_probe_csvs.py` — `int(lbl)` was destroying float regression labels (creatinine 0.7→0, troponin 0.01→0)
+- Fixed: auto-detect regression vs classification, Z-score normalize regression labels, save `zscore_params.json`
+- All 23 MIMIC CSVs rebuilt with correct labels
+
+**Phase 1 run scripts built:**
+- `scripts/run_uhn_probe.sh` — Generic single-task probe runner for any UHN task
+  - Auto-detects: task_type (regression/classification), num_classes, target_mean/std, view filtering (train_vf.csv vs train.csv), study_sampling (false for trajectory_* tasks)
+  - Runs 5 models sequentially: echojepa-g, echojepa-l, echomae, echoprime, panecho
+  - HP grid: 5 LRs × 4 WDs = 20 heads, 20 epochs, d=1 attentive probe
+  - Supports `--models` and `--epochs` overrides
+- `scripts/run_phase1.sh` — Phase 1 orchestrator: 18 tasks organized by group (rv, hemodynamics, standard, disease)
+  - Supports `--group` to run subsets and `--models` for model subsets
+  - Usage: `nohup bash scripts/run_phase1.sh 2>&1 | tee logs/phase1_*.log &`
+
+---
+
+## 2026-03-11 (Session 16)
+
+### View-Filtered Training Pipeline and Val Sampler Fix
+
+**Val loader fix:** `study_sampling` was only passed to the train loader in `eval.py`. Val iterated all 815K clips/epoch instead of 13K. Fixed by adding `study_sampling=study_sampling` to the val `make_dataloader()` call and `val_sampler.set_epoch(epoch)` in the epoch loop.
+
+**View-filtered training (Decision 03 resolved):** For view-specific tasks, pre-filter training CSVs to contain only task-relevant views. Eliminates wasted gradient steps on uninformative clips (81% non-A4C for TAPSE). DistributedStudySampler still picks 1 clip/study/epoch from the filtered set.
+
+**New files:**
+- `experiments/nature_medicine/uhn/build_viewfiltered_csvs.py` — General-purpose script to join all-clip CSVs with view/color classifier predictions and produce filtered CSVs. Defines `TASK_FILTERS` dict mapping each task to (allowed_views, bmode_only). Supports `--task`, `--all`, `--views`, `--bmode_only`, `--list`.
+- `experiments/nature_medicine/uhn/probe_csvs/{task}/train_vf.csv` — View-filtered training CSVs (5 RV tasks built)
+- `experiments/nature_medicine/uhn/probe_csvs/{task}/val_vf.csv` — View-filtered validation CSVs
+- `experiments/nature_medicine/uhn/probe_csvs/{task}/test_vf.csv` — View-filtered test CSVs
+- `experiments/nature_medicine/uhn/probe_csvs/{task}/viewfilter_meta.json` — Filter metadata (views, bmode flag, source predictions)
+
+**Modified files:**
+- `evals/video_classification_frozen/eval.py` — Added `study_sampling=study_sampling` to val make_dataloader; added `val_sampler.set_epoch(epoch)` in epoch loop
+- `scripts/run_uhn_tapse.sh` — Updated to use `train_vf.csv`/`val_vf.csv` (A4C-filtered) instead of unfiltered CSVs
+
+**View-filtered CSVs built (5 RV tasks):**
+
+| Task | Filter | Train clips | % kept | Studies kept |
+|------|--------|-------------|--------|--------------|
+| tapse | A4C | 281K | 18.4% | 25,337/25,737 |
+| rv_fac | A4C | 80K | 19.3% | 6,398/6,714 |
+| rv_sp | A4C+Subcostal | 392K | 26.2% | 24,852/25,174 |
+| rv_function | A4C+Subcostal+PLAX | 2.1M | 39.4% | 86,113/91,872 |
+| rv_size | A4C+Subcostal+PLAX+PSAX | 2.2M | 60.1% | 57,230/61,422 |
+
+**Decision docs updated:**
+- `decisions/03-training-sampling.md` — OPEN → DECIDED (view-filtered training for view-specific tasks)
+- `decisions/04-view-task-mapping.md` — OPEN → DECIDED (per-task filter definitions implemented)
+- `decisions/README.md` — Status updated
+
+**Run launched:** TAPSE 5-model d=1 attentive probe with A4C-filtered CSVs. Log: `logs/tapse_5model_vf_*.log`
+
+---
+
+## 2026-03-11 (Session 15)
+
+### DistributedStudySampler and MIMIC Probe CSV Pipeline
+
+Implemented per-epoch random clip selection for study-level tasks and built the MIMIC probe CSV pipeline for all 23 tasks.
+
+**New files:**
+- `src/datasets/study_sampler.py` — `DistributedStudySampler`: groups CSV rows by study_id, picks 1 random clip per study per epoch, distributes across ranks. Study ID extracted from MIMIC S3 paths via regex `/s(\d+)/\d+_\d+\.mp4`, with parent-directory fallback for UHN.
+- `experiments/nature_medicine/mimic/build_probe_csvs.py` — builds train/val/test CSVs for all 23 MIMIC tasks from `clip_index.npz` + `labels/*.npz` + `patient_split.json`. All splits contain ALL clips per study (sampler handles 1-per-study selection at training time).
+- `configs/eval/vitg-384/nature_medicine/echojepa_g_mortality_1yr.yaml` — first Nature Medicine probe config: EchoJEPA-G, d=1 attentive probe, 35 epochs, 20-HP grid, `study_sampling: true`.
+
+**Pipeline integration (4 files modified):**
+- `src/datasets/video_dataset.py` — added `study_sampling` param to `make_videodataset()`, uses `DistributedStudySampler` when True
+- `src/datasets/data_manager.py` — added `study_sampling` param to `init_data()`, passes through to `make_videodataset()`
+- `evals/video_classification_frozen/eval.py` — parses `study_sampling` from data config, applies only to training dataloader
+
+**MIMIC CSVs generated:** 23 tasks × 3 splits. All CSVs contain all clips per study (~72 clips/study average). Example: mortality_1yr train has 5,145 studies / 372,678 clips.
+
+**Old pipeline artifacts archived (not deleted):**
+- `experiments/nature_medicine/mimic/archived/` — 56 GB (master NPZs, study-level, splits, zips)
+- `experiments/nature_medicine/uhn/archived/` — 1.2 TB (embedding dirs, split dirs)
+
+**Documentation updated:** CLAUDE.md, probe-system.md, plus 13 other docs to mark old NPZ pipeline as superseded.
+
+---
+
 ## 2026-03-09 (Session 14)
 
 ### UHN Linear Probe Training — EchoJEPA-G and EchoJEPA-L

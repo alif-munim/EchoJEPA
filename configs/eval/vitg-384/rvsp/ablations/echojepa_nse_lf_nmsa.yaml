@@ -40,8 +40,6 @@ experiment:
     num_clips_per_video: 2   # Number of clips from each video 
     num_views_per_segment: 1 # one spatial crop (reduce stochasticity); for echo—spatial variation is low; temporal coverage more important
 
-    target_mean: 34.4650
-    target_std: 14.0130
 
   optimization:
     batch_size: 1

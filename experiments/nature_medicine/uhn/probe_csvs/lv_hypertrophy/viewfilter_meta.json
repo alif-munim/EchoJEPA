@@ -1,0 +1,12 @@
+{
+  "task": "lv_hypertrophy",
+  "allowed_views": [
+    "PLAX",
+    "A4C",
+    "PSAX-PM",
+    "PSAX-MV"
+  ],
+  "bmode_only": false,
+  "view_predictions": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/view_inference_18m/master_predictions.csv",
+  "color_predictions": null
+}

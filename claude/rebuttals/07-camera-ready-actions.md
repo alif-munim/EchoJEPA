@@ -12,7 +12,7 @@
 ### Weaknesses
 - VideoMAE configuration is a legitimate concern, partially mitigated by clustering evidence
 - Missing echo-specific MAE baselines (EchoCardMAE) is a gap
-- Attentive probe inflates view classification gaps ~2x for CNN baselines
+- ~~Attentive probe inflates view classification gaps ~2x for CNN baselines~~ **RESOLVED:** ICML inversion was an artifact (normalization bugs, identical HP grids). Verification shows d=1 attentive helps ALL models (+1.2 to +14.2pp). Strategy E (uniform d=1 attentive) adopted.
 - Documentation errors suggest rushed preparation
 - System-level comparisons conflate objective, scale, data, and dimensionality
 
@@ -28,7 +28,7 @@ Even discounting everything else, this single result is a meaningful contributio
 
 ### Must-do before camera-ready (highest impact, lowest effort)
 
-1. **Report linear probe results in main tables.** Eliminates the primary confound. ~1 day of compute (already done for Nature Medicine).
+1. **Use d=1 attentive probes as primary evaluation.** Verification experiment confirms d=1 attentive helps ALL models (+1.2 to +17.3pp). Report linear probes in Extended Data for transparency. Cite V-JEPA precedent and own verification.
 
 2. **Add PCA-512 baseline.** Project all embeddings to 512-d before linear probe. If EchoJEPA still wins, dimensionality confound is eliminated. ~1 hour.
 

@@ -1,0 +1,8 @@
+{
+  "task": "trajectory_lvef",
+  "allowed_views": [
+    "A4C",
+    "A2C"
+  ],
+  "bmode_only": false
+}

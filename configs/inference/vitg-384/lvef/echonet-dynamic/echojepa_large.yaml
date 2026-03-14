@@ -45,12 +45,8 @@ experiment:
     num_views_per_segment: 1  
 
     # EchoNet-Dynamic
-    target_mean: 55.7776
-    target_std: 12.4064
 
     # UHN
-    # target_mean: 57.06   # <--- NEW: LVEF Mean
-    # target_std: 11.33    # <--- NEW: LVEF Std
 
   optimization:
     batch_size: 4

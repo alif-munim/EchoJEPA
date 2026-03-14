@@ -109,18 +109,29 @@ class VideoMAEWrapper(nn.Module):
 
 
 def _import_modeling_finetune():
-    """Dynamically import modeling_finetune from the vendored VideoMAE directory."""
+    """Dynamically import modeling_finetune from the vendored VideoMAE directory.
+
+    Uses importlib to avoid polluting sys.path — inserting VideoMAE/ at the
+    front of sys.path shadows vjepa2's own src/datasets/video_dataset (which
+    has study_sampling support) with VideoMAE's copy (which does not).
+    """
     this_dir = os.path.dirname(os.path.abspath(__file__))
     videomae_dir = os.path.join(this_dir, "VideoMAE")
-    
+
     if not os.path.isdir(videomae_dir):
         raise ImportError(f"VideoMAE directory not found at {videomae_dir}")
-    
-    if videomae_dir not in sys.path:
-        sys.path.insert(0, videomae_dir)
-        logger.info(f"Added {videomae_dir} to sys.path")
-    
-    import modeling_finetune
+
+    mod_path = os.path.join(videomae_dir, "modeling_finetune.py")
+    if not os.path.isfile(mod_path):
+        raise ImportError(f"modeling_finetune.py not found at {mod_path}")
+
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("modeling_finetune", mod_path)
+    modeling_finetune = importlib.util.module_from_spec(spec)
+    sys.modules["modeling_finetune"] = modeling_finetune
+    spec.loader.exec_module(modeling_finetune)
+    logger.info(f"Loaded modeling_finetune from {mod_path}")
     return modeling_finetune
 
 

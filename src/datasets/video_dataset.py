@@ -68,6 +68,7 @@ def make_videodataset(
     persistent_workers=True,
     deterministic=True,
     log_dir=None,
+    study_sampling=False,
 ):
     dataset = VideoDataset(
         data_paths=data_paths,
@@ -99,7 +100,13 @@ def make_videodataset(
         )
 
     logger.info("VideoDataset dataset created")
-    if datasets_weights is not None:
+    if study_sampling:
+        from src.datasets.study_sampler import DistributedStudySampler
+
+        dist_sampler = DistributedStudySampler(dataset, num_replicas=world_size, rank=rank)
+        logger.info(f"Using DistributedStudySampler: {dist_sampler.num_studies} studies, "
+                     f"{len(dataset)} total clips, 1 clip/study/epoch")
+    elif datasets_weights is not None:
         dist_sampler = DistributedWeightedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True)
     else:
         dist_sampler = torch.utils.data.distributed.DistributedSampler(

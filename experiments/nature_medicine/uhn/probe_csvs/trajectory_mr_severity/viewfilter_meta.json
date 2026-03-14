@@ -1,0 +1,10 @@
+{
+  "task": "trajectory_mr_severity",
+  "allowed_views": [
+    "A4C",
+    "A2C",
+    "A3C",
+    "PLAX"
+  ],
+  "bmode_only": false
+}

@@ -1,21 +1,25 @@
 # Roadmap
 
-Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-10.
+Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-13.
 
 Source of truth for paper scope and task priorities: `uhn_echo/nature_medicine/context_files/nature_medicine_task_overview.md`. Detailed specs in `planning/tasks/`. Per-person assignments in `roles/`. This file is the cross-cutting infrastructure and experiment summary.
 
 ## Paper Framing (from task overview)
 
 The core novelty is organized around **Wendy's three pillars**:
-1. **RV mechanics** — learned functional organization (TAPSE, S', FAC, RV function grade, RV size)
-2. **Hemodynamics** — structure predicts flow (MR/AS/TR severity from structural views only, AV gradients). Nobody has done this with frozen self-supervised representations.
+1. **RV mechanics** — learned functional organization (TAPSE, S', FAC, RV basal dimension, RV function grade, RV size)
+2. **Hemodynamics** — structure predicts flow (MR/AS/TR severity from B-mode only, AV gradients, E/e' from structural views). Nobody has done this with frozen self-supervised representations.
 3. **Forecasting** — trajectory prediction (future LVEF, TAPSE, LV mass, MR severity from 93K pairs)
 
 Standard benchmarks are brief (one paragraph + Extended Data). Disease detection is supporting evidence, not headline. SAE interpretability and core lab evaluation are Strong Additions / deferred to revision.
 
+**5 models** (updated 2026-03-13): EchoJEPA-G, EchoJEPA-L, EchoJEPA-L-K, EchoPrime, PanEcho. EchoMAE dropped (undertrained checkpoint). ICML preprint carries JEPA-vs-MAE comparison.
+
 ---
 
 ## MIMIC Embeddings — COMPLETE
+
+> **Historic (old NPZ pipeline).** MIMIC probes are being re-run with Strategy E (d=1 attentive probes from video). See Phase 2 below.
 
 All 7 models extracted, study-level pooled, and split into train/val/test for 23 tasks.
 
@@ -31,9 +35,13 @@ All 7 models extracted, study-level pooled, and split into train/val/test for 23
 
 ## MIMIC Probe Training — COMPLETE
 
+> **Historic (old NPZ pipeline).** MIMIC probes are being re-run with Strategy E (d=1 attentive probes from video). See Phase 2 below.
+
 161/161 probe jobs done (7 models x 23 tasks). Results in `results/probes/nature_medicine/mimic/`. UHN linear probes also complete for EchoJEPA-G (26 classification + 21 regression + 5 trajectory) and EchoJEPA-L.
 
 ## UHN Embeddings — In Progress
+
+> **Historic (old NPZ pipeline).** UHN evaluation now uses d=1 attentive probes from video (no NPZ extraction needed). Extraction status is retained for reference.
 
 ### Extraction Status
 
@@ -55,19 +63,43 @@ Built `evals/regenerate_uhn_downstream.py`. Generated splits for G and L (53 tas
 
 ## Blocking Work — Priority Order
 
-1. **Resume EchoJEPA-L-K UHN extraction** (~8-9h GPU)
-   - Script supports auto-resume: just re-run same command
-   - Then pool to study-level
+1. **Run Phase 1 UHN probes** (16 remaining tasks x 5 models = 80 runs)
+   - TAPSE + LVEF complete (5/5 models each). All 8 GPUs now free.
+   - Run scripts built: `scripts/run_uhn_probe.sh` (generic) + `scripts/run_phase1.sh` (orchestrator)
+   - Can run 2 tasks concurrently: `DEVICES="cuda:0..3" MASTER_PORT=29500` + `DEVICES="cuda:4..7" MASTER_PORT=29501`
 
-2. ~~**Build UHN per-task split pipeline**~~ — **DONE**
+2. **Ship code + checkpoints to Goodfire** — repo with Claude docs, clean CSVs, L/L-K/EchoMAE checkpoints, G NPZ embeddings
 
-3. **EchoMAE-L UHN extraction** (~19h GPU) — **IN PROGRESS**
-   - Config: `configs/inference/vitl/extract_uhn_echomae.yaml`
-   - 8×A100, bs=64, w=12. Log: `logs/echomae_uhn_extraction.log`
+3. **Add B-mode-only view filters** — `bmode_only=True` for E/e', RVSP, E/A in `build_viewfiltered_csvs.py`. Required for Pillar 2 (structure predicts flow).
 
-4. **Random Init UHN extraction** (~10-12h GPU)
-   - Need config for untrained ViT-L
-   - Baseline column (every table)
+4. **Implement study-level prediction aggregation** in eval.py
+   - Needed for study-level test metrics
+   - Current val uses per-clip metrics (adequate for HP search)
+
+5. **Implement Bland-Altman analysis** in eval post-processing (Wendy: MAE alone insufficient for Nature Medicine)
+
+6. **Email Joe for Chicago demographics** (age, sex, race/ethnicity) — blocking for cross-site fairness
+
+7. **Build Phase 2 run scripts** (trajectory + MIMIC)
+
+## View-Filtered Training Pipeline — DONE (2026-03-11)
+
+All-clip CSVs built for 47 tasks. View-filtered CSVs built for 41 tasks (6 unfiltered). Trajectory CSVs built for 5 tasks.
+
+**Script:** `experiments/nature_medicine/uhn/build_viewfiltered_csvs.py`
+**Output:** `experiments/nature_medicine/uhn/probe_csvs/{task}/train_vf.csv`, `val_vf.csv`, `test_vf.csv`
+**Lookup data:** `classifier/output/view_inference_18m/master_predictions.csv` (view) + `color_inference_18m/master_predictions.csv` (B-mode/Doppler)
+**Run scripts:** `scripts/run_uhn_probe.sh` (generic single-task) + `scripts/run_phase1.sh` (Phase 1 orchestrator). Auto-detects task type, view filtering, study_sampling from CSV directory contents.
+
+| Task | Filter | Train clips kept | Studies kept |
+|------|--------|-----------------|--------------|
+| tapse | A4C | 281K (18.4%) | 25,337 / 25,737 (98.4%) |
+| rv_fac | A4C | 80K (19.3%) | 6,398 / 6,714 (95.3%) |
+| rv_sp | A4C+Subcostal | 392K (26.2%) | 24,852 / 25,174 (98.7%) |
+| rv_function | A4C+Subcostal+PLAX | 2.1M (39.4%) | 86,113 / 91,872 (93.7%) |
+| rv_size | A4C+Subcostal+PLAX+PSAX | 2.2M (60.1%) | 57,230 / 61,422 (93.2%) |
+
+**Run in progress:** TAPSE 5-model d=1 attentive probe with A4C-filtered CSVs. Log: `logs/tapse_5model_vf_*.log`
 
 ---
 
@@ -77,30 +109,39 @@ Built `evals/regenerate_uhn_downstream.py`. Generated splits for G and L (53 tas
 
 | Task | Owner | Status | Blocks |
 |------|-------|--------|--------|
-| UHN L-K extraction (resume) | Alif | ~17% done | L-K in all UHN tables |
-| UHN EchoMAE-L extraction | Alif | IN PROGRESS | JEPA-vs-MAE comparison |
-| UHN Random Init extraction | Alif | TODO | Baseline column (every table) |
-| UHN per-task split pipeline | Alif | **DONE** | All UHN probing |
-| MIMIC embeddings (7 models) | Alif | **DONE** | All MIMIC experiments |
-| MIMIC probe training (161 jobs) | Alif | **DONE** | Sections 2.3-2.4 |
+| Training/test CSVs (UHN + MIMIC) | Alif | **DONE** (47 UHN + 23 MIMIC + 5 trajectory) | All probe training |
+| View-filtered CSVs | Alif | **DONE** (41 UHN tasks) | View-specific probes |
+| B-mode-only view filters (hemodynamic tasks) | Alif | **TODO** | Pillar 2 probes |
+| Run scripts for Phase 1-3 | Alif | **DONE** (Phase 1 built, Phase 2-3 TODO) | Batch execution |
+| d=1 attentive probe training (UHN: 47×5) | Alif | **IN PROGRESS** (TAPSE+LVEF done, 16 tasks remaining) | UHN results tables |
+| d=1 attentive probe training (MIMIC: 23×5) | Alif | TODO | MIMIC results tables |
+| Bland-Altman post-processing | Alif | **TODO** | All regression reporting |
+| Study-level prediction aggregation | Alif | **TODO** | Study-level metrics |
+| MIMIC embeddings (7 models) | Alif | **DONE** (historic NPZ pipeline) | SAE, legacy comparison |
+| Ship checkpoints to Goodfire | Alif | **TODO** | Frame shuffling, SAE experiments |
 
 ### Core Experiments (Wendy's Pillars)
 
 | Task | Owner | Status | Section |
 |------|-------|--------|---------|
-| Hemodynamics: MR/AS/TR severity from structural views | Alif | TODO | 2a (core novelty) |
-| RV mechanics: TAPSE, S', FAC, RV function grade | Alif | TODO | 2b (core novelty) |
-| Standard benchmarks: LVEF, RVSP, LV mass, IVSd, view, RWMA | Alif | TODO | 2.1 (brief) |
-| Trajectory prediction: 93K pairs, 5 parameters | Alif | TODO | 3a (core novelty) |
-| MIMIC outcomes: mortality, biomarkers, baselines | CY | Results available | 2e, 2f |
+| Standard benchmarks: LVEF, RVSP, LV mass, IVSd, RWMA | Alif | **LVEF done**. RVSP, LV mass, IVSd in Phase 1 queue. | 2.1 (brief) |
+| RV mechanics: TAPSE, S', FAC, RV function grade, RV basal dim | Alif | **TAPSE done**. Others in Phase 1 queue. | Pillar 1 (core novelty) |
+| Hemodynamics: MR/AS/TR severity from B-mode only, E/e' | Alif | TODO (needs B-mode filters first) | Pillar 2 (core novelty) |
+| Trajectory prediction: 93K pairs, 5 parameters | Alif | TODO (Phase 2) | Pillar 3 (core novelty) |
+| MIMIC outcomes (sklearn, EchoJEPA-G) | CY | **DONE** — H3.1 passed. Ensemble AUC: 30d 0.912, 1yr 0.846. Echo ≈ EHR for mortality. ICU transfer 0.570 (deprioritize). | 2e |
+| MIMIC EHR-only baseline (XGBoost + TabPFN) | CY | **DONE** — 54 features. Mortality AUC 0.856-0.959. TabPFN strongest. | 2e |
+| Combined model (echo + EHR) | CY | **TODO** — key claim: does echo add to EHR? | 2e |
+| Acuity conditioning (H_confound) | CY | **TODO** — likelihood ratio test | 2e |
 | MIMIC fairness: discrimination parity, calibration equity | CY | TODO | Fairness |
-| JEPA vs MAE complexity gradient (H2.3) | CY | TODO | Ablations (narrative-breaking) |
+| Frame shuffling (motion-dependence proof) | Goodfire | TODO (blocked on checkpoint delivery) | Interpretability |
 
-### Verification (In Progress)
+**MVP progress:** All CSVs and run scripts built. TAPSE + LVEF complete (5 models each). CY's MIMIC outcome probes + EHR baseline done (H3.1 passed, mortality AUC 0.846-0.912). Adib: attention map infra done, SAE training in progress. Reza: MIMIC t-SNE complete (23 tasks x 7 models), UMAP regeneration + UHN main figure needed. Remaining: 16 Phase 1 UHN tasks, B-mode filters, prediction aggregation, Bland-Altman, combined model, acuity conditioning, Phase 2.
+
+### Verification
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Attentive probe verification (11 runs) | Run 8/11 | `scripts/overnight_run.sh`, log: `logs/overnight_node1_20260310_044409.log` |
+| d=1 attentive probe verification (4 models) | **DONE** | G +1.2pp, L +17.3pp, EchoPrime +9.3pp, PanEcho +7.1pp. EchoMAE dropped. |
 
 ---
 
@@ -108,19 +149,19 @@ Built `evals/regenerate_uhn_downstream.py`. Generated splits for G and L (53 tas
 
 | Task | Owner | Status | Section |
 |------|-------|--------|---------|
+| **Frame shuffling motion-dependence test** | **Goodfire** | **TODO** (blocked on checkpoint delivery) | Interpretability |
+| SAE training + basic analysis (proxy classifiers, retention curves) | Adib/Goodfire | **IN PROGRESS** (training started, GPU broke, restarting) | Interpretability |
+| Attention map visualization (supplementary) | Adib | **Infra DONE** (hooks for ViT-G + EchoPrime). Head specialization + temporal consistency findings. | Extended Data |
 | Prosthetic valve detection (NPZs need building) | Alif | TODO | 2c |
-| SAE training + basic analysis (proxy classifiers, retention curves) | Adib/Faraz | TODO | Interpretability |
 | Core lab infrastructure + pilot | Ali | TODO | Human eval |
 | Fine-tuned ViT-L baseline (DeLong vs frozen G) | Adib | TODO | Baselines |
 | Disease detection: HCM, amyloidosis, takotsubo, endocarditis | Reza | TODO | 2d (supporting) |
-| Clustering / UMAP visualizations | Reza | TODO | 2d (supporting) |
+| Representation visualization (UMAP + k-NN + spatial info gap) | Reza/Alif | **t-SNE DONE** (23 tasks x 7 models on MIMIC). Need UMAP regen + UHN main figure. | Figure X (main) |
 | Troponin 48h biomarker labels | CY | TODO | 2f |
 | Trajectory pair analysis | CY/Alif | TODO | 3a |
 | EF baseline matrix (echo measurement ensemble) | CY | TODO | 2e |
 | E/e', cardiac output, cardiac rhythm | Alif | TODO | 2.1 Extended Data |
 | Forward prediction (JEPA predictor, first N frames) | Alif | TODO | 3b |
-| AV Vmax, mean gradient | Alif | TODO | 2a |
-| RV size | Alif | TODO | 2b |
 
 ---
 
@@ -159,18 +200,23 @@ See `nature_medicine_task_overview.md` for full analysis. Clinician validation (
 - [x] P1: Clip index (`uhn_clip_index.npz`, 18.1M clips)
 - [x] P2: Patient splits (`patient_split.json`, 138K patients, 70/10/20 temporal)
 - [x] P3: Label NPZs (53 tasks: 20 regression + 17 classification + 9 rare disease + 6 trajectory + 1 RWMA)
-- [x] P4a: EchoJEPA-G embeddings (319,815 studies, 1408-dim)
-- [x] P4b: EchoJEPA-L embeddings (319,802 studies, 1024-dim)
-- [x] P4c: EchoJEPA-L-K extraction started (17% complete, chunk-based resume available)
+- [x] P4a: EchoJEPA-G embeddings (319,815 studies, 1408-dim) [historic NPZ pipeline]
+- [x] P4b: EchoJEPA-L embeddings (319,802 studies, 1024-dim) [historic NPZ pipeline]
+- [x] P4c: EchoJEPA-L-K extraction started (17% complete, chunk-based resume available) [historic NPZ pipeline]
+- [x] P5a: UHN all-clip probe CSVs (47 tasks)
+- [x] P5b: UHN view-filtered probe CSVs (41 tasks)
+- [x] P5c: UHN trajectory CSVs (5 tasks)
+- [x] P5d: Run scripts built (Phase 1: 18 tasks x 5 models)
 - [x] Label cleaning (physiological range filters, 1,582 rows dropped)
 - [x] Rare disease confound audit (hard negative controls verified)
-- [x] UHN linear probes: EchoJEPA-G (mean AUC 0.874, mean R² 0.625) and EchoJEPA-L (failed — embedding collapse on UHN)
+- [x] UHN linear probes: EchoJEPA-G (mean AUC 0.874, mean R² 0.625) and EchoJEPA-L (failed — embedding collapse on UHN) [historic NPZ pipeline]
 
 ### MIMIC Pipeline
 - [x] 23 label CSVs (mortality, diseases, biomarkers, outcomes)
-- [x] 7 model clip-level extractions (all correct)
-- [x] 7 model study-level pooling + 23 task splits
-- [x] Probe training: 161/161 jobs complete
+- [x] MIMIC probe CSVs rebuilt with Z-scored regression (23 tasks)
+- [x] 7 model clip-level extractions (all correct) [historic NPZ pipeline]
+- [x] 7 model study-level pooling + 23 task splits [historic NPZ pipeline]
+- [x] Probe training: 161/161 jobs complete [historic NPZ pipeline]
 - [x] Shared infrastructure (clip_index, patient_split, labels/)
 - [x] Charlson/Elixhauser comorbidity scores (7,243 studies)
 - [x] Demographics/fairness CSV (sex, race, age, insurance)

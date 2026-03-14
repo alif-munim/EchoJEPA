@@ -8,7 +8,7 @@ EchoJEPA — a latent predictive foundation model for echocardiography built on 
 
 ### Nature Medicine Manuscript
 
-The active research objective is a **Nature Medicine paper** demonstrating that EchoJEPA's frozen representations encode clinical information far beyond standard echocardiographic measurements. The paper establishes capabilities not previously shown from frozen echo representations: rare disease detection, clinical outcome/biomarker prediction, latent forward prediction, SAE interpretability, and fairness analysis. All downstream tasks use **frozen linear probes** (no fine-tuning) on mean-pooled study-level embeddings. The companion ICML preprint covers the method and standard benchmarks; Nature Medicine covers novel clinical findings. Datasets: UHN (18M echos, pretraining), MIMIC-IV-Echo linked to MIMIC-IV clinical data (outcomes, labs, ICD codes, notes).
+The active research objective is a **Nature Medicine paper** demonstrating that EchoJEPA's frozen representations encode clinical information far beyond standard echocardiographic measurements. The paper establishes capabilities not previously shown from frozen echo representations: rare disease detection, clinical outcome/biomarker prediction, latent forward prediction, SAE interpretability, and fairness analysis. All downstream tasks use **frozen depth=1 attentive probes** (no fine-tuning) run from video through frozen encoders, with **prediction averaging** across clips per study (Strategy E, adopted 2026-03-11). The companion ICML preprint covers the method and standard benchmarks; Nature Medicine covers novel clinical findings. Datasets: UHN (18M echos, pretraining), MIMIC-IV-Echo linked to MIMIC-IV clinical data (outcomes, labs, ICD codes, notes).
 
 ### Reference Documentation (`claude/`)
 
@@ -48,27 +48,14 @@ python -m app.main --fname configs/train/vitl16/pretrain-mimic-224px-16f.yaml --
 python -m app.main_distributed --fname configs/train/vitl16/pretrain-mimic-224px-16f.yaml  # SLURM
 ```
 
-### Probe Evaluation
+### Probe Evaluation (Primary — d=1 attentive probes from video, Strategy E)
 ```bash
-python -m evals.main --fname configs/eval/vitg-384/lvef/enp_echojepa_lvef.yaml --devices cuda:0 cuda:1
+# Nature Medicine primary evaluation: d=1 attentive probe + prediction averaging
+python -m evals.main --fname configs/eval/vitg-384/view/verification/verify-echojepa-g-d1.yaml --devices cuda:0 cuda:1
 python -m evals.main --fname configs/inference/vitl/lvef.yaml --devices cuda:0 --val_only  # inference only
 ```
 
-### Embedding Extraction
-```bash
-python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echojepa_224px.yaml \
-    --data /path/to/test.csv --output experiments/out.npz --devices cuda:0 cuda:1
-```
-
-### Probe Training on Embeddings (sklearn, no GPU)
-```bash
-python -m evals.train_probe \
-    --train experiments/nature_medicine/mimic/echojepa_g_splits/mortality_1yr/train.npz \
-    --val experiments/nature_medicine/mimic/echojepa_g_splits/mortality_1yr/test.npz \
-    --task classification --output_dir results/probes/nature_medicine/mortality_1yr
-```
-
-See `README.md` Quickstart and MIMIC sections for full examples (k-fold, label-only NPZs, model comparison, hyperparameter tuning).
+See `README.md` Quickstart sections for full examples.
 
 ## Code Style
 
@@ -89,7 +76,7 @@ The `app_name` / `eval_name` comes from the YAML config (`app:` or `eval_name:` 
 ### Core Library (`src/`)
 
 - **`src/models/`**: VisionTransformer encoder (ViT-T through ViT-g with RoPE, SDPA, activation checkpointing), VisionTransformerPredictor (latent target prediction), AttentivePooler/Classifier/Regressor (cross-attention probe heads), LinearPooler variants
-- **`src/datasets/`**: `VideoDataset` (single-view, decord-based, S3+local), `VideoGroupDataset` (multi-view studies), `data_manager.init_data()` factory
+- **`src/datasets/`**: `VideoDataset` (single-view, decord-based, S3+local), `VideoGroupDataset` (multi-view studies), `data_manager.init_data()` factory, `DistributedStudySampler` (1 random clip per study per epoch for study-level tasks)
 - **`src/masks/`**: `MaskCollator` for spatio-temporal block masking (context + target masks)
 - **`src/utils/`**: distributed init (NCCL, supports both local multi-GPU and SLURM/submitit), LR schedulers (WarmupCosine, WSD), checkpoint loading with retry logic
 
@@ -106,21 +93,20 @@ Encoder processes visible (context) tokens; predictor takes encoder output + mas
 ### Probe Types
 
 Three probe architectures in `src/models/`. Set via `experiment.classifier.probe_type` in YAML config:
-- **`attentive`** (default) — learned cross-attention pooling + self-attention blocks. Used in ICML paper. Nature Medicine: ceiling analysis for EchoJEPA/EchoMAE (pre-specified sensitivity). Config: `num_heads`, `num_probe_blocks`
-- **`linear`** — mean-pool + LayerNorm + single linear layer. Nature Medicine: primary cross-model comparison for all models. Config: `use_layernorm`, `dropout`
+- **`attentive`** (default) — learned cross-attention pooling + self-attention blocks. **Nature Medicine primary (Strategy E): depth=1 (`num_probe_blocks: 1`) for all models.** At depth=1, only cross-attention (no SA blocks), which is fair for both 1568-token and 1-token models. Config: `num_heads`, `num_probe_blocks`. Verification configs: `configs/eval/vitg-384/view/verification/`
+- **`linear`** — mean-pool + LayerNorm + single linear layer. Config: `use_layernorm`, `dropout`
 - **`mlp`** — mean-pool + LayerNorm + 2-layer MLP. Middle ground
 
 See `claude/architecture/probe-system.md` for full details including attentive-vs-linear comparison and hyperparameter guidance.
 
-### Embedding Pipeline (`evals/`)
+### Legacy Embedding Pipeline (`evals/`) — SUPERSEDED
 
-Scripts for the MIMIC multi-model embedding pipeline (see `claude/data/embedding-pipeline.md`):
-- `evals/extract_embeddings.py` — multi-GPU clip-level extraction from frozen encoder → master NPZ
-- `evals/remap_embeddings.py` — create per-task label NPZs referencing master by row index (avoids duplicating embeddings)
-- `evals/pool_embeddings.py` — mean-pool clip embeddings to study-level using `clip_index.npz`
-- `evals/train_probe.py` — sklearn linear probes on embeddings; supports `--labels` for label-only NPZs and `--train`/`--val` for precomputed splits
+The NPZ-based embedding pipeline (extract → mean-pool → sklearn) has been superseded by Strategy E (d=1 attentive probes from video + prediction averaging). These scripts remain in the codebase but are no longer used for the Nature Medicine evaluation:
 
-All models share the same `clip_index.npz`, `patient_split.json`, and `labels/` directory. Per-model outputs use the naming convention `{model}_study_level/` and `{model}_splits/`.
+- `evals/extract_embeddings.py` — clip-level extraction → master NPZ
+- `evals/remap_embeddings.py` — per-task label NPZs
+- `evals/pool_embeddings.py` — mean-pool clip → study-level
+- `evals/train_probe.py` — sklearn linear probes on NPZ embeddings
 
 ### Config System
 
@@ -128,6 +114,17 @@ All experiments driven by YAML configs in `configs/`. Each subdirectory has a RE
 - `configs/train/` — pretraining and cooldown, by model size (vitl16, vith16, vitg16). Naming: `{phase}-{dataset}-{resolution}-{frames}.yaml`
 - `configs/eval/` — probe training, by model (vitg-384, vitl) and task (lvef, rvsp, view, color, quality, zoom, tapse). `old/` contains archived configs. `multihead_kwargs` list trains multiple probes in parallel with different hyperparameters.
 - `configs/inference/` — inference-only configs (set `val_only: true`, require `probe_checkpoint`). Specialized subdirs: `depth_attenuation/`, `echonet-dynamic/`, `echonet-pediatric/`
+
+### Study-Level Evaluation (Nature Medicine)
+
+For study-level tasks (MIMIC clinical outcomes), CSVs contain ALL clips per study. The `study_sampling: true` config flag activates `DistributedStudySampler` (`src/datasets/study_sampler.py`), which:
+1. Groups CSV rows by study_id (extracted from S3 path via regex)
+2. Each epoch, selects 1 random clip per study (cross-view augmentation)
+3. Distributes across ranks (drop-in replacement for `DistributedSampler`)
+
+At validation/test time, all clips are scored independently and predictions are averaged per study.
+
+Config: `configs/eval/vitg-384/nature_medicine/`. CSV builder: `experiments/nature_medicine/mimic/build_probe_csvs.py`.
 
 ### Dataset CSV Formats
 

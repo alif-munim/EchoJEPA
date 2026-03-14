@@ -1,0 +1,11 @@
+{
+  "task": "aov_area",
+  "allowed_views": [
+    "PLAX",
+    "A3C",
+    "PSAX-AV"
+  ],
+  "bmode_only": true,
+  "view_predictions": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/view_inference_18m/master_predictions.csv",
+  "color_predictions": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/color_inference_18m/master_predictions.csv"
+}

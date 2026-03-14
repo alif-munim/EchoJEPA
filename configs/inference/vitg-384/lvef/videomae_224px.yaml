@@ -37,8 +37,6 @@ experiment:
     num_segments: 2
     num_views_per_segment: 1
 
-    target_mean: 57.0569
-    target_std: 11.3252
 
   optimization:
     batch_size: 4

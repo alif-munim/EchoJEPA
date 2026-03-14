@@ -202,9 +202,18 @@ def main(args_eval, resume_preempt=False):
     clips_per_view = args_classifier.get("clips_per_view", args_data.get("num_clips_per_video", 1))
 
     
-    # --- NEW: Get Mean/Std from config ---
+    # -- REGRESSION NORMALIZATION: auto-load from zscore_params.json if not in config
     target_mean = args_data.get("target_mean", None)
     target_std = args_data.get("target_std", None)
+    if task_type == "regression" and target_mean is None and target_std is None:
+        import json as _json
+        zscore_path = os.path.join(os.path.dirname(train_data_path[0]), "zscore_params.json")
+        if os.path.exists(zscore_path):
+            with open(zscore_path) as _f:
+                _params = _json.load(_f)
+            target_mean = _params["target_mean"]
+            target_std = _params["target_std"]
+            logger.info("Loaded zscore params from %s: mean=%.4f, std=%.4f", zscore_path, target_mean, target_std)
 
     # -- OPTIMIZATION
     args_opt = args_exp.get("optimization")

@@ -43,7 +43,8 @@ def init_distributed(port=37129, rank_and_world_size=(None, None)):
             return world_size, rank
 
     try:
-        os.environ["MASTER_PORT"] = str(port)
+        if "MASTER_PORT" not in os.environ:
+            os.environ["MASTER_PORT"] = str(port)
         torch.distributed.init_process_group(backend="nccl", 
                                              world_size=world_size, 
                                              rank=rank,

@@ -46,8 +46,6 @@ experiment:
     # We omit the normalization block here to match training behavior.
 
     # Regression Un-normalization stats (LVEF)
-    target_mean: 57.06
-    target_std: 11.33
 
   optimization:
     # Increase batch size for inference

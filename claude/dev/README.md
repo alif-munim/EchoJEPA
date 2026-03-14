@@ -28,3 +28,4 @@ Development log for the EchoJEPA project: bug tracker, changelog, operational gu
 | [changelog.md](changelog.md) | Chronological record of code changes, fixes, and extraction runs |
 | [ops.md](ops.md) | Operational guide: UHN 18M extraction (launch commands, performance tuning, S3 bottleneck, crash recovery, timing) |
 | [code-review.md](code-review.md) | Full-repo code review findings: encoder adapters, extraction scripts, pooling, probes, eval scaffold |
+| [efficiency.md](efficiency.md) | Probe training efficiency: HP grid analysis (per-head TAPSE/LVEF results), narrowing from 20→12 heads, other speedup options |

@@ -38,8 +38,6 @@ experiment:
     miss_augment_prob: 0.10   # prob to flip a PRESENT view to MISS at train time
     min_present: 1            # keep at least this many views per study during augmentation
 
-    target_mean: 34.4650
-    target_std: 14.0130
 
   optimization:
     batch_size: 1

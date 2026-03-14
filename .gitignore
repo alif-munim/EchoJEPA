@@ -85,3 +85,6 @@ classifier/*.png
 classifier/convnext_training_old.py
 classifier/split_summary.txt
 classifier/split_summary.txt
+
+refs/
+assets/reza/

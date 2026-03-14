@@ -38,12 +38,8 @@ experiment:
     num_views_per_segment: 1
 
     # dynamic
-    # target_mean: 55.7776
-    # target_std: 12.4064
 
     # pediatric
-    target_mean: 61.0272
-    target_std: 10.4406
 
   optimization:
     batch_size: 4

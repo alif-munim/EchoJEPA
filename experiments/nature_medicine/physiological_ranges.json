@@ -1,0 +1,38 @@
+{
+    "_comment": "Plausible physiological ranges for regression tasks. Studies outside these ranges are dropped during CSV generation. Ranges are intentionally generous to preserve real pathological values while excluding obvious measurement errors.",
+
+    "ao_root":       {"min": 1.0,   "max": 6.0,   "unit": "cm",     "note": "Aortic root diameter. Normal 2.0-3.7, aneurysm up to 6+"},
+    "aov_area":      {"min": 0.1,   "max": 6.0,   "unit": "cm²",    "note": "Aortic valve area. Critical AS <0.6, normal 3-4"},
+    "aov_mean_grad": {"min": 0.0,   "max": 100.0, "unit": "mmHg",   "note": "AV mean gradient. Normal <10, critical AS 60-80+"},
+    "aov_vmax":      {"min": 0.3,   "max": 7.0,   "unit": "m/s",    "note": "AV peak velocity. Normal <2.0, critical AS >5.0"},
+    "cardiac_output":{"min": 0.5,   "max": 20.0,  "unit": "L/min",  "note": "Cardiac output. Low output <3, hyperdynamic >10"},
+    "edv":           {"min": 10.0,  "max": 600.0, "unit": "mL",     "note": "End-diastolic volume. Normal 100-150, severe DCM 400+"},
+    "esv":           {"min": 3.0,   "max": 500.0, "unit": "mL",     "note": "End-systolic volume. Normal 30-60, severe DCM 300+"},
+    "gls":           {"min": -35.0, "max": 0.0,   "unit": "%",      "note": "Global longitudinal strain. Normal -18 to -22, always negative"},
+    "ivsd":          {"min": 0.3,   "max": 4.0,   "unit": "cm",     "note": "IVS diastolic thickness. Normal 0.6-1.1, severe HCM 2-3+"},
+    "la_vol":        {"min": 5.0,   "max": 350.0, "unit": "mL",     "note": "Left atrial volume. Normal 16-52, severely dilated 100+"},
+    "lv_mass":       {"min": 20.0,  "max": 900.0, "unit": "g",      "note": "LV mass. Normal 70-200, severe LVH 400+"},
+    "lvef":          {"min": 5.0,   "max": 90.0,  "unit": "%",      "note": "LV ejection fraction. Physiological range 5-85%"},
+    "lvot_vti":      {"min": 0.02,  "max": 0.50,  "unit": "m",      "note": "LVOT VTI. Normal 0.18-0.22m, low-output <0.10"},
+    "mv_dt":         {"min": 40.0,  "max": 600.0, "unit": "ms",     "note": "MV deceleration time. Restrictive <120, impaired >220"},
+    "mv_ea":         {"min": 0.1,   "max": 8.0,   "unit": "ratio",  "note": "Mitral E/A ratio. Normal 0.8-2.0"},
+    "mv_ee":         {"min": 1.0,   "max": 40.0,  "unit": "ratio",  "note": "Mitral E/e' lateral. Normal <8, elevated >14"},
+    "mv_ee_medial":  {"min": 1.0,   "max": 40.0,  "unit": "ratio",  "note": "Mitral E/e' medial. Normal <8, elevated >15"},
+    "rv_fac":        {"min": 3.0,   "max": 75.0,  "unit": "%",      "note": "RV fractional area change. Normal >35%"},
+    "rv_sp":         {"min": 0.02,  "max": 0.30,  "unit": "m/s",    "note": "RV S' tissue Doppler. Normal 0.10-0.15 m/s"},
+    "rvsp":          {"min": 5.0,   "max": 130.0, "unit": "mmHg",   "note": "RV systolic pressure. Normal <35, severe PH >60"},
+    "tapse":         {"min": 0.5,   "max": 3.5,   "unit": "cm",     "note": "TAPSE. Normal 1.7-2.4, abnormal <1.7"},
+
+    "trajectory_lvef":         {"min": -50.0, "max": 50.0,  "unit": "% change",  "note": "LVEF delta"},
+    "trajectory_tapse":        {"min": -3.0,  "max": 3.0,   "unit": "cm change", "note": "TAPSE delta"},
+    "trajectory_lv_mass":      {"min": -400.0,"max": 400.0, "unit": "g change",  "note": "LV mass delta"},
+    "trajectory_rv_sp":        {"min": -0.20, "max": 0.20,  "unit": "m/s change","note": "RV S' delta"},
+    "trajectory_mr_severity":  {"min": -4.0,  "max": 4.0,   "unit": "grade change", "note": "MR severity delta (ordinal 0-4)"},
+
+    "creatinine":       {"min": 0.1,  "max": 20.0,   "unit": "mg/dL",  "note": "Serum creatinine"},
+    "ef_note_extracted":{"min": 5.0,  "max": 90.0,   "unit": "%",      "note": "EF from clinical notes"},
+    "lactate":          {"min": 0.1,  "max": 30.0,   "unit": "mmol/L", "note": "Serum lactate"},
+    "los_remaining":    {"min": 0.0,  "max": 200.0,  "unit": "days",   "note": "Length of stay remaining"},
+    "nt_probnp":        {"min": 0.0,  "max": 70000.0,"unit": "pg/mL",  "note": "NT-proBNP"},
+    "troponin_t":       {"min": 0.0,  "max": 25.0,   "unit": "ng/mL",  "note": "Troponin T"}
+}

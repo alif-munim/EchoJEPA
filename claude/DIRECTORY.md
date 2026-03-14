@@ -9,7 +9,7 @@ Technical documentation for the codebase internals.
 | File | Contents |
 |------|----------|
 | `pretraining-and-cooldown.md` | Two-phase training (pretrain vs cooldown), LR schedules, masking strategies, kinetics vs echo config differences, resume/force-load behavior |
-| `probe-system.md` | Frozen probe evaluation: attentive/linear/MLP heads, classification vs regression, multi-view fusion, hyperparameter grid search, inference mode, prediction output |
+| `probe-system.md` | Frozen probe evaluation: attentive/linear/MLP heads, classification vs regression, view-filtered training pipeline, DistributedStudySampler, multi-view fusion, hyperparameter grid search, inference mode, prediction output |
 | `classifier-pipeline.md` | ConvNeXt/Swin classifier pipeline: training, cooldown, 18M inference, data prep stages, label mappings, experiment history |
 
 ## data/
@@ -19,8 +19,8 @@ Datasets, database schemas, and manuscript scope.
 | File | Contents |
 |------|----------|
 | `data-directory.md` | `data/` directory layout: CSV splits (153 files), scalers, labels, parquet exports, notebooks, scripts |
-| `embedding-pipeline.md` | MIMIC multi-model embedding pipeline: extraction, label remapping, study-level pooling, patient-level splits, directory layout, adding new models |
-| `nature-medicine-manuscript.md` | Manuscript scope, ICML vs Nature Medicine delineation, models, evaluation protocol |
+| `embedding-pipeline.md` | **(SUPERSEDED — historic reference)** Old NPZ-based multi-model embedding pipeline: extraction, label remapping, study-level pooling, patient-level splits. Replaced by Strategy E (d=1 attentive probes from video) |
+| `nature-medicine-manuscript.md` | Manuscript scope, ICML vs Nature Medicine delineation, models, evaluation protocol (Strategy E), Wendy's three pillars |
 | `uhn-database.md` | UHN echocardiography database (echo.db, Syngo/HeartLab schemas, rare disease cohorts) |
 | `uhn-mapping.md` | DICOM UID → Syngo StudyRef mapping chain: deid key files, date extraction patterns, coverage analysis, patient ID systems, HeartLab bridge, action items |
 | `mimic-database.md` | MIMIC-IV linked to echo (prediction targets, biomarker coverage, data engineering notes) |
@@ -44,7 +44,7 @@ Development log: bug tracker, changelog, operational guides, and code review fin
 | File | Contents |
 |------|----------|
 | `README.md` | Bug tracker index (6 issues with severity/status), planned fixes with priority, file index |
-| `roadmap.md` | Consolidated outstanding work: blocking extractions (UHN + MIMIC), MVP tasks, strong additions, completion checklist |
+| `roadmap.md` | Consolidated outstanding work: Phase 1/2/3 execution plan, MVP tasks, run scripts, strong additions, completion checklist |
 | `changelog.md` | Chronological record of code changes, bug fixes, extraction runs, config changes |
 | `code-review.md` | Full-repo review: 5 encoder adapters, extraction scripts, pooling, remapping, probe training, eval scaffold. Per-component verdict table |
 | `ops.md` | UHN 18M extraction operational guide: launch commands, DataLoader tuning (prefetch_factor, batch_size, num_workers), S3 bottleneck, crash recovery, timing reference, failure modes |

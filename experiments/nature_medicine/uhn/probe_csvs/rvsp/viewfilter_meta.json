@@ -1,0 +1,10 @@
+{
+  "task": "rvsp",
+  "allowed_views": [
+    "A4C",
+    "Subcostal"
+  ],
+  "bmode_only": false,
+  "view_predictions": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/view_inference_18m/master_predictions.csv",
+  "color_predictions": null
+}

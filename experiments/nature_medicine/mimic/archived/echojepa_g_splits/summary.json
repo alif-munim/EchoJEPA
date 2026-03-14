@@ -1,0 +1,324 @@
+{
+  "creatinine": {
+    "train": {
+      "studies": 2776,
+      "patients": 1800
+    },
+    "val": {
+      "studies": 541,
+      "patients": 359
+    },
+    "test": {
+      "studies": 566,
+      "patients": 396
+    }
+  },
+  "discharge_destination": {
+    "train": {
+      "studies": 1978,
+      "patients": 1411
+    },
+    "val": {
+      "studies": 379,
+      "patients": 276
+    },
+    "test": {
+      "studies": 401,
+      "patients": 293
+    }
+  },
+  "disease_afib": {
+    "train": {
+      "studies": 5145,
+      "patients": 3205
+    },
+    "val": {
+      "studies": 1047,
+      "patients": 686
+    },
+    "test": {
+      "studies": 1051,
+      "patients": 688
+    }
+  },
+  "disease_amyloidosis": {
+    "train": {
+      "studies": 5145,
+      "patients": 3205
+    },
+    "val": {
+      "studies": 1047,
+      "patients": 686
+    },
+    "test": {
+      "studies": 1051,
+      "patients": 688
+    }
+  },
+  "disease_dcm": {
+    "train": {
+      "studies": 5145,
+      "patients": 3205
+    },
+    "val": {
+      "studies": 1047,
+      "patients": 686
+    },
+    "test": {
+      "studies": 1051,
+      "patients": 688
+    }
+  },
+  "disease_hcm": {
+    "train": {
+      "studies": 5145,
+      "patients": 3205
+    },
+    "val": {
+      "studies": 1047,
+      "patients": 686
+    },
+    "test": {
+      "studies": 1051,
+      "patients": 688
+    }
+  },
+  "disease_hf": {
+    "train": {
+      "studies": 5145,
+      "patients": 3205
+    },
+    "val": {
+      "studies": 1047,
+      "patients": 686
+    },
+    "test": {
+      "studies": 1051,
+      "patients": 688
+    }
+  },
+  "disease_stemi": {
+    "train": {
+      "studies": 5145,
+      "patients": 3205
+    },
+    "val": {
+      "studies": 1047,
+      "patients": 686
+    },
+    "test": {
+      "studies": 1051,
+      "patients": 688
+    }
+  },
+  "disease_takotsubo": {
+    "train": {
+      "studies": 5145,
+      "patients": 3205
+    },
+    "val": {
+      "studies": 1047,
+      "patients": 686
+    },
+    "test": {
+      "studies": 1051,
+      "patients": 688
+    }
+  },
+  "disease_tamponade": {
+    "train": {
+      "studies": 5145,
+      "patients": 3205
+    },
+    "val": {
+      "studies": 1047,
+      "patients": 686
+    },
+    "test": {
+      "studies": 1051,
+      "patients": 688
+    }
+  },
+  "drg_severity": {
+    "train": {
+      "studies": 2235,
+      "patients": 1502
+    },
+    "val": {
+      "studies": 426,
+      "patients": 299
+    },
+    "test": {
+      "studies": 442,
+      "patients": 319
+    }
+  },
+  "ef_note_extracted": {
+    "train": {
+      "studies": 1887,
+      "patients": 1242
+    },
+    "val": {
+      "studies": 346,
+      "patients": 239
+    },
+    "test": {
+      "studies": 347,
+      "patients": 252
+    }
+  },
+  "icu_transfer": {
+    "train": {
+      "studies": 1786,
+      "patients": 1371
+    },
+    "val": {
+      "studies": 358,
+      "patients": 278
+    },
+    "test": {
+      "studies": 352,
+      "patients": 280
+    }
+  },
+  "in_hospital_mortality": {
+    "train": {
+      "studies": 2460,
+      "patients": 1669
+    },
+    "val": {
+      "studies": 483,
+      "patients": 338
+    },
+    "test": {
+      "studies": 494,
+      "patients": 362
+    }
+  },
+  "lactate": {
+    "train": {
+      "studies": 880,
+      "patients": 655
+    },
+    "val": {
+      "studies": 162,
+      "patients": 127
+    },
+    "test": {
+      "studies": 184,
+      "patients": 147
+    }
+  },
+  "los_remaining": {
+    "train": {
+      "studies": 2259,
+      "patients": 1598
+    },
+    "val": {
+      "studies": 443,
+      "patients": 321
+    },
+    "test": {
+      "studies": 454,
+      "patients": 338
+    }
+  },
+  "mortality_1yr": {
+    "train": {
+      "studies": 5145,
+      "patients": 3205
+    },
+    "val": {
+      "studies": 1047,
+      "patients": 686
+    },
+    "test": {
+      "studies": 1051,
+      "patients": 688
+    }
+  },
+  "mortality_30d": {
+    "train": {
+      "studies": 5145,
+      "patients": 3205
+    },
+    "val": {
+      "studies": 1047,
+      "patients": 686
+    },
+    "test": {
+      "studies": 1051,
+      "patients": 688
+    }
+  },
+  "mortality_90d": {
+    "train": {
+      "studies": 5145,
+      "patients": 3205
+    },
+    "val": {
+      "studies": 1047,
+      "patients": 686
+    },
+    "test": {
+      "studies": 1051,
+      "patients": 688
+    }
+  },
+  "nt_probnp": {
+    "train": {
+      "studies": 611,
+      "patients": 523
+    },
+    "val": {
+      "studies": 116,
+      "patients": 106
+    },
+    "test": {
+      "studies": 125,
+      "patients": 111
+    }
+  },
+  "readmission_30d": {
+    "train": {
+      "studies": 2251,
+      "patients": 1595
+    },
+    "val": {
+      "studies": 441,
+      "patients": 321
+    },
+    "test": {
+      "studies": 453,
+      "patients": 337
+    }
+  },
+  "triage_acuity": {
+    "train": {
+      "studies": 1874,
+      "patients": 1353
+    },
+    "val": {
+      "studies": 366,
+      "patients": 267
+    },
+    "test": {
+      "studies": 374,
+      "patients": 294
+    }
+  },
+  "troponin_t": {
+    "train": {
+      "studies": 1213,
+      "patients": 988
+    },
+    "val": {
+      "studies": 220,
+      "patients": 189
+    },
+    "test": {
+      "studies": 253,
+      "patients": 213
+    }
+  }
+}

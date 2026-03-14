@@ -42,8 +42,6 @@ experiment:
       - [0.0, 0.0, 0.0]
       - [1.0, 1.0, 1.0]
 
-    target_mean: 57.06
-    target_std: 11.33
 
   optimization:
     batch_size: 4

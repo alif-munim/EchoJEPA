@@ -183,16 +183,27 @@ def main(args_eval, resume_preempt=False):
     duration = args_data.get("clip_duration", None)
     num_views_per_segment = args_data.get("num_views_per_segment", 1)
     normalization = args_data.get("normalization", None)
-    
-    # --- NEW: Get Mean/Std from config ---
+    study_sampling = args_data.get("study_sampling", False)
+
+    # -- REGRESSION NORMALIZATION: auto-load from zscore_params.json if not in config
     target_mean = args_data.get("target_mean", None)
     target_std = args_data.get("target_std", None)
+    if task_type == "regression" and target_mean is None and target_std is None:
+        import json as _json
+        zscore_path = os.path.join(os.path.dirname(train_data_path[0]), "zscore_params.json")
+        if os.path.exists(zscore_path):
+            with open(zscore_path) as _f:
+                _params = _json.load(_f)
+            target_mean = _params["target_mean"]
+            target_std = _params["target_std"]
+            logger.info("Loaded zscore params from %s: mean=%.4f, std=%.4f", zscore_path, target_mean, target_std)
 
     # -- OPTIMIZATION
     args_opt = args_exp.get("optimization")
     use_focal_loss = args_opt.get("use_focal_loss", False)
 
     batch_size = args_opt.get("batch_size")
+    val_batch_size = args_opt.get("val_batch_size", batch_size)
     num_epochs = args_opt.get("num_epochs")
     use_bfloat16 = args_opt.get("use_bfloat16")
     opt_kwargs = [
@@ -238,9 +249,12 @@ def main(args_eval, resume_preempt=False):
 
     # -- make csv_logger
     if rank == 0:  
-        if task_type == "regression":  
-            csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "train_mae"), ("%.5f", "val_mae"))
-        else:  # classification  
+        if task_type == "regression":
+            csv_logger = CSVLogger(
+                log_file, ("%d", "epoch"), ("%.5f", "train_mae"), ("%.5f", "val_mae"),
+                ("%.5f", "val_r2"), ("%.5f", "val_pearson"),
+            )
+        else:  # classification
             csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "train_acc"), ("%.5f", "val_acc"))
 
     # Initialize model
@@ -350,8 +364,9 @@ def main(args_eval, resume_preempt=False):
         training=True,
         num_workers=num_workers,
         normalization=normalization,
+        study_sampling=study_sampling,
     )
-    val_loader, _ = make_dataloader(
+    val_loader, val_sampler = make_dataloader(
         dataset_type=dataset_type,
         root_path=val_data_path,
         img_size=resolution,
@@ -361,15 +376,18 @@ def main(args_eval, resume_preempt=False):
         eval_duration=duration,
         num_views_per_segment=num_views_per_segment,
         allow_segment_overlap=True,
-        batch_size=batch_size,
+        batch_size=val_batch_size,
         world_size=world_size,
         rank=rank,
         training=False,
         num_workers=num_workers,
         normalization=normalization,
+        study_sampling=study_sampling,
     )
     ipe = len(train_loader)
     logger.info(f"Dataloader created... iterations per epoch: {ipe}")
+    if val_batch_size != batch_size:
+        logger.info(f"Val batch size: {val_batch_size} (train: {batch_size})")
 
     # -- optimizer and scheduler
     optimizer, scaler, scheduler, wd_scheduler = init_opt(
@@ -461,11 +479,13 @@ def main(args_eval, resume_preempt=False):
     for epoch in range(start_epoch, num_epochs):
         logger.info("Epoch %d" % (epoch + 1))
         train_sampler.set_epoch(epoch)
+        if val_sampler is not None and hasattr(val_sampler, 'set_epoch'):
+            val_sampler.set_epoch(epoch)
 
         if val_only:
             train_acc_scalar, _ = -1.0, None
         else:
-            train_acc_scalar, _ = run_one_epoch(
+            train_acc_scalar, _, _ = run_one_epoch(
                 device=device,
                 training=True,
                 encoder=encoder,
@@ -484,7 +504,7 @@ def main(args_eval, resume_preempt=False):
                 target_std=target_std,
             )
 
-        val_acc_scalar, val_heads = run_one_epoch(
+        val_acc_scalar, val_heads, val_auc_metrics = run_one_epoch(
             device=device,
             training=False,
             encoder=encoder,
@@ -545,19 +565,62 @@ def main(args_eval, resume_preempt=False):
         mean_per_head = sum_per_head / count_epochs
 
         # Log appropriate metric name
-        metric_label = "MAE" if task_type == "regression" else "Acc"
-        symbol = "" if task_type == "regression" else "%"
-        
-        val_label = "val(min-head)" if task_type == "regression" else "val(max-head)"
-        logger.info("[%5d] train: %.3f%s  %s: %.3f%s (Best: %.3f%s)" % (
-            epoch + 1, train_acc_scalar, symbol,
-            val_label, val_acc_scalar, symbol,
-            best_val_acc_scalar, symbol
-        ))
+        if task_type == "regression":
+            t_mean = target_mean if target_mean is not None else 0.0
+            t_std = target_std if target_std is not None else 1.0
+            train_rel = train_acc_scalar / t_mean * 100 if t_mean != 0 else 0.0
+            val_rel = val_acc_scalar / t_mean * 100 if t_mean != 0 else 0.0
+            best_rel = best_val_acc_scalar / t_mean * 100 if t_mean != 0 else 0.0
+            # Baseline: predicting the mean gives MAE ≈ std * sqrt(2/pi) for normal data
+            baseline_mae = t_std * 0.7979  # sqrt(2/pi)
+            logger.info(
+                "[%5d] train MAE: %.3f (%.1f%%)  val MAE: %.3f (%.1f%%)  best: %.3f (%.1f%%)  "
+                "[mean=%.2f, std=%.2f, predict-mean baseline=%.3f]",
+                epoch + 1,
+                train_acc_scalar, train_rel,
+                val_acc_scalar, val_rel,
+                best_val_acc_scalar, best_rel,
+                t_mean, t_std, baseline_mae,
+            )
+        else:
+            logger.info("[%5d] train Acc: %.2f%%  val Acc(max-head): %.2f%%  Best: %.2f%%" % (
+                epoch + 1, train_acc_scalar, val_acc_scalar, best_val_acc_scalar,
+            ))
 
-        
+        # Log AUROC/AUPRC or R²/Pearson
+        if val_auc_metrics is not None and rank == 0:
+            if "auroc" in val_auc_metrics:
+                auroc = val_auc_metrics["auroc"]
+                auprc = val_auc_metrics["auprc"]
+                best_auroc_idx = np.nanargmax(auroc)
+                best_auprc_idx = np.nanargmax(auprc)
+                logger.info(
+                    "[%5d] val AUROC: %.4f (head %d)  val AUPRC: %.4f (head %d)",
+                    epoch + 1,
+                    auroc[best_auroc_idx], best_auroc_idx,
+                    auprc[best_auprc_idx], best_auprc_idx,
+                )
+            if "r2" in val_auc_metrics:
+                r2 = val_auc_metrics["r2"]
+                pearson = val_auc_metrics["pearson"]
+                best_r2_idx = np.nanargmax(r2)
+                best_pearson_idx = np.nanargmax(pearson)
+                logger.info(
+                    "[%5d] val R²: %.4f (head %d)  val Pearson: %.4f (head %d)",
+                    epoch + 1,
+                    r2[best_r2_idx], best_r2_idx,
+                    pearson[best_pearson_idx], best_pearson_idx,
+                )
+
         if rank == 0:
-            csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar)
+            if task_type == "regression" and val_auc_metrics is not None and "r2" in val_auc_metrics:
+                best_r2 = float(np.nanmax(val_auc_metrics["r2"]))
+                best_pearson = float(np.nanmax(val_auc_metrics["pearson"]))
+                csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar, best_r2, best_pearson)
+            elif task_type == "regression":
+                csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar, float("nan"), float("nan"))
+            else:
+                csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar)
 
         if val_only:
             return
@@ -614,6 +677,16 @@ def run_one_epoch(
     all_video_paths = []
     all_labels = []
 
+    # Per-head collection for AUROC/AUPRC (classification validation only)
+    collect_for_auc = not training and task_type == "classification"
+    all_head_probs = [[] for _ in classifiers] if collect_for_auc else None
+    all_val_labels = [] if collect_for_auc else None
+
+    # Per-head collection for R²/Pearson (regression validation only)
+    collect_for_r2 = not training and task_type == "regression"
+    all_head_preds = [[] for _ in classifiers] if collect_for_r2 else None
+    all_reg_labels = [] if collect_for_r2 else None
+
     # --- NEW: Wrap loader in tqdm if val_only ---
     if val_only:
         iterator = tqdm(data_loader, desc="Inference", unit="batch", dynamic_ncols=True)
@@ -652,6 +725,10 @@ def run_one_epoch(
             labels = labels.float()
             if labels.dim() == 1:
                 labels = labels.unsqueeze(-1)
+            # Z-score normalize labels at runtime (CSVs store raw values)
+            t_mean = target_mean if target_mean is not None else 0.0
+            t_std = target_std if target_std is not None else 1.0
+            labels = (labels - t_mean) / t_std
             losses = [[criterion(o.float(), labels) for o in coutputs] for coutputs in outputs]
         else:
             losses = [[criterion(o, labels) for o in coutputs] for coutputs in outputs]
@@ -672,13 +749,26 @@ def run_one_epoch(
 
                 for meter, mae in zip(metric_meters, mae_errors):
                     meter.update(mae)
+
+                # Collect per-head predictions for R²/Pearson
+                if collect_for_r2:
+                    for h, head_pred in enumerate(outputs):
+                        all_head_preds[h].append(head_pred.reshape(-1).float().cpu())
+                    all_reg_labels.append(labels.reshape(-1).cpu())
+
             else:  # classification
                 outputs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]
                 top1_accs = [100.0 * coutputs.max(dim=1).indices.eq(labels).sum() / batch_size for coutputs in outputs]
                 top1_accs = [float(AllReduce.apply(t1a)) for t1a in top1_accs]
                 for t1m, t1a in zip(top1_meters, top1_accs):
                     t1m.update(t1a)
-                    
+
+                # Collect per-head softmax probs for AUROC/AUPRC
+                if collect_for_auc:
+                    for h, head_probs in enumerate(outputs):
+                        all_head_probs[h].append(head_probs.float().cpu())
+                    all_val_labels.append(labels.cpu())
+
             if val_only and predictions_save_path is not None:
                 for i, pred in enumerate(outputs[0]):
                     all_predictions.append(pred.float().cpu().numpy())  # Convert to float32 first
@@ -706,16 +796,24 @@ def run_one_epoch(
             if val_only:
                 # Update description dynamically with metrics
                 if task_type == "regression":
-                    # [FIX 1] Changed Label to MAE
                     iterator.set_description(f"Inf MAE: {_agg_metrics.min():.4f}")
                 else:
                     iterator.set_description(f"Inf Acc: {_agg_metrics.max():.2f}%")
             else:
                 best_scalar = float(_agg_metrics.min()) if task_type == "regression" else float(_agg_metrics.max())
-                msg = "[%5d] %.3f%s [mean %.3f%s] [mem: %.2e]" % (
-                    itr, best_scalar, metric_symbol, _agg_metrics.mean(), metric_symbol,
-                    torch.cuda.max_memory_allocated() / 1024.0**2,
-                )
+                if task_type == "regression":
+                    t_mean = target_mean if target_mean is not None else 0.0
+                    rel_err = best_scalar / t_mean * 100 if t_mean != 0 else 0.0
+                    phase = "val" if not training else "train"
+                    msg = "[%5d] %s best-head MAE: %.3f (%.1f%% of mean=%.2f) [avg-head: %.3f] [mem: %.2e]" % (
+                        itr, phase, best_scalar, rel_err, t_mean, _agg_metrics.mean(),
+                        torch.cuda.max_memory_allocated() / 1024.0**2,
+                    )
+                else:
+                    msg = "[%5d] %.3f%s [mean %.3f%s] [mem: %.2e]" % (
+                        itr, best_scalar, metric_symbol, _agg_metrics.mean(), metric_symbol,
+                        torch.cuda.max_memory_allocated() / 1024.0**2,
+                    )
                 logger.info(msg)
 
 
@@ -766,7 +864,97 @@ def run_one_epoch(
         logger.info(f"Saved {len(all_predictions)} predictions to {predictions_save_path}")
 
     scalar = float(_agg_metrics.min()) if task_type == "regression" else float(_agg_metrics.max())
-    return scalar, _agg_metrics
+
+    # Compute AUROC/AUPRC per head (classification validation only)
+    auc_metrics = None
+    if collect_for_auc and len(all_val_labels) > 0:
+        try:
+            import torch.distributed as dist
+            from sklearn.metrics import average_precision_score, roc_auc_score
+
+            local_labels = torch.cat(all_val_labels, dim=0)
+            local_probs = [torch.cat(all_head_probs[h], dim=0) for h in range(len(classifiers))]
+
+            # Gather across ranks (NCCL requires CUDA tensors)
+            if dist.is_initialized() and dist.get_world_size() > 1:
+                local_labels_gpu = local_labels.to(device)
+                gathered_labels = [torch.zeros_like(local_labels_gpu) for _ in range(dist.get_world_size())]
+                dist.all_gather(gathered_labels, local_labels_gpu)
+                all_labels_t = torch.cat(gathered_labels, dim=0).cpu()
+                gathered_probs = []
+                for h in range(len(classifiers)):
+                    local_h_gpu = local_probs[h].to(device)
+                    gathered_h = [torch.zeros_like(local_h_gpu) for _ in range(dist.get_world_size())]
+                    dist.all_gather(gathered_h, local_h_gpu)
+                    gathered_probs.append(torch.cat(gathered_h, dim=0).cpu())
+            else:
+                all_labels_t = local_labels
+                gathered_probs = local_probs
+
+            labels_np = all_labels_t.numpy().astype(int)
+            num_classes_actual = gathered_probs[0].shape[1]
+            auroc_arr = np.full(len(classifiers), np.nan)
+            auprc_arr = np.full(len(classifiers), np.nan)
+
+            for h in range(len(classifiers)):
+                probs_np = gathered_probs[h].numpy()
+                try:
+                    if num_classes_actual == 2:
+                        auroc_arr[h] = roc_auc_score(labels_np, probs_np[:, 1])
+                        auprc_arr[h] = average_precision_score(labels_np, probs_np[:, 1])
+                    else:
+                        auroc_arr[h] = roc_auc_score(
+                            labels_np, probs_np, multi_class="ovr", average="macro"
+                        )
+                except ValueError:
+                    pass  # single class in split, skip
+
+            auc_metrics = {"auroc": auroc_arr, "auprc": auprc_arr}
+        except Exception as e:
+            logger.warning(f"AUROC/AUPRC computation failed: {e}")
+
+    # Compute R²/Pearson per head (regression validation only)
+    reg_metrics = None
+    if collect_for_r2 and len(all_reg_labels) > 0:
+        try:
+            import torch.distributed as dist
+            from scipy.stats import pearsonr
+
+            local_labels = torch.cat(all_reg_labels, dim=0)
+            local_preds = [torch.cat(all_head_preds[h], dim=0) for h in range(len(classifiers))]
+
+            # Gather across ranks (NCCL requires CUDA tensors)
+            if dist.is_initialized() and dist.get_world_size() > 1:
+                local_labels_gpu = local_labels.to(device)
+                gathered_labels = [torch.zeros_like(local_labels_gpu) for _ in range(dist.get_world_size())]
+                dist.all_gather(gathered_labels, local_labels_gpu)
+                all_labels_t = torch.cat(gathered_labels, dim=0).cpu()
+                gathered_preds = []
+                for h in range(len(classifiers)):
+                    local_h_gpu = local_preds[h].to(device)
+                    gathered_h = [torch.zeros_like(local_h_gpu) for _ in range(dist.get_world_size())]
+                    dist.all_gather(gathered_h, local_h_gpu)
+                    gathered_preds.append(torch.cat(gathered_h, dim=0).cpu())
+            else:
+                all_labels_t = local_labels
+                gathered_preds = local_preds
+
+            labels_np = all_labels_t.numpy()
+            r2_arr = np.full(len(classifiers), np.nan)
+            pearson_arr = np.full(len(classifiers), np.nan)
+
+            ss_tot = np.sum((labels_np - labels_np.mean()) ** 2)
+            for h in range(len(classifiers)):
+                preds_np = gathered_preds[h].numpy()
+                ss_res = np.sum((labels_np - preds_np) ** 2)
+                r2_arr[h] = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
+                pearson_arr[h] = pearsonr(labels_np, preds_np)[0]
+
+            reg_metrics = {"r2": r2_arr, "pearson": pearson_arr}
+        except Exception as e:
+            logger.warning(f"R²/Pearson computation failed: {e}")
+
+    return scalar, _agg_metrics, auc_metrics or reg_metrics
 
 
 
@@ -861,6 +1049,7 @@ def make_dataloader(
     num_workers=12,
     subset_file=None,
     normalization=None,
+    study_sampling=False,
 ):
     if normalization is None:
         normalization = DEFAULT_NORMALIZATION
@@ -894,6 +1083,7 @@ def make_dataloader(
         num_workers=num_workers,
         drop_last=False,
         subset_file=subset_file,
+        study_sampling=study_sampling,
     )
     return data_loader, data_sampler
 

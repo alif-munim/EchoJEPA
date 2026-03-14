@@ -1,4 +1,6 @@
-# MIMIC Embedding Pipeline
+# MIMIC Embedding Pipeline (SUPERSEDED — historic reference)
+
+> **This NPZ-based mean-pool + sklearn pipeline has been superseded by Strategy E (d=1 attentive probes from video + prediction averaging, adopted 2026-03-11).** The current evaluation runs from video through frozen encoders — no NPZs, no mean pooling, no sklearn. The documentation below is retained as a historic reference for the old pipeline artifacts. See `uhn_echo/nature_medicine/context_files/evaluation_protocol_decision.md` and `uhn_echo/nature_medicine/context_files/literature_review/multiview_aggregation.md` for the current approach.
 
 Multi-model precomputed embedding pipeline for MIMIC-IV-Echo. Extracts clip-level embeddings from frozen encoders, then derives study-level pooled embeddings and patient-level train/val/test splits for 23 clinical tasks.
 

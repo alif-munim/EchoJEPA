@@ -30,7 +30,7 @@ def init_data(
     duration=None,
     fps=None,
     num_clips=1,
-    num_clips_per_video=1,  # NEW parameter  
+    num_clips_per_video=1,  # NEW parameter
     random_clip_sampling=True,
     allow_clip_overlap=False,
     filter_short_videos=False,
@@ -42,7 +42,8 @@ def init_data(
     img_size=336,
     miss_augment_prob=0.0,          # <<< NEW
     min_present=1,                  # <<< NEW
-    split_name="train"
+    split_name="train",
+    study_sampling=False,
 ):
     if data.lower() == "imagenet":
         from src.datasets.imagenet1k import make_imagenet1k
@@ -91,6 +92,7 @@ def init_data(
             deterministic=deterministic,
             log_dir=log_dir,
             drop_last=drop_last,
+            study_sampling=study_sampling,
         )
 
     elif data.lower() == "videogroupdataset":  

@@ -66,11 +66,11 @@ Mean-pool → LayerNorm → Linear → GELU → Dropout → Linear. Two-layer al
 | **Expressiveness** | High — learns which spatial/temporal tokens matter | Minimal — tests raw representation quality |
 | **Trainable params** | ~1-10M (varies with depth/embed_dim) | ~1-2K (single linear layer) |
 | **Multi-view slots** | Supports slot embeddings (view/clip identity) | No slot embeddings (tokens are anonymous) |
-| **Use case** | ICML paper (attentive probes, depth=4, 16 heads) | Nature Medicine paper (frozen linear probes for clinical evaluation) |
-| **Interpretation** | Shows what a lightweight adapter can extract | Shows what is linearly accessible in the representation |
-| **Config** | `probe_type: attentive`, `num_heads: 16`, `num_probe_blocks: 4` | `probe_type: linear`, `use_layernorm: true`, `dropout: 0.0` |
+| **Use case** | ICML paper (depth=4, 16 heads); Nature Medicine primary (depth=1, 16 heads) | Nature Medicine sensitivity analysis (Extended Data) |
+| **Interpretation** | d=1: lightweight cross-attention readout (contains linear as special case) | Shows what is linearly accessible in the representation |
+| **Config** | `probe_type: attentive`, `num_heads: 16`, `num_probe_blocks: 1` | `probe_type: linear`, `use_layernorm: true`, `dropout: 0.0` |
 
-The ICML paper uses attentive probes to demonstrate best achievable downstream performance. The Nature Medicine paper uses linear probes to argue that clinical information is directly encoded in the representation space (linearly separable), which is a stronger claim about representation quality.
+**Nature Medicine evaluation protocol (Strategy E, adopted 2026-03-11):** Uniform d=1 attentive probes for ALL models. Verified non-harmful for all 4 tested models (+1.2 to +17.3pp over linear). d=1 attentive mathematically contains linear as a strict special case. Linear probes are Extended Data sensitivity analysis. See `uhn_echo/nature_medicine/context_files/decisions/01-probe-architecture.md`.
 
 ## How to Use Linear Probes
 
@@ -211,6 +211,70 @@ Key multi-view features:
 - **Miss augmentation**: During training, views are randomly dropped (`miss_augment_prob`) to handle missing views at inference. `slot_present` tensor tracks which views are available.
 - **Early fusion** (default): All view tokens concatenated → single probe forward pass with `key_padding_mask` for missing views. Tokens from different views can attend to each other (attentive) or are uniformly averaged (linear/MLP).
 - **Late fusion**: Each view processed independently by the probe → weighted average of per-view predictions. Better for interpretability and missing-view handling.
+
+## Study-Level Evaluation with DistributedStudySampler
+
+For study-level tasks (e.g., MIMIC clinical outcomes), each study has ~72 clips from different echo views. The `DistributedStudySampler` (`src/datasets/study_sampler.py`) provides per-epoch random clip selection for training, while prediction averaging is used at evaluation.
+
+### Training: 1 random clip per study per epoch
+
+Set `study_sampling: true` in the data config. The sampler:
+1. Groups all CSV rows by study_id (extracted from S3 path: `/s(\d+)/\d+_\d+\.mp4`)
+2. Each epoch (seeded by `seed + epoch`), selects 1 random clip per study
+3. Shuffles and distributes across ranks (same interface as `DistributedSampler`)
+
+### View-filtered training (Nature Medicine, adopted 2026-03-11)
+
+For view-specific tasks (TAPSE, LVEF, IVSd, etc.), training and val CSVs are pre-filtered to contain only task-relevant views. DistributedStudySampler then picks 1 clip/study/epoch from the filtered set.
+
+**Why filter training views:** Without filtering, ~81% of training clips for TAPSE are non-A4C (uninformative). The probe wastes gradient steps learning to predict the population mean from irrelevant views. With filtering, every gradient step provides useful supervision.
+
+**Why still use 1 clip/study/epoch (not all filtered clips):** Within-study clips share the same label and highly correlated features. Training on all ~11 A4C clips per study in one epoch gives ~11 correlated gradient updates — less efficient than seeing 11 different studies. Study sampling maximizes patient diversity per gradient step.
+
+**Three filter categories:**
+- **View-specific tasks** (TAPSE→A4C, LVEF→A4C+A2C, IVSd→PLAX, etc.): view-filtered CSVs (`train_vf.csv`)
+- **Hemodynamics tasks** (MR/AS/TR severity): view + modality filter (B-mode only, excludes Doppler)
+- **Global tasks** (mortality, biomarkers, diseases): no filter — all clips informative
+
+**CSV locations:** `experiments/nature_medicine/uhn/probe_csvs/{task}/train_vf.csv`, `val_vf.csv`, `test_vf.csv`
+**Build script:** `experiments/nature_medicine/uhn/build_viewfiltered_csvs.py`
+**Filter definitions:** `TASK_FILTERS` dict in the build script (maps task → allowed views + B-mode flag)
+**Filter metadata:** `experiments/nature_medicine/uhn/probe_csvs/{task}/viewfilter_meta.json`
+
+### Evaluation: prediction averaging
+
+Val/test CSVs contain all clips per study. The probe scores each clip independently; predictions are averaged per study for the final study-level result. View-filtered inference (averaging only task-relevant clips) can also be applied post-hoc to any trained probe.
+
+### Config example
+
+```yaml
+experiment:
+  data:
+    study_sampling: true  # Activates DistributedStudySampler
+    # View-filtered CSVs for view-specific tasks:
+    dataset_train: /path/to/train_vf.csv  # Only task-relevant views
+    dataset_val: /path/to/val_vf.csv      # Only task-relevant views
+    # Unfiltered CSVs for global tasks:
+    # dataset_train: /path/to/train.csv   # All clips per study
+    # dataset_val: /path/to/val.csv       # All clips per study
+```
+
+### Run scripts (Nature Medicine)
+
+Phase 1 probe training is orchestrated by two shell scripts:
+- **`scripts/run_uhn_probe.sh <task>`** — Generic single-task runner. Auto-detects task type (regression/classification), num_classes, Z-score params, view filtering (`train_vf.csv` vs `train.csv`), and study_sampling (disabled for `trajectory_*` tasks). Generates a YAML config on the fly and runs 5 models sequentially with a 20-head HP grid (5 LRs x 4 WDs).
+- **`scripts/run_phase1.sh`** — Orchestrator for 18 Phase 1 tasks (RV mechanics, hemodynamics, standard benchmarks, disease detection). Supports `--group` and `--models` for partial runs.
+
+### Epoch guidance
+
+With view-filtered CSVs (~11 A4C clips per study for TAPSE), 20 epochs with 1 clip/study/epoch sees ~20 draws from ~11 unique clips (full coverage with replacement). Recommended:
+- 20 epochs for large datasets (>10K studies)
+- 35 epochs for medium datasets (~5K studies)
+- 3-epoch warmup (proportional to schedule)
+
+### Pipeline integration
+
+`study_sampling` flows through: YAML config → `eval.py` (parsed from `args_data`) → `make_dataloader()` → `init_data()` → `make_videodataset()` → `DistributedStudySampler`. Applied to both train and val dataloaders when `study_sampling: true`.
 
 ## Inference-Only Mode
 
