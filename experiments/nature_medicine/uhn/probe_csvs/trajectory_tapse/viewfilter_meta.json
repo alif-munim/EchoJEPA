@@ -3,5 +3,14 @@
   "allowed_views": [
     "A4C"
   ],
-  "bmode_only": false
+  "bmode_only": false,
+  "cleaning": {
+    "delta_max": 1.5,
+    "value_range": [
+      0.5,
+      4.5
+    ],
+    "max_pairs_per_patient": 10,
+    "split_method": "temporal_by_real_study_date"
+  }
 }

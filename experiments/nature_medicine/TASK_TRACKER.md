@@ -99,6 +99,184 @@ Last updated: 2026-03-15
 | Inference | Single random clip per study per val epoch. **No prediction averaging.** |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/as_severity/train_vf.csv` |
 
+## Running / Queued Tasks — Per-Task Protocol
+
+### AV Vmax (regression, B-mode only) — RUNNING
+
+| Setting | Value |
+|---------|-------|
+| Task type | Regression (smooth L1 loss) |
+| Views | PLAX, A3C, PSAX-AV |
+| B-mode only | **Yes** |
+| Study sampling | Yes (`DistributedStudySampler`, 1 random clip/study/epoch) |
+| Class balance | N/A (regression) |
+| Train | 269,567 clips, 22,417 studies (view-filtered) |
+| Val | 143,772 clips, 11,896 studies |
+| Test | 173,060 clips, 14,235 studies |
+| Z-score | mean=1.599, std=0.766 |
+| HP grid | 12 heads (4 LR × 3 WD) |
+| Epochs | 15 |
+| Batch size | 2 per GPU × 4 GPUs = 8 effective |
+| Val batch size | 64 (EchoPrime: 16) |
+| Warmup | 2 epochs cosine |
+| num_workers | 4 |
+| Inference | Single random clip per study per val epoch. **No prediction averaging.** |
+| CSV source | `experiments/nature_medicine/uhn/probe_csvs/aov_vmax/train_vf.csv` |
+
+### TR Severity (classification, B-mode only) — RUNNING
+
+| Setting | Value |
+|---------|-------|
+| Task type | Classification, 5-class ordinal (none/trivial-trace/mild/moderate/severe) |
+| Views | A4C, Subcostal, PLAX |
+| B-mode only | **Yes** |
+| Study sampling | Yes |
+| Class balance | `class_balance_ratio=3` |
+| Train | 1,365,676 clips, 95,162 studies (pre-balance) |
+| Val | 189,236 clips, 12,495 studies |
+| Test | 340,626 clips, 22,652 studies |
+| HP grid | 12 heads (4 LR × 3 WD) |
+| Epochs | 15 |
+| Batch size | 2 per GPU × 4 GPUs = 8 effective |
+| Val batch size | 64 (EchoPrime: 16) |
+| Warmup | 2 epochs cosine |
+| num_workers | 4 |
+| Inference | Single random clip per study per val epoch. **No prediction averaging.** |
+| CSV source | `experiments/nature_medicine/uhn/probe_csvs/tr_severity/train_vf.csv` |
+
+### AR Severity (classification, B-mode only) — QUEUED
+
+| Setting | Value |
+|---------|-------|
+| Task type | Classification, 5-class ordinal (none/trace/mild/moderate/severe) |
+| Views | A4C, A2C, A3C, PLAX |
+| B-mode only | **Yes** |
+| Study sampling | Yes |
+| Class balance | `class_balance_ratio=3` |
+| Train | 969,896 clips, 51,212 studies (pre-balance) |
+| Val | 172,027 clips, 8,781 studies |
+| Test | 285,696 clips, 14,756 studies |
+| HP grid | 12 heads (4 LR × 3 WD) |
+| Epochs | 15 |
+| Batch size | 2 per GPU × 4 GPUs = 8 effective |
+| Val batch size | 64 (EchoPrime: 16) |
+| Warmup | 2 epochs cosine |
+| num_workers | 4 |
+| Inference | Single random clip per study per val epoch. **No prediction averaging.** |
+| CSV source | `experiments/nature_medicine/uhn/probe_csvs/ar_severity/train_vf.csv` |
+
+### E/e' (mv_ee, regression, B-mode only) — QUEUED
+
+| Setting | Value |
+|---------|-------|
+| Task type | Regression (smooth L1 loss) |
+| Views | A4C |
+| B-mode only | **Yes** (Doppler-derived measurement inferred from structure) |
+| Study sampling | Yes |
+| Class balance | N/A (regression) |
+| Train | 71,562 clips, 10,775 studies (view-filtered + B-mode) |
+| Val | 26,845 clips, 3,976 studies |
+| Test | 33,701 clips, 4,886 studies |
+| Z-score | mean=8.735, std=4.338 |
+| HP grid | 12 heads (4 LR × 3 WD) |
+| Epochs | 15 |
+| Batch size | 2 per GPU × 4 GPUs = 8 effective |
+| Val batch size | 64 (EchoPrime: 16) |
+| Warmup | 2 epochs cosine |
+| num_workers | 4 |
+| Inference | Single random clip per study per val epoch. **No prediction averaging.** |
+| CSV source | `experiments/nature_medicine/uhn/probe_csvs/mv_ee/train_vf.csv` |
+
+### RVSP (regression, B-mode only) — QUEUED
+
+| Setting | Value |
+|---------|-------|
+| Task type | Regression (smooth L1 loss) |
+| Views | A4C, Subcostal |
+| B-mode only | **Yes** (Doppler-derived measurement inferred from structure) |
+| Study sampling | Yes |
+| Class balance | N/A (regression) |
+| Train | 139,861 clips, 14,772 studies (view-filtered + B-mode) |
+| Val | 71,602 clips, 7,219 studies |
+| Test | 100,183 clips, 10,015 studies |
+| Z-score | mean=35.099, std=13.907 |
+| HP grid | 12 heads (4 LR × 3 WD) |
+| Epochs | 15 |
+| Batch size | 2 per GPU × 4 GPUs = 8 effective |
+| Val batch size | 64 (EchoPrime: 16) |
+| Warmup | 2 epochs cosine |
+| num_workers | 4 |
+| Inference | Single random clip per study per val epoch. **No prediction averaging.** |
+| CSV source | `experiments/nature_medicine/uhn/probe_csvs/rvsp/train_vf.csv` |
+
+### RV S' (rv_sp, regression) — QUEUED
+
+| Setting | Value |
+|---------|-------|
+| Task type | Regression (smooth L1 loss) |
+| Views | A4C, Subcostal |
+| B-mode only | No |
+| Study sampling | Yes |
+| Class balance | N/A (regression) |
+| Train | 391,778 clips, 24,849 studies (view-filtered) |
+| Val | 210,399 clips, 13,011 studies |
+| Test | 264,046 clips, 16,001 studies |
+| Z-score | mean=0.116, std=0.031 |
+| HP grid | 12 heads (4 LR × 3 WD) |
+| Epochs | 15 |
+| Batch size | 2 per GPU × 4 GPUs = 8 effective |
+| Val batch size | 64 (EchoPrime: 16) |
+| Warmup | 2 epochs cosine |
+| num_workers | 4 |
+| Inference | Single random clip per study per val epoch. **No prediction averaging.** |
+| CSV source | `experiments/nature_medicine/uhn/probe_csvs/rv_sp/train_vf.csv` |
+
+### RV FAC (rv_fac, regression) — QUEUED
+
+| Setting | Value |
+|---------|-------|
+| Task type | Regression (smooth L1 loss) |
+| Views | A4C |
+| B-mode only | No |
+| Study sampling | Yes |
+| Class balance | N/A (regression) |
+| Train | 80,046 clips, 6,395 studies (view-filtered) |
+| Val | 51,177 clips, 4,025 studies |
+| Test | 72,232 clips, 5,666 studies |
+| Z-score | mean=37.096, std=10.281 |
+| HP grid | 12 heads (4 LR × 3 WD) |
+| Epochs | 15 |
+| Batch size | 2 per GPU × 4 GPUs = 8 effective |
+| Val batch size | 64 (EchoPrime: 16) |
+| Warmup | 2 epochs cosine |
+| num_workers | 4 |
+| Inference | Single random clip per study per val epoch. **No prediction averaging.** |
+| CSV source | `experiments/nature_medicine/uhn/probe_csvs/rv_fac/train_vf.csv` |
+
+### Trajectory LVEF (regression, delta prediction) — RUNNING
+
+| Setting | Value |
+|---------|-------|
+| Task type | Regression (smooth L1 loss). Predicts delta EF (future − baseline). |
+| Views | A4C, A2C (from base task; no additional view filter) |
+| B-mode only | No |
+| Study sampling | **No** (1 clip per pair, no grouping) |
+| Class balance | N/A (regression) |
+| Train | 8,475 clips (pairs) — cleaned v2 |
+| Val | 1,147 clips |
+| Test | 1,879 clips |
+| Z-score | mean=−0.024, std=8.037 |
+| Cleaning | delta_max=±30, EF range 5–85, max 10 pairs/patient, temporal split by study2 date |
+| HP grid | 12 heads (4 LR × 3 WD) |
+| Epochs | 30 (extended for small dataset) |
+| Batch size | 2 per GPU × 4 GPUs = 8 effective |
+| Val batch size | 64 (EchoPrime: 16) |
+| Warmup | 2 epochs cosine |
+| num_workers | 4 |
+| Inference | Single clip per pair. **No prediction averaging.** |
+| CSV source | `experiments/nature_medicine/uhn/probe_csvs/trajectory_lvef/train.csv` |
+| Critical baseline | "Predict no change" (delta=0). If model can't beat this, pillar 3 drops. |
+
 ---
 
 ## Completed Runs — Summary
@@ -239,11 +417,11 @@ Archived (old 20-head HP grid, superseded by 12-head):
 | lvot_vti | 727,314 | 356,708 | 464,298 | 78,553 | A5C,A3C | N | 0.197 | 0.053 |
 | mv_dt | 1,074,322 | 534,125 | 669,677 | 364,652 | A4C,A2C,A3C | N | 211.131 | 63.475 |
 | mv_ea | 1,461,676 | 730,981 | 871,872 | 495,368 | A4C,A2C,A3C | N | 1.228 | 0.679 |
-| mv_ee | 637,208 | 237,542 | 297,640 | 113,722 | A4C | N | 8.735 | 4.338 |
+| mv_ee | 637,208 | 237,542 | 297,640 | 71,562 | A4C | **Y** | 8.735 | 4.338 |
 | mv_ee_medial | 1,057,885 | 581,920 | 684,852 | 190,270 | A4C | N | 11.429 | 5.251 |
 | rv_fac | 413,564 | 260,622 | 367,025 | 80,046 | A4C | N | 37.096 | 10.281 |
 | rv_sp | 1,493,083 | 789,682 | 990,767 | 391,778 | A4C,Subcostal | N | 0.116 | 0.032 |
-| rvsp | 910,977 | 451,081 | 631,846 | 238,302 | A4C,Subcostal | N | 35.099 | 13.907 |
+| rvsp | 910,977 | 451,081 | 631,846 | 139,861 | A4C,Subcostal | **Y** | 35.099 | 13.907 |
 | tapse | 1,524,418 | 812,242 | 1,017,414 | 280,638 | A4C | N | 1.955 | 0.497 |
 | trajectory_lv_mass | 3,922 | 4,879 | 11,293 | -- | PLAX,A4C,A2C,PSAX-* | N | -5.119 | 52.059 |
 | trajectory_lvef | 2,543 | 3,539 | 8,056 | -- | A4C,A2C | N | -0.805 | 9.626 |
@@ -307,11 +485,11 @@ These are the headline results. All use `bmode_only: true` view-filtered CSVs.
 |------|------|---------|---------------|--------|
 | mr_severity | classification | 5 | 1,648,091 | **DONE** (5 models, B-mode only) |
 | as_severity | classification | 4 | 1,487,709 | **DONE** (5 models, B-mode only) |
-| aov_vmax | regression | -- | 269,567 | READY |
-| tr_severity | classification | 5 | 1,365,676 | READY |
+| aov_vmax | regression | -- | 269,567 | **RUNNING** (GPUs 0-3, priority 3) |
+| tr_severity | classification | 5 | 1,365,676 | READY (priority 5, after trajectory LVEF) |
 | ar_severity | classification | 5 | 969,896 | READY |
-| mv_ee | regression | -- | 113,722 | READY (needs bmode filter check) |
-| rvsp | regression | -- | 238,302 | READY (needs bmode filter check) |
+| mv_ee | regression | -- | 71,562 | READY (B-mode filter rebuilt) |
+| rvsp | regression | -- | 139,861 | READY (B-mode filter rebuilt) |
 
 ### Tier 2 — Main text Pillar 1: RV Mechanics
 
@@ -326,7 +504,7 @@ These are the headline results. All use `bmode_only: true` view-filtered CSVs.
 
 | Task | Type | Train Clips | Status |
 |------|------|------------|--------|
-| trajectory_lvef | regression | 2,543 | READY |
+| trajectory_lvef | regression | 2,543 | **RUNNING** (GPUs 4-7, priority 4, 30 epochs) |
 | trajectory_tapse | regression | 2,872 | READY |
 | trajectory_lv_mass | regression | 3,922 | READY |
 | trajectory_rv_sp | regression | 2,757 | READY |

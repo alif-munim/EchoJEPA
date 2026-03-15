@@ -4,10 +4,19 @@
     "PLAX",
     "A4C",
     "A2C",
-    "PSAX-AV",
-    "PSAX-MV",
     "PSAX-PM",
+    "PSAX-MV",
+    "PSAX-AV",
     "PSAX-AP"
   ],
-  "bmode_only": false
+  "bmode_only": false,
+  "cleaning": {
+    "delta_max": 150,
+    "value_range": [
+      30,
+      600
+    ],
+    "max_pairs_per_patient": 10,
+    "split_method": "temporal_by_real_study_date"
+  }
 }

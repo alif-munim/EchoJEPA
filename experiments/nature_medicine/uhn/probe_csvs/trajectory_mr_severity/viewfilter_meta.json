@@ -6,5 +6,14 @@
     "A3C",
     "PLAX"
   ],
-  "bmode_only": false
+  "bmode_only": false,
+  "cleaning": {
+    "delta_max": null,
+    "value_range": [
+      0,
+      4
+    ],
+    "max_pairs_per_patient": 10,
+    "split_method": "temporal_by_real_study_date"
+  }
 }
