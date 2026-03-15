@@ -184,6 +184,7 @@ def main(args_eval, resume_preempt=False):
     num_views_per_segment = args_data.get("num_views_per_segment", 1)
     normalization = args_data.get("normalization", None)
     study_sampling = args_data.get("study_sampling", False)
+    class_balance_ratio = args_data.get("class_balance_ratio", None)
 
     # -- REGRESSION NORMALIZATION: auto-load from zscore_params.json if not in config
     target_mean = args_data.get("target_mean", None)
@@ -255,7 +256,10 @@ def main(args_eval, resume_preempt=False):
                 ("%.5f", "val_r2"), ("%.5f", "val_pearson"),
             )
         else:  # classification
-            csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "train_acc"), ("%.5f", "val_acc"))
+            csv_logger = CSVLogger(
+                log_file, ("%d", "epoch"), ("%.5f", "train_acc"), ("%.5f", "val_acc"),
+                ("%.5f", "val_auroc"), ("%.5f", "val_bal_acc"), ("%.5f", "val_kappa"),
+            )
 
     # Initialize model
 
@@ -365,6 +369,7 @@ def main(args_eval, resume_preempt=False):
         num_workers=num_workers,
         normalization=normalization,
         study_sampling=study_sampling,
+        class_balance_ratio=class_balance_ratio,
     )
     val_loader, val_sampler = make_dataloader(
         dataset_type=dataset_type,
@@ -388,6 +393,29 @@ def main(args_eval, resume_preempt=False):
     logger.info(f"Dataloader created... iterations per epoch: {ipe}")
     if val_batch_size != batch_size:
         logger.info(f"Val batch size: {val_batch_size} (train: {batch_size})")
+
+    # -- compute inverse-frequency class weights for classification
+    class_weights = None
+    if task_type == "classification" and not use_focal_loss:
+        try:
+            from collections import Counter
+            label_counts = Counter()
+            with open(train_data_path[0]) as _f:
+                for line in _f:
+                    parts = line.strip().split()
+                    if len(parts) >= 2:
+                        label_counts[int(parts[-1])] += 1
+            if label_counts:
+                counts_arr = torch.tensor(
+                    [label_counts.get(c, 1) for c in range(num_classes)], dtype=torch.float32
+                )
+                class_weights = 1.0 / counts_arr
+                class_weights = class_weights / class_weights.sum() * num_classes
+                logger.info(f"Class weights (inverse freq): {class_weights.tolist()}")
+                logger.info(f"Class counts: {dict(sorted(label_counts.items()))}")
+        except Exception as e:
+            logger.warning(f"Failed to compute class weights: {e}. Using uniform weights.")
+            class_weights = None
 
     # -- optimizer and scheduler
     optimizer, scaler, scheduler, wd_scheduler = init_opt(
@@ -502,6 +530,7 @@ def main(args_eval, resume_preempt=False):
                 task_type=task_type,
                 target_mean=target_mean,
                 target_std=target_std,
+                class_weights=class_weights,
             )
 
         val_acc_scalar, val_heads, val_auc_metrics = run_one_epoch(
@@ -521,6 +550,7 @@ def main(args_eval, resume_preempt=False):
             task_type=task_type,
             target_mean=target_mean,
             target_std=target_std,
+            class_weights=class_weights,
         )
 
         # ---- update scalar running stats ----
@@ -528,17 +558,22 @@ def main(args_eval, resume_preempt=False):
         val_sum_scalar += float(val_acc_scalar)
         mean_val_acc_scalar = val_sum_scalar / val_cnt
         
-        # --- NEW: Logic for determining "Best" ---
+        # --- Logic for determining "Best" ---
+        # Classification: select by AUROC (robust to class imbalance), fall back to accuracy
+        # Regression: select by lowest MAE
         is_best = False
         if task_type == "regression":
-            # For Regression: LOWER is better
-            # Note: Initialize best_val_acc_scalar to float('inf') before loop!
             if float(val_acc_scalar) < best_val_acc_scalar:
                 best_val_acc_scalar = float(val_acc_scalar)
                 is_best = True
         else:
-            # For Classification: HIGHER is better
-            if float(val_acc_scalar) > best_val_acc_scalar:
+            # Use AUROC for best-model selection when available
+            if val_auc_metrics is not None and "auroc" in val_auc_metrics:
+                cur_auroc = float(np.nanmax(val_auc_metrics["auroc"]))
+                if cur_auroc > best_val_acc_scalar:
+                    best_val_acc_scalar = cur_auroc
+                    is_best = True
+            elif float(val_acc_scalar) > best_val_acc_scalar:
                 best_val_acc_scalar = float(val_acc_scalar)
                 is_best = True
 
@@ -583,23 +618,39 @@ def main(args_eval, resume_preempt=False):
                 t_mean, t_std, baseline_mae,
             )
         else:
-            logger.info("[%5d] train Acc: %.2f%%  val Acc(max-head): %.2f%%  Best: %.2f%%" % (
+            logger.info("[%5d] train Acc: %.2f%%  val Acc(max-head): %.2f%%  Best AUROC: %.4f" % (
                 epoch + 1, train_acc_scalar, val_acc_scalar, best_val_acc_scalar,
             ))
 
-        # Log AUROC/AUPRC or R²/Pearson
+        # Log AUROC/AUPRC/balanced_acc/kappa or R²/Pearson
         if val_auc_metrics is not None and rank == 0:
             if "auroc" in val_auc_metrics:
                 auroc = val_auc_metrics["auroc"]
                 auprc = val_auc_metrics["auprc"]
-                best_auroc_idx = np.nanargmax(auroc)
-                best_auprc_idx = np.nanargmax(auprc)
-                logger.info(
-                    "[%5d] val AUROC: %.4f (head %d)  val AUPRC: %.4f (head %d)",
-                    epoch + 1,
-                    auroc[best_auroc_idx], best_auroc_idx,
-                    auprc[best_auprc_idx], best_auprc_idx,
-                )
+                bal_acc = val_auc_metrics.get("balanced_acc")
+                kappa = val_auc_metrics.get("kappa")
+                if not np.all(np.isnan(auroc)):
+                    best_auroc_idx = np.nanargmax(auroc)
+                    auprc_str = ""
+                    if not np.all(np.isnan(auprc)):
+                        best_auprc_idx = np.nanargmax(auprc)
+                        auprc_str = f"  val AUPRC: {auprc[best_auprc_idx]:.4f} (head {best_auprc_idx})"
+                    logger.info(
+                        "[%5d] val AUROC: %.4f (head %d)%s",
+                        epoch + 1,
+                        auroc[best_auroc_idx], best_auroc_idx, auprc_str,
+                    )
+                else:
+                    logger.warning("[%5d] val AUROC: all NaN (all heads failed)", epoch + 1)
+                if bal_acc is not None and not np.all(np.isnan(bal_acc)):
+                    best_bal_idx = np.nanargmax(bal_acc)
+                    best_kappa_idx = np.nanargmax(kappa) if not np.all(np.isnan(kappa)) else 0
+                    logger.info(
+                        "[%5d] val BalAcc: %.4f (head %d)  val Kappa: %.4f (head %d)",
+                        epoch + 1,
+                        bal_acc[best_bal_idx], best_bal_idx,
+                        kappa[best_kappa_idx], best_kappa_idx,
+                    )
             if "r2" in val_auc_metrics:
                 r2 = val_auc_metrics["r2"]
                 pearson = val_auc_metrics["pearson"]
@@ -619,8 +670,13 @@ def main(args_eval, resume_preempt=False):
                 csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar, best_r2, best_pearson)
             elif task_type == "regression":
                 csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar, float("nan"), float("nan"))
+            elif val_auc_metrics is not None and "auroc" in val_auc_metrics:
+                best_auroc = float(np.nanmax(val_auc_metrics["auroc"]))
+                best_bal = float(np.nanmax(val_auc_metrics.get("balanced_acc", [np.nan])))
+                best_kap = float(np.nanmax(val_auc_metrics.get("kappa", [np.nan])))
+                csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar, best_auroc, best_bal, best_kap)
             else:
-                csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar)
+                csv_logger.log(epoch + 1, train_acc_scalar, val_acc_scalar, float("nan"), float("nan"), float("nan"))
 
         if val_only:
             return
@@ -655,6 +711,7 @@ def run_one_epoch(
     predictions_save_path=None,
     target_mean=None,
     target_std=None,
+    class_weights=None,
 ):
     # --- NEW: Import tqdm for progress bar ---
     from tqdm import tqdm
@@ -669,6 +726,8 @@ def run_one_epoch(
     else:  # classification
         if use_focal_loss:
             criterion = FocalLoss(alpha=1.0, gamma=2.0)
+        elif class_weights is not None:
+            criterion = torch.nn.CrossEntropyLoss(weight=class_weights.to(device=device, dtype=torch.bfloat16 if use_bfloat16 else torch.float32))
         else:
             criterion = torch.nn.CrossEntropyLoss()
         top1_meters = [AverageMeter() for _ in classifiers]
@@ -757,7 +816,7 @@ def run_one_epoch(
                     all_reg_labels.append(labels.reshape(-1).cpu())
 
             else:  # classification
-                outputs = [sum([F.softmax(o, dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]
+                outputs = [sum([F.softmax(o.float(), dim=1) for o in coutputs]) / len(coutputs) for coutputs in outputs]
                 top1_accs = [100.0 * coutputs.max(dim=1).indices.eq(labels).sum() / batch_size for coutputs in outputs]
                 top1_accs = [float(AllReduce.apply(t1a)) for t1a in top1_accs]
                 for t1m, t1a in zip(top1_meters, top1_accs):
@@ -891,25 +950,46 @@ def run_one_epoch(
                 all_labels_t = local_labels
                 gathered_probs = local_probs
 
+            from sklearn.metrics import balanced_accuracy_score, cohen_kappa_score
+
             labels_np = all_labels_t.numpy().astype(int)
             num_classes_actual = gathered_probs[0].shape[1]
             auroc_arr = np.full(len(classifiers), np.nan)
             auprc_arr = np.full(len(classifiers), np.nan)
+            bal_acc_arr = np.full(len(classifiers), np.nan)
+            kappa_arr = np.full(len(classifiers), np.nan)
+
+            unique_labels = np.unique(labels_np)
+            expected_labels = list(range(num_classes_actual))
+            if len(unique_labels) < num_classes_actual:
+                logger.warning(
+                    f"Val labels missing classes: got {unique_labels.tolist()}, expected {expected_labels}"
+                )
 
             for h in range(len(classifiers)):
                 probs_np = gathered_probs[h].numpy()
+                preds_np = probs_np.argmax(axis=1)
                 try:
                     if num_classes_actual == 2:
                         auroc_arr[h] = roc_auc_score(labels_np, probs_np[:, 1])
                         auprc_arr[h] = average_precision_score(labels_np, probs_np[:, 1])
                     else:
                         auroc_arr[h] = roc_auc_score(
-                            labels_np, probs_np, multi_class="ovr", average="macro"
+                            labels_np, probs_np, multi_class="ovr", average="macro",
+                            labels=expected_labels,
                         )
-                except ValueError:
-                    pass  # single class in split, skip
+                except ValueError as e:
+                    if h == 0:
+                        logger.warning(f"AUROC failed for head {h}: {e}")
+                bal_acc_arr[h] = balanced_accuracy_score(labels_np, preds_np)
+                kappa_arr[h] = cohen_kappa_score(labels_np, preds_np)
 
-            auc_metrics = {"auroc": auroc_arr, "auprc": auprc_arr}
+            auc_metrics = {
+                "auroc": auroc_arr,
+                "auprc": auprc_arr,
+                "balanced_acc": bal_acc_arr,
+                "kappa": kappa_arr,
+            }
         except Exception as e:
             logger.warning(f"AUROC/AUPRC computation failed: {e}")
 
@@ -1050,6 +1130,7 @@ def make_dataloader(
     subset_file=None,
     normalization=None,
     study_sampling=False,
+    class_balance_ratio=None,
 ):
     if normalization is None:
         normalization = DEFAULT_NORMALIZATION
@@ -1084,6 +1165,7 @@ def make_dataloader(
         drop_last=False,
         subset_file=subset_file,
         study_sampling=study_sampling,
+        class_balance_ratio=class_balance_ratio,
     )
     return data_loader, data_sampler
 

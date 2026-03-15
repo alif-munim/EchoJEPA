@@ -44,6 +44,7 @@ def init_data(
     min_present=1,                  # <<< NEW
     split_name="train",
     study_sampling=False,
+    class_balance_ratio=None,
 ):
     if data.lower() == "imagenet":
         from src.datasets.imagenet1k import make_imagenet1k
@@ -93,6 +94,7 @@ def init_data(
             log_dir=log_dir,
             drop_last=drop_last,
             study_sampling=study_sampling,
+            class_balance_ratio=class_balance_ratio,
         )
 
     elif data.lower() == "videogroupdataset":  

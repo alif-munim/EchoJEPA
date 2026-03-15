@@ -24,10 +24,13 @@ set -euo pipefail
 # --- Parse args ---
 MODELS="echojepa-g echojepa-l echojepa-l-k echoprime panecho"
 EPOCHS=15
+BALANCE=""
 while [[ $# -gt 1 ]]; do
     case "$1" in
         --models) MODELS="$2"; shift 2 ;;
         --epochs) EPOCHS="$2"; shift 2 ;;
+        --balance) BALANCE="$2"; shift 2 ;;
+        --no-balance) BALANCE="0"; shift ;;
         *) break ;;
     esac
 done
@@ -85,6 +88,11 @@ else
     STUDY_SAMPLING=true
 fi
 
+# --- Default class balancing for classification + study_sampling ---
+if [ -z "$BALANCE" ] && [ "$TASK_TYPE" = "classification" ] && [ "$STUDY_SAMPLING" = "true" ]; then
+    BALANCE=3
+fi
+
 # --- Logging ---
 START=$(date +%s)
 log() { echo "[$(date '+%H:%M:%S')] $1"; }
@@ -102,6 +110,11 @@ log "  Epochs: ${EPOCHS}"
 log "  Devices: ${DEVICES}"
 log "  MASTER_PORT: ${MASTER_PORT:-37129 (default)}"
 log "  Resume: ${RESUME_FLAG}"
+if [ -n "$BALANCE" ] && [ "$BALANCE" != "0" ]; then
+    log "  Class balance ratio: ${BALANCE}x minority"
+elif [ "$BALANCE" = "0" ]; then
+    log "  Class balance: disabled"
+fi
 echo ""
 
 # --- Generate config ---
@@ -121,7 +134,7 @@ folder: ${OUT_DIR}
 mem_per_gpu: 80G
 nodes: 1
 tasks_per_node: 8
-num_workers: 8
+num_workers: 4
 
 eval_name: video_classification_frozen
 resume_checkpoint: ${RESUME_FLAG}
@@ -144,7 +157,8 @@ experiment:
     frame_step: 2
     num_segments: 2
     num_views_per_segment: 1
-    study_sampling: ${STUDY_SAMPLING}
+    study_sampling: ${STUDY_SAMPLING}$(if [ -n "$BALANCE" ] && [ "$BALANCE" != "0" ]; then echo "
+    class_balance_ratio: ${BALANCE}"; fi)
 
   optimization:
     batch_size: 2
@@ -250,19 +264,24 @@ run() {
         log ">>> ${tag} (starting fresh)..."
     fi
 
+    # Clean orphaned shared memory before each model (prevents shmmni exhaustion)
+    rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
+
     local rc=0
     PYTHONUNBUFFERED=1 python -m evals.main --fname "$config" --devices $DEVICES || rc=$?
     if [ "$rc" -ne 0 ]; then
         log ">>> FAILED: ${tag} (exit code ${rc})"
+        rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
         return "$rc"
     fi
 
-    # Verify training actually ran (catch silent crashes)
+    # Verify training actually completed (catch silent crashes)
     local log_csv="${OUT_DIR}/video_classification_frozen/${TASK}-${model_tag}/log_r0.csv"
     local n_epochs
     n_epochs=$(grep -c "^[0-9]" "$log_csv" 2>/dev/null || echo "0")
-    if [ "$n_epochs" -lt 2 ]; then
-        log ">>> FAILED: ${tag} (only ${n_epochs} epochs in log — likely crashed silently)"
+    if [ "$n_epochs" -lt "$EPOCHS" ]; then
+        log ">>> FAILED: ${tag} (only ${n_epochs}/${EPOCHS} epochs in log — likely crashed)"
+        rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
         return 1
     fi
 

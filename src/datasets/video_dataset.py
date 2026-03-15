@@ -69,6 +69,7 @@ def make_videodataset(
     deterministic=True,
     log_dir=None,
     study_sampling=False,
+    class_balance_ratio=None,
 ):
     dataset = VideoDataset(
         data_paths=data_paths,
@@ -103,7 +104,10 @@ def make_videodataset(
     if study_sampling:
         from src.datasets.study_sampler import DistributedStudySampler
 
-        dist_sampler = DistributedStudySampler(dataset, num_replicas=world_size, rank=rank)
+        dist_sampler = DistributedStudySampler(
+            dataset, num_replicas=world_size, rank=rank,
+            class_balance_ratio=class_balance_ratio,
+        )
         logger.info(f"Using DistributedStudySampler: {dist_sampler.num_studies} studies, "
                      f"{len(dataset)} total clips, 1 clip/study/epoch")
     elif datasets_weights is not None:

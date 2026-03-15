@@ -12,10 +12,13 @@ import math
 import os
 import re
 from collections import defaultdict
+from logging import getLogger
 from typing import Iterator, List, Optional
 
 import torch
 from torch.utils.data import Dataset, Sampler
+
+logger = getLogger()
 
 
 class DistributedStudySampler(Sampler[int]):
@@ -44,6 +47,7 @@ class DistributedStudySampler(Sampler[int]):
         rank: Optional[int] = None,
         seed: int = 0,
         drop_last: bool = False,
+        class_balance_ratio: Optional[float] = None,
     ):
         if num_replicas is None:
             if not torch.distributed.is_available() or not torch.distributed.is_initialized():
@@ -76,6 +80,42 @@ class DistributedStudySampler(Sampler[int]):
 
         self.study_keys = sorted(self.study_to_indices.keys())
         self.num_studies = len(self.study_keys)
+
+        # Class balancing: cap each class at ratio × minority_class_count
+        if class_balance_ratio is not None and class_balance_ratio > 0:
+            labels = dataset.labels if hasattr(dataset, "labels") else dataset.dataset.labels
+            # Map study -> label (use first clip's label)
+            study_labels = {}
+            for sid in self.study_keys:
+                study_labels[sid] = labels[self.study_to_indices[sid][0]]
+            # Group studies by class
+            class_studies = defaultdict(list)
+            for sid, label in study_labels.items():
+                class_studies[label].append(sid)
+            # Cap at ratio × minority count
+            min_count = min(len(sids) for sids in class_studies.values())
+            cap = int(min_count * class_balance_ratio)
+            # Deterministic downsample
+            g = torch.Generator()
+            g.manual_seed(seed)
+            balanced_keys = []
+            for label in sorted(class_studies.keys()):
+                sids = class_studies[label]
+                if len(sids) > cap:
+                    perm = torch.randperm(len(sids), generator=g).tolist()
+                    sids = [sids[i] for i in perm[:cap]]
+                balanced_keys.extend(sids)
+            # Remove dropped studies
+            dropped = set(self.study_keys) - set(balanced_keys)
+            for sid in dropped:
+                del self.study_to_indices[sid]
+            self.study_keys = sorted(balanced_keys)
+            orig = self.num_studies
+            self.num_studies = len(self.study_keys)
+            logger.info(
+                f"Class balancing (ratio={class_balance_ratio}): {orig} -> {self.num_studies} studies "
+                f"(cap={cap}/class, {len(class_studies)} classes, min_class={min_count})"
+            )
 
         # Compute per-rank sizes (same logic as DistributedSampler)
         if self.drop_last and self.num_studies % self.num_replicas != 0:
