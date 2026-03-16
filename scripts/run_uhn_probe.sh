@@ -81,12 +81,8 @@ else
 fi
 
 # --- Auto-detect study sampling ---
-# Trajectory tasks (1 clip per pair) don't use study sampling
-if [[ "$TASK" == trajectory_* ]]; then
-    STUDY_SAMPLING=false
-else
-    STUDY_SAMPLING=true
-fi
+# All tasks use study sampling (1 random clip per study per epoch)
+STUDY_SAMPLING=true
 
 # --- Default class balancing for classification + study_sampling ---
 if [ -z "$BALANCE" ] && [ "$TASK_TYPE" = "classification" ] && [ "$STUDY_SAMPLING" = "true" ]; then

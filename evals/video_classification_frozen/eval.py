@@ -20,6 +20,7 @@ except Exception:
 import logging
 import math
 import pprint
+import re
 
 import numpy as np
 import torch
@@ -83,6 +84,39 @@ class FocalLoss(torch.nn.Module):
         else:
             return focal_loss
 # ------------------------------------
+
+
+def _extract_study_id(path):
+    """Extract study ID from video path (matches DistributedStudySampler logic)."""
+    match = re.search(r"/s(\d+)/\d+_\d+\.mp4$", str(path))
+    if match:
+        return match.group(1)
+    return os.path.basename(os.path.dirname(str(path)))
+
+
+def _average_by_study(study_ids, predictions_np, labels_np):
+    """Average predictions per study, return study-level arrays.
+
+    Args:
+        study_ids: list of str, one per clip
+        predictions_np: ndarray [N, C] (classification probs) or [N] (regression)
+        labels_np: ndarray [N] (all clips in a study share the same label)
+
+    Returns:
+        avg_preds, study_labels, num_studies
+    """
+    from collections import defaultdict
+
+    study_groups = defaultdict(list)
+    study_label_map = {}
+    for i, sid in enumerate(study_ids):
+        study_groups[sid].append(i)
+        study_label_map[sid] = labels_np[i]
+    sorted_studies = sorted(study_groups.keys())
+    avg_preds = np.array([predictions_np[study_groups[sid]].mean(axis=0) for sid in sorted_studies])
+    study_labels = np.array([study_label_map[sid] for sid in sorted_studies])
+    return avg_preds, study_labels, len(sorted_studies)
+
 
 def main(args_eval, resume_preempt=False):
 
@@ -185,6 +219,7 @@ def main(args_eval, resume_preempt=False):
     normalization = args_data.get("normalization", None)
     study_sampling = args_data.get("study_sampling", False)
     class_balance_ratio = args_data.get("class_balance_ratio", None)
+    prediction_averaging = args_data.get("prediction_averaging", False)
 
     # -- REGRESSION NORMALIZATION: auto-load from zscore_params.json if not in config
     target_mean = args_data.get("target_mean", None)
@@ -371,6 +406,13 @@ def main(args_eval, resume_preempt=False):
         study_sampling=study_sampling,
         class_balance_ratio=class_balance_ratio,
     )
+    # Auto-enable prediction averaging for val_only with study-level tasks:
+    # score ALL clips per study, then average predictions before computing metrics
+    val_prediction_averaging = prediction_averaging or (val_only and study_sampling)
+    val_study_sampling = False if val_prediction_averaging else study_sampling
+    if val_prediction_averaging:
+        logger.info("Prediction averaging enabled: scoring all clips per study, averaging at metric time")
+
     val_loader, val_sampler = make_dataloader(
         dataset_type=dataset_type,
         root_path=val_data_path,
@@ -387,7 +429,7 @@ def main(args_eval, resume_preempt=False):
         training=False,
         num_workers=num_workers,
         normalization=normalization,
-        study_sampling=study_sampling,
+        study_sampling=val_study_sampling,
     )
     ipe = len(train_loader)
     logger.info(f"Dataloader created... iterations per epoch: {ipe}")
@@ -551,6 +593,7 @@ def main(args_eval, resume_preempt=False):
             target_mean=target_mean,
             target_std=target_std,
             class_weights=class_weights,
+            prediction_averaging=val_prediction_averaging,
         )
 
         # ---- update scalar running stats ----
@@ -712,6 +755,7 @@ def run_one_epoch(
     target_mean=None,
     target_std=None,
     class_weights=None,
+    prediction_averaging=False,
 ):
     # --- NEW: Import tqdm for progress bar ---
     from tqdm import tqdm
@@ -745,6 +789,10 @@ def run_one_epoch(
     collect_for_r2 = not training and task_type == "regression"
     all_head_preds = [[] for _ in classifiers] if collect_for_r2 else None
     all_reg_labels = [] if collect_for_r2 else None
+
+    # Study ID collection for prediction averaging
+    collect_study_ids = prediction_averaging and not training
+    all_study_ids = [] if collect_study_ids else None
 
     # --- NEW: Wrap loader in tqdm if val_only ---
     if val_only:
@@ -827,6 +875,11 @@ def run_one_epoch(
                     for h, head_probs in enumerate(outputs):
                         all_head_probs[h].append(head_probs.float().cpu())
                     all_val_labels.append(labels.cpu())
+
+            # Collect study IDs for prediction averaging
+            if collect_study_ids:
+                for vp in video_paths:
+                    all_study_ids.append(_extract_study_id(str(vp)))
 
             if val_only and predictions_save_path is not None:
                 for i, pred in enumerate(outputs[0]):
@@ -924,6 +977,19 @@ def run_one_epoch(
 
     scalar = float(_agg_metrics.min()) if task_type == "regression" else float(_agg_metrics.max())
 
+    # Gather study IDs across ranks for prediction averaging
+    gathered_study_ids = None
+    if collect_study_ids and all_study_ids:
+        import torch.distributed as dist
+        if dist.is_initialized() and dist.get_world_size() > 1:
+            all_study_ids_gathered = [None] * dist.get_world_size()
+            dist.all_gather_object(all_study_ids_gathered, all_study_ids)
+            gathered_study_ids = []
+            for sids in all_study_ids_gathered:
+                gathered_study_ids.extend(sids)
+        else:
+            gathered_study_ids = all_study_ids
+
     # Compute AUROC/AUPRC per head (classification validation only)
     auc_metrics = None
     if collect_for_auc and len(all_val_labels) > 0:
@@ -953,6 +1019,18 @@ def run_one_epoch(
             from sklearn.metrics import balanced_accuracy_score, cohen_kappa_score
 
             labels_np = all_labels_t.numpy().astype(int)
+
+            # Prediction averaging: average probabilities per study
+            if gathered_study_ids is not None:
+                n_clips = len(gathered_study_ids)
+                for h in range(len(classifiers)):
+                    probs_np = gathered_probs[h].numpy()
+                    avg_probs, avg_labels, n_studies = _average_by_study(
+                        gathered_study_ids, probs_np, labels_np)
+                    gathered_probs[h] = torch.from_numpy(avg_probs)
+                labels_np = avg_labels.astype(int)
+                logger.info(f"Prediction averaging (classification): {n_clips} clips -> {n_studies} studies")
+
             num_classes_actual = gathered_probs[0].shape[1]
             auroc_arr = np.full(len(classifiers), np.nan)
             auprc_arr = np.full(len(classifiers), np.nan)
@@ -1020,6 +1098,18 @@ def run_one_epoch(
                 gathered_preds = local_preds
 
             labels_np = all_labels_t.numpy()
+
+            # Prediction averaging: average predictions per study
+            if gathered_study_ids is not None:
+                n_clips = len(gathered_study_ids)
+                for h in range(len(classifiers)):
+                    preds_np = gathered_preds[h].numpy()
+                    avg_preds, avg_labels, n_studies = _average_by_study(
+                        gathered_study_ids, preds_np, labels_np)
+                    gathered_preds[h] = torch.from_numpy(avg_preds)
+                labels_np = avg_labels
+                logger.info(f"Prediction averaging (regression): {n_clips} clips -> {n_studies} studies")
+
             r2_arr = np.full(len(classifiers), np.nan)
             pearson_arr = np.full(len(classifiers), np.nan)
 

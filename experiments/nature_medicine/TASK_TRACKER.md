@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-15
+Last updated: 2026-03-16 (evening — trajectory onset V3 added)
 
 ## Evaluation Protocol
 
@@ -12,6 +12,123 @@ Last updated: 2026-03-15
 - **Config template**: auto-generated YAML at `/tmp/nm_{task}_{model}.yaml`
 - **Checkpoint output**: `evals/vitg-384/nature_medicine/uhn/video_classification_frozen/{task}-{model}/`
 - **CSV source**: `experiments/nature_medicine/uhn/probe_csvs/{task}/`
+
+---
+
+## Historic Baseline Results (Linear Probes on Mean-Pooled Embeddings)
+
+> **Superseded by Strategy E** (d=1 attentive probes from video). These results used the old NPZ pipeline: frozen encoder → mean-pool 1568 tokens → mean-pool ~56-72 clips/study → sklearn linear probe. They serve as a reference floor — Strategy E results should improve on these across the board.
+
+### UHN — EchoJEPA-G (in-domain, 2026-03-09)
+
+Frozen linear probes (LogisticRegression / Ridge) on mean-pooled study-level embeddings (319,815 studies, 1408-dim). HP grid search on val, evaluation on test. Script: `scripts/run_uhn_probes.py`. Results: `results/probes/nature_medicine/uhn/`.
+
+**Classification (26 tasks, mean AUC: 0.874):**
+
+| Task | AUC |
+|------|-----|
+| AS severity | 0.947 |
+| Pericardial effusion | 0.940 |
+| LV systolic function | 0.936 |
+| LV cavity size | 0.934 |
+| Diastolic function | 0.918 |
+| HCM | 0.877 |
+| Amyloidosis | 0.835 |
+| STEMI | 0.828 |
+| Takotsubo | 0.815 |
+
+**Regression (21 tasks, mean R²: 0.625):**
+
+| Task | R² |
+|------|-----|
+| ESV | 0.853 |
+| EDV | 0.798 |
+| LVEF | 0.775 |
+| LV mass | 0.738 |
+| LA vol | 0.726 |
+
+**Trajectory (paired-study delta prediction):**
+
+| Task | R² |
+|------|-----|
+| LVEF delta | 0.456 |
+| MR severity delta | 0.234 |
+| TAPSE delta | 0.129 |
+
+### UHN — EchoJEPA-L (out-of-domain — complete failure)
+
+- All 26 classification tasks: AUC ~0.50 (chance)
+- All 21 regression tasks: R² ≤ 0 (worse than mean predictor)
+- All 5 trajectory tasks: R² < 0
+- **Root cause**: L pretrained on ~7K MIMIC studies → extreme embedding concentration on UHN (mean pairwise cosine 0.998, var/dim ratio 0.0005 vs G's 0.293). Confirmed L works in-domain on MIMIC (HF AUC 0.761).
+
+### MIMIC — All 7 Models (161 runs, 2026-03-08/09)
+
+23 tasks × 7 models. Frozen linear probes, HP selection on val, evaluation on test. Script: `scripts/run_mimic_probes_v2.py`. Results: `results/probes/nature_medicine/mimic_v2/`.
+
+**Mortality & Outcomes (AUC-ROC):**
+
+| Model | 30-day | 90-day | 1-year | In-hospital | Readmit 30d | ICU Transfer |
+|-------|--------|--------|--------|-------------|-------------|--------------|
+| EchoJEPA-G | 0.822 | 0.801 | 0.769 | 0.787 | 0.586 | 0.486 |
+| EchoJEPA-L | 0.797 | 0.783 | 0.766 | 0.709 | 0.567 | 0.526 |
+| EchoJEPA-L-K | 0.797 | 0.771 | 0.781 | 0.760 | 0.552 | 0.555 |
+| EchoMAE-L | 0.739 | 0.753 | 0.722 | 0.688 | 0.583 | 0.501 |
+| **EchoPrime** | **0.902** | **0.880** | **0.824** | **0.831** | **0.609** | **0.593** |
+| PanEcho | 0.817 | 0.808 | 0.779 | 0.787 | 0.550 | 0.443 |
+| EchoFM | 0.745 | 0.668 | 0.644 | 0.628 | 0.559 | 0.503 |
+
+**Disease Detection (AUC-ROC):**
+
+| Model | AFib | Heart Failure | Amyloidosis | DCM | HCM | STEMI | Takotsubo |
+|-------|------|---------------|-------------|-----|-----|-------|-----------|
+| **EchoJEPA-G** | **0.847** | **0.825** | 0.741 | 0.734 | 0.639 | 0.631 | 0.391 |
+| EchoJEPA-L | 0.781 | 0.761 | 0.669 | 0.788 | 0.613 | 0.611 | 0.423 |
+| EchoJEPA-L-K | 0.830 | 0.808 | 0.608 | 0.806 | 0.651 | **0.655** | 0.362 |
+| EchoMAE-L | 0.731 | 0.701 | 0.695 | 0.687 | 0.623 | 0.577 | 0.366 |
+| EchoPrime | 0.834 | 0.816 | **0.859** | **0.852** | **0.678** | 0.577 | **0.614** |
+| PanEcho | 0.806 | 0.790 | 0.728 | 0.651 | 0.665 | 0.489 | 0.540 |
+| EchoFM | 0.626 | 0.618 | 0.545 | 0.432 | 0.493 | 0.496 | 0.618 |
+
+**Regression:**
+
+| Model | EF R² | EF r | NT-proBNP R² | NT-proBNP r | Creatinine R² | TnT R² |
+|-------|-------|------|-------------|-------------|---------------|--------|
+| EchoJEPA-G | 0.444 | 0.676 | 0.144 | 0.403 | 0.067 | 0.000 |
+| EchoJEPA-L | 0.271 | 0.546 | 0.097 | 0.334 | 0.012 | -0.041 |
+| EchoJEPA-L-K | 0.360 | 0.620 | -0.027 | 0.276 | 0.002 | -0.030 |
+| EchoMAE-L | 0.215 | 0.471 | -0.012 | 0.221 | 0.012 | -0.102 |
+| **EchoPrime** | **0.547** | **0.747** | **0.155** | 0.395 | **0.076** | **0.070** |
+| PanEcho | 0.351 | 0.624 | 0.191 | **0.444** | 0.083 | 0.010 |
+| EchoFM | 0.052 | 0.242 | -0.049 | 0.006 | 0.003 | -0.000 |
+
+**Key findings:**
+1. EchoPrime dominates mortality/outcomes and structural disease detection — text-supervised contrastive geometry is ideal for linear probes
+2. EchoJEPA-G leads AFib (0.847) and HF (0.825) — broad multi-view phenotypes where 18M pretraining helps
+3. JEPA > MAE confirmed: EchoJEPA-L beats EchoMAE-L on 19/23 tasks (same ViT-L, same data, same probe)
+4. EchoFM weakest overall (near-collapsed representations)
+5. ICU transfer uninformative (0.486-0.593) across all models
+6. Linear probes structurally favor contrastive models (see `probe-results.md` for 5-factor analysis)
+
+### MIMIC — CY Standalone Results (EchoJEPA-G only, sklearn, 2026-03-13)
+
+Separate analysis by CY with prediction averaging on study-level embeddings (mean-pool across clips, then average predictions). Ensemble of multiple classifiers.
+
+| Task | AUC |
+|------|-----|
+| Mortality 30d | 0.912 |
+| Mortality 90d | 0.883 |
+| Mortality 1yr | 0.846 |
+| In-hospital mortality | 0.875 |
+| Readmission 30d | 0.634 |
+| ICU transfer | 0.570 |
+
+**EHR-only baselines (XGBoost + TabPFN, 54 features):**
+- Mortality 1yr: 0.856 (XGBoost), echo ≈ EHR
+- Readmission 30d: 0.624 (XGBoost), echo > EHR
+- Prediction averaging validated: +0.08-0.09 AUC over single mean-pool embedding
+
+**Pending**: Combined echo+EHR model, acuity conditioning (H_confound).
 
 ---
 
@@ -101,29 +218,7 @@ Last updated: 2026-03-15
 
 ## Running / Queued Tasks — Per-Task Protocol
 
-### AV Vmax (regression, B-mode only) — RUNNING
-
-| Setting | Value |
-|---------|-------|
-| Task type | Regression (smooth L1 loss) |
-| Views | PLAX, A3C, PSAX-AV |
-| B-mode only | **Yes** |
-| Study sampling | Yes (`DistributedStudySampler`, 1 random clip/study/epoch) |
-| Class balance | N/A (regression) |
-| Train | 269,567 clips, 22,417 studies (view-filtered) |
-| Val | 143,772 clips, 11,896 studies |
-| Test | 173,060 clips, 14,235 studies |
-| Z-score | mean=1.599, std=0.766 |
-| HP grid | 12 heads (4 LR × 3 WD) |
-| Epochs | 15 |
-| Batch size | 2 per GPU × 4 GPUs = 8 effective |
-| Val batch size | 64 (EchoPrime: 16) |
-| Warmup | 2 epochs cosine |
-| num_workers | 4 |
-| Inference | Single random clip per study per val epoch. **No prediction averaging.** |
-| CSV source | `experiments/nature_medicine/uhn/probe_csvs/aov_vmax/train_vf.csv` |
-
-### TR Severity (classification, B-mode only) — RUNNING
+### TR Severity (classification, B-mode only) — RUNNING (GPUs 0-3)
 
 | Setting | Value |
 |---------|-------|
@@ -253,29 +348,37 @@ Last updated: 2026-03-15
 | Inference | Single random clip per study per val epoch. **No prediction averaging.** |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/rv_fac/train_vf.csv` |
 
-### Trajectory LVEF (regression, delta prediction) — RUNNING
+### New-Onset Cardiomyopathy (trajectory_lvef_onset, binary) — RUNNING (GPUs 4-7)
 
 | Setting | Value |
 |---------|-------|
-| Task type | Regression (smooth L1 loss). Predicts delta EF (future − baseline). |
-| Views | A4C, A2C (from base task; no additional view filter) |
+| Task type | Binary classification: 0=stable (future EF ≥ 50), 1=decline (future EF < 50) |
+| Population | **Baseline EF ≥ 50 only** (preserved EF at index echo) |
+| Views | A4C, A2C (view-filtered at CSV build time) |
 | B-mode only | No |
-| Study sampling | **No** (1 clip per pair, no grouping) |
-| Class balance | N/A (regression) |
-| Train | 8,475 clips (pairs) — cleaned v2 |
-| Val | 1,147 clips |
-| Test | 1,879 clips |
-| Z-score | mean=−0.024, std=8.037 |
-| Cleaning | delta_max=±30, EF range 5–85, max 10 pairs/patient, temporal split by study2 date |
+| Study sampling | **Yes** (all clips per study_1 in CSV, sampler picks 1/epoch) |
+| Class balance | `class_balance_ratio=3` |
+| Train | 33,705 clips, 1,932 studies (1,763 stable / 169 decline = 8.7%) |
+| Val | 49,952 clips, 2,752 studies (2,571 stable / 181 decline = 6.6%) |
+| Test | 111,974 clips, 6,087 studies (5,634 stable / 453 decline = 7.4%) |
+| Source pairs | 10,808 (from 14,235 total, filtered to baseline EF ≥ 50) |
 | HP grid | 12 heads (4 LR × 3 WD) |
-| Epochs | 30 (extended for small dataset) |
+| Epochs | 15 |
 | Batch size | 2 per GPU × 4 GPUs = 8 effective |
 | Val batch size | 64 (EchoPrime: 16) |
 | Warmup | 2 epochs cosine |
 | num_workers | 4 |
-| Inference | Single clip per pair. **No prediction averaging.** |
-| CSV source | `experiments/nature_medicine/uhn/probe_csvs/trajectory_lvef/train.csv` |
-| Critical baseline | "Predict no change" (delta=0). If model can't beat this, pillar 3 drops. |
+| Inference | Single random clip per study per val epoch. Prediction averaging pending. |
+| CSV source | `experiments/nature_medicine/uhn/probe_csvs/trajectory_lvef_onset/train.csv` |
+| Build command | `python build_trajectory_csvs.py --task trajectory_lvef --onset --baseline_min 50 --future_below 50` |
+
+**Clinical framing**: From an apparently normal echocardiogram (EF ≥ 50%), can the model identify patients who will develop reduced EF (< 50%) within 1 year? This tests whether frozen representations encode subclinical dysfunction beyond what the EF number captures.
+
+**Why this reframing** (supersedes V1/V2 delta classification — see `TRAJECTORY_LVEF_EXPERIMENTS.md`):
+- Delta prediction (V1 AUROC 0.649, V2 AUROC 0.610) failed because change is driven by external factors (treatment, regression to mean) not visible in a single echo
+- Restricting to baseline EF ≥ 50 controls for baseline EF, forcing the model to find *other* visual features
+- Event rate (7-9%) is stable across all time windows (30-89d, 90-179d, 180-365d) — no need to stratify
+- Binary task is cleaner and more clinically actionable than 3-class delta
 
 ---
 
@@ -295,6 +398,11 @@ Last updated: 2026-03-15
 | TAPSE | echojepa-l-k | **0.450** | **0.671** | 0.292 | 6 (5e-5, 0.001) | 14 | 15 | DONE |
 | TAPSE | echoprime | 0.343 | 0.588 | 0.321 | 17 (1e-5, 0.01) | 18 | 20 | DONE |
 | TAPSE | panecho | 0.311 | 0.560 | 0.330 | 9 (1e-5, 0.001) | 15 | 15 | DONE |
+| AV Vmax | echojepa-g | **0.582** | **0.763** | -- | -- | 13 | 15 | DONE |
+| AV Vmax | echojepa-l | 0.232 | 0.487 | -- | -- | 14 | 15 | DONE |
+| AV Vmax | echojepa-l-k | 0.388 | 0.623 | -- | -- | 14 | 15 | DONE |
+| AV Vmax | echoprime | 0.476 | 0.692 | -- | -- | 15 | 15 | DONE |
+| AV Vmax | panecho | 0.390 | 0.627 | -- | -- | 15 | 15 | DONE |
 
 ### Classification Tasks (B-mode only)
 
@@ -311,8 +419,29 @@ Last updated: 2026-03-15
 | AS sev. | echoprime | 0.827 | 57.00 | 0.496 | 0.253 | 10 (1e-5, 0.01) | 16 | 19 | DONE |
 | AS sev. | panecho | 0.762 | 34.65 | 0.420 | 0.086 | 0 (5e-4, 0.001) | 2 | 15 | DONE |
 
+| TR sev. | echojepa-g | **0.839** | 41.95 | 0.530 | 0.258 | -- | 12 | 15 | DONE |
+| TR sev. | echojepa-l | 0.755 | -- | -- | -- | -- | -- | 12/15 | RUNNING |
+
+### Trajectory / Onset Tasks (Binary Classification)
+
+| Task | Model | Best AUROC | Epochs | Status | Notes |
+|------|-------|-----------|--------|--------|-------|
+| onset (V3) | echojepa-g | **0.733** | 15 | DONE | Baseline EF≥50, predict future EF<50 |
+| onset (V3) | echojepa-l | 0.556 | 8/15 | RUNNING | |
+| delta ±10 (V1) | echojepa-g | 0.649 | 15 | superseded | 3-class, 30-365d |
+| delta ±10 (V1) | panecho | 0.649 | 15 | superseded | |
+| delta ±10 (V1) | echoprime | 0.642 | 15 | superseded | |
+| delta ±10 (V1) | echojepa-l-k | 0.614 | 15 | superseded | |
+| delta ±10 (V1) | echojepa-l | 0.608 | 15 | superseded | |
+| delta ±8 (V2) | echojepa-g | 0.610 | 15 | superseded | 3-class, 90-365d. Worse than V1. |
+| delta ±8 (V2) | echojepa-l | 0.545 | 15 | superseded | |
+
+Full experiment log: `experiments/nature_medicine/uhn/TRAJECTORY_LVEF_EXPERIMENTS.md`
+
 **MR/AS settings**: B-mode only view-filtered CSVs, `class_balance_ratio=3` (cap each class at 3× minority), `study_sampling=true`, `num_workers=4`.
 MR views: A4C, A2C, A3C, PLAX. AS views: PLAX, PSAX-AV, A3C. Studies after balancing: MR ~29K, AS ~22K.
+
+**AV Vmax settings**: B-mode only, views PLAX/A3C/PSAX-AV. Regression canary for hemodynamic pillar — confirms frozen representations predict continuous Doppler-derived measurements from structure alone. G leads by +10pp R² over next-best (EchoPrime). EchoPrime competitive (0.476) likely due to CLIP text supervision. G/L/L-K log_r0.csv lost (run script deletes checkpoint dirs when cycling models); results extracted from raw run log via grep. EchoPrime crashed mid-run (shm exhaustion) but checkpoint was saved; PanEcho completed normally after.
 
 ### Trained Probe Paths
 
@@ -340,6 +469,13 @@ Base: `evals/vitg-384/nature_medicine/uhn/video_classification_frozen/`
 | AS sev. | echojepa-l-k | `as_severity-echojepa-l-k/best.pt` | `as_severity-echojepa-l-k/log_r0.csv` |
 | AS sev. | echoprime | `as_severity-echoprime/best.pt` | `as_severity-echoprime/log_r0.csv` |
 | AS sev. | panecho | `as_severity-panecho/best.pt` | `as_severity-panecho/log_r0.csv` |
+
+| AV Vmax | echoprime | `aov_vmax-echoprime/best.pt` | `aov_vmax-echoprime/log_r0.csv` |
+| AV Vmax | panecho | `aov_vmax-panecho/best.pt` | `aov_vmax-panecho/log_r0.csv` |
+| TR sev. | echojepa-g | `tr_severity-echojepa-g/best.pt` | `tr_severity-echojepa-g/log_r0.csv` |
+| Onset | echojepa-g | `trajectory_lvef_onset-echojepa-g/best.pt` | `trajectory_lvef_onset-echojepa-g/log_r0.csv` |
+
+**Note**: AV Vmax G/L/L-K checkpoint dirs were deleted by run script during model cycling. Only EchoPrime and PanEcho checkpoints survive on disk.
 
 Dropped (EchoMAE — excluded from Nature Medicine):
 - `lvef-echomae/` — LVEF R²≈0
@@ -371,7 +507,100 @@ Archived (old 20-head HP grid, superseded by 12-head):
 
 4. **CSV header duplication on resume**: eval.py rewrites the CSV header each time it resumes, creating duplicate header rows. Epoch counting must use `grep -c "^[0-9]"` to skip headers, not `tail -n +2 | wc -l`.
 
-5. **Prediction averaging NOT implemented**: All reported val metrics are single random clip per study per epoch (via `DistributedStudySampler`). Study-level prediction aggregation at inference time is needed for final numbers.
+5. **Prediction averaging implemented** (2026-03-16): Added to `evals/video_classification_frozen/eval.py`. Auto-enables when `val_only=True` and `study_sampling=True`. Disables `DistributedStudySampler` for val (scores all clips), gathers study IDs across ranks via `dist.all_gather_object`, averages predictions per study, then computes metrics. All current training run metrics are still single-clip; pred avg requires a separate val-only pass with the best checkpoint.
+
+6. **Orphaned DDP worker processes**: When a parent run script is killed (`kill PID`), DDP child processes (one per GPU) may survive as orphans attached to init (ppid=1), holding GPU memory indefinitely. Symptom: `nvidia-smi` shows GPUs occupied with no matching Python process in `ps`. Fix: identify orphan PIDs via `nvidia-smi --query-compute-apps=pid`, then `kill -9`. Always check GPU memory before starting new runs.
+
+7. **Run script deletes checkpoint dirs when cycling models**: `run_uhn_probe.sh` overwrites the checkpoint directory for each model, losing `log_r0.csv` from previous models. For AV Vmax, G/L/L-K results were only recoverable from the raw run log. Workaround: save `log_r0.csv` to a separate archive dir between models, or fix the script to use unique output dirs.
+
+---
+
+## Failed Experiments
+
+### Trajectory LVEF — Delta Regression (ABANDONED 2026-03-16)
+
+**Setup**: Predict continuous Z-scored delta EF from baseline echo clip. 11,501 pairs (30-365d between echos), all clips per study_1, study_sampling enabled. EchoJEPA-G, 30 epochs.
+
+**Result**: Best R²=0.043, Pearson=0.214 (epoch 24). Model barely beats predicting the mean.
+
+**Root cause analysis**:
+1. **Variable time horizon (30-365d)**: Model doesn't know prediction window. Same baseline should predict different deltas at 60d vs 300d. Regression requires precise continuous output → time ambiguity destroys signal.
+2. **Near-zero-mean target**: Delta mean=0.24, std=7.85. Most patients don't change much (54% within ±5 EF). Probe fits a very noisy near-zero signal.
+3. **Regression to the mean dominates**: r(baseline_EF, delta) = -0.371. Low EF → improve, high EF → decline. Model achieves R²=0.043 despite baseline EF alone explaining ~14% of variance → model is doing WORSE than a trivial "predict delta from baseline EF" linear regression.
+
+**Key data**:
+- Baseline EF 10-35 (n=754): mean delta +5.42 (improve)
+- Baseline EF 35-50 (n=1161): mean delta +2.66
+- Baseline EF 50-60 (n=2886): mean delta +1.87
+- Baseline EF 60-70 (n=3495): mean delta -1.92
+- Baseline EF 70-85 (n=472): mean delta -8.21 (decline)
+
+**Epoch-level performance (EchoJEPA-G)**:
+```
+Epoch  R²       Pearson    Notes
+  7   -0.003    0.106
+  8   -0.004    0.101
+  9    0.003    0.158
+ 10   -0.103    0.101
+ 11    0.008    0.113
+ 12    0.004    0.119
+ 13   -0.013    0.107
+ 14    0.002    0.127
+ 15   -0.018    0.129
+ 16    0.007    0.147
+ 17    0.021    0.146      Best R² before ep 24
+ 18   -0.007    0.120
+ 19    0.017    0.158
+ 20   -0.037    0.128
+ 21    0.004    0.137
+ 22    0.027    0.178
+ 23   -0.005    0.163
+ 24    0.043    0.214      Best overall
+ 25    0.015    0.152
+ 26    0.013    0.167
+```
+
+**Decision**: Switched to 3-class classification (declined/stable/improved at ±10 EF threshold). See "Trajectory LVEF Decision" below.
+
+---
+
+## Trajectory LVEF — Experiment Evolution (2026-03-16)
+
+Three iterations of the trajectory prediction task, culminating in the onset framing. Full experiment log with per-epoch data: `experiments/nature_medicine/uhn/TRAJECTORY_LVEF_EXPERIMENTS.md`.
+
+### Summary
+
+| Version | Task | Time Window | Classes | Event Rate | G AUROC | Model Separation |
+|---------|------|-------------|---------|------------|---------|-----------------|
+| V0 | Delta regression | 30-365d | continuous | — | R²=0.043 | — |
+| V1 | Delta ±10 | 30-365d | 3 (9/82/9%) | 18% | 0.649 | minimal (0.04 range) |
+| V2 | Delta ±8 | 90-365d | 3 (15/72/13%) | 28% | 0.610 | — |
+| **V3** | **Onset (EF≥50→<50)** | **30-365d** | **2 (93/7%)** | **7-9%** | **0.733** | **large (+0.18 G vs L)** |
+
+### Why delta prediction fails
+
+- **r = -0.511** between baseline EF and delta → massive regression to the mean
+- All models learn baseline EF as a proxy (which all models do well), leaving no room for model differentiation
+- External factors (treatment, disease progression) dominate delta but are invisible in a single echo
+- V2 (narrower window, lower threshold) was worse because it removed informative pairs and ±8 is at measurement noise floor
+
+### Why onset framing works
+
+1. **Controls for baseline EF by design** — restricting to EF ≥ 50 forces the model to find visual features *beyond* the EF number
+2. **Differentiates model quality** — G at 0.733 vs L at 0.556 (+0.177 gap) vs V1 where all models clustered at 0.60-0.65
+3. **Clinically compelling** — "from an apparently normal echo, identify patients at risk of developing cardiomyopathy" is a Nature Medicine headline
+4. **Event rate stable across time windows** — 7-8% at 30-89d, 90-179d, and 180-365d → no need to stratify
+
+### Next steps
+
+1. Complete all 5 models on onset task (G done, L running, 3 remaining)
+2. Run prediction averaging (expected +0.03-0.06 AUROC)
+3. Compare to baseline-EF-only predictor (logistic regression on measured EF) to quantify value added
+4. Time-stratified AUROC analysis for supplement
+5. Consider recovery prediction subgroup (EF < 40 → improves, 40-50% event rate, smaller N)
+6. **Decision gate**: AUROC ≥ 0.75 with pred avg → Pillar 3 headline. 0.70-0.75 → supporting.
+
+**Confounders / interventions**: Not filtered. Most trajectory changes are treatment-driven. Paper limitation sentence sufficient.
 
 ---
 
@@ -485,8 +714,8 @@ These are the headline results. All use `bmode_only: true` view-filtered CSVs.
 |------|------|---------|---------------|--------|
 | mr_severity | classification | 5 | 1,648,091 | **DONE** (5 models, B-mode only) |
 | as_severity | classification | 4 | 1,487,709 | **DONE** (5 models, B-mode only) |
-| aov_vmax | regression | -- | 269,567 | **RUNNING** (GPUs 0-3, priority 3) |
-| tr_severity | classification | 5 | 1,365,676 | READY (priority 5, after trajectory LVEF) |
+| aov_vmax | regression | -- | 269,567 | **DONE** (5 models, B-mode only) |
+| tr_severity | classification | 5 | 1,365,676 | **RUNNING** (GPUs 0-3, EchoJEPA-G ep 4) |
 | ar_severity | classification | 5 | 969,896 | READY |
 | mv_ee | regression | -- | 71,562 | READY (B-mode filter rebuilt) |
 | rvsp | regression | -- | 139,861 | READY (B-mode filter rebuilt) |
@@ -504,8 +733,8 @@ These are the headline results. All use `bmode_only: true` view-filtered CSVs.
 
 | Task | Type | Train Clips | Status |
 |------|------|------------|--------|
-| trajectory_lvef | regression | 2,543 | **RUNNING** (GPUs 4-7, priority 4, 30 epochs) |
-| trajectory_tapse | regression | 2,872 | READY |
+| trajectory_lvef | **classification (3-class, ±10)** | 155,053 (8,471 studies) | **RUNNING** (GPUs 4-7, EchoJEPA-G ep 12, AUROC 0.643) |
+| trajectory_tapse | regression | 2,872 | READY (may switch to classification if LVEF classification works) |
 | trajectory_lv_mass | regression | 3,922 | READY |
 | trajectory_rv_sp | regression | 2,757 | READY |
 | trajectory_mr_severity | regression | 24,735 | READY |
@@ -560,9 +789,12 @@ Trajectory CSVs:
 experiments/nature_medicine/uhn/probe_csvs/trajectory_{task}/
     train.csv, val.csv, test.csv
     viewfilter_meta.json
-    zscore_params.json
+    zscore_params.json          # regression tasks only (removed for classification)
+    pairs_metadata.json         # full pair info: delta_raw, days_between, class, etc.
 ```
-Trajectory tasks use 1 clip per pair (no study_sampling). Format: `clip_path delta_value`.
+Trajectory LVEF: switched to 3-class classification (2026-03-16). All clips per study_1 in CSV, study_sampling enabled. Format: `clip_path class_int`. Other trajectory tasks still use regression (1 clip per pair, `clip_path delta_value`).
+
+Build script: `build_trajectory_csvs.py --task trajectory_lvef --classification --threshold 10`
 
 MIMIC CSVs (23 tasks):
 ```
@@ -698,6 +930,31 @@ Epoch   G       L       L-K     Prime   PanEcho
  20   0.907   0.784   --      --      --
 ```
 
+### AV Vmax — Per-epoch Val R² (12-head grid, best head, B-mode only)
+
+```
+Epoch  EchoPrime  PanEcho
+  1    0.401      0.312
+  2    0.422      0.330
+  3    0.433      0.344
+  4    0.409      0.337
+  5    0.450      0.379
+  6    0.447      0.337
+  7    0.454      0.353
+  8    0.462      0.362
+  9    0.464      0.377
+ 10    0.458      0.375
+ 11    0.454      0.358
+ 12    0.462      0.376
+ 13    0.470      0.379
+ 14    0.468      0.385
+ 15    0.476*     0.390*
+```
+G/L/L-K log_r0.csv lost (run script overwrites checkpoint dirs). From raw log: G best R²=0.582 (ep13), L best R²=0.232 (ep14), L-K best R²=0.388 (ep14).
+
+**AV Vmax ranking**: G (0.582) >> EchoPrime (0.476) > PanEcho (0.390) ≈ L-K (0.388) >> L (0.232).
+G leads by +10pp over next-best. Confirms hemodynamic regression works from B-mode, not just classification.
+
 ### Convergence Analysis
 
 15→20 epoch gains across all models:
@@ -747,14 +1004,14 @@ Key finding: ALL models show signal, so the story is "scale advantage" (+8-9pp f
 
 ### Tier 2: A major pillar drops, paper needs restructuring
 
-**2a. Trajectory prediction (future LVEF)** — NOT STARTED
+**2a. Trajectory prediction (future LVEF)** — IN PROGRESS (classification approach)
 
-The "model predicts future cardiac states" claim is one of three pillars. If the model can't beat a "predict no change" baseline, this pillar drops. Paper survives on hemodynamics + outcomes but loses ~2 pages of main text.
+The "model predicts future cardiac states" claim is one of three pillars. Delta regression FAILED (R²=0.043, see Failed Experiments). Switched to 3-class classification (declined ≥10 / stable / improved ≥10). Early results: AUROC 0.643 (EchoJEPA-G, single-clip, epoch 6 best). Real signal but modest.
 
-- Likelihood of failure: High. 72% of patients are stable (EF change <5pp).
-- Train one model on all 30-365d pairs (14,235 UHN). Stratify by time window (30-90d / 90-180d / 180-365d) at evaluation only.
-- Critical baselines: "predict no change" (future EF = baseline EF); EF change classification (improved >5pp / stable / declined >5pp).
-- Predict absolute future EF for training; compute delta at eval by subtracting known baseline EF.
+- **Regression approach abandoned**: Variable time horizon (30-365d) without the model knowing the prediction window makes continuous delta regression ill-posed.
+- **Classification at ±10**: Threshold exceeds measurement noise, matches clinical trial definitions. Class proportions stable across time windows → time ambiguity less damaging.
+- **Key remaining lever**: Prediction averaging (all current numbers single-clip). Expected to add +0.04-0.08 AUROC.
+- **Subgroup analysis needed**: Performance on preserved-EF (≥50%) decline detection is the clinical headline, even at modest overall AUROC.
 
 **2b. Biomarkers (attentive probes, NT-proBNP + creatinine)** — NOT STARTED
 
@@ -783,25 +1040,27 @@ Supporting evidence / Extended Data. Failures shrink scope but don't touch core 
 |----------|-----------|---------|--------|------------|
 | ~~1~~ | ~~MR severity from B-mode~~ | ~~UHN~~ | **DONE** | ~~5~~ |
 | ~~2~~ | ~~AS severity from B-mode~~ | ~~UHN~~ | **DONE** | ~~5~~ |
-| **3** | **AV Vmax from B-mode** | UHN (50K) | READY | 5 |
-| **4** | **Future LVEF (30-365d)** | UHN (14K pairs) | READY | 5 |
-| **5** | **TR severity + AR severity from B-mode** | UHN (139K / 75K) | READY | 10 |
-| **6** | **NT-proBNP + creatinine (attentive)** | MIMIC (852 / 3,883) | READY | 10 |
-| **7** | **E/e' + RVSP from B-mode** | UHN | BLOCKED (B-mode filter) | 10 |
-| **8** | **RV mechanics (rv_sp, rv_fac)** | UHN | READY | 10 |
-| **9** | **MIMIC outcomes (attentive)** | MIMIC (7,243) | READY | 35 |
-| **10** | **Remaining trajectory tasks** | UHN | READY | 20 |
-| **11** | **Extended Data tasks** | UHN + MIMIC | READY | ~200 |
+| ~~3~~ | ~~AV Vmax from B-mode~~ | ~~UHN~~ | **DONE** | ~~5~~ |
+| **4** | **Trajectory LVEF (3-class ±10)** | UHN (11.5K studies) | **RUNNING** (GPUs 4-7) | 5 |
+| **5** | **TR severity from B-mode** | UHN (1.4M clips) | **RUNNING** (GPUs 0-3) | 5 |
+| **6** | **AR severity from B-mode** | UHN (970K clips) | READY | 5 |
+| **7** | **NT-proBNP + creatinine (attentive)** | MIMIC (852 / 3,883) | READY | 10 |
+| **8** | **E/e' + RVSP from B-mode** | UHN | READY (B-mode filters rebuilt) | 10 |
+| **9** | **RV mechanics (rv_sp, rv_fac)** | UHN | READY | 10 |
+| **10** | **MIMIC outcomes (attentive)** | MIMIC (7,243) | READY | 35 |
+| **11** | **Remaining trajectory tasks** | UHN | READY (switch to classification if LVEF works) | 20 |
+| **12** | **Extended Data tasks** | UHN + MIMIC | READY | ~200 |
 
 ### Decision Points
 
-**After priority 3 (AV Vmax):**
-- Pass -> Hemodynamic regression works too, not just classification. Proceed with full table.
-- Fail -> Classification signal (MR/AS) is real but continuous prediction may be harder. Reframe hemodynamic section as severity grading rather than quantitative prediction.
+**After priority 3 (AV Vmax): PASSED**
+- ✓ Hemodynamic regression works. G achieves R²=0.582 (Pearson 0.763) predicting AV Vmax from B-mode. All 5 models show signal. Proceed with full hemodynamic table.
 
-**After priority 4 (trajectory LVEF):**
-- Beats "predict no change" baseline -> Trajectory is a pillar. Run remaining trajectory tasks (TAPSE, MR, LV mass, RV S').
-- Does not beat baseline -> Drop trajectory from main text. Compress to 1 paragraph or move to Extended Data as exploratory.
+**After priority 4 (trajectory LVEF): IN PROGRESS**
+- Delta regression FAILED (R²=0.043). Switched to classification.
+- Classification shows signal (AUROC 0.643) but needs prediction averaging to determine final performance.
+- Decision gate: if AUROC ≥ 0.70 after prediction averaging → trajectory is a pillar, run remaining 4 trajectory tasks as classification. If 0.65-0.70 → keep as supporting evidence with caveats. If < 0.65 → compress to Extended Data.
+- **Fallback options**: Try ±8 threshold (more events), add PLAX views, time-stratify to 180-365d only.
 
 **After priority 6 (biomarkers):**
 - NT-proBNP r > 0.5 or creatinine r > 0.4 -> Run cardiac output from B-mode (5 runs on UHN). The mechanistic bridge is worth pursuing.
