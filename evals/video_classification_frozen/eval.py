@@ -221,7 +221,7 @@ def main(args_eval, resume_preempt=False):
     class_balance_ratio = args_data.get("class_balance_ratio", None)
     prediction_averaging = args_data.get("prediction_averaging", False)
 
-    # -- REGRESSION NORMALIZATION: auto-load from zscore_params.json if not in config
+    # -- REGRESSION NORMALIZATION: auto-load from zscore_params.json, or compute from train CSV
     target_mean = args_data.get("target_mean", None)
     target_std = args_data.get("target_std", None)
     if task_type == "regression" and target_mean is None and target_std is None:
@@ -233,6 +233,26 @@ def main(args_eval, resume_preempt=False):
             target_mean = _params["target_mean"]
             target_std = _params["target_std"]
             logger.info("Loaded zscore params from %s: mean=%.4f, std=%.4f", zscore_path, target_mean, target_std)
+        elif val_only:
+            raise RuntimeError(
+                f"Regression inference requires zscore params but zscore_params.json not found at {zscore_path} "
+                f"and target_mean/target_std not set in config. "
+                f"Either place zscore_params.json alongside the train CSV or set target_mean/target_std in the YAML."
+            )
+        else:
+            import pandas as _pd
+            _train_df = _pd.read_csv(train_data_path[0], sep=" ", header=None)
+            _labels = _train_df.iloc[:, -1].astype(float)
+            target_mean = float(_labels.mean())
+            target_std = float(_labels.std())
+            logger.info(
+                "Computed zscore params from train CSV: mean=%.4f, std=%.4f (n=%d)",
+                target_mean, target_std, len(_labels),
+            )
+            # Save for reproducibility and future inference
+            with open(zscore_path, "w") as _f:
+                _json.dump({"target_mean": target_mean, "target_std": target_std}, _f)
+            logger.info("Saved zscore params to %s", zscore_path)
 
     # -- OPTIMIZATION
     args_opt = args_exp.get("optimization")
