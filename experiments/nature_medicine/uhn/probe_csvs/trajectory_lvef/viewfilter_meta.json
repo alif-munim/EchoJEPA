@@ -1,17 +1,15 @@
 {
   "task": "trajectory_lvef",
+  "mode": "classification",
+  "threshold": 8.0,
+  "classes": {
+    "0": "declined",
+    "1": "stable",
+    "2": "improved"
+  },
   "allowed_views": [
     "A4C",
     "A2C"
   ],
-  "bmode_only": false,
-  "cleaning": {
-    "delta_max": 30.0,
-    "value_range": [
-      5.0,
-      85.0
-    ],
-    "max_pairs_per_patient": 10,
-    "split_method": "temporal_by_real_study_date"
-  }
+  "bmode_only": false
 }

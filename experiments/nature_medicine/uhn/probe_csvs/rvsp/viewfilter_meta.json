@@ -4,7 +4,7 @@
     "A4C",
     "Subcostal"
   ],
-  "bmode_only": false,
+  "bmode_only": true,
   "view_predictions": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/view_inference_18m/master_predictions.csv",
-  "color_predictions": null
+  "color_predictions": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/color_inference_18m/master_predictions.csv"
 }

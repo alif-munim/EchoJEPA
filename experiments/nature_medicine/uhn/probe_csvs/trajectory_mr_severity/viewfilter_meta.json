@@ -1,12 +1,13 @@
 {
   "task": "trajectory_mr_severity",
   "allowed_views": [
-    "A4C",
     "A2C",
     "A3C",
+    "A4C",
     "PLAX"
   ],
   "bmode_only": false,
+  "study_sampling": true,
   "cleaning": {
     "delta_max": null,
     "value_range": [
@@ -14,6 +15,8 @@
       4
     ],
     "max_pairs_per_patient": 10,
-    "split_method": "temporal_by_real_study_date"
+    "split_method": "temporal_by_real_study_date",
+    "all_clips_per_study": true,
+    "dedup": "1_pair_per_baseline_study_longest_gap"
   }
 }

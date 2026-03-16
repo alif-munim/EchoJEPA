@@ -57,12 +57,12 @@ TASK_FILTERS = {
     "aov_area": (["PLAX", "A3C", "PSAX-AV"], True),
     "tr_severity": (["A4C", "Subcostal", "PLAX"], True),
     "pr_severity": (["PSAX-AV", "Subcostal", "PLAX"], True),
-    # --- Pressure / hemodynamic measurements ---
-    "rvsp": (["A4C", "Subcostal"], False),
+    # --- Pressure / hemodynamic measurements (B-mode for Pillar 2) ---
+    "rvsp": (["A4C", "Subcostal"], True),
     "pa_pressure": (["A4C", "Subcostal", "PLAX"], False),
-    # --- Diastolic function (Doppler-derived, no modality filter) ---
+    # --- Diastolic function ---
     "mv_ea": (["A4C", "A2C", "A3C"], False),
-    "mv_ee": (["A4C"], False),
+    "mv_ee": (["A4C"], True),  # B-mode for Pillar 2 (E/e' from structure)
     "mv_ee_medial": (["A4C"], False),
     "mv_dt": (["A4C", "A2C", "A3C"], False),
     "diastolic_function": (["A4C", "A2C", "A3C", "PLAX"], False),
