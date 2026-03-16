@@ -6,6 +6,28 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-16 (Session 19)
+
+### Bug 007: Checkpoint Loss Fix + Retroactive Archive
+
+**Incident:** All probe checkpoints for LVEF (5), TAPSE (5), MR severity (5), AS severity (5) discovered missing from eval output dirs. AV Vmax G/L/L-K logs also overwritten. 20 complete runs lost, 3 partially lost. Root cause of deletion unknown (no `rm` in any script version, bash history, or Claude session logs). Training logs in `logs/` confirm runs completed successfully. Key issue: no backup mechanism in `run_uhn_probe.sh` meant single point of failure.
+
+**Fix (`scripts/run_uhn_probe.sh`):**
+- Added `archive_model()` function: copies best.pt + log_r0.csv + latest.pt to `checkpoints/probes/{task}/{model}/`, pushes best.pt + log_r0.csv to S3
+- Archive runs after every model (on completion and on skip)
+- Added `best.pt` existence verification after training
+- Fixed `is_complete()` to respect `FRESH=true` mode
+- Added `NO_S3` env var, removed dead `echomae` case
+- `ARCHIVE_DIR=checkpoints/probes`, `S3_PREFIX=s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/probes`
+
+**Retroactive archive:** 19 surviving checkpoints (tr_severity 4, aov_vmax 2, trajectory_lvef 3, trajectory_lvef_onset 5, trajectory_lvef_v1 5) backed up to local + S3.
+
+**Retraining needed:** LVEF (5), TAPSE (5), MR sev (5), AS sev (5), AV Vmax G/L/L-K (3) = 23 runs.
+
+See `claude/dev/bugs/007-checkpoint-loss.md` for full details.
+
+---
+
 ## 2026-03-12 (Session 17)
 
 ### UHN Probe CSVs, Trajectory CSVs, MIMIC Fix, and Phase 1 Run Scripts

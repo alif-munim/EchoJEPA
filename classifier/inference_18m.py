@@ -172,6 +172,7 @@ def main():
     parser.add_argument("--limit", type=int, default=None, help="Process only first N rows (for testing)")
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size per GPU")
     parser.add_argument("--num_frames", type=int, default=3, help="Number of frames to sample per video")
+    parser.add_argument("--num_workers", type=int, default=8, help="DataLoader workers per GPU")
     parser.add_argument("--local_rank", type=int, default=int(os.getenv("LOCAL_RANK", 0)))
     args = parser.parse_args()
 
@@ -241,8 +242,24 @@ def main():
     if args.limit:
         df = df.head(args.limit)
 
+    total_before = len(df)
+
+    # Resume: load already-processed URIs from this rank's output file
+    output_file = os.path.join(args.output_dir, f"predictions_rank{rank}.csv")
+    done_uris = set()
+    if os.path.exists(output_file):
+        try:
+            done_df = pd.read_csv(output_file, usecols=["s3_uri"])
+            done_uris = set(done_df["s3_uri"].values)
+            logger.info(f"Resuming: {len(done_uris)} clips already processed in {output_file}")
+        except Exception as e:
+            logger.warning(f"Could not read existing output for resume: {e}")
+
+    if done_uris:
+        df = df[~df["s3_uri"].isin(done_uris)].reset_index(drop=True)
+
     if rank == 0:
-        logger.info(f"Total rows to process: {len(df)}")
+        logger.info(f"Total: {total_before}, Already done: {len(done_uris)}, Remaining: {len(df)}")
 
     val_tf = create_transform(
         args.img_size, is_training=False, interpolation="bicubic",
@@ -253,12 +270,11 @@ def main():
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=False)
     loader = DataLoader(
         dataset, batch_size=args.batch_size, sampler=sampler,
-        num_workers=8, pin_memory=True, drop_last=False,
+        num_workers=args.num_workers, pin_memory=True, drop_last=False,
     )
 
     # Inference Loop
     results = []
-    output_file = os.path.join(args.output_dir, f"predictions_rank{rank}.csv")
     buffer_size = 1000
 
     if rank == 0:

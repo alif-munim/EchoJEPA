@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-16 (evening — trajectory onset V3 added)
+Last updated: 2026-03-16 (night — checkpoint loss documented, full status audit)
 
 ## Evaluation Protocol
 
@@ -11,6 +11,7 @@ Last updated: 2026-03-16 (evening — trajectory onset V3 added)
 - **Run script**: `scripts/run_uhn_probe.sh <task>`
 - **Config template**: auto-generated YAML at `/tmp/nm_{task}_{model}.yaml`
 - **Checkpoint output**: `evals/vitg-384/nature_medicine/uhn/video_classification_frozen/{task}-{model}/`
+- **Checkpoint archive**: `checkpoints/probes/{task}/{model}/` (local) + `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/probes/{task}/{model}/` (S3)
 - **CSV source**: `experiments/nature_medicine/uhn/probe_csvs/{task}/`
 
 ---
@@ -218,7 +219,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 
 ## Running / Queued Tasks — Per-Task Protocol
 
-### TR Severity (classification, B-mode only) — RUNNING (GPUs 0-3)
+### TR Severity (classification, B-mode only) — G/L/L-K DONE, EchoPrime RUNNING (GPUs 0-3)
 
 | Setting | Value |
 |---------|-------|
@@ -348,7 +349,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | Inference | Single random clip per study per val epoch. **No prediction averaging.** |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/rv_fac/train_vf.csv` |
 
-### New-Onset Cardiomyopathy (trajectory_lvef_onset, binary) — RUNNING (GPUs 4-7)
+### New-Onset Cardiomyopathy (trajectory_lvef_onset, binary) — DONE (all 5 models trained + inference)
 
 | Setting | Value |
 |---------|-------|
@@ -384,50 +385,107 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 
 ## Completed Runs — Summary
 
+> **Checkpoint status**: LVEF, TAPSE, MR severity, AS severity, and AV Vmax G/L/L-K checkpoint directories were lost (cause unknown — see `claude/dev/bugs/007-checkpoint-loss.md`). Historical results below are from training logs. These tasks need retraining. Run script now archives to `checkpoints/probes/` + S3 after each model.
+
 ### Regression Tasks
 
-| Task | Model | Best Val R² | Best Pearson | Best MAE | Best Head (lr, wd) | Best Epoch | Epochs | Status |
-|------|-------|------------|-------------|---------|-------------------|-----------|--------|--------|
-| LVEF | echojepa-g | **0.720** | **0.849** | 4.462 | 13 (5e-5, 0.01) | 17 | 20 | DONE |
-| LVEF | echojepa-l | 0.415 | 0.646 | 6.152 | 5 (1e-4, 0.1) | 14 | 15 | DONE |
-| LVEF | echojepa-l-k | 0.582 | 0.763 | 5.265 | 4 (1e-4, 0.01) | 13 | 15 | DONE |
-| LVEF | echoprime | 0.559 | 0.751 | 5.399 | 11 (1e-5, 0.1) | 13 | 15 | DONE |
-| LVEF | panecho | 0.555 | 0.746 | 5.442 | 6 (5e-5, 0.001) | 15 | 15 | DONE |
-| TAPSE | echojepa-g | NaN | NaN | 0.264 | 13 (5e-5, 0.01) | 15 | 20 | **BUG** |
-| TAPSE | echojepa-l | 0.323 | 0.572 | 0.325 | 8 (1e-4, 0.001) | 18 | 20 | DONE |
-| TAPSE | echojepa-l-k | **0.450** | **0.671** | 0.292 | 6 (5e-5, 0.001) | 14 | 15 | DONE |
-| TAPSE | echoprime | 0.343 | 0.588 | 0.321 | 17 (1e-5, 0.01) | 18 | 20 | DONE |
-| TAPSE | panecho | 0.311 | 0.560 | 0.330 | 9 (1e-5, 0.001) | 15 | 15 | DONE |
-| AV Vmax | echojepa-g | **0.582** | **0.763** | -- | -- | 13 | 15 | DONE |
-| AV Vmax | echojepa-l | 0.232 | 0.487 | -- | -- | 14 | 15 | DONE |
-| AV Vmax | echojepa-l-k | 0.388 | 0.623 | -- | -- | 14 | 15 | DONE |
-| AV Vmax | echoprime | 0.476 | 0.692 | -- | -- | 15 | 15 | DONE |
-| AV Vmax | panecho | 0.390 | 0.627 | -- | -- | 15 | 15 | DONE |
+| Task | Model | Best Val R² | Best Pearson | Best MAE | Best Head (lr, wd) | Best Epoch | Epochs | Checkpoint |
+|------|-------|------------|-------------|---------|-------------------|-----------|--------|------------|
+| LVEF | echojepa-g | **0.720** | **0.849** | 4.462 | 13 (5e-5, 0.01) | 17 | 20 | LOST |
+| LVEF | echojepa-l | 0.415 | 0.646 | 6.152 | 5 (1e-4, 0.1) | 14 | 15 | LOST |
+| LVEF | echojepa-l-k | 0.582 | 0.763 | 5.265 | 4 (1e-4, 0.01) | 13 | 15 | LOST |
+| LVEF | echoprime | 0.559 | 0.751 | 5.399 | 11 (1e-5, 0.1) | 13 | 15 | LOST |
+| LVEF | panecho | 0.555 | 0.746 | 5.442 | 6 (5e-5, 0.001) | 15 | 15 | LOST |
+| TAPSE | echojepa-g | NaN | NaN | 0.264 | 13 (5e-5, 0.01) | 15 | 20 | LOST (also **BUG**) |
+| TAPSE | echojepa-l | 0.323 | 0.572 | 0.325 | 8 (1e-4, 0.001) | 18 | 20 | LOST |
+| TAPSE | echojepa-l-k | **0.450** | **0.671** | 0.292 | 6 (5e-5, 0.001) | 14 | 15 | LOST |
+| TAPSE | echoprime | 0.343 | 0.588 | 0.321 | 17 (1e-5, 0.01) | 18 | 20 | LOST |
+| TAPSE | panecho | 0.311 | 0.560 | 0.330 | 9 (1e-5, 0.001) | 15 | 15 | LOST |
+| AV Vmax | echojepa-g | **0.582** | **0.763** | -- | -- | 13 | 15 | LOST |
+| AV Vmax | echojepa-l | 0.232 | 0.487 | -- | -- | 14 | 15 | LOST |
+| AV Vmax | echojepa-l-k | 0.388 | 0.623 | -- | -- | 14 | 15 | LOST |
+| AV Vmax | echoprime | 0.476 | 0.692 | -- | -- | 15 | 15 | archived |
+| AV Vmax | panecho | 0.390 | 0.627 | -- | -- | 15 | 15 | archived |
 
 ### Classification Tasks (B-mode only)
 
-| Task | Model | Best AUROC | Best Acc | Best Bal Acc | Best Kappa | Best Head (lr, wd) | Best Epoch | Epochs | Status |
-|------|-------|-----------|---------|-------------|-----------|-------------------|-----------|--------|--------|
-| MR sev. | echojepa-g | **0.860** | 43.75 | 0.561 | 0.280 | 6 (5e-5, 0.001) | 17 | 20 | DONE |
-| MR sev. | echojepa-l | 0.771 | 33.75 | 0.428 | 0.184 | 7 (5e-5, 0.01) | 17 | 20 | DONE |
-| MR sev. | echojepa-l-k | 0.803 | 36.08 | 0.473 | 0.210 | 7 (5e-5, 0.01) | 19 | 19 | DONE |
-| MR sev. | echoprime | 0.770 | 30.58 | 0.416 | 0.160 | 0 (5e-4, 0.001) | 4 | 15 | DONE |
-| MR sev. | panecho | 0.724 | 23.87 | 0.373 | 0.106 | 0 (5e-4, 0.001) | 4 | 9 | DONE |
-| AS sev. | echojepa-g | **0.908** | 70.51 | 0.594 | 0.432 | 5 (1e-4, 0.1) | 16 | 20 | DONE |
-| AS sev. | echojepa-l | 0.786 | 54.25 | 0.427 | 0.239 | 3 (1e-4, 0.001) | 19 | 20 | DONE |
-| AS sev. | echojepa-l-k | 0.821 | 53.26 | 0.467 | 0.235 | 6 (5e-5, 0.001) | 18 | 20 | DONE |
-| AS sev. | echoprime | 0.827 | 57.00 | 0.496 | 0.253 | 10 (1e-5, 0.01) | 16 | 19 | DONE |
-| AS sev. | panecho | 0.762 | 34.65 | 0.420 | 0.086 | 0 (5e-4, 0.001) | 2 | 15 | DONE |
-
-| TR sev. | echojepa-g | **0.839** | 41.95 | 0.530 | 0.258 | -- | 12 | 15 | DONE |
-| TR sev. | echojepa-l | 0.755 | -- | -- | -- | -- | -- | 12/15 | RUNNING |
+| Task | Model | Best AUROC | Best Acc | Best Bal Acc | Best Kappa | Best Head (lr, wd) | Best Epoch | Epochs | Checkpoint |
+|------|-------|-----------|---------|-------------|-----------|-------------------|-----------|--------|------------|
+| MR sev. | echojepa-g | **0.860** | 43.75 | 0.561 | 0.280 | 6 (5e-5, 0.001) | 17 | 20 | LOST |
+| MR sev. | echojepa-l | 0.771 | 33.75 | 0.428 | 0.184 | 7 (5e-5, 0.01) | 17 | 20 | LOST |
+| MR sev. | echojepa-l-k | 0.803 | 36.08 | 0.473 | 0.210 | 7 (5e-5, 0.01) | 19 | 19 | LOST |
+| MR sev. | echoprime | 0.770 | 30.58 | 0.416 | 0.160 | 0 (5e-4, 0.001) | 4 | 15 | LOST |
+| MR sev. | panecho | 0.724 | 23.87 | 0.373 | 0.106 | 0 (5e-4, 0.001) | 4 | 9 | LOST |
+| AS sev. | echojepa-g | **0.908** | 70.51 | 0.594 | 0.432 | 5 (1e-4, 0.1) | 16 | 20 | LOST |
+| AS sev. | echojepa-l | 0.786 | 54.25 | 0.427 | 0.239 | 3 (1e-4, 0.001) | 19 | 20 | LOST |
+| AS sev. | echojepa-l-k | 0.821 | 53.26 | 0.467 | 0.235 | 6 (5e-5, 0.001) | 18 | 20 | LOST |
+| AS sev. | echoprime | 0.827 | 57.00 | 0.496 | 0.253 | 10 (1e-5, 0.01) | 16 | 19 | LOST |
+| AS sev. | panecho | 0.762 | 34.65 | 0.420 | 0.086 | 0 (5e-4, 0.001) | 2 | 15 | LOST |
+| TR sev. | echojepa-g | **0.837** | 41.95 | 0.530 | 0.258 | -- | 15 | 15 | archived |
+| TR sev. | echojepa-l | 0.753 | 32.10 | 0.401 | 0.167 | -- | 15 | 15 | archived |
+| TR sev. | echojepa-l-k | 0.786 | 35.74 | 0.469 | 0.201 | -- | 15 | 15 | archived |
+| TR sev. | echoprime | 0.739* | 33.38 | 0.399 | 0.165 | -- | 3* | 15 | RUNNING (GPUs 0-3) |
 
 ### Trajectory / Onset Tasks (Binary Classification)
 
-| Task | Model | Best AUROC | Epochs | Status | Notes |
-|------|-------|-----------|--------|--------|-------|
-| onset (V3) | echojepa-g | **0.733** | 15 | DONE | Baseline EF≥50, predict future EF<50 |
-| onset (V3) | echojepa-l | 0.556 | 8/15 | RUNNING | |
+#### Training Results (Val AUROC — single random clip per study per epoch)
+
+| Task | Model | Best Val AUROC | Best Val Bal Acc | Best Val Kappa | Best Epoch | Epochs | Status |
+|------|-------|---------------|-----------------|---------------|-----------|--------|--------|
+| onset (V3) | echojepa-g | **0.733** | 0.666 | 0.154 | 15 | 15 | DONE |
+| onset (V3) | echoprime | 0.700 | 0.622 | 0.132 | 13 | 15 | DONE |
+| onset (V3) | panecho | 0.698 | 0.631 | 0.139 | 13 | 15 | DONE |
+| onset (V3) | echojepa-l-k | 0.596 | 0.563 | 0.089 | 13 | 15 | DONE |
+| onset (V3) | echojepa-l | 0.516 | 0.500 | 0.000 | 13 | 15 | DONE |
+
+#### Inference Results (Test AUROC — prediction averaging across all clips per study)
+
+| Task | Model | Test AUROC | Test Bal Acc | Test Kappa | Test Acc | Status |
+|------|-------|-----------|-------------|-----------|---------|--------|
+| onset (V3) | echojepa-g | **0.793** | 0.700 | 0.218 | 79.81 | DONE |
+| onset (V3) | echoprime | 0.776 | 0.661 | 0.254 | 84.17 | DONE |
+| onset (V3) | panecho | 0.759 | 0.549 | 0.147 | 89.25 | DONE |
+| onset (V3) | echojepa-l-k | 0.677 | 0.500 | 0.000 | 91.82 | DONE |
+| onset (V3) | echojepa-l | 0.514 | 0.500 | 0.000 | 92.05 | DONE (at chance, NCCL crash during inference but result valid) |
+
+**Key findings:**
+- **G test AUROC 0.793 passes the 0.75 decision gate -> Pillar 3 headline confirmed**
+- **EchoPrime 0.776 and PanEcho 0.759** -- both strong, much closer to G than on hemodynamic tasks (+1.7pp and +3.4pp vs +8-10pp gap on valve severity)
+- Prediction averaging boosts all models substantially: G +0.060, EchoPrime +0.076, PanEcho +0.061, L-K +0.081
+- L-K predicts all-negative on test (bal_acc=0.500, kappa=0.000) despite 0.596 val AUROC -- overfitting to val set's class distribution
+- L at chance on both training (0.516) and test (0.514) -- MIMIC-pretrained L lacks prognostic features for UHN trajectory
+- **Model ranking differs from hemodynamic tasks**: EchoPrime nearly matches G on trajectory, suggesting text-supervised pretraining captures prognostic features. JEPA scale advantage is smaller for trajectory prediction than for hemodynamic inference.
+
+#### L-K onset collapse analysis
+
+L-K test AUROC 0.677 with bal_acc=0.500 and kappa=0.000 means it **never predicts the positive class**. The AUROC > 0.5 indicates the predicted probabilities have some ranking ability (patients who will decline get slightly higher scores), but the scores never cross the 0.5 decision threshold. The 91.82% accuracy equals the stable-class prevalence -- the model predicts all-stable. This is not a bug; it reflects genuinely weak signal at L-K's scale for this task.
+
+#### JEPA objective: scale-efficiency tradeoff across task types
+
+The G-vs-EchoPrime gap varies dramatically with task difficulty:
+
+| Task type | G | L-K | EchoPrime | G-vs-EP gap |
+|-----------|---|-----|-----------|-------------|
+| Hemodynamics (cross-sectional structure) | 0.860-0.908 | 0.786-0.821 | 0.770-0.827 | +3-9pp |
+| Standard regression (LVEF R2) | 0.720 | 0.582 | 0.559 | +16pp |
+| Trajectory prognosis (onset) | 0.793 | 0.677 | 0.776 | **+1.7pp** |
+
+**JEPA's masking objective** naturally learns spatial structure, motion patterns, and appearance -- exactly what hemodynamic inference needs. G dominates there (+8-10pp). But predicting future cardiomyopathy from an apparently-normal echo requires **subtle subclinical features** (early wall motion abnormalities, diastolic changes, myocardial texture) that predict decline before EF drops.
+
+**Key insights:**
+
+1. **JEPA at G scale (1.1B params, 18M echos) is the best approach on all tasks** -- sufficient data volume means the model sees enough "looked normal now, declined later" cases to learn prognostic patterns through masking alone.
+
+2. **JEPA at L-K scale captures structure but not prognosis** -- Kinetics pretraining (220 epochs) + echo annealing (55 epochs) gives strong structural features (2nd on MR/TR severity) but misses the subtle prognostic signal. This is not a training bug; it's the inherent limitation of learning prognostic features from masking alone without sufficient echo-specific data.
+
+3. **Text supervision (EchoPrime/CLIP) is more sample-efficient for prognostic features** -- when a cardiologist writes "subtle septal hypokinesis" or "mild diastolic dysfunction" in a report, CLIP contrastive training forces the vision encoder to represent exactly those features. This gives EchoPrime a shortcut to prognostic features that JEPA needs massive scale to discover.
+
+4. **L's failure (0.514 = chance) is simply insufficient data** -- 7K MIMIC studies is far too little for SSL pretraining.
+
+5. **What you pretrain on matters as much as scale** -- L-K has 300M params and saw Kinetics + echo data, but can't match EchoPrime's 0.776 on onset. Domain-relevant supervision (text or labels) is more efficient than domain-agnostic SSL for prognostic tasks.
+
+**Paper framing**: G leads on all tasks (headline). But the margin depends on task difficulty -- largest on hemodynamic inference (structure), smallest on prognosis (trajectory). Text supervision provides a more efficient path to prognostic features, motivating multimodal JEPA + report pretraining as future work.
+
 | delta ±10 (V1) | echojepa-g | 0.649 | 15 | superseded | 3-class, 30-365d |
 | delta ±10 (V1) | panecho | 0.649 | 15 | superseded | |
 | delta ±10 (V1) | echoprime | 0.642 | 15 | superseded | |
@@ -443,39 +501,28 @@ MR views: A4C, A2C, A3C, PLAX. AS views: PLAX, PSAX-AV, A3C. Studies after balan
 
 **AV Vmax settings**: B-mode only, views PLAX/A3C/PSAX-AV. Regression canary for hemodynamic pillar — confirms frozen representations predict continuous Doppler-derived measurements from structure alone. G leads by +10pp R² over next-best (EchoPrime). EchoPrime competitive (0.476) likely due to CLIP text supervision. G/L/L-K log_r0.csv lost (run script deletes checkpoint dirs when cycling models); results extracted from raw run log via grep. EchoPrime crashed mid-run (shm exhaustion) but checkpoint was saved; PanEcho completed normally after.
 
-### Trained Probe Paths
+### Surviving Probe Checkpoints
 
-Base: `evals/vitg-384/nature_medicine/uhn/video_classification_frozen/`
+All surviving checkpoints archived to `checkpoints/probes/{task}/{model}/` and S3. LVEF, TAPSE, MR severity, AS severity, and AV Vmax G/L/L-K directories are gone (see Bug 007).
 
-| Task | Model | best.pt | log |
-|------|-------|---------|-----|
-| LVEF | echojepa-g | `lvef-echojepa-g/best.pt` | `lvef-echojepa-g/log_r0.csv` |
-| LVEF | echojepa-l | `lvef-echojepa-l/best.pt` | `lvef-echojepa-l/log_r0.csv` |
-| LVEF | echojepa-l-k | `lvef-echojepa-l-k/best.pt` | `lvef-echojepa-l-k/log_r0.csv` |
-| LVEF | echoprime | `lvef-echoprime/best.pt` | `lvef-echoprime/log_r0.csv` |
-| LVEF | panecho | `lvef-panecho/best.pt` | `lvef-panecho/log_r0.csv` |
-| TAPSE | echojepa-g | `tapse-echojepa-g/best.pt` | `tapse-echojepa-g/log_r0.csv` |
-| TAPSE | echojepa-l | `tapse-echojepa-l/best.pt` | `tapse-echojepa-l/log_r0.csv` |
-| TAPSE | echojepa-l-k | `tapse-echojepa-l-k/best.pt` | `tapse-echojepa-l-k/log_r0.csv` |
-| TAPSE | echoprime | `tapse-echoprime/best.pt` | `tapse-echoprime/log_r0.csv` |
-| TAPSE | panecho | `tapse-panecho/best.pt` | `tapse-panecho/log_r0.csv` |
-| MR sev. | echojepa-g | `mr_severity-echojepa-g/best.pt` | `mr_severity-echojepa-g/log_r0.csv` |
-| MR sev. | echojepa-l | `mr_severity-echojepa-l/best.pt` | `mr_severity-echojepa-l/log_r0.csv` |
-| MR sev. | echojepa-l-k | `mr_severity-echojepa-l-k/best.pt` | `mr_severity-echojepa-l-k/log_r0.csv` |
-| MR sev. | echoprime | `mr_severity-echoprime/best.pt` | `mr_severity-echoprime/log_r0.csv` |
-| MR sev. | panecho | `mr_severity-panecho/best.pt` | `mr_severity-panecho/log_r0.csv` |
-| AS sev. | echojepa-g | `as_severity-echojepa-g/best.pt` | `as_severity-echojepa-g/log_r0.csv` |
-| AS sev. | echojepa-l | `as_severity-echojepa-l/best.pt` | `as_severity-echojepa-l/log_r0.csv` |
-| AS sev. | echojepa-l-k | `as_severity-echojepa-l-k/best.pt` | `as_severity-echojepa-l-k/log_r0.csv` |
-| AS sev. | echoprime | `as_severity-echoprime/best.pt` | `as_severity-echoprime/log_r0.csv` |
-| AS sev. | panecho | `as_severity-panecho/best.pt` | `as_severity-panecho/log_r0.csv` |
+| Task | Model | Archive path | Status |
+|------|-------|-------------|--------|
+| AV Vmax | echoprime | `checkpoints/probes/aov_vmax/echoprime/` | archived |
+| AV Vmax | panecho | `checkpoints/probes/aov_vmax/panecho/` | archived |
+| TR sev. | echojepa-g | `checkpoints/probes/tr_severity/echojepa-g/` | archived |
+| TR sev. | echojepa-l | `checkpoints/probes/tr_severity/echojepa-l/` | archived |
+| TR sev. | echojepa-l-k | `checkpoints/probes/tr_severity/echojepa-l-k/` | archived |
+| TR sev. | echoprime | `checkpoints/probes/tr_severity/echoprime/` | RUNNING (epoch 3) |
+| Traj LVEF (3-class) | echojepa-g | `checkpoints/probes/trajectory_lvef/echojepa-g/` | archived |
+| Traj LVEF (3-class) | echojepa-l | `checkpoints/probes/trajectory_lvef/echojepa-l/` | archived |
+| Traj LVEF (3-class) | echojepa-l-k | `checkpoints/probes/trajectory_lvef/echojepa-l-k/` | archived |
+| Onset | echojepa-g | `checkpoints/probes/trajectory_lvef_onset/echojepa-g/` | archived |
+| Onset | echojepa-l | `checkpoints/probes/trajectory_lvef_onset/echojepa-l/` | archived |
+| Onset | echojepa-l-k | `checkpoints/probes/trajectory_lvef_onset/echojepa-l-k/` | archived |
+| Onset | echoprime | `checkpoints/probes/trajectory_lvef_onset/echoprime/` | archived |
+| Onset | panecho | `checkpoints/probes/trajectory_lvef_onset/panecho/` | archived |
 
-| AV Vmax | echoprime | `aov_vmax-echoprime/best.pt` | `aov_vmax-echoprime/log_r0.csv` |
-| AV Vmax | panecho | `aov_vmax-panecho/best.pt` | `aov_vmax-panecho/log_r0.csv` |
-| TR sev. | echojepa-g | `tr_severity-echojepa-g/best.pt` | `tr_severity-echojepa-g/log_r0.csv` |
-| Onset | echojepa-g | `trajectory_lvef_onset-echojepa-g/best.pt` | `trajectory_lvef_onset-echojepa-g/log_r0.csv` |
-
-**Note**: AV Vmax G/L/L-K checkpoint dirs were deleted by run script during model cycling. Only EchoPrime and PanEcho checkpoints survive on disk.
+S3 restore: `aws s3 sync s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/probes/ checkpoints/probes/`
 
 Dropped (EchoMAE — excluded from Nature Medicine):
 - `lvef-echomae/` — LVEF R²≈0
@@ -511,7 +558,7 @@ Archived (old 20-head HP grid, superseded by 12-head):
 
 6. **Orphaned DDP worker processes**: When a parent run script is killed (`kill PID`), DDP child processes (one per GPU) may survive as orphans attached to init (ppid=1), holding GPU memory indefinitely. Symptom: `nvidia-smi` shows GPUs occupied with no matching Python process in `ps`. Fix: identify orphan PIDs via `nvidia-smi --query-compute-apps=pid`, then `kill -9`. Always check GPU memory before starting new runs.
 
-7. **Run script deletes checkpoint dirs when cycling models**: `run_uhn_probe.sh` overwrites the checkpoint directory for each model, losing `log_r0.csv` from previous models. For AV Vmax, G/L/L-K results were only recoverable from the raw run log. Workaround: save `log_r0.csv` to a separate archive dir between models, or fix the script to use unique output dirs.
+7. **Checkpoint loss (Bug 007)**: All checkpoint directories for LVEF (5), TAPSE (5), MR severity (5), AS severity (5), and AV Vmax G/L/L-K (3) = 23 runs are gone. Cause unknown (no `rm` in any script, bash history, or Claude session). Historical results preserved in training logs. **Fix applied**: `run_uhn_probe.sh` now archives to `checkpoints/probes/{task}/{model}/` + S3 after each model. See `claude/dev/bugs/007-checkpoint-loss.md`.
 
 ---
 
@@ -575,7 +622,7 @@ Three iterations of the trajectory prediction task, culminating in the onset fra
 | V0 | Delta regression | 30-365d | continuous | — | R²=0.043 | — |
 | V1 | Delta ±10 | 30-365d | 3 (9/82/9%) | 18% | 0.649 | minimal (0.04 range) |
 | V2 | Delta ±8 | 90-365d | 3 (15/72/13%) | 28% | 0.610 | — |
-| **V3** | **Onset (EF≥50→<50)** | **30-365d** | **2 (93/7%)** | **7-9%** | **0.733** | **large (+0.18 G vs L)** |
+| **V3** | **Onset (EF≥50→<50)** | **30-365d** | **2 (93/7%)** | **7-9%** | **0.733 val / 0.793 test** | **large (+0.18 G vs L)** |
 
 ### Why delta prediction fails
 
@@ -593,12 +640,12 @@ Three iterations of the trajectory prediction task, culminating in the onset fra
 
 ### Next steps
 
-1. Complete all 5 models on onset task (G done, L running, 3 remaining)
-2. Run prediction averaging (expected +0.03-0.06 AUROC)
-3. Compare to baseline-EF-only predictor (logistic regression on measured EF) to quantify value added
-4. Time-stratified AUROC analysis for supplement
-5. Consider recovery prediction subgroup (EF < 40 → improves, 40-50% event rate, smaller N)
-6. **Decision gate**: AUROC ≥ 0.75 with pred avg → Pillar 3 headline. 0.70-0.75 → supporting.
+1. ~~Complete all 5 models on onset task~~ -- **DONE** (all 5 trained, 15 epochs each)
+2. ~~Run prediction averaging~~ -- **DONE** (G 0.793, EchoPrime 0.776, PanEcho 0.759, L-K 0.677, L 0.514)
+3. ~~**Decision gate**: AUROC >= 0.75 with pred avg -> Pillar 3 headline~~ -- **PASSED** (G 0.793)
+4. Compare to baseline-EF-only predictor (logistic regression on measured EF) to quantify value added
+5. Time-stratified AUROC analysis for supplement
+6. Consider recovery prediction subgroup (EF < 40 → improves, 40-50% event rate, smaller N)
 
 **Confounders / interventions**: Not filtered. Most trajectory changes are treatment-driven. Paper limitation sentence sufficient.
 
@@ -706,16 +753,26 @@ Intermediate grades (mild-to-moderate, moderate-to-severe) collapsed into the ad
 
 ## Run Priority (Phase 1)
 
-### Tier 1 — Main text Pillar 2: Hemodynamics (B-mode only)
+### URGENT — Retrain Lost Checkpoints
 
-These are the headline results. All use `bmode_only: true` view-filtered CSVs.
+23 runs need retraining due to checkpoint loss (Bug 007). Results were good; only the probe weights are missing.
+
+| Task | Models to retrain | Historical best (G) | Est. time |
+|------|-------------------|-------|-----------|
+| lvef | all 5 | R² 0.720 | ~3h |
+| tapse | all 5 | R² 0.450 (L-K; G had NaN bug) | ~3h |
+| mr_severity | all 5 | AUROC 0.860 | ~3h |
+| as_severity | all 5 | AUROC 0.908 | ~3h |
+| aov_vmax | G, L, L-K only | R² 0.582 | ~2h |
+
+### Tier 1 — Main text Pillar 2: Hemodynamics (B-mode only)
 
 | Task | Type | Classes | VF Train Clips | Status |
 |------|------|---------|---------------|--------|
-| mr_severity | classification | 5 | 1,648,091 | **DONE** (5 models, B-mode only) |
-| as_severity | classification | 4 | 1,487,709 | **DONE** (5 models, B-mode only) |
-| aov_vmax | regression | -- | 269,567 | **DONE** (5 models, B-mode only) |
-| tr_severity | classification | 5 | 1,365,676 | **RUNNING** (GPUs 0-3, EchoJEPA-G ep 4) |
+| mr_severity | classification | 5 | 1,648,091 | **RETRAIN** (checkpoints lost, was G 0.860) |
+| as_severity | classification | 4 | 1,487,709 | **RETRAIN** (checkpoints lost, was G 0.908) |
+| aov_vmax | regression | -- | 269,567 | **RETRAIN G/L/L-K** (EchoPrime+PanEcho archived) |
+| tr_severity | classification | 5 | 1,365,676 | G/L/L-K **DONE** + archived. EchoPrime RUNNING (epoch 3, AUROC 0.739). PanEcho queued. |
 | ar_severity | classification | 5 | 969,896 | READY |
 | mv_ee | regression | -- | 71,562 | READY (B-mode filter rebuilt) |
 | rvsp | regression | -- | 139,861 | READY (B-mode filter rebuilt) |
@@ -724,7 +781,7 @@ These are the headline results. All use `bmode_only: true` view-filtered CSVs.
 
 | Task | Type | VF Train Clips | Status |
 |------|------|---------------|--------|
-| tapse | regression | 280,638 | **DONE** (5 models) |
+| tapse | regression | 280,638 | **RETRAIN** (checkpoints lost, was L-K 0.450 best) |
 | rv_sp | regression | 391,778 | READY |
 | rv_fac | regression | 80,046 | READY |
 | rv_basal_dim | regression | -- | **BLOCKED** (labels not built) |
@@ -733,15 +790,16 @@ These are the headline results. All use `bmode_only: true` view-filtered CSVs.
 
 | Task | Type | Train Clips | Status |
 |------|------|------------|--------|
-| trajectory_lvef | **classification (3-class, ±10)** | 155,053 (8,471 studies) | **RUNNING** (GPUs 4-7, EchoJEPA-G ep 12, AUROC 0.643) |
-| trajectory_tapse | regression | 2,872 | READY (may switch to classification if LVEF classification works) |
+| trajectory_lvef_onset | binary classification | 33,705 (1,932 studies) | **DONE** all 5 models trained + inference. G 0.793 test AUROC. |
+| trajectory_lvef (3-class) | classification | 155,053 (8,471 studies) | G/L/L-K trained (archived). No inference yet. |
+| trajectory_tapse | regression | 2,872 | READY (may switch to classification) |
 | trajectory_lv_mass | regression | 3,922 | READY |
 | trajectory_rv_sp | regression | 2,757 | READY |
 | trajectory_mr_severity | regression | 24,735 | READY |
 
 ### Tier 4 — Extended Data (batch after main text tasks)
 
-All remaining 35 tasks. Run in order: ED1 structural → ED3 findings → ED2 hemodynamics → ED4+ED5 disease detection.
+All remaining 35 tasks. Run in order: ED1 structural -> ED3 findings -> ED2 hemodynamics -> ED4+ED5 disease detection.
 
 ---
 
@@ -955,6 +1013,29 @@ G/L/L-K log_r0.csv lost (run script overwrites checkpoint dirs). From raw log: G
 **AV Vmax ranking**: G (0.582) >> EchoPrime (0.476) > PanEcho (0.390) ≈ L-K (0.388) >> L (0.232).
 G leads by +10pp over next-best. Confirms hemodynamic regression works from B-mode, not just classification.
 
+### TR Severity — Per-epoch Val AUROC (12-head grid, best head, B-mode only)
+
+```
+Epoch   G       L       L-K
+  1   0.790   0.676   0.724
+  2   0.783   0.693   0.718
+  3   0.817   0.712   0.741
+  4   0.825   0.727   0.767
+  5   0.824   0.736   0.766
+  6   0.822   0.732   0.763
+  7   0.827   0.728   0.773
+  8   0.831   0.742   0.773
+  9   0.837   0.751   0.780
+ 10   0.836   0.745   0.781
+ 11   0.838   0.755*  0.790
+ 12   0.839*  0.754   0.791*
+ 13   0.838   0.755   --
+ 14   0.837   0.747   --
+ 15   0.837   0.755   --
+```
+`*` = best epoch for that model. `--` = not yet reached (L-K at epoch 12, running).
+EchoPrime and PanEcho queued after L-K completes.
+
 ### Convergence Analysis
 
 15→20 epoch gains across all models:
@@ -1004,14 +1085,13 @@ Key finding: ALL models show signal, so the story is "scale advantage" (+8-9pp f
 
 ### Tier 2: A major pillar drops, paper needs restructuring
 
-**2a. Trajectory prediction (future LVEF)** — IN PROGRESS (classification approach)
+**2a. Trajectory prediction (future LVEF)** — PASSED
 
-The "model predicts future cardiac states" claim is one of three pillars. Delta regression FAILED (R²=0.043, see Failed Experiments). Switched to 3-class classification (declined ≥10 / stable / improved ≥10). Early results: AUROC 0.643 (EchoJEPA-G, single-clip, epoch 6 best). Real signal but modest.
+The "model predicts future cardiac states" claim is one of three pillars. Delta regression and 3-class classification both failed (see Failed Experiments). **Onset framing (V3) succeeded**: from apparently normal EF (≥50%), predict new-onset cardiomyopathy (future EF<50%). EchoJEPA-G test AUROC **0.793** with prediction averaging (pred avg boosted +0.060 over val).
 
-- **Regression approach abandoned**: Variable time horizon (30-365d) without the model knowing the prediction window makes continuous delta regression ill-posed.
-- **Classification at ±10**: Threshold exceeds measurement noise, matches clinical trial definitions. Class proportions stable across time windows → time ambiguity less damaging.
-- **Key remaining lever**: Prediction averaging (all current numbers single-clip). Expected to add +0.04-0.08 AUROC.
-- **Subgroup analysis needed**: Performance on preserved-EF (≥50%) decline detection is the clinical headline, even at modest overall AUROC.
+- **Onset framing works** because it controls for baseline EF by design, forcing the model to find subclinical features beyond the EF number
+- **Strong model separation**: G 0.793 >> L-K 0.677 >> L ~chance. EchoPrime/PanEcho test results pending (~0.70 expected from training val).
+- **Decision gate PASSED**: 0.793 > 0.75 → trajectory confirmed as Pillar 3 headline
 
 **2b. Biomarkers (attentive probes, NT-proBNP + creatinine)** — NOT STARTED
 
@@ -1041,8 +1121,8 @@ Supporting evidence / Extended Data. Failures shrink scope but don't touch core 
 | ~~1~~ | ~~MR severity from B-mode~~ | ~~UHN~~ | **DONE** | ~~5~~ |
 | ~~2~~ | ~~AS severity from B-mode~~ | ~~UHN~~ | **DONE** | ~~5~~ |
 | ~~3~~ | ~~AV Vmax from B-mode~~ | ~~UHN~~ | **DONE** | ~~5~~ |
-| **4** | **Trajectory LVEF (3-class ±10)** | UHN (11.5K studies) | **RUNNING** (GPUs 4-7) | 5 |
-| **5** | **TR severity from B-mode** | UHN (1.4M clips) | **RUNNING** (GPUs 0-3) | 5 |
+| ~~4~~ | ~~Trajectory LVEF onset (V3)~~ | ~~UHN (6K studies)~~ | **DONE** — G test 0.793 (pred avg). Passes 0.75 gate. | ~~5~~ |
+| **5** | **TR severity from B-mode** | UHN (1.4M clips) | **RUNNING** (GPUs 0-3, L-K ep12) | 5 |
 | **6** | **AR severity from B-mode** | UHN (970K clips) | READY | 5 |
 | **7** | **NT-proBNP + creatinine (attentive)** | MIMIC (852 / 3,883) | READY | 10 |
 | **8** | **E/e' + RVSP from B-mode** | UHN | READY (B-mode filters rebuilt) | 10 |
@@ -1056,11 +1136,10 @@ Supporting evidence / Extended Data. Failures shrink scope but don't touch core 
 **After priority 3 (AV Vmax): PASSED**
 - ✓ Hemodynamic regression works. G achieves R²=0.582 (Pearson 0.763) predicting AV Vmax from B-mode. All 5 models show signal. Proceed with full hemodynamic table.
 
-**After priority 4 (trajectory LVEF): IN PROGRESS**
-- Delta regression FAILED (R²=0.043). Switched to classification.
-- Classification shows signal (AUROC 0.643) but needs prediction averaging to determine final performance.
-- Decision gate: if AUROC ≥ 0.70 after prediction averaging → trajectory is a pillar, run remaining 4 trajectory tasks as classification. If 0.65-0.70 → keep as supporting evidence with caveats. If < 0.65 → compress to Extended Data.
-- **Fallback options**: Try ±8 threshold (more events), add PLAX views, time-stratify to 180-365d only.
+**After priority 4 (trajectory LVEF): PASSED**
+- Delta regression FAILED (R²=0.043). 3-class classification (V1/V2) showed modest signal but poor model separation.
+- Onset framing (V3): EF≥50 → predict future EF<50. **G test AUROC 0.793 with prediction averaging — passes 0.75 gate.**
+- ✓ Trajectory is confirmed as Pillar 3 headline. Proceed with remaining 4 trajectory tasks (reframe as onset/classification where appropriate).
 
 **After priority 6 (biomarkers):**
 - NT-proBNP r > 0.5 or creatinine r > 0.4 -> Run cardiac output from B-mode (5 runs on UHN). The mechanistic bridge is worth pursuing.

@@ -1,8 +1,9 @@
 #!/bin/bash
 # Generic Nature Medicine UHN probe runner.
 # Auto-detects task type (regression/classification), view filtering, z-score params.
-# Runs 6 models sequentially with HP grid search (12 heads × 15 epochs, BS2).
+# Runs 5 models sequentially with HP grid search (12 heads × 15 epochs, BS2).
 # Automatically skips completed models and resumes interrupted ones.
+# After each model, archives checkpoints locally and pushes to S3.
 #
 # Usage:
 #   bash scripts/run_uhn_probe.sh tapse
@@ -19,6 +20,7 @@
 #   MASTER_PORT   — DDP port (default: 37129). MUST differ between concurrent jobs.
 #   RESUME        — resume from latest.pt checkpoint (default: true)
 #   FRESH         — set to "true" to ignore existing checkpoints and start from scratch
+#   NO_S3         — set to "true" to skip S3 upload (local archive still saved)
 set -euo pipefail
 
 # --- Parse args ---
@@ -43,6 +45,8 @@ export LD_LIBRARY_PATH=/opt/conda/lib:${LD_LIBRARY_PATH:-}
 
 CSV_DIR=experiments/nature_medicine/uhn/probe_csvs/${TASK}
 OUT_DIR=evals/vitg-384/nature_medicine/uhn
+ARCHIVE_DIR=checkpoints/probes
+S3_PREFIX=s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/probes
 DEVICES="${DEVICES:-cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7}"
 SLEEP=30
 PORT_TIMEOUT=300  # max seconds to wait for port to become free
@@ -195,6 +199,10 @@ YAML
 # --- Check if model already complete ---
 is_complete() {
     local model_tag="$1"
+    # FRESH mode always re-runs
+    if [ "${FRESH:-false}" = "true" ]; then
+        return 1
+    fi
     local latest="${OUT_DIR}/video_classification_frozen/${TASK}-${model_tag}/latest.pt"
     if [ ! -f "$latest" ]; then
         return 1
@@ -235,6 +243,35 @@ wait_for_port() {
     fi
 }
 
+# --- Archive checkpoints locally and push to S3 ---
+archive_model() {
+    local model_tag="$1"
+    local src_dir="${OUT_DIR}/video_classification_frozen/${TASK}-${model_tag}"
+    local local_archive="${ARCHIVE_DIR}/${TASK}/${model_tag}"
+    local s3_dest="${S3_PREFIX}/${TASK}/${model_tag}"
+
+    mkdir -p "$local_archive"
+
+    # Copy best.pt, log_r0.csv, latest.pt to local archive
+    for f in best.pt log_r0.csv latest.pt; do
+        if [ -f "${src_dir}/${f}" ]; then
+            cp "${src_dir}/${f}" "${local_archive}/${f}"
+        fi
+    done
+    log "    Archived locally: ${local_archive}/"
+
+    # Push to S3 (skip if NO_S3=true)
+    if [ "${NO_S3:-false}" != "true" ]; then
+        for f in best.pt log_r0.csv; do
+            if [ -f "${local_archive}/${f}" ]; then
+                aws s3 cp "${local_archive}/${f}" "${s3_dest}/${f}" --quiet 2>/dev/null && \
+                    log "    Uploaded: ${s3_dest}/${f}" || \
+                    log "    WARNING: S3 upload failed for ${f} (continuing)"
+            fi
+        done
+    fi
+}
+
 # --- Run function ---
 run() {
     local tag="$1"
@@ -244,6 +281,8 @@ run() {
     # Skip if already complete
     if is_complete "$model_tag"; then
         log ">>> SKIP ${tag} (already complete, ${EPOCHS} epochs)"
+        # Still archive in case previous run didn't (idempotent)
+        archive_model "$model_tag"
         return 0
     fi
 
@@ -280,6 +319,15 @@ run() {
         rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
         return 1
     fi
+
+    # Verify best.pt was saved
+    local best_pt="${OUT_DIR}/video_classification_frozen/${TASK}-${model_tag}/best.pt"
+    if [ ! -f "$best_pt" ]; then
+        log ">>> WARNING: ${tag} completed ${n_epochs} epochs but best.pt is missing!"
+    fi
+
+    # Archive checkpoints and push to S3
+    archive_model "$model_tag"
 
     log ">>> DONE: ${tag}"
     echo ""
@@ -337,17 +385,6 @@ for MODEL in $MODELS; do
       use_rope: true" \
                 "    max_frames: 128
     use_pos_embed: false")
-            ;;
-        echomae)
-            # val_batch_size=16: VideoMAE uses standard attention (no SDPA), OOMs at bs=64
-            CFG=$(generate_config "echomae" \
-                "evals.video_classification_frozen.modelcustom.videomae_encoder" \
-                "/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/videomae-ep163.pth" \
-                "    encoder:
-      model_name: vit_large_patch16_224
-      tubelet_size: 2" \
-                "    {}" \
-                16)
             ;;
         echoprime)
             CFG=$(generate_config "echoprime" \

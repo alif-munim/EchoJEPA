@@ -1,0 +1,18 @@
+{
+  "task": "trajectory_lvef",
+  "output_task": "trajectory_lvef_onset",
+  "mode": "onset_binary",
+  "baseline_min": 50.0,
+  "future_below": 50.0,
+  "classes": {
+    "0": "stable",
+    "1": "decline"
+  },
+  "allowed_views": [
+    "A4C",
+    "A2C"
+  ],
+  "bmode_only": false,
+  "min_days": null,
+  "max_days": null
+}

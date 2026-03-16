@@ -12,11 +12,13 @@ Development log for the EchoJEPA project: bug tracker, changelog, operational gu
 | 004 | [Silent index misalignment on video load failure](bugs/004-video-load-substitution.md) | **HIGH** | **FIXED** (tracking added) | `src/datasets/video_dataset.py` |
 | 005 | [`drop_last` not forwarded to DataLoader](bugs/005-drop-last-not-forwarded.md) | **MEDIUM** | **FIXED** | `src/datasets/data_manager.py` |
 | 006 | [train_probe --labels with --train/--val broken](bugs/006-labels-trainval-mode.md) | **MEDIUM** | Open (latent) | `evals/train_probe.py` |
+| 007 | [Probe checkpoint loss — no backup, no S3 push](bugs/007-checkpoint-loss.md) | **CRITICAL** | **FIXED** | `scripts/run_uhn_probe.sh` |
 
 ## Planned Fixes
 
 | Priority | Bug | Action | Blocked by |
 |----------|-----|--------|------------|
+| P0 | 007 | Retrain LVEF, TAPSE, MR sev, AS sev (20 runs) + AV Vmax G/L/L-K (3 runs) | GPU time |
 | P1 | 002 | Re-extract PanEcho, EchoPrime, EchoFM on MIMIC | GPU time |
 | P2 | 006 | Add validation guard in `train_probe.py` | — |
 
