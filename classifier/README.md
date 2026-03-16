@@ -30,6 +30,9 @@ classifier/
 │   ├── convert_to_parquet.py        # CSV → Parquet conversion
 │   ├── resize_dataset.py           # Local ffmpeg video resizing
 │   └── resize_dataset_s3.py        # S3 download → resize → upload
+├── checkpoints/               # Final classifier weights (clean names)
+│   ├── view_convnext_small_336px.pt   # View classifier (13 classes, ConvNeXt-Small, 336px)
+│   └── color_convnext_small_336px.pt  # Color classifier (binary, ConvNeXt-Small, 336px)
 ├── archive/                   # Superseded scripts (kept for reference)
 │   ├── convnext_training.py   # Old single-GPU local trainer (replaced by train_convnext.py)
 │   └── download_convnext.py   # One-liner timm weight download
@@ -175,6 +178,10 @@ torchrun --nproc_per_node=8 --master_port=29501 train_convnext.py \
   --output_dir "./output/color_run1_convnext_small_336px"
 ```
 
+**Production checkpoints** (used for 18M dataset inference):
+- View: `checkpoints/view_convnext_small_336px.pt` (from `output/run5_convnext_small_336px/epoch_89.pt`)
+- Color: `checkpoints/color_convnext_small_336px.pt` (from `output/color_run1_convnext_small_336px/epoch_2.pt`)
+
 ### Cooldown (single-GPU, low-LR fine-tuning)
 
 ```bash
@@ -186,24 +193,24 @@ python cooldown.py \
 
 ## Inference on 18M Dataset
 
-The unified `inference_18m.py` replaces the old task-specific scripts.
+The unified `inference_18m.py` replaces the old task-specific scripts. Default checkpoints are loaded from `checkpoints/` automatically.
 
 ```bash
-# View inference
+# View inference (uses checkpoints/view_convnext_small_336px.pt by default)
 torchrun --nproc_per_node=8 inference_18m.py \
   --task view \
   --input_csv "../indices/master_index_18M_cleaned.csv" \
   --output_dir "./output/view_inference_18m" \
   --num_frames 5 --batch_size 128
 
-# Color inference
+# Color inference (uses checkpoints/color_convnext_small_336px.pt by default)
 torchrun --nproc_per_node=8 inference_18m.py \
   --task color \
   --input_csv "../indices/master_index_18M_cleaned.csv" \
   --output_dir "./output/color_inference_18m" \
   --num_frames 5 --batch_size 128
 
-# Custom task with external mapping
+# Custom task with explicit checkpoint
 torchrun --nproc_per_node=8 inference_18m.py \
   --task custom --mapping_json mappings/quality.json \
   --checkpoint path/to/quality_model.pt \

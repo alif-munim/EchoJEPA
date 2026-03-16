@@ -55,8 +55,8 @@ BUILTIN_LABEL_MAPS = {
 }
 
 DEFAULT_CHECKPOINTS = {
-    "view": "output/run5_convnext_small_336px/epoch_89.pt",
-    "color": "output/color_run1_convnext_small_336px/epoch_2.pt",
+    "view": "checkpoints/view_convnext_small_336px.pt",
+    "color": "checkpoints/color_convnext_small_336px.pt",
 }
 
 IMG_SIZE = 336
