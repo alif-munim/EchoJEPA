@@ -165,7 +165,7 @@ python preprocessing/classify_views.py \
 python preprocessing/check_videos.py --input_dir /path/to/mimic-mp4s-masked
 ```
 
-**Resolution strategy:** Store at native resolution, resize at runtime. JEPA probes resize to 224px (or 336px for ViT-g/384), classifiers resize to 336px. For pretraining with repeated reads, pre-resizing to 224px saves I/O: use `--resolution 224` in `convert_dicom.py`.
+**Resolution strategy:** Store at native resolution, resize at runtime. All probe models (EchoJEPA-L-K, EchoPrime, PanEcho, EchoFM, EchoMAE) use **224x224** input resolution. View/color classifiers resize to 336px. For pretraining with repeated reads, pre-resizing to 224px saves I/O: use `--resolution 224` in `convert_dicom.py`.
 
 ### Building task CSVs
 

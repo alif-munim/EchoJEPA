@@ -149,6 +149,104 @@ model_kwargs:
       use_rope: true
 ```
 
+## Resolution
+
+All models use **224x224** input resolution. Videos are stored at native resolution on S3 and resized at runtime by the data loader (controlled by the `resolution: 224` field in each config). No pre-resizing is needed.
+
+## Baseline Models
+
+The same probe CSVs and training pipeline work with any supported encoder. To run a baseline model, create a config that swaps the `model_kwargs` section. The `experiment` block (classifier, data, optimization) stays the same.
+
+### EchoPrime
+
+Text-supervised contrastive model (MViT-v2-S, 35M params, 512-dim embeddings). Requires the [EchoPrime repository](https://github.com/echonet/echo_prime) cloned into `evals/video_classification_frozen/modelcustom/EchoPrime/`.
+
+```bash
+# Clone EchoPrime source and weights
+cd evals/video_classification_frozen/modelcustom/
+git clone https://github.com/echonet/echo_prime.git EchoPrime
+# Unzip model_data.zip inside EchoPrime/ to get model_data/weights/echo_prime_encoder.pt
+cd EchoPrime && unzip model_data.zip
+```
+
+Config `model_kwargs`:
+
+```yaml
+model_kwargs:
+  checkpoint: null
+  module_name: evals.video_classification_frozen.modelcustom.echo_prime_encoder
+  pretrain_kwargs: {}
+  wrapper_kwargs:
+    echo_prime_root: evals/video_classification_frozen/modelcustom/EchoPrime
+    force_fp32: true
+    bin_size: 50
+```
+
+### PanEcho
+
+Multi-task supervised model (ConvNeXt-T + Transformer, 768-dim embeddings). Weights download automatically from torch.hub on first run. Requires the [PanEcho repository](https://github.com/CarDS-Yale/PanEcho) cloned into `evals/video_classification_frozen/modelcustom/PanEcho/`.
+
+```bash
+cd evals/video_classification_frozen/modelcustom/
+git clone https://github.com/CarDS-Yale/PanEcho.git PanEcho
+```
+
+Config `model_kwargs`:
+
+```yaml
+model_kwargs:
+  checkpoint: null
+  module_name: evals.video_classification_frozen.modelcustom.panecho_encoder
+  pretrain_kwargs: {}
+  wrapper_kwargs: {}
+```
+
+### EchoFM
+
+Self-supervised MAE + triplet loss model (ViT-L, 1024-dim embeddings). Requires the [EchoFM repository](https://github.com/SekeunKim/EchoFM) cloned into `evals/video_classification_frozen/modelcustom/EchoFM/` and the pretrained checkpoint.
+
+```bash
+cd evals/video_classification_frozen/modelcustom/
+git clone https://github.com/SekeunKim/EchoFM.git EchoFM
+# Download EchoFM_latest.pth from the EchoFM repo's releases
+# Place at: EchoFM/weights/EchoFM/EchoFM_latest.pth
+```
+
+Config `model_kwargs`:
+
+```yaml
+model_kwargs:
+  checkpoint: evals/video_classification_frozen/modelcustom/EchoFM/weights/EchoFM/EchoFM_latest.pth
+  module_name: evals.video_classification_frozen.modelcustom.echofm_encoder
+  pretrain_kwargs:
+    encoder:
+      model_name: vit_large_patch16_224
+      num_frames: 32
+      t_patch_size: 4
+  wrapper_kwargs: {}
+```
+
+### EchoMAE (VideoMAE)
+
+Self-supervised MAE model (ViT-L, 1024-dim embeddings). This is our controlled comparison: same ViT-L architecture and MIMIC data as EchoJEPA-L-K, but trained with masked autoencoding instead of JEPA.
+
+```bash
+# Checkpoint is at checkpoints/videomae-ep163.pth (provided)
+```
+
+Config `model_kwargs`:
+
+```yaml
+model_kwargs:
+  checkpoint: checkpoints/videomae-ep163.pth
+  module_name: evals.video_classification_frozen.modelcustom.videomae_encoder
+  pretrain_kwargs:
+    encoder:
+      model_name: vit_large_patch16_224
+      tubelet_size: 2
+  wrapper_kwargs: {}
+```
+
 ## Adding a New Task
 
 1. Build CSV files with `<s3_path> <label>` format, one per split
