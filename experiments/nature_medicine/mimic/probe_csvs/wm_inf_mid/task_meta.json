@@ -1,0 +1,25 @@
+{
+  "measurement": "wm_inf_mid",
+  "test_type": "tte",
+  "view_filter": [
+    "A2C",
+    "A3C",
+    "A4C"
+  ],
+  "color_filter": "No",
+  "task_type": "classification",
+  "matching_window_days": 1,
+  "num_classes": 4,
+  "label_names": {
+    "0": "Normal",
+    "1": "Hypokinetic",
+    "2": "Akinetic",
+    "3": "Dyskinetic"
+  },
+  "label_map": {
+    "Normal": 0,
+    "Hypokinetic": 1,
+    "Akinetic": 2,
+    "Dyskinetic": 3
+  }
+}

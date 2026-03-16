@@ -1,0 +1,16 @@
+{
+  "measurement": "lvef",
+  "test_type": "tte",
+  "view_filter": [
+    "A2C",
+    "A4C"
+  ],
+  "color_filter": "No",
+  "task_type": "regression",
+  "matching_window_days": 1,
+  "value_range": [
+    10.0,
+    85.0
+  ],
+  "unit": "%"
+}

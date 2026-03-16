@@ -1,0 +1,29 @@
+{
+  "measurement": "mitral_regurg",
+  "test_type": "tte",
+  "view_filter": [
+    "A2C",
+    "A3C",
+    "A4C",
+    "PLAX"
+  ],
+  "color_filter": "No",
+  "task_type": "classification",
+  "matching_window_days": 1,
+  "num_classes": 4,
+  "label_names": {
+    "0": "None/Trivial",
+    "1": "Mild",
+    "2": "Moderate",
+    "3": "Severe"
+  },
+  "label_map": {
+    "Physiologic": 0,
+    "Trivial": 0,
+    "Mild (1+)": 1,
+    "Mild-moderate (1-2+)": 2,
+    "Mod [2+]": 2,
+    "Moderate-severe (3+)": 3,
+    "Severe (4+)": 3
+  }
+}

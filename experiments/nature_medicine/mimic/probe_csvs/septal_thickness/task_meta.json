@@ -1,0 +1,19 @@
+{
+  "measurement": "septal_thickness",
+  "test_type": "tte",
+  "view_filter": [
+    "PLAX"
+  ],
+  "color_filter": "No",
+  "value_range": [
+    0.4,
+    3.0
+  ],
+  "unit": "cm",
+  "task_type": "regression",
+  "matching_window_days": 1,
+  "total_studies": 6655,
+  "train_studies": 4718,
+  "val_studies": 965,
+  "test_studies": 972
+}

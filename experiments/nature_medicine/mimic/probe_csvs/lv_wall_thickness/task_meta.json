@@ -1,0 +1,34 @@
+{
+  "measurement": "lv_wall_thickness",
+  "test_type": "tte",
+  "view_filter": [
+    "PLAX"
+  ],
+  "color_filter": "No",
+  "task_type": "classification",
+  "num_classes": 4,
+  "label_map": {
+    "0": "Normal (<1.2cm)",
+    "1": "Mild symmetric LVH (1.1-1.4cm)",
+    "2": "Mod symmetric LVH (1.5-1.7cm)",
+    "3": "Severe symmetric (>1.7cm)"
+  },
+  "label_names": {
+    "0": "Normal",
+    "1": "Mild LVH",
+    "2": "Moderate LVH",
+    "3": "Severe LVH"
+  },
+  "dropped_categories": {
+    "Symmetric (no qualifiers)": 12,
+    "Asymmetric (Sept>post 1.5:1)": 37,
+    "Focal non-obstructive hypertrophy basal septum": 27,
+    "Apical hypertrophy": 1,
+    "Focal hypertrophy of XXX": 2
+  },
+  "matching_window_days": 1,
+  "total_studies": 6590,
+  "train_studies": 4676,
+  "val_studies": 952,
+  "test_studies": 962
+}
