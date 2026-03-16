@@ -48,7 +48,7 @@ All downstream tasks use **frozen depth=1 attentive probes** (no fine-tuning) wi
 
 ### Quickstart: MIMIC Probe Training
 
-Train a frozen attentive probe on any MIMIC structured measurement task in one command:
+Train a frozen attentive probe on any MIMIC structured measurement task in one command. The open-source model is **EchoJEPA-L-K** (ViT-Large, 304M params, Kinetics-initialized, pretrained + annealed on MIMIC-IV-Echo).
 
 ```bash
 # Install
@@ -56,23 +56,23 @@ pip install -e .
 
 # Train (uses 20 HP combos in parallel, selects best by val metric)
 python -m evals.main \
-    --fname configs/eval/vitg-384/nature_medicine/echojepa_g_mitral_regurg.yaml \
+    --fname configs/eval/vitl/nature_medicine/echojepa_l_k_mitral_regurg.yaml \
     --devices cuda:0 cuda:1 cuda:2 cuda:3
 
 # Available tasks (swap the config filename):
-#   echojepa_g_mitral_regurg.yaml       4-class MR severity (4,713 studies)
-#   echojepa_g_tricuspid_regurg.yaml    4-class TR severity (4,666 studies)
-#   echojepa_g_lv_wall_thickness.yaml   4-class LVH grading (4,676 studies)
-#   echojepa_g_lvef_structured.yaml     LVEF regression (3,159 studies)
-#   echojepa_g_septal_thickness.yaml    Septal thickness regression (4,718 studies)
-#   echojepa_g_wm_inf_base.yaml        4-class wall motion (474 studies)
-#   echojepa_g_wm_inf_mid.yaml         4-class wall motion (410 studies)
-#   echojepa_g_wm_apical_cap.yaml      4-class wall motion (330 studies)
-#   echojepa_g_wm_ant_sept_mid.yaml    4-class wall motion (282 studies)
-#   echojepa_g_mortality_1yr.yaml       Binary 1-year mortality (7,243 studies)
+#   echojepa_l_k_mitral_regurg.yaml       4-class MR severity (4,713 studies)
+#   echojepa_l_k_tricuspid_regurg.yaml    4-class TR severity (4,666 studies)
+#   echojepa_l_k_lv_wall_thickness.yaml   4-class LVH grading (4,676 studies)
+#   echojepa_l_k_lvef_structured.yaml     LVEF regression (3,159 studies)
+#   echojepa_l_k_septal_thickness.yaml    Septal thickness regression (4,718 studies)
+#   echojepa_l_k_wm_inf_base.yaml        4-class wall motion (474 studies)
+#   echojepa_l_k_wm_inf_mid.yaml         4-class wall motion (410 studies)
+#   echojepa_l_k_wm_apical_cap.yaml      4-class wall motion (330 studies)
+#   echojepa_l_k_wm_ant_sept_mid.yaml    4-class wall motion (282 studies)
+#   echojepa_l_k_mortality_1yr.yaml       Binary 1-year mortality (7,243 studies)
 ```
 
-Requires the EchoJEPA-G checkpoint at `checkpoints/anneal/keep/pt-280-an81.pt` and S3 access to `s3://echodata25/mimic-echo-224px/`. Results are written to `evals/vitg-384/nature_medicine/video_classification_frozen/<tag>/` with per-epoch metrics in `log_r0.csv` and probe weights in `best.pt`.
+Requires the EchoJEPA-L-K checkpoint at `checkpoints/anneal/keep/vitl-kinetics-pt220-an55.pt` and S3 access to `s3://echodata25/mimic-echo-224px/`. Results are written to `evals/vitl/nature_medicine/video_classification_frozen/<tag>/` with per-epoch metrics in `log_r0.csv` and probe weights in `best.pt`.
 
 See [`experiments/nature_medicine/mimic/probe_csvs/README.md`](experiments/nature_medicine/mimic/probe_csvs/README.md) for the full reference: CSV format, task inventory, output structure, config fields, and how to add new tasks.
 
@@ -91,7 +91,7 @@ pip install .  # or `pip install -e .` for development mode
 
 ## Checkpoints
 
-The EchoJEPA-L checkpoint (`vitl-kinetics-pt220-an55.pt`) is available on the Google Drive. It is initialized from Kinetics, and pre-trained (220 epochs) + annealed (55 epochs) on the MIMIC dataset. Also available is `vitl-pt-210-an25.pt`, which is initialized from ImageNet, and pre-trained (210 epochs) + annealed (25 epochs) on the MIMIC dataset.
+The EchoJEPA-L-K checkpoint (`vitl-kinetics-pt220-an55.pt`) is available on the Google Drive. It is a ViT-Large (304M params) initialized from Kinetics V-JEPA 2, then pretrained (220 epochs) + annealed (55 epochs) on the MIMIC-IV-Echo dataset.
 
 
 ## Datasets

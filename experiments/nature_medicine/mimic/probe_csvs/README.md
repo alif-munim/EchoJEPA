@@ -10,17 +10,17 @@ pip install -e .
 
 # 2. Train a probe (single task, 8 GPUs)
 python -m evals.main \
-    --fname configs/eval/vitg-384/nature_medicine/echojepa_g_mitral_regurg.yaml \
+    --fname configs/eval/vitl/nature_medicine/echojepa_l_k_mitral_regurg.yaml \
     --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
 
 # 3. Train with fewer GPUs (e.g. 2)
 python -m evals.main \
-    --fname configs/eval/vitg-384/nature_medicine/echojepa_g_septal_thickness.yaml \
+    --fname configs/eval/vitl/nature_medicine/echojepa_l_k_septal_thickness.yaml \
     --devices cuda:0 cuda:1
 
 # 4. Validation only (requires a trained probe checkpoint)
 python -m evals.main \
-    --fname configs/eval/vitg-384/nature_medicine/echojepa_g_mitral_regurg.yaml \
+    --fname configs/eval/vitl/nature_medicine/echojepa_l_k_mitral_regurg.yaml \
     --devices cuda:0 --val_only
 ```
 
@@ -28,23 +28,23 @@ Each config trains **20 probes in parallel** (5 learning rates x 4 weight decay 
 
 ## Requirements
 
-- **Checkpoint**: `checkpoints/anneal/keep/pt-280-an81.pt` (EchoJEPA-G, ViT-giant, 1.1B params)
+- **Checkpoint**: `checkpoints/anneal/keep/vitl-kinetics-pt220-an55.pt` (EchoJEPA-L-K, ViT-Large, 304M params, Kinetics-initialized then pretrained on MIMIC)
 - **Video data**: CSVs reference S3 paths (`s3://echodata25/mimic-echo-224px/...`). Ensure S3 access is configured.
-- **GPUs**: 80GB VRAM per GPU (A100/H100). `batch_size: 1` with `study_sampling: true` means 1 study per GPU per step.
+- **GPUs**: 80GB VRAM per GPU recommended (A100/H100). `batch_size: 1` with `study_sampling: true` means 1 study per GPU per step.
 
 ## Output
 
 Results are written to the `folder` path specified in each YAML config:
 
 ```
-evals/vitg-384/nature_medicine/video_classification_frozen/<tag>/
+evals/vitl/nature_medicine/video_classification_frozen/<tag>/
   log_r0.csv        # Per-epoch metrics (acc, AUROC, balanced acc, kappa)
   epoch_001.pt      # Probe checkpoint per epoch
   best.pt           # Best epoch by validation metric
   latest.pt         # Most recent epoch
 ```
 
-The `<tag>` matches the `tag:` field in the YAML (e.g., `echojepa-g-mitral-regurg`).
+The `<tag>` matches the `tag:` field in the YAML (e.g., `echojepa-l-k-mitral-regurg`).
 
 ## Tasks
 
@@ -52,20 +52,20 @@ The `<tag>` matches the `tag:` field in the YAML (e.g., `echojepa-g-mitral-regur
 
 | Task | Config | Classes | Train Studies | Views |
 |------|--------|---------|---------------|-------|
-| Mitral regurgitation | `echojepa_g_mitral_regurg.yaml` | 4 (None-Trivial / Mild / Moderate / Severe) | 4,713 | A4C+A2C+A3C+PLAX |
-| Tricuspid regurgitation | `echojepa_g_tricuspid_regurg.yaml` | 4 (None-Trivial / Mild / Moderate / Severe) | 4,666 | A4C+A5C |
-| LV wall thickness | `echojepa_g_lv_wall_thickness.yaml` | 4 (Normal / Mild LVH / Mod LVH / Severe LVH) | 4,676 | PLAX |
-| WM inferior base | `echojepa_g_wm_inf_base.yaml` | 4 (Normal / Hypo / Akinetic / Dyskinetic) | 474 | A4C+A2C+A3C |
-| WM inferior mid | `echojepa_g_wm_inf_mid.yaml` | 4 | 410 | A4C+A2C+A3C |
-| WM apical cap | `echojepa_g_wm_apical_cap.yaml` | 4 | 330 | A4C+A2C+A3C |
-| WM ant-sept mid | `echojepa_g_wm_ant_sept_mid.yaml` | 4 | 282 | A4C+A2C+A3C |
+| Mitral regurgitation | `echojepa_l_k_mitral_regurg.yaml` | 4 (None-Trivial / Mild / Moderate / Severe) | 4,713 | A4C+A2C+A3C+PLAX |
+| Tricuspid regurgitation | `echojepa_l_k_tricuspid_regurg.yaml` | 4 (None-Trivial / Mild / Moderate / Severe) | 4,666 | A4C+A5C |
+| LV wall thickness | `echojepa_l_k_lv_wall_thickness.yaml` | 4 (Normal / Mild LVH / Mod LVH / Severe LVH) | 4,676 | PLAX |
+| WM inferior base | `echojepa_l_k_wm_inf_base.yaml` | 4 (Normal / Hypo / Akinetic / Dyskinetic) | 474 | A4C+A2C+A3C |
+| WM inferior mid | `echojepa_l_k_wm_inf_mid.yaml` | 4 | 410 | A4C+A2C+A3C |
+| WM apical cap | `echojepa_l_k_wm_apical_cap.yaml` | 4 | 330 | A4C+A2C+A3C |
+| WM ant-sept mid | `echojepa_l_k_wm_ant_sept_mid.yaml` | 4 | 282 | A4C+A2C+A3C |
 
 ### Regression
 
 | Task | Config | Unit | Train Studies | Views |
 |------|--------|------|---------------|-------|
-| LVEF (structured) | `echojepa_g_lvef_structured.yaml` | % | 3,159 | A4C+A2C |
-| Septal thickness | `echojepa_g_septal_thickness.yaml` | cm | 4,718 | PLAX |
+| LVEF (structured) | `echojepa_l_k_lvef_structured.yaml` | % | 3,159 | A4C+A2C |
+| Septal thickness | `echojepa_l_k_septal_thickness.yaml` | cm | 4,718 | PLAX |
 
 Regression CSVs store **raw values** (e.g., `1.30` cm). Z-score normalization is applied automatically at runtime using the `zscore_params.json` file in each task folder.
 
@@ -102,7 +102,7 @@ Patient-level splits (70/15/15) ensure no patient appears in multiple splits.
 
 All configs use the same frozen probe setup:
 
-- **Encoder**: ViT-giant with RoPE, frozen (no gradient)
+- **Encoder**: EchoJEPA-L-K (ViT-Large, 304M params) with RoPE, frozen (no gradient). Initialized from Kinetics V-JEPA 2, then pretrained + annealed on MIMIC-IV-Echo.
 - **Probe**: depth=1 attentive (1 learnable query token, single cross-attention layer, no self-attention)
 - **HP grid**: 20 combinations trained in parallel (`multihead_kwargs`)
   - LR: 1e-3, 5e-4, 1e-4, 5e-5, 1e-5
@@ -135,6 +135,18 @@ experiment:
     batch_size: 1              # Per-GPU batch size (1 study = 1 sample)
     num_epochs: 35
     multihead_kwargs: [...]    # 20 HP combos trained in parallel
+
+model_kwargs:
+  checkpoint: checkpoints/anneal/keep/vitl-kinetics-pt220-an55.pt
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: target_encoder
+      model_name: vit_large
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true
 ```
 
 ## Adding a New Task

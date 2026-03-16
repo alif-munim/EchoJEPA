@@ -1,0 +1,80 @@
+# Nature Medicine: EchoJEPA-L-K, septal_thickness, d=1 attentive probe
+# Regression (cm), B-mode PLAX only, MIMIC structured measurements
+# Uses DistributedStudySampler for per-epoch random clip selection
+app: vjepa
+cpus_per_task: 32
+folder: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitl/nature_medicine
+mem_per_gpu: 80G
+nodes: 1
+tasks_per_node: 8
+num_workers: 8
+
+eval_name: video_classification_frozen
+resume_checkpoint: false
+tag: echojepa-l-k-septal-thickness
+
+experiment:
+  classifier:
+    task_type: regression
+    num_heads: 16
+    num_probe_blocks: 1  # d=1 attentive probe
+    num_targets: 1
+
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/experiments/nature_medicine/mimic/probe_csvs/septal_thickness/train.csv
+    dataset_val: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/experiments/nature_medicine/mimic/probe_csvs/septal_thickness/val.csv
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 2
+    num_segments: 2
+    num_views_per_segment: 1
+    study_sampling: true
+
+  optimization:
+    batch_size: 1
+    num_epochs: 35
+    use_bfloat16: true
+    use_pos_embed: false
+    multihead_kwargs:
+    # LR=1e-3
+    - {lr: 0.001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    - {lr: 0.001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
+    # LR=5e-4
+    - {lr: 0.0005, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.0005, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.0005, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    - {lr: 0.0005, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
+    # LR=1e-4
+    - {lr: 0.0001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.0001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.0001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    - {lr: 0.0001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
+    # LR=5e-5
+    - {lr: 0.00005, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.00005, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.00005, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    - {lr: 0.00005, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
+    # LR=1e-5
+    - {lr: 0.00001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.00001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.00001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    - {lr: 0.00001, start_lr: 0.0, warmup: 3.0, final_lr: 0.0, weight_decay: 0.4,   final_weight_decay: 0.4}
+
+model_kwargs:
+  checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/anneal/keep/vitl-kinetics-pt220-an55.pt
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: target_encoder
+      img_temporal_dim_size: null
+      model_name: vit_large
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true
+  wrapper_kwargs:
+    max_frames: 128
+    use_pos_embed: false
