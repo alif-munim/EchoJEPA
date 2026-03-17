@@ -1,0 +1,68 @@
+base_dir: /mnt/pool/datasets/CY/EchoJEPA/embeddings/mimic/experiments/nature_medicine/mimic
+output_dir: /mnt/pool/datasets/CY/EchoJEPA/embeddings/nature_medicine/results/probes_fullclips
+
+models:
+  - echojepa_g
+  - echojepa_l
+  - echojepa_l_kinetics
+  - echoprime
+  - panecho
+  - echofm
+
+tasks:
+  # --- Classification (binary) ---
+  - name: mortality_30d
+    type: classification
+  - name: mortality_90d
+    type: classification
+  - name: mortality_1yr
+    type: classification
+  - name: in_hospital_mortality
+    type: classification
+  - name: readmission_30d
+    type: classification
+  - name: discharge_destination
+    type: classification
+  - name: icu_transfer
+    type: classification
+
+  
+  - name: disease_afib
+    type: classification
+  - name: disease_amyloidosis
+    type: classification
+  - name: disease_dcm
+    type: classification
+  - name: disease_hcm
+    type: classification
+  - name: disease_hf
+    type: classification
+  - name: disease_stemi
+    type: classification
+  - name: disease_takotsubo
+    type: classification
+  - name: disease_tamponade
+    type: classification
+
+  # --- Classification (multiclass) ---
+  - name: triage_acuity
+    type: classification
+  
+  - name: drg_severity
+    type: classification
+
+  # --- Regression ---
+  # - name: creatinine
+  #   type: regression
+  # - name: lactate
+  #   type: regression
+  # - name: los_remaining
+  #   type: regression
+  # - name: nt_probnp
+  #   type: regression
+  # - name: troponin_t
+  #   type: regression
+
+  
+  # - name: ef_note_extracted
+  #   type: regression

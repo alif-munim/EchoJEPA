@@ -66,11 +66,14 @@ logger = logging.getLogger(__name__)
 
 
 def load_npz(path, labels_path=None):
-    """Load embeddings, labels, and paths from an NPZ file.
+    """Load embeddings, labels, paths, study_ids, and patient_ids from an NPZ file.
 
     If labels_path is provided, loads embeddings from path but uses indices/labels
     from labels_path (created by remap_embeddings.py). This avoids duplicating
     embeddings across tasks.
+
+    Returns (embeddings, labels, paths, study_ids, patient_ids).
+    study_ids and patient_ids are None if not present in the NPZ.
     """
     data = np.load(path, allow_pickle=True)
     embeddings = data["embeddings"]
@@ -81,6 +84,8 @@ def load_npz(path, labels_path=None):
         labels = label_data["labels"]
         embeddings = embeddings[indices]
         paths = np.array([f"sample_{i}" for i in range(len(labels))])
+        study_ids = data["study_ids"][indices] if "study_ids" in data else None
+        patient_ids = data["patient_ids"][indices] if "patient_ids" in data else None
         logger.info(
             f"Loaded {path} ({data['embeddings'].shape[0]} total) + {labels_path} "
             f"-> {embeddings.shape[0]} samples, {embeddings.shape[1]}-dim embeddings"
@@ -88,9 +93,14 @@ def load_npz(path, labels_path=None):
     else:
         labels = data["labels"]
         paths = data["paths"] if "paths" in data else np.array([f"sample_{i}" for i in range(len(labels))])
+        study_ids = data["study_ids"] if "study_ids" in data else None
+        patient_ids = data["patient_ids"] if "patient_ids" in data else None
         logger.info(f"Loaded {path}: {embeddings.shape[0]} samples, {embeddings.shape[1]}-dim embeddings")
 
-    return embeddings, labels, paths
+    if study_ids is not None:
+        logger.info(f"  Found study_ids ({len(np.unique(study_ids))} unique) and patient_ids")
+
+    return embeddings, labels, paths, study_ids, patient_ids
 
 
 def detect_task(labels):
@@ -397,6 +407,7 @@ def main():
     # Data inputs (mutually exclusive modes)
     parser.add_argument("--train", nargs="+", help="Training NPZ file(s)")
     parser.add_argument("--val", nargs="+", help="Validation NPZ file(s)")
+    parser.add_argument("--test", nargs="+", help="Test NPZ file(s) — evaluate best model on held-out test set")
     parser.add_argument("--data", nargs="+", help="Single NPZ file(s) for k-fold CV")
     parser.add_argument(
         "--labels",
@@ -456,6 +467,9 @@ def main():
     if args.train is not None and args.val is not None and len(args.train) != len(args.val):
         parser.error("--train and --val must have the same number of files")
 
+    if args.test is not None and args.train is None:
+        parser.error("--test requires both --train and --val")
+
     # Determine mode
     is_kfold = args.data is not None
     npz_list = args.data if is_kfold else args.train
@@ -482,7 +496,7 @@ def main():
 
         if is_kfold:
             # K-fold mode
-            embeddings, labels, paths = load_npz(npz_list[idx], labels_path=args.labels)
+            embeddings, labels, paths, _, _ = load_npz(npz_list[idx], labels_path=args.labels)
             task = args.task if args.task != "auto" else detect_task(labels)
 
             metrics, predictions_df = kfold_probe(
@@ -507,8 +521,8 @@ def main():
 
         else:
             # Train/val mode
-            X_train, y_train, p_train = load_npz(args.train[idx], labels_path=args.labels)
-            X_val, y_val, p_val = load_npz(args.val[idx], labels_path=args.labels)
+            X_train, y_train, p_train, _, _ = load_npz(args.train[idx], labels_path=args.labels)
+            X_val, y_val, p_val, val_study_ids, val_patient_ids = load_npz(args.val[idx], labels_path=args.labels)
             task = args.task if args.task != "auto" else detect_task(y_train)
 
             X_train_sc, X_val_sc, emb_scaler = scale_embeddings(X_train, X_val)
@@ -522,14 +536,17 @@ def main():
                 metrics = compute_classification_metrics(y_val, y_pred, y_proba)
                 metrics["best_C"] = best_hp
                 pred_conf = y_proba.max(axis=1)
-                predictions_df = pd.DataFrame(
-                    {
-                        "video_path": [str(p) for p in p_val],
-                        "true_label": y_val.astype(int),
-                        "predicted_class": y_pred.astype(int),
-                        "prediction_confidence": pred_conf,
-                    }
-                )
+                pred_cols = {
+                    "video_path": [str(p) for p in p_val],
+                    "true_label": y_val.astype(int),
+                    "predicted_class": y_pred.astype(int),
+                    "prediction_confidence": pred_conf,
+                }
+                if val_study_ids is not None:
+                    pred_cols["study_id"] = [str(s) for s in val_study_ids]
+                if val_patient_ids is not None:
+                    pred_cols["patient_id"] = [str(s) for s in val_patient_ids]
+                predictions_df = pd.DataFrame(pred_cols)
             else:
                 model, best_hp, hp_results = train_regression_probe(
                     X_train_sc, y_train, X_val_sc, y_val, args.alpha, args.regression_model, seed=args.seed
@@ -544,14 +561,17 @@ def main():
                 else:
                     labels_real = y_val
                     preds_real = y_pred
-                predictions_df = pd.DataFrame(
-                    {
-                        "video_path": [str(p) for p in p_val],
-                        "label_real": labels_real,
-                        "pred_real": preds_real,
-                        "abs_error": np.abs(labels_real - preds_real),
-                    }
-                )
+                pred_cols = {
+                    "video_path": [str(p) for p in p_val],
+                    "label_real": labels_real,
+                    "pred_real": preds_real,
+                    "abs_error": np.abs(labels_real - preds_real),
+                }
+                if val_study_ids is not None:
+                    pred_cols["study_id"] = [str(s) for s in val_study_ids]
+                if val_patient_ids is not None:
+                    pred_cols["patient_id"] = [str(s) for s in val_patient_ids]
+                predictions_df = pd.DataFrame(pred_cols)
 
             metrics["mode"] = "train_val"
             metrics["task"] = task
@@ -566,6 +586,66 @@ def main():
                 model=model if args.save_model else None,
             )
             all_metrics[name] = metrics
+
+            # Test evaluation: apply best model to held-out test set
+            if args.test is not None:
+                logger.info(f"Evaluating on test set: {args.test[idx]}")
+                X_test, y_test, p_test, test_study_ids, test_patient_ids = load_npz(
+                    args.test[idx], labels_path=args.labels
+                )
+                X_test_sc = emb_scaler.transform(X_test)
+
+                if task == "classification":
+                    y_test_pred = model.predict(X_test_sc)
+                    y_test_proba = model.predict_proba(X_test_sc)
+                    test_metrics = compute_classification_metrics(y_test, y_test_pred, y_test_proba)
+                    test_pred_conf = y_test_proba.max(axis=1)
+                    test_pred_cols = {
+                        "video_path": [str(p) for p in p_test],
+                        "true_label": y_test.astype(int),
+                        "predicted_class": y_test_pred.astype(int),
+                        "prediction_confidence": test_pred_conf,
+                    }
+                    if test_study_ids is not None:
+                        test_pred_cols["study_id"] = [str(s) for s in test_study_ids]
+                    if test_patient_ids is not None:
+                        test_pred_cols["patient_id"] = [str(s) for s in test_patient_ids]
+                    test_predictions_df = pd.DataFrame(test_pred_cols)
+                else:
+                    y_test_pred = model.predict(X_test_sc)
+                    test_metrics = compute_regression_metrics(
+                        y_test, y_test_pred, target_mean, target_std, args.labels_are_zscored
+                    )
+                    if args.labels_are_zscored and target_mean is not None and target_std is not None:
+                        test_labels_real = y_test * target_std + target_mean
+                        test_preds_real = y_test_pred * target_std + target_mean
+                    else:
+                        test_labels_real = y_test
+                        test_preds_real = y_test_pred
+                    test_pred_cols = {
+                        "video_path": [str(p) for p in p_test],
+                        "label_real": test_labels_real,
+                        "pred_real": test_preds_real,
+                        "abs_error": np.abs(test_labels_real - test_preds_real),
+                    }
+                    if test_study_ids is not None:
+                        test_pred_cols["study_id"] = [str(s) for s in test_study_ids]
+                    if test_patient_ids is not None:
+                        test_pred_cols["patient_id"] = [str(s) for s in test_patient_ids]
+                    test_predictions_df = pd.DataFrame(test_pred_cols)
+
+                test_metrics["mode"] = "test"
+                test_metrics["task"] = task
+                test_metrics["test_file"] = str(args.test[idx])
+
+                # Save test results in a "test" subdirectory
+                test_out = Path(args.output_dir) / name / "test"
+                test_out.mkdir(parents=True, exist_ok=True)
+                with open(test_out / "metrics.json", "w") as f:
+                    json.dump(test_metrics, f, indent=2)
+                test_predictions_df.to_csv(test_out / "predictions.csv", index=False)
+                logger.info(f"Saved test metrics to {test_out / 'metrics.json'}")
+                logger.info(f"Saved test predictions to {test_out / 'predictions.csv'}")
 
     # Print comparison table
     if n_models > 1:
