@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-16 23:30 (retrain chain launched on GPUs 4-7, TR severity EchoPrime on GPUs 0-3)
+Last updated: 2026-03-17 (GLS demoted to ED/Batch 8, AV mean grad + AV area promoted to Batch 2, prioritized run queue updated)
 
 ## Evaluation Protocol
 
@@ -655,22 +655,114 @@ Three iterations of the trajectory prediction task, culminating in the onset fra
 
 ## Task Inventory (52 UHN + 5 Trajectory)
 
-### Paper Section Assignments
+### Revised Paper Structure — "Comprehensive Cardiac Representation" (2026-03-17)
 
-**Main Text — 17 tasks:**
-- **Standard benchmark (1)**: lvef
-- **Hemodynamics / B-mode (7)**: mr_severity, as_severity, aov_vmax, tr_severity, ar_severity, mv_ee (E/e'), rvsp
-- **RV mechanics (4)**: tapse, rv_sp (RV S'), rv_fac, *rv_basal_dim (labels not built yet)*
-- **Trajectory forecasting (5)**: trajectory_lvef, trajectory_tapse, trajectory_lv_mass, trajectory_rv_sp, trajectory_mr_severity
+Literature review (March 2026) revealed the competitive landscape is broader than initially assessed. EchoPrime covers 23 tasks (AUC 0.88-0.98), PanEcho covers 39 tasks including RV (TAPSE, S'). Revised framing emphasizes six qualitatively different evidence categories from ONE frozen model. See `context_files/literature_review/foundation_model_landscape.md`.
 
-**Extended Data — ~35 tasks:**
+**Six Evidence Categories (the "comprehensive representation" argument):**
+
+| # | Category | What it proves | Key tasks | Status |
+|---|----------|---------------|-----------|--------|
+| 1 | **Structure** | Anatomy, morphology, dimensions | LVEF, EDV, ESV, LV mass, chamber sizes | LVEF done |
+| 2 | **Hemodynamics** ("Virtual Doppler") | Physics: structure → flow (B-mode only) | MR/AS/TR/AR sev, AV Vmax, E/e', RVSP, diastolic grade, PA pressure, AV grad, AV area | 4 done, rest queued |
+| 3 | **Deformation** | Motion tracking / mechanics | TAPSE, RV S', RV FAC | TAPSE done |
+| 4 | **Pathology** | Disease recognition | Amyloidosis, HCM, DCM, endocarditis, bicuspid AV | CSVs ready |
+| 5 | **Biochemistry** | Cross-modality (image → blood) | NT-proBNP, troponin T, creatinine, lactate (MIMIC) | CY prelim |
+| 6 | **Prognosis** | Temporal / future state | Onset cardiomyopathy, other trajectories | Onset DONE |
+
+No other model can fill all six categories. EchoPrime covers 1 + partial 2 + partial 4. PanEcho covers 1 + partial 2 + partial 3. None cover 5 or 6.
+
+**Main Text Pillars (revised):**
+
+- **Pillar 1 "Virtual Doppler" (B-mode hemodynamics, EXPANDED)**: MR, AS, TR, AR, AV Vmax, E/e', RVSP. Consider promoting: diastolic function grade (B-mode), PA pressure grade (B-mode), AV mean grad (B-mode), AV area (B-mode), PR severity (B-mode).
+  - *Novelty*: No model predicts RVSP, E/e', AV mean grad, AV area from B-mode. MR/TR/AR from B-mode also first for frozen SSL. AS from B-mode done by others (Holste 2023, Ahmadi 2024) but single-task supervised, not frozen SSL.
+  - *Key distinction*: EchoPrime/PanEcho valve severity (AUC 0.88-0.95) likely includes color Doppler views as input. Our B-mode-only restriction is fundamentally harder. G beats EchoPrime when both restricted to B-mode (MR: 0.860 vs 0.770, AS: 0.908 vs 0.827).
+
+- **Pillar 2 RV Mechanics (REFRAMED)**: TAPSE, RV S', RV FAC.
+  - *NOT novel tasks*: PanEcho does TAPSE (supervised, MAE 3.4mm) and RV S' (MAE 1.9cm/s). EchoNet-RV does RVFAC (task-specific, MAE 5.8-6.4%).
+  - *Novel approach*: Frozen SSL representations encode RV function without task-specific training. PanEcho is our direct comparison baseline. Three-way taxonomy: self-supervised (EchoJEPA) vs language-supervised (EchoPrime) vs supervised (PanEcho).
+  - *RVSP moved to Pillar 1*: RVSP is a hemodynamic/Doppler measurement (requires TR jet velocity), not an RV mechanics measurement.
+
+- **Pillar 3 Trajectory**: Onset cardiomyopathy (G 0.793). No foundation model does temporal risk stratification. Keep as is.
+
+- **GLS (strain)**: Extended Data only. Not cross-modal (speckle tracking already works on B-mode input), PanEcho already reports it (MAE 1.89%), and commercial software automates it. Low priority relative to genuinely cross-modal tasks.
+
+- **Disease panel**: Extended Data but essential for "comprehensive representation" argument. Run at least amyloidosis, HCM, DCM, endocarditis, bicuspid AV.
+
+- **Biomarkers (MIMIC)**: Extended Data but qualitatively unique (cross-modality). Push NT-proBNP + troponin as priority.
+
+**Extended Data (revised):**
 - ED1 Structural (7): ivsd, la_size, la_vol, lv_cavity_size, rv_size, ra_size, ao_root
-- ED2 Hemodynamics (7): aov_area, aov_mean_grad, cardiac_output, lvot_vti, mv_ea, mv_dt, mv_ee_medial
+- ED2 Hemodynamics — B-mode (7+): aov_area, aov_mean_grad, cardiac_output, lvot_vti, mv_ea, mv_dt, mv_ee_medial. Consider promoting diastolic_function + pa_pressure here or to main text.
 - ED3 Findings (7): lv_hypertrophy, lv_systolic_function, diastolic_function, rv_function, pericardial_effusion, rwma, pa_pressure
 - ED4 Disease detection (8): disease_hcm, disease_amyloidosis, disease_dcm, disease_endocarditis, disease_stemi, disease_takotsubo, disease_bicuspid_av, disease_myxomatous_mv
-- ED5 Additional diseases (2): disease_rheumatic_mv, cardiac_rhythm
-- EDF1 View classification (1): *separate pipeline*
-- Remaining: edv, esv, gls, lv_mass, pr_severity
+- ED5 Additional (4): disease_rheumatic_mv, cardiac_rhythm, gls, pr_severity
+- ED6 Outcomes & biomarkers — MIMIC (11): mortality (30d/90d/1yr), in-hospital mortality, readmission, ICU transfer, discharge destination, creatinine, troponin T, NT-proBNP, lactate
+- ED7 Fairness: MIMIC demographics
+- EDF1 View classification (1)
+
+---
+
+## Prioritized Run Queue (2026-03-17)
+
+Based on literature review and "six evidence categories" framing. 8 GPUs available (~2 concurrent 4-GPU jobs). Each task = 5 models × 15 epochs ≈ 4-6 hours per model.
+
+### Batch 1 — Complete Hemodynamic Pillar (highest manuscript impact)
+| Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
+|----------|------|------|--------|------|-----------|-------------------|
+| **1a** | ar_severity | Classification, 5-class | Yes | 0-3 | ~20h (5 models) | Hemodynamics |
+| **1b** | rvsp | Regression | Yes | 4-7 | ~15h (5 models) | Hemodynamics |
+
+### Batch 2 — E/e' + AV hemodynamics (expand Virtual Doppler)
+| Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
+|----------|------|------|--------|------|-----------|-------------------|
+| **2a** | mv_ee (E/e') | Regression | Yes | 0-3 | ~10h (5 models, small dataset) | Hemodynamics |
+| **2b** | aov_mean_grad | Regression | Yes (exists) | 4-7 | ~12h (5 models) | Hemodynamics |
+| **2c** | aov_area | Regression | Yes (exists) | 0-3 | ~10h (5 models) | Hemodynamics |
+
+### Batch 3 — RV Mechanics (fills Pillar 2)
+| Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
+|----------|------|------|--------|------|-----------|-------------------|
+| **3a** | rv_sp (RV S') | Regression | No | 0-3 | ~20h (5 models) | Deformation |
+| **3b** | rv_fac | Regression | No | 4-7 | ~10h (5 models, small dataset) | Deformation |
+
+### Batch 4 — Disease Panel (fills Pathology category)
+| Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
+|----------|------|------|--------|------|-----------|-------------------|
+| **4a** | disease_amyloidosis | Binary | No | 0-3 | ~8h | Pathology |
+| **4b** | disease_hcm | Binary | No | 4-7 | ~15h | Pathology |
+| **4c** | disease_dcm | Binary | No | 0-3 | ~8h | Pathology |
+| **4d** | disease_endocarditis | Binary | No | 4-7 | ~8h | Pathology |
+| **4e** | disease_bicuspid_av | Binary | No | 0-3 | ~20h | Pathology |
+
+### Batch 5 — Expanded Hemodynamics (B-mode, need CSV build first)
+| Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
+|----------|------|------|--------|------|-----------|-------------------|
+| **5a** | diastolic_function | Classification, 4-class | **Need B-mode filter** | 0-3 | ~12h | Hemodynamics |
+| **5b** | pa_pressure | Classification, 4-class | **Need B-mode filter** | 4-7 | ~10h | Hemodynamics |
+
+### Batch 6 — Prediction Averaging Inference (test numbers for all completed tasks)
+| Priority | Task | Models | Status |
+|----------|------|--------|--------|
+| **6a** | tr_severity | 5 | Checkpoints archived, ready |
+| **6b** | Other completed tasks | Varies | Need retrain for lost checkpoints (LVEF, TAPSE, MR, AS) |
+
+### Batch 7 — MIMIC Biomarkers (CY or us, fills Biochemistry category)
+| Priority | Task | Type | Studies | Evidence category |
+|----------|------|------|---------|-------------------|
+| **7a** | NT-proBNP | Regression | 867 | Biochemistry |
+| **7b** | troponin_t | Regression | 1,686 | Biochemistry |
+| **7c** | creatinine | Regression | 3,883 | Biochemistry |
+| **7d** | lactate | Regression | 1,226 | Biochemistry |
+
+### Batch 8 — Additional Extended Data (structural, findings, GLS, remaining)
+Lower priority. Run after Batches 1-7 complete. ~25 tasks remaining. Includes GLS (not cross-modal, PanEcho already reports it, commercial speckle tracking software automates it — Extended Data only).
+
+### Prerequisites
+- **Batch 2b, 2c**: B-mode filtered CSVs already built for `aov_mean_grad` and `aov_area`. Ready to run.
+- **Batch 5a, 5b**: Need B-mode filtered CSVs for `diastolic_function` and `pa_pressure`. Run `build_viewfiltered_csvs.py` with `--bmode_only` flag.
+- **Batch 6**: Depends on checkpoint availability. TR severity has all 5 archived. Others need retrain.
+- **Batch 7**: Coordinate with CY. May run attentive probes ourselves or CY runs Strategy E.
 
 ---
 
