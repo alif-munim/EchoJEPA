@@ -1,6 +1,6 @@
 # Roadmap
 
-Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-15.
+Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-17.
 
 Source of truth for paper scope and task priorities: `uhn_echo/nature_medicine/context_files/nature_medicine_task_overview.md`. Detailed specs in `planning/tasks/`. Per-person assignments in `roles/`. This file is the cross-cutting infrastructure and experiment summary.
 
@@ -43,44 +43,47 @@ All 7 models extracted, study-level pooled, and split into train/val/test for 23
 
 > **Historic (old NPZ pipeline).** UHN evaluation now uses d=1 attentive probes from video (no NPZ extraction needed). Extraction status is retained for reference.
 
-### Extraction Status
+### Extraction Status (HISTORIC — NPZ pipeline superseded by Strategy E)
 
 | Model | Checkpoint | Clip Extraction | Study-Level | Notes |
 |-------|-----------|-----------------|-------------|-------|
 | EchoJEPA-G | `pt-280-an81.pt` | **DONE** (95GB, 18.1M clips) | **DONE** (319,815 x 1408) | |
 | EchoJEPA-L | `vitl-pt-210-an25.pt` | **DONE** (70GB, 18.1M clips) | **DONE** (319,802 x 1024) | |
 | EchoJEPA-L-K | `vitl-kinetics-pt220-an55.pt` | **~17% done** (crashed/interrupted) | Missing | Chunk-based, supports resume. ~8-9h remaining |
-| EchoMAE-L | `videomae-ep163.pt` | **IN PROGRESS** (~19h est.) | — | Controlled JEPA-vs-MAE comparison. MVP |
-| Random Init | Untrained ViT-L | **TODO** | — | Baseline for all tables. MVP |
+| EchoMAE-L | `videomae-ep163.pt` | **DROPPED** (undertrained ckpt) | — | Cite ICML for JEPA-vs-MAE comparison |
+| Random Init | Untrained ViT-L | **DEPRIORITIZED** | — | Not needed for headline results |
 
 PanEcho, EchoPrime, EchoFM UHN extractions are not planned (these models are primarily compared on MIMIC).
 
 ### UHN Per-Task Split Pipeline — DONE
 
-Built `evals/regenerate_uhn_downstream.py`. Generated splits for G and L (53 tasks each). Re-run for L-K, EchoMAE, Random Init when their study-level embeddings are available.
+Built `evals/regenerate_uhn_downstream.py`. Generated splits for G and L (53 tasks each). **Note:** This NPZ split pipeline is superseded by Strategy E (d=1 attentive probes from video using CSVs). No further NPZ splits needed.
 
 ---
 
-## Blocking Work — Priority Order
+## Blocking Work — Priority Order (updated 2026-03-17)
 
-1. **Run remaining 5/7 hemodynamic tasks** (TR severity, AR severity, E/e', AV Vmax, RVSP from B-mode only)
-   - B-mode-only view filters already built for MR + AS. Need to add: E/e', RVSP, E/A, MV DT, diastolic function, PA pressure.
+1. **Complete Tier 1 hemodynamic tasks** — RVSP (novel), E/e' medial (novel), AR severity (in progress on GPUs 0-3)
+   - B-mode-only view filters built for all hemodynamic tasks.
 
-2. **Run Phase 1 remaining UHN tasks** (14 remaining tasks x 5 models = 70 runs)
-   - TAPSE + LVEF + MR severity + AS severity complete (5/5 models each). All 8 GPUs free.
+2. **Complete Tier 2 tasks** — AV mean gradient, AV area (complete AV hemodynamic trio with Vmax)
 
-3. **Ship code + checkpoints to Goodfire** — repo with Claude docs, clean CSVs, L/L-K checkpoints, G NPZ embeddings
+3. **Build B-mode filtered CSVs for Tier 3** — diastolic_function, pa_pressure (need `bmode_only=True` CSVs)
 
-4. **Implement study-level prediction aggregation** in eval.py
-   - Needed for study-level test metrics and fair multi-clip comparison
-   - Current val uses `DistributedStudySampler` (1 random clip/study/epoch) — no prediction averaging
-   - All reported results to date are single-clip, not study-averaged
+4. **LVEF EchoPrime + PanEcho retrains** — checkpoints lost, need to retrain for complete LVEF comparison
 
-5. **Implement Bland-Altman analysis** in eval post-processing (Wendy: MAE alone insufficient for Nature Medicine)
+5. **Ship code + checkpoints to Goodfire** — repo with Claude docs, clean CSVs, L/L-K checkpoints, G NPZ embeddings
 
-6. **Email Joe for Chicago demographics** (age, sex, race/ethnicity) — blocking for cross-site fairness
+6. **Bland-Altman analysis** in eval post-processing (Wendy: MAE alone insufficient for Nature Medicine)
 
-7. **Build Phase 2 run scripts** (trajectory + MIMIC)
+7. **Email Joe for Chicago demographics** (age, sex, race/ethnicity) — blocking for cross-site fairness
+
+**DONE since last update:**
+- Study-level prediction aggregation: **DONE** (auto-enables when `val_only=True` + `study_sampling=True`)
+- TR severity: **DONE** (G 0.838)
+- AV Vmax: **DONE** (G R²=0.582)
+- Trajectory onset: **DONE** (G 0.793, delta regression failed, onset classification adopted)
+- Literature review: B-mode hemodynamic prior art documented
 
 ## View-Filtered Training Pipeline — DONE (2026-03-11)
 
@@ -101,51 +104,57 @@ All-clip CSVs built for 47 tasks. View-filtered CSVs built for 41 tasks (6 unfil
 
 **MR + AS severity COMPLETE** (2026-03-15). See Preliminary Hemodynamic Results below.
 
-### B-Mode Hemodynamic Filters — DONE for MR + AS (2026-03-14)
+### B-Mode Hemodynamic Filters — DONE for all tasks (2026-03-16)
 
 B-mode-only view filtering applied via `build_viewfiltered_csvs.py` with `bmode_only=True`. Excludes colour/spectral/tissue Doppler clips using color classifier predictions.
 
-| Task | Views | B-mode filter | Train studies (class-balanced) |
-|------|-------|---------------|-------------------------------|
-| mr_severity | A4C, A2C, A3C, PLAX | Yes | ~29K (from 89K, ratio=3) |
-| as_severity | PLAX, PSAX-AV, A3C | Yes | ~22K (from 131K, ratio=3) |
-| tr_severity | A4C, Subcostal | TODO | — |
-| ar_severity | PLAX, A3C | TODO | — |
-| e_e_prime | A4C | TODO | — |
-| av_vmax | PSAX-AV, A3C, A5C | TODO | — |
-| rvsp | A4C, Subcostal | TODO (RVSP from B-mode is novel) | — |
+| Task | Views | B-mode filter | Status |
+|------|-------|---------------|--------|
+| mr_severity | A4C, A2C, A3C, PLAX | Yes | **DONE** (G 0.860) |
+| as_severity | PLAX, PSAX-AV, A3C | Yes | **DONE** (G 0.908) |
+| tr_severity | A4C, Subcostal, PLAX | Yes | **DONE** (G 0.838) |
+| aov_vmax | PLAX, A3C, PSAX-AV | Yes | **DONE** (G R²=0.582) |
+| ar_severity | A4C, A2C, A3C, PLAX | Yes | **IN PROGRESS** |
+| mv_ee_medial | A4C | Yes | QUEUED |
+| rvsp | A4C, Subcostal | Yes | QUEUED |
+| aov_mean_grad | PLAX, A3C, PSAX-AV | Yes | QUEUED |
+| aov_area | PLAX, A3C, PSAX-AV | Yes | QUEUED |
 
-### Hemodynamic Results — COMPLETE (2026-03-15, single-clip, no prediction averaging)
+### Strategy E Results (updated 2026-03-17)
 
-**AS Severity** (4-class ordinal, B-mode only, d=1 attentive, class_balance_ratio=3):
+All results: d=1 attentive probes, 15 epochs, 12-head HP grid, prediction averaging where applicable.
 
-| Model | Epochs | Best AUROC |
-|-------|--------|-----------|
-| EchoJEPA-G | 20 | **0.908** |
-| EchoPrime | 19 | 0.827 |
-| EchoJEPA-L-K | 20 | 0.821 |
-| EchoJEPA-L | 20 | 0.786 |
-| PanEcho | 15 | 0.762 |
+**Hemodynamic Inference (B-mode only)**
 
-**MR Severity** (5-class ordinal, B-mode only, d=1 attentive, class_balance_ratio=3):
+| Task | G | L-K | EchoPrime | L | PanEcho |
+|------|---|-----|-----------|---|---------|
+| AS severity (4-class AUROC) | **0.908** | 0.821 | 0.827 | 0.786 | 0.762 |
+| MR severity (5-class AUROC) | **0.860** | 0.803 | 0.770 | 0.771 | 0.724 |
+| TR severity (5-class AUROC) | **0.838** | 0.787 | 0.758 | 0.755 | 0.715 |
+| AV Vmax (R²) | **0.582** | 0.388 | 0.476 | 0.232 | 0.390 |
 
-| Model | Epochs | Best AUROC |
-|-------|--------|-----------|
-| EchoJEPA-G | 20 | **0.860** |
-| EchoJEPA-L-K | 19 | 0.803 |
-| EchoPrime | 15 | 0.770 |
-| EchoJEPA-L | 20 | 0.771 |
-| PanEcho | 9 | 0.724 |
+**Trajectory Prediction**
 
-**Convergence observation:** 15 epochs is sufficient. Extending to 20 epochs yielded <0.005 AUROC improvement for all models. Future tasks should use 15 epochs (saves ~30% GPU time).
+| Task | G | EchoPrime | PanEcho | L-K | L |
+|------|---|-----------|---------|-----|---|
+| Onset cardiomyopathy (AUROC) | **0.793** | 0.776 | 0.759 | 0.677 | 0.514 |
 
-**Key findings (narrative reframing):**
+**Standard Benchmarks**
+
+| Task | G | L-K | EchoPrime | L | PanEcho |
+|------|---|-----|-----------|---|---------|
+| TAPSE (R²) | **0.537** | 0.429 | 0.440 | 0.344 | 0.411 |
+| LVEF (R²) | **0.712** | 0.576 | — | 0.557 | — |
+
+Note: LVEF 3/5 models only (EchoPrime/PanEcho ckpts lost).
+
+**Key findings:**
 - B-mode video contains hemodynamic severity information — this is a clinical discovery, not model-specific
-- ALL models extract non-trivial signal (PanEcho 0.724-0.762 AUROC), so "no prior model" claims need softening
-- EchoJEPA-G leads by +8-9pp over next-best (EchoPrime), suggesting scale + latent prediction captures more hemodynamic structure
-- EchoPrime achieves this without any text about valve severity (CLIP training uses reports, but B-mode clips have no Doppler)
-- These are **single-clip results** (1 random clip per study per val epoch). Prediction averaging will likely widen gaps for models with richer spatial representations (EchoJEPA: 1568 tokens benefit from diverse view sampling)
-- Only 2/7 hemodynamic tasks complete. Breadth across all 7 tasks strengthens the story.
+- ALL models extract non-trivial signal (PanEcho 0.715-0.762 AUROC), so story is "scale advantage" not "unique capability"
+- EchoJEPA-G leads by +8-10pp over next-best on hemodynamics
+- G-vs-EchoPrime gap narrows to +1.7pp on trajectory (text-supervised models efficient for prognostic features)
+- 15 epochs is sufficient (extending to 20 yielded <0.005 improvement)
+- **Literature context:** AS from B-mode done by others (Holste 2023, Ahmadi 2024). MR, TR, AV Vmax from B-mode: genuinely novel. DELINEATE papers use color Doppler. PanEcho says regurgitation "requires Doppler."
 
 ---
 
@@ -155,15 +164,15 @@ B-mode-only view filtering applied via `build_viewfiltered_csvs.py` with `bmode_
 
 | Task | Owner | Status | Blocks |
 |------|-------|--------|--------|
-| Training/test CSVs (UHN + MIMIC) | Alif | **DONE** (47 UHN + 23 MIMIC + 5 trajectory) | All probe training |
+| Training/test CSVs (UHN + MIMIC) | Alif | **DONE** (47 UHN + 23 MIMIC + trajectory onset) | All probe training |
 | View-filtered CSVs | Alif | **DONE** (41 UHN tasks) | View-specific probes |
-| B-mode-only view filters (hemodynamic tasks) | Alif | **DONE** for MR+AS, TODO for 5 remaining | Pillar 2 probes |
-| Run scripts for Phase 1-3 | Alif | **DONE** (Phase 1 built, Phase 2-3 TODO) | Batch execution |
-| d=1 attentive probe training (UHN: 47×5) | Alif | **IN PROGRESS** (TAPSE+LVEF+MR+AS done, 14 tasks remaining) | UHN results tables |
-| d=1 attentive probe training (MIMIC: 23×5) | Alif | TODO | MIMIC results tables |
+| B-mode-only view filters (hemodynamic tasks) | Alif | **DONE** (all hemodynamic tasks) | Pillar 2 probes |
+| Run scripts (auto-config, per-epoch archiving) | Alif | **DONE** | Batch execution |
+| Study-level prediction aggregation | Alif | **DONE** | Study-level metrics |
+| d=1 attentive probes (UHN) | Alif | **35/335 done** (7 tasks x 5 models). AR in progress. | UHN results tables |
+| d=1 attentive probes (MIMIC) | Alif | TODO | MIMIC results tables |
 | Bland-Altman post-processing | Alif | **TODO** | All regression reporting |
-| Study-level prediction aggregation | Alif | **TODO** | Study-level metrics |
-| MIMIC embeddings (7 models) | Alif | **DONE** (historic NPZ pipeline) | SAE, legacy comparison |
+| MIMIC embeddings (5 models) | Alif | **DONE** (historic NPZ pipeline, superseded by Strategy E) | SAE, legacy |
 | Ship checkpoints to Goodfire | Alif | **TODO** | Frame shuffling, SAE experiments |
 
 ### Core Experiments (Wendy's Pillars)
