@@ -219,7 +219,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 
 ## Running / Queued Tasks — Per-Task Protocol
 
-### TR Severity (classification, B-mode only) — G/L/L-K DONE, EchoPrime RUNNING (GPUs 0-3)
+### TR Severity (classification, B-mode only) — ALL 5 MODELS DONE
 
 | Setting | Value |
 |---------|-------|
@@ -424,7 +424,8 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | TR sev. | echojepa-g | **0.837** | 41.95 | 0.530 | 0.258 | -- | 15 | 15 | archived |
 | TR sev. | echojepa-l | 0.753 | 32.10 | 0.401 | 0.167 | -- | 15 | 15 | archived |
 | TR sev. | echojepa-l-k | 0.786 | 35.74 | 0.469 | 0.201 | -- | 15 | 15 | archived |
-| TR sev. | echoprime | 0.739* | 33.38 | 0.399 | 0.165 | -- | 3* | 15 | RUNNING (GPUs 0-3) |
+| TR sev. | echoprime | 0.758 | 33.38 | 0.399 | 0.165 | -- | 15 | 15 | archived |
+| TR sev. | panecho | 0.715 | -- | -- | -- | -- | 15 | 15 | archived |
 
 ### Trajectory / Onset Tasks (Binary Classification)
 
@@ -474,7 +475,7 @@ The G-vs-EchoPrime gap varies dramatically with task difficulty:
 
 **Key insights:**
 
-1. **JEPA at G scale (1.1B params, 18M echos) is the best approach on all tasks** -- sufficient data volume means the model sees enough "looked normal now, declined later" cases to learn prognostic patterns through masking alone.
+1. **JEPA at G scale (1,012M params, 18M echos) is the best approach on all tasks** -- sufficient data volume means the model sees enough "looked normal now, declined later" cases to learn prognostic patterns through masking alone.
 
 2. **JEPA at L-K scale captures structure but not prognosis** -- Kinetics pretraining (220 epochs) + echo annealing (55 epochs) gives strong structural features (2nd on MR/TR severity) but misses the subtle prognostic signal. This is not a training bug; it's the inherent limitation of learning prognostic features from masking alone without sufficient echo-specific data.
 
@@ -512,7 +513,8 @@ All surviving checkpoints archived to `checkpoints/probes/{task}/{model}/` and S
 | TR sev. | echojepa-g | `checkpoints/probes/tr_severity/echojepa-g/` | archived |
 | TR sev. | echojepa-l | `checkpoints/probes/tr_severity/echojepa-l/` | archived |
 | TR sev. | echojepa-l-k | `checkpoints/probes/tr_severity/echojepa-l-k/` | archived |
-| TR sev. | echoprime | `checkpoints/probes/tr_severity/echoprime/` | RUNNING (epoch 3) |
+| TR sev. | echoprime | `checkpoints/probes/tr_severity/echoprime/` | archived |
+| TR sev. | panecho | `checkpoints/probes/tr_severity/panecho/` | archived |
 | Traj LVEF (3-class) | echojepa-g | `checkpoints/probes/trajectory_lvef/echojepa-g/` | archived |
 | Traj LVEF (3-class) | echojepa-l | `checkpoints/probes/trajectory_lvef/echojepa-l/` | archived |
 | Traj LVEF (3-class) | echojepa-l-k | `checkpoints/probes/trajectory_lvef/echojepa-l-k/` | archived |
@@ -634,7 +636,7 @@ Three iterations of the trajectory prediction task, culminating in the onset fra
 ### Why onset framing works
 
 1. **Controls for baseline EF by design** — restricting to EF ≥ 50 forces the model to find visual features *beyond* the EF number
-2. **Differentiates model quality** — G at 0.733 vs L at 0.556 (+0.177 gap) vs V1 where all models clustered at 0.60-0.65
+2. **Differentiates model quality** — G at 0.793 test (pred avg) vs L at 0.514 (chance) vs V1 where all models clustered at 0.60-0.65
 3. **Clinically compelling** — "from an apparently normal echo, identify patients at risk of developing cardiomyopathy" is a Nature Medicine headline
 4. **Event rate stable across time windows** — 7-8% at 30-89d, 90-179d, and 180-365d → no need to stratify
 
@@ -774,7 +776,7 @@ Chain: LVEF (5) → TAPSE (5) → MR severity (5) → AS severity (5) → AV Vma
 | mr_severity | classification | 5 | 1,648,091 | **RETRAIN** (checkpoints lost, was G 0.860) |
 | as_severity | classification | 4 | 1,487,709 | **RETRAIN** (checkpoints lost, was G 0.908) |
 | aov_vmax | regression | -- | 269,567 | **RETRAIN G/L/L-K** (EchoPrime+PanEcho archived) |
-| tr_severity | classification | 5 | 1,365,676 | G/L/L-K **DONE** + archived. EchoPrime RUNNING (epoch 5, AUROC 0.747, GPUs 0-3). PanEcho queued. |
+| tr_severity | classification | 5 | 1,365,676 | **ALL 5 DONE** + archived. G 0.838, L-K 0.787, EchoPrime 0.758, L 0.755, PanEcho 0.715. |
 | ar_severity | classification | 5 | 969,896 | READY |
 | mv_ee | regression | -- | 71,562 | READY (B-mode filter rebuilt) |
 | rvsp | regression | -- | 139,861 | READY (B-mode filter rebuilt) |
@@ -1124,7 +1126,7 @@ Supporting evidence / Extended Data. Failures shrink scope but don't touch core 
 | ~~2~~ | ~~AS severity from B-mode~~ | ~~UHN~~ | **DONE** | ~~5~~ |
 | ~~3~~ | ~~AV Vmax from B-mode~~ | ~~UHN~~ | **DONE** | ~~5~~ |
 | ~~4~~ | ~~Trajectory LVEF onset (V3)~~ | ~~UHN (6K studies)~~ | **DONE** — G test 0.793 (pred avg). Passes 0.75 gate. | ~~5~~ |
-| **5** | **TR severity from B-mode** | UHN (1.4M clips) | **RUNNING** (GPUs 0-3, L-K ep12) | 5 |
+| ~~5~~ | ~~TR severity from B-mode~~ | ~~UHN (1.4M clips)~~ | **DONE** — G 0.838, L-K 0.787, EchoPrime 0.758, L 0.755, PanEcho 0.715 | ~~5~~ |
 | **6** | **AR severity from B-mode** | UHN (970K clips) | READY | 5 |
 | **7** | **NT-proBNP + creatinine (attentive)** | MIMIC (852 / 3,883) | READY | 10 |
 | **8** | **E/e' + RVSP from B-mode** | UHN | READY (B-mode filters rebuilt) | 10 |

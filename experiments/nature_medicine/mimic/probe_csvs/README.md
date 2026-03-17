@@ -159,7 +159,7 @@ The same probe CSVs and training pipeline work with any supported encoder. To ru
 
 ### EchoPrime
 
-Text-supervised contrastive model (MViT-v2-S, 35M params, 512-dim embeddings). Requires the [EchoPrime repository](https://github.com/echonet/echo_prime) cloned into `evals/video_classification_frozen/modelcustom/EchoPrime/`.
+Text-supervised contrastive model (MViT-v2-S, 34M params, 512-dim embeddings). Requires the [EchoPrime repository](https://github.com/echonet/echo_prime) cloned into `evals/video_classification_frozen/modelcustom/EchoPrime/`.
 
 ```bash
 # Clone EchoPrime source and weights

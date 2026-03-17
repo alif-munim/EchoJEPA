@@ -76,7 +76,7 @@ Total S3 connections = `num_GPUs × num_workers` (each worker streams one clip a
 
 | Model | batch_size | num_workers | GPU mem/device | Notes |
 |-------|-----------|-------------|----------------|-------|
-| ViT-G (1.1B params) | 32 | 8-12 | ~20GB | Larger model, less room for batch size |
+| ViT-g (1,012M params) | 32 | 8-12 | ~20GB | Larger model, less room for batch size |
 | ViT-L (304M params) | 64 | 12 | ~8GB | Sweet spot for A100-80GB |
 | ViT-L (304M params) | 128 | 16 | ~15GB | May work but risks S3 connection storm |
 
@@ -249,6 +249,6 @@ For a full 18M clip extraction on 8x A100-80GB:
 | Model size | Optimized (bs=64, w=12, pf=4) | Original (bs=32, w=8, pf=1) |
 |-----------|-------------------------------|------------------------------|
 | ViT-L (304M) | ~9-10h | ~15h |
-| ViT-G (1.1B) | ~15h (estimated) | ~25.5h (actual) |
+| ViT-g (1,012M) | ~15h (estimated) | ~25.5h (actual) |
 
 The speedup comes entirely from better data pipeline saturation, not faster GPU compute.

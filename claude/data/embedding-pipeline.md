@@ -24,13 +24,13 @@ Source CSV (525K S3 paths)
 
 | Model | Architecture | Pretraining | Params | Embed dim | File |
 |-------|-------------|-------------|--------|-----------|------|
-| EchoJEPA-G | ViT-g/16 384px | JEPA on 18M echo clips | 1.1B | 1408 | `echojepa_g_mimic_embeddings.npz` |
+| EchoJEPA-G | ViT-g/16 384px | JEPA on 18M echo clips | 1,012M | 1408 | `echojepa_g_mimic_embeddings.npz` |
 | EchoJEPA-L | ViT-L/16 224px | JEPA on 18M echo clips | 304M | 1024 | `echojepa_l_mimic_embeddings.npz` |
 | EchoJEPA-L Kinetics | ViT-L/16 224px | JEPA on Kinetics-400 | 304M | 1024 | `echojepa_l_kinetics_mimic_embeddings.npz` |
 | EchoMAE | ViT-L/16 (VideoMAE) | MAE on 1.5M echo clips | 304M | 1024 | `echomae_mimic_embeddings.npz` |
 | EchoFM | ViT-L/16 (MAE+triplet) | MAE on 290K echo clips | 304M | 1024 | `echofm_mimic_embeddings.npz` |
-| PanEcho | ConvNeXt-T + Transformer | Multi-task supervised on 1.1M echo clips | 28M | 768 | `panecho_mimic_embeddings.npz` |
-| EchoPrime | MViT-v2-S | CLIP-style contrastive on 12M echo clips + report text | 35M | 512 | `echoprime_mimic_embeddings.npz` |
+| PanEcho | ConvNeXt-T + 4L Transformer | Multi-task supervised on 1.2M echo clips | 43M | 768 | `panecho_mimic_embeddings.npz` |
+| EchoPrime | MViT-v2-S | CLIP-style contrastive on 12M echo clips + report text | 34M | 512 | `echoprime_mimic_embeddings.npz` |
 
 Key controlled comparisons: EchoJEPA-L vs EchoMAE (same arch, JEPA vs MAE), EchoJEPA-L vs Kinetics (same arch, echo vs natural video data), EchoJEPA-G vs EchoJEPA-L (scale). EchoPrime is text-supervised (contrastive alignment with BiomedBERT report embeddings), not purely self-supervised.
 
