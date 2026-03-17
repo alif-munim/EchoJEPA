@@ -542,12 +542,32 @@ def main(args_eval, resume_preempt=False):
             # 2. Save per-epoch snapshot
             epoch_path = os.path.join(folder, f"epoch_{epoch:03d}.pt")
             torch.save(save_dict, epoch_path)
-            
-            # 3. --- NEW: Save BEST checkpoint ---
+
+            # 3. Archive log_r0.csv to safe backup every epoch
+            _archive_path = os.environ.get("CHECKPOINT_ARCHIVE_PATH")
+            if _archive_path:
+                try:
+                    import shutil
+                    os.makedirs(_archive_path, exist_ok=True)
+                    _log_src = os.path.join(folder, "log_r0.csv")
+                    if os.path.exists(_log_src):
+                        shutil.copy2(_log_src, os.path.join(_archive_path, "log_r0.csv"))
+                except Exception:
+                    pass  # non-fatal
+
+            # 4. Save BEST checkpoint
             if is_best:
                 best_path = os.path.join(folder, "best.pt")
                 torch.save(save_dict, best_path)
                 logger.info(f"Generated new best model: {best_path}")
+
+                # 5. Archive best.pt to safe backup directory
+                if _archive_path:
+                    try:
+                        shutil.copy2(best_path, os.path.join(_archive_path, "best.pt"))
+                        logger.info(f"Archived best.pt to: {_archive_path}/best.pt")
+                    except Exception as _e:
+                        logger.warning(f"Archive failed (non-fatal): {_e}")
 
     # ---- per-head running stats ----
     best_per_head = None

@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-16 (night — checkpoint loss documented, full status audit)
+Last updated: 2026-03-16 23:30 (retrain chain launched on GPUs 4-7, TR severity EchoPrime on GPUs 0-3)
 
 ## Evaluation Protocol
 
@@ -753,17 +753,19 @@ Intermediate grades (mild-to-moderate, moderate-to-severe) collapsed into the ad
 
 ## Run Priority (Phase 1)
 
-### URGENT — Retrain Lost Checkpoints
+### URGENT — Retrain Lost Checkpoints (RUNNING)
 
-23 runs need retraining due to checkpoint loss (Bug 007). Results were good; only the probe weights are missing.
+23 runs retraining via `scripts/retrain_lost_checkpoints.sh` on GPUs 4-7 (port 29501).
+Started: 2026-03-16 23:26. Log: `logs/retrain_all_20260316_232654.log`.
+Chain: LVEF (5) → TAPSE (5) → MR severity (5) → AS severity (5) → AV Vmax G/L/L-K (3).
 
-| Task | Models to retrain | Historical best (G) | Est. time |
-|------|-------------------|-------|-----------|
-| lvef | all 5 | R² 0.720 | ~3h |
-| tapse | all 5 | R² 0.450 (L-K; G had NaN bug) | ~3h |
-| mr_severity | all 5 | AUROC 0.860 | ~3h |
-| as_severity | all 5 | AUROC 0.908 | ~3h |
-| aov_vmax | G, L, L-K only | R² 0.582 | ~2h |
+| Task | Models to retrain | Historical best (G) | Status |
+|------|-------------------|-------|--------|
+| lvef | all 5 | R² 0.720 | **RUNNING** (G epoch 1, GPUs 4-7) |
+| tapse | all 5 | R² 0.450 (L-K; G had NaN bug) | Queued |
+| mr_severity | all 5 | AUROC 0.860 | Queued |
+| as_severity | all 5 | AUROC 0.908 | Queued |
+| aov_vmax | G, L, L-K only | R² 0.582 | Queued |
 
 ### Tier 1 — Main text Pillar 2: Hemodynamics (B-mode only)
 
@@ -772,7 +774,7 @@ Intermediate grades (mild-to-moderate, moderate-to-severe) collapsed into the ad
 | mr_severity | classification | 5 | 1,648,091 | **RETRAIN** (checkpoints lost, was G 0.860) |
 | as_severity | classification | 4 | 1,487,709 | **RETRAIN** (checkpoints lost, was G 0.908) |
 | aov_vmax | regression | -- | 269,567 | **RETRAIN G/L/L-K** (EchoPrime+PanEcho archived) |
-| tr_severity | classification | 5 | 1,365,676 | G/L/L-K **DONE** + archived. EchoPrime RUNNING (epoch 3, AUROC 0.739). PanEcho queued. |
+| tr_severity | classification | 5 | 1,365,676 | G/L/L-K **DONE** + archived. EchoPrime RUNNING (epoch 5, AUROC 0.747, GPUs 0-3). PanEcho queued. |
 | ar_severity | classification | 5 | 969,896 | READY |
 | mv_ee | regression | -- | 71,562 | READY (B-mode filter rebuilt) |
 | rvsp | regression | -- | 139,861 | READY (B-mode filter rebuilt) |

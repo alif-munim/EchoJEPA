@@ -303,7 +303,9 @@ run() {
     rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
 
     local rc=0
+    export CHECKPOINT_ARCHIVE_PATH="${ARCHIVE_DIR}/${TASK}/${model_tag}"
     PYTHONUNBUFFERED=1 python -m evals.main --fname "$config" --devices $DEVICES || rc=$?
+    unset CHECKPOINT_ARCHIVE_PATH
     if [ "$rc" -ne 0 ]; then
         log ">>> FAILED: ${tag} (exit code ${rc})"
         rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
