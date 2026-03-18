@@ -63,27 +63,30 @@ Built `evals/regenerate_uhn_downstream.py`. Generated splits for G and L (53 tas
 
 ## Blocking Work — Priority Order (updated 2026-03-18)
 
-1. **Complete in-progress runs** — LVEF pred avg (GPUs 0-3, G done R²=0.778, L in progress), TAPSE retrain (GPUs 4-7, G epoch 13/15)
-2. **Run pred avg for ready tasks** — TR severity, trajectory onset, AV mean grad (re-run, Bug 008 invalidated previous results)
-3. **Train missing checkpoints** — AV Vmax G/L/L-K (3), AR severity L/L-K/EP/Pan (4), RVSP EP/Pan (2), TAPSE L/L-K/EP/Pan (4)
-4. **Complete Tier 1 hemodynamic tasks** — E/e' medial (novel), remaining RVSP training
-5. **Build B-mode filtered CSVs for Tier 3** — diastolic_function, pa_pressure (need `bmode_only=True` CSVs)
-6. **Ship code + checkpoints to Goodfire** — repo with Claude docs, clean CSVs, L/L-K checkpoints, G NPZ embeddings
-7. **Bland-Altman analysis** in eval post-processing (Wendy: MAE alone insufficient for Nature Medicine)
-8. **Email Joe for Chicago demographics** (age, sex, race/ethnicity) — blocking for cross-site fairness
+1. **Fix failed pred avg runs** — LVEF L-K (socket error) + PanEcho (forward crash). Re-run on idle GPUs 0-3.
+2. **Finish TR severity pred avg** — L-K running, EP/Pan queued (auto-chained). Then AS severity training.
+3. **Re-run AV mean grad pred avg** — Bug 008 invalidated all 5 results. Checkpoints archived, just need inference.
+4. **Train missing checkpoints** — AR severity (G at ep11, 4 models TODO), TAPSE (L-K ep8, EP/Pan TODO)
+5. **JEPA-unique experiments** — 6.1 (forward prediction), 6.4 (anomaly detection via prediction error), 5.4 (trajectory onset expansion: MR severity + TAPSE)
+6. **Complete Tier 1 hemodynamic tasks** — E/e' medial (novel), AV area
+7. **Ship code + checkpoints to Goodfire** — repo with Claude docs, clean CSVs, L/L-K checkpoints, G NPZ embeddings
+8. **Bland-Altman analysis** in eval post-processing (Wendy: MAE alone insufficient for Nature Medicine)
+9. **Email Joe for Chicago demographics** (age, sex, race/ethnicity) — blocking for cross-site fairness
 
 **DONE since last update (2026-03-18):**
+- RVSP all 5 models complete: G R²=0.463, L-K 0.268, Pan 0.248, EP 0.207, L 0.137
+- LVEF pred avg 3/5: G R²=0.778, EP 0.681, L 0.577 (L-K/Pan failed, re-run needed)
+- TR severity pred avg: G AUROC=0.854 (+1.6pp), L 0.787 (+3.2pp). L-K running.
+- TAPSE: G R²=0.552 (ep14), L R²=0.288 (ep15). L-K stopped at ep 8.
+- Manuscript restructured around three-level world model (cross-modal, cross-system, cross-temporal)
 - Bugs 008-010 found and fixed (inference checkpoint loading, shm exhaustion, concurrent job safety)
 - Generic `scripts/run_pred_avg.sh` updated with all fixes
-- Orphan cleanup in `scripts/run_uhn_probe.sh` uses ppid=1 filtering (safe for concurrent jobs)
-- LVEF pred avg G complete: R²=0.778, Pearson r=0.889
-- AV mean grad pred avg results invalidated (Bug 008 — probes never loaded, must re-run)
 
 **DONE previously:**
 - Study-level prediction aggregation: **DONE** (auto-enables when `val_only=True` + `study_sampling=True`)
-- TR severity: **DONE** (G 0.838)
-- AV Vmax: **DONE** (G R²=0.582)
-- Trajectory onset: **DONE** (G 0.793, delta regression failed, onset classification adopted)
+- Hemodynamic training: MR (G 0.860), AS (G 0.908), TR (G 0.838), AV Vmax (G R²=0.582) all 5 models
+- Trajectory onset: **DONE** (G 0.793)
+- LVEF training: all 5 models retrained (15 ep)
 - Literature review: B-mode hemodynamic prior art documented
 
 ## View-Filtered Training Pipeline — DONE (2026-03-11)
@@ -116,8 +119,8 @@ B-mode-only view filtering applied via `build_viewfiltered_csvs.py` with `bmode_
 | tr_severity | A4C, Subcostal, PLAX | Yes | **DONE** (G 0.838) |
 | aov_vmax | PLAX, A3C, PSAX-AV | Yes | **DONE** (G R²=0.582) |
 | aov_mean_grad | PLAX, A3C, PSAX-AV | Yes | **DONE** (5/5 ckpts; pred avg needs re-run, Bug 008) |
-| ar_severity | A4C, A2C, A3C, PLAX | Yes | **PARTIAL** (G only, 4 models needed) |
-| rvsp | A4C, Subcostal | Yes | **PARTIAL** (G, L, L-K; EP, Pan needed) |
+| ar_severity | A4C, A2C, A3C, PLAX | Yes | **PARTIAL** (G only ep 11, 4 models needed) |
+| rvsp | A4C, Subcostal | Yes | **DONE** (all 5: G 0.463, L-K 0.268, Pan 0.248, EP 0.207, L 0.137) |
 | mv_ee_medial | A4C | Yes | QUEUED |
 | aov_area | PLAX, A3C, PSAX-AV | Yes | QUEUED |
 
@@ -131,8 +134,12 @@ All results: d=1 attentive probes, 15 epochs, 12-head HP grid. Results marked (P
 |------|---|-----|-----------|---|---------|
 | AS severity (4-class AUROC) | **0.908** | 0.821 | 0.827 | 0.786 | 0.762 |
 | MR severity (5-class AUROC) | **0.860** | 0.803 | 0.770 | 0.771 | 0.724 |
-| TR severity (5-class AUROC) | **0.838** | 0.787 | 0.758 | 0.755 | 0.715 |
+| TR severity (5-class AUROC) | **0.838** | 0.787 | 0.758 | 0.755 | 0.731 |
 | AV Vmax (R²) | **0.582** | 0.388 | 0.476 | 0.232 | 0.390 |
+| RVSP (R²) | **0.463** | 0.268 | 0.207 | 0.137 | 0.248 |
+| AR severity (AUROC) | 0.740* | — | — | — | — |
+
+*AR severity: G only at ep 11, training stopped. 4 models TODO.
 
 **Trajectory Prediction (single-clip training, pred avg at test)**
 
@@ -144,9 +151,11 @@ All results: d=1 attentive probes, 15 epochs, 12-head HP grid. Results marked (P
 
 | Task | G | L-K | EchoPrime | L | PanEcho |
 |------|---|-----|-----------|---|---------|
-| TAPSE (R²) | **0.537** | 0.429 | 0.440 | 0.344 | 0.411 |
-| LVEF (R², single-clip) | **0.712** | 0.576 | — | 0.557 | — |
-| LVEF (R², pred avg) | **0.778** | — | — | — | — |
+| TAPSE (R²) | **0.552** | 0.427* | — | 0.288 | — |
+| LVEF (R², single-clip) | **0.583** | 0.583 | 0.563 | 0.556 | 0.556 |
+| LVEF (R², pred avg) | **0.778** | FAIL | 0.681 | 0.577 | FAIL |
+
+*TAPSE L-K stopped at ep 8. EP/Pan not started. LVEF pred avg L-K/Pan failed (socket/forward errors).
 
 Note: LVEF pred avg in progress (G done, L/L-K/EP/Pan running). TAPSE retraining (G epoch 13/15, ckpts lost per Bug 007).
 

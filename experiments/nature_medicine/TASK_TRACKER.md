@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-18 (Bugs 008-010 documented, LVEF retrain complete + pred avg G R²=0.778, TAPSE retrain in progress, aov_mean_grad pred avg INVALID, generic run_pred_avg.sh added)
+Last updated: 2026-03-18 (RVSP 5/5 done, LVEF pred avg 3/5 done, TR pred avg G+L done, TAPSE G+L done, AR severity G ep11, manuscript restructured around three-level world model)
 
 ## Evaluation Protocol
 
@@ -284,7 +284,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | Inference | Single random clip per study per val epoch. **No prediction averaging.** |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/mv_ee/train_vf.csv` |
 
-### RVSP (regression, B-mode only) — QUEUED
+### RVSP (regression, B-mode only) — DONE (all 5 models)
 
 | Setting | Value |
 |---------|-------|
@@ -521,7 +521,14 @@ All surviving checkpoints archived to `checkpoints/probes/{task}/{model}/` and S
 | LVEF | echojepa-l-k | `checkpoints/probes/lvef/echojepa-l-k/` | **retrained** |
 | LVEF | echoprime | `checkpoints/probes/lvef/echoprime/` | **retrained** |
 | LVEF | panecho | `checkpoints/probes/lvef/panecho/` | **retrained** |
-| TAPSE | echojepa-g | `checkpoints/probes/tapse/echojepa-g/` | **retraining** (ep 13/15) |
+| TAPSE | echojepa-g | `checkpoints/probes/tapse/echojepa-g/` | **done** (ep 14, R²=0.552) |
+| TAPSE | echojepa-l | `checkpoints/probes/tapse/echojepa-l/` | **done** (ep 15, R²=0.288) |
+| TAPSE | echojepa-l-k | `checkpoints/probes/tapse/echojepa-l-k/` | **partial** (ep 8, R²=0.427, stopped) |
+| RVSP | echojepa-g | `checkpoints/probes/rvsp/echojepa-g/` | **done** (R²=0.463) |
+| RVSP | echojepa-l | `checkpoints/probes/rvsp/echojepa-l/` | **done** (R²=0.137) |
+| RVSP | echojepa-l-k | `checkpoints/probes/rvsp/echojepa-l-k/` | **done** (R²=0.268) |
+| RVSP | echoprime | `checkpoints/probes/rvsp/echoprime/` | **done** (R²=0.207) |
+| RVSP | panecho | `checkpoints/probes/rvsp/panecho/` | **done** (R²=0.248) |
 | AV mean grad | echojepa-g | `checkpoints/probes/aov_mean_grad/echojepa-g/` | archived (pred avg INVALID) |
 | AV mean grad | echojepa-l | `checkpoints/probes/aov_mean_grad/echojepa-l/` | archived (pred avg INVALID) |
 | AV mean grad | echojepa-l-k | `checkpoints/probes/aov_mean_grad/echojepa-l-k/` | archived (pred avg INVALID) |
@@ -567,7 +574,7 @@ Archived (old 20-head HP grid, superseded by 12-head):
 
 ## Known Issues
 
-1. **tapse-echojepa-g NaN metrics**: Val R² and Pearson are NaN for all 20 epochs. MAE looks correct (0.298→0.264). Possible causes: all_gather bug on multi-GPU, Z-score denormalization issue in metric computation, or constant predictions on some ranks. Needs re-run or debugging.
+1. **tapse-echojepa-g NaN metrics**: RESOLVED. Original 20-head run had NaN R²/Pearson. Retrain with 12-head grid completed to ep 14: R²=0.552, Pearson=0.743. Likely was an all_gather bug in the old code path, fixed by NCCL all_gather fix.
 
 2. **EchoMAE dropped**: Checkpoint was pretrained with lr=3.5e-6 (~170× below standard). TAPSE R²≈0, LVEF R²≈0. Excluded from Nature Medicine; cite ICML for JEPA-vs-MAE comparison.
 
@@ -579,7 +586,7 @@ Archived (old 20-head HP grid, superseded by 12-head):
 
 6. **Orphaned DDP worker processes**: When a parent run script is killed (`kill PID`), DDP child processes (one per GPU) may survive as orphans attached to init (ppid=1), holding GPU memory indefinitely. Symptom: `nvidia-smi` shows GPUs occupied with no matching Python process in `ps`. Fix: identify orphan PIDs via `nvidia-smi --query-compute-apps=pid`, then `kill -9`. Always check GPU memory before starting new runs.
 
-7. **Checkpoint loss (Bug 007)**: All checkpoint directories for LVEF (5), TAPSE (5), MR severity (5), AS severity (5), and AV Vmax G/L/L-K (3) = 23 runs are gone. Cause unknown (no `rm` in any script, bash history, or Claude session). Historical results preserved in training logs. **Fix applied**: `run_uhn_probe.sh` now archives to `checkpoints/probes/{task}/{model}/` + S3 after each model. See `claude/dev/bugs/007-checkpoint-loss.md`. **LVEF retrain complete (2026-03-18). TAPSE retrain in progress.**
+7. **Checkpoint loss (Bug 007)**: All checkpoint directories for LVEF (5), TAPSE (5), MR severity (5), AS severity (5), and AV Vmax G/L/L-K (3) = 23 runs are gone. Cause unknown (no `rm` in any script, bash history, or Claude session). Historical results preserved in training logs. **Fix applied**: `run_uhn_probe.sh` now archives to `checkpoints/probes/{task}/{model}/` + S3 after each model. See `claude/dev/bugs/007-checkpoint-loss.md`. **LVEF retrain complete (5/5 models). TAPSE retrain: G (ep14) + L (ep15) done, L-K partial (ep8), EP/Pan TODO.**
 
 8. **Inference probe not loaded (Bug 008, CRITICAL, FIXED 2026-03-18)**: `run_lvef_pred_avg.sh` (and early `run_pred_avg.sh`) generated inference YAML configs WITHOUT `resume_checkpoint: true`. Without this flag, `eval.py` initializes probes with random Xavier weights instead of loading the trained checkpoint. Signature: Z-score MAE ~8.2-8.4 (random predictions ~8 std from truth), R² near 0. **All AV mean grad pred avg results are INVALID** due to this bug. **Fix**: `run_pred_avg.sh` now includes `resume_checkpoint: true` in YAML template. See `claude/dev/bugs/008-inference-probe-not-loaded.md`.
 
