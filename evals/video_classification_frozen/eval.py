@@ -1225,7 +1225,17 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
 
     # -- loading classifier(s)
     pretrained_dict = checkpoint["classifiers"]
-    msg = [c.load_state_dict(pd) for c, pd in zip(classifiers, pretrained_dict)]
+    # Align 'module.' prefix between checkpoint and model (handles both directions)
+    cleaned_dicts = []
+    for c, pd in zip(classifiers, pretrained_dict):
+        ckpt_has_module = any(k.startswith("module.") for k in pd)
+        model_has_module = any(k.startswith("module.") for k in c.state_dict())
+        if ckpt_has_module and not model_has_module:
+            pd = {k.replace("module.", "", 1): v for k, v in pd.items()}
+        elif not ckpt_has_module and model_has_module:
+            pd = {"module." + k: v for k, v in pd.items()}
+        cleaned_dicts.append(pd)
+    msg = [c.load_state_dict(pd) for c, pd in zip(classifiers, cleaned_dicts)]
 
     if val_only:
         # Log metrics if present (no change to return signature)
