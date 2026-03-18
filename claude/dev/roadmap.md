@@ -1,6 +1,6 @@
 # Roadmap
 
-Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-17.
+Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-18.
 
 Source of truth for paper scope and task priorities: `uhn_echo/nature_medicine/context_files/nature_medicine_task_overview.md`. Detailed specs in `planning/tasks/`. Per-person assignments in `roles/`. This file is the cross-cutting infrastructure and experiment summary.
 
@@ -61,24 +61,25 @@ Built `evals/regenerate_uhn_downstream.py`. Generated splits for G and L (53 tas
 
 ---
 
-## Blocking Work — Priority Order (updated 2026-03-17)
+## Blocking Work — Priority Order (updated 2026-03-18)
 
-1. **Complete Tier 1 hemodynamic tasks** — RVSP (novel), E/e' medial (novel), AR severity (in progress on GPUs 0-3)
-   - B-mode-only view filters built for all hemodynamic tasks.
+1. **Complete in-progress runs** — LVEF pred avg (GPUs 0-3, G done R²=0.778, L in progress), TAPSE retrain (GPUs 4-7, G epoch 13/15)
+2. **Run pred avg for ready tasks** — TR severity, trajectory onset, AV mean grad (re-run, Bug 008 invalidated previous results)
+3. **Train missing checkpoints** — AV Vmax G/L/L-K (3), AR severity L/L-K/EP/Pan (4), RVSP EP/Pan (2), TAPSE L/L-K/EP/Pan (4)
+4. **Complete Tier 1 hemodynamic tasks** — E/e' medial (novel), remaining RVSP training
+5. **Build B-mode filtered CSVs for Tier 3** — diastolic_function, pa_pressure (need `bmode_only=True` CSVs)
+6. **Ship code + checkpoints to Goodfire** — repo with Claude docs, clean CSVs, L/L-K checkpoints, G NPZ embeddings
+7. **Bland-Altman analysis** in eval post-processing (Wendy: MAE alone insufficient for Nature Medicine)
+8. **Email Joe for Chicago demographics** (age, sex, race/ethnicity) — blocking for cross-site fairness
 
-2. **Complete Tier 2 tasks** — AV mean gradient, AV area (complete AV hemodynamic trio with Vmax)
+**DONE since last update (2026-03-18):**
+- Bugs 008-010 found and fixed (inference checkpoint loading, shm exhaustion, concurrent job safety)
+- Generic `scripts/run_pred_avg.sh` updated with all fixes
+- Orphan cleanup in `scripts/run_uhn_probe.sh` uses ppid=1 filtering (safe for concurrent jobs)
+- LVEF pred avg G complete: R²=0.778, Pearson r=0.889
+- AV mean grad pred avg results invalidated (Bug 008 — probes never loaded, must re-run)
 
-3. **Build B-mode filtered CSVs for Tier 3** — diastolic_function, pa_pressure (need `bmode_only=True` CSVs)
-
-4. **LVEF EchoPrime + PanEcho retrains** — checkpoints lost, need to retrain for complete LVEF comparison
-
-5. **Ship code + checkpoints to Goodfire** — repo with Claude docs, clean CSVs, L/L-K checkpoints, G NPZ embeddings
-
-6. **Bland-Altman analysis** in eval post-processing (Wendy: MAE alone insufficient for Nature Medicine)
-
-7. **Email Joe for Chicago demographics** (age, sex, race/ethnicity) — blocking for cross-site fairness
-
-**DONE since last update:**
+**DONE previously:**
 - Study-level prediction aggregation: **DONE** (auto-enables when `val_only=True` + `study_sampling=True`)
 - TR severity: **DONE** (G 0.838)
 - AV Vmax: **DONE** (G R²=0.582)
@@ -114,17 +115,17 @@ B-mode-only view filtering applied via `build_viewfiltered_csvs.py` with `bmode_
 | as_severity | PLAX, PSAX-AV, A3C | Yes | **DONE** (G 0.908) |
 | tr_severity | A4C, Subcostal, PLAX | Yes | **DONE** (G 0.838) |
 | aov_vmax | PLAX, A3C, PSAX-AV | Yes | **DONE** (G R²=0.582) |
-| ar_severity | A4C, A2C, A3C, PLAX | Yes | **IN PROGRESS** |
+| aov_mean_grad | PLAX, A3C, PSAX-AV | Yes | **DONE** (5/5 ckpts; pred avg needs re-run, Bug 008) |
+| ar_severity | A4C, A2C, A3C, PLAX | Yes | **PARTIAL** (G only, 4 models needed) |
+| rvsp | A4C, Subcostal | Yes | **PARTIAL** (G, L, L-K; EP, Pan needed) |
 | mv_ee_medial | A4C | Yes | QUEUED |
-| rvsp | A4C, Subcostal | Yes | QUEUED |
-| aov_mean_grad | PLAX, A3C, PSAX-AV | Yes | QUEUED |
 | aov_area | PLAX, A3C, PSAX-AV | Yes | QUEUED |
 
-### Strategy E Results (updated 2026-03-17)
+### Strategy E Results (updated 2026-03-18)
 
-All results: d=1 attentive probes, 15 epochs, 12-head HP grid, prediction averaging where applicable.
+All results: d=1 attentive probes, 15 epochs, 12-head HP grid. Results marked (PA) include prediction averaging; others are single-clip best-head val metrics.
 
-**Hemodynamic Inference (B-mode only)**
+**Hemodynamic Inference (B-mode only, single-clip)**
 
 | Task | G | L-K | EchoPrime | L | PanEcho |
 |------|---|-----|-----------|---|---------|
@@ -133,7 +134,7 @@ All results: d=1 attentive probes, 15 epochs, 12-head HP grid, prediction averag
 | TR severity (5-class AUROC) | **0.838** | 0.787 | 0.758 | 0.755 | 0.715 |
 | AV Vmax (R²) | **0.582** | 0.388 | 0.476 | 0.232 | 0.390 |
 
-**Trajectory Prediction**
+**Trajectory Prediction (single-clip training, pred avg at test)**
 
 | Task | G | EchoPrime | PanEcho | L-K | L |
 |------|---|-----------|---------|-----|---|
@@ -144,9 +145,25 @@ All results: d=1 attentive probes, 15 epochs, 12-head HP grid, prediction averag
 | Task | G | L-K | EchoPrime | L | PanEcho |
 |------|---|-----|-----------|---|---------|
 | TAPSE (R²) | **0.537** | 0.429 | 0.440 | 0.344 | 0.411 |
-| LVEF (R²) | **0.712** | 0.576 | — | 0.557 | — |
+| LVEF (R², single-clip) | **0.712** | 0.576 | — | 0.557 | — |
+| LVEF (R², pred avg) | **0.778** | — | — | — | — |
 
-Note: LVEF 3/5 models only (EchoPrime/PanEcho ckpts lost).
+Note: LVEF pred avg in progress (G done, L/L-K/EP/Pan running). TAPSE retraining (G epoch 13/15, ckpts lost per Bug 007).
+
+### Checkpoint Inventory (2026-03-18)
+
+| Task | G | L | L-K | EP | Pan | Pred Avg Status |
+|------|---|---|-----|----|----|----------------|
+| lvef | best.pt | best.pt | best.pt | best.pt | best.pt | G done (R²=0.778), L in progress |
+| tr_severity | best.pt | best.pt | best.pt | best.pt | best.pt | Not started (ready) |
+| aov_mean_grad | best.pt | best.pt | best.pt | best.pt | best.pt | **INVALID** (Bug 008, must re-run) |
+| trajectory_lvef_onset | best.pt | best.pt | best.pt | best.pt | best.pt | Not started (ready) |
+| trajectory_lvef_v1 | best.pt | best.pt | best.pt | best.pt | best.pt | Not started |
+| tapse | best.pt | — | — | — | — | G retraining (epoch 13/15) |
+| rvsp | best.pt | best.pt | best.pt | — | — | Needs 2 more models |
+| aov_vmax | — | — | — | best.pt | best.pt | Needs 3 more models |
+| ar_severity | best.pt | — | — | — | — | Needs 4 more models |
+| trajectory_lvef | best.pt | best.pt | best.pt | — | — | Needs 2 more models |
 
 **Key findings:**
 - B-mode video contains hemodynamic severity information — this is a clinical discovery, not model-specific
@@ -167,9 +184,9 @@ Note: LVEF 3/5 models only (EchoPrime/PanEcho ckpts lost).
 | Training/test CSVs (UHN + MIMIC) | Alif | **DONE** (47 UHN + 23 MIMIC + trajectory onset) | All probe training |
 | View-filtered CSVs | Alif | **DONE** (41 UHN tasks) | View-specific probes |
 | B-mode-only view filters (hemodynamic tasks) | Alif | **DONE** (all hemodynamic tasks) | Pillar 2 probes |
-| Run scripts (auto-config, per-epoch archiving) | Alif | **DONE** | Batch execution |
+| Run scripts (training + inference, auto-config, archiving, Bug 008-010 fixes) | Alif | **DONE** | Batch execution |
 | Study-level prediction aggregation | Alif | **DONE** | Study-level metrics |
-| d=1 attentive probes (UHN) | Alif | **35/335 done** (7 tasks x 5 models). AR in progress. | UHN results tables |
+| d=1 attentive probes (UHN) | Alif | **Training:** 5 tasks complete (5/5 ckpts), 5 partial. **Pred avg:** LVEF G done (R²=0.778), rest in progress. | UHN results tables |
 | d=1 attentive probes (MIMIC) | Alif | TODO | MIMIC results tables |
 | Bland-Altman post-processing | Alif | **TODO** | All regression reporting |
 | MIMIC embeddings (5 models) | Alif | **DONE** (historic NPZ pipeline, superseded by Strategy E) | SAE, legacy |
@@ -190,7 +207,7 @@ Note: LVEF 3/5 models only (EchoPrime/PanEcho ckpts lost).
 | MIMIC fairness: discrimination parity, calibration equity | CY | TODO | Fairness |
 | Frame shuffling (motion-dependence proof) | Goodfire | TODO (blocked on checkpoint delivery) | Interpretability |
 
-**MVP progress:** All CSVs and run scripts built. TAPSE + LVEF + MR severity + AS severity complete (5 models each, 20/20 runs). 15 epochs sufficient (extending to 20 yields <0.005 AUROC). CY's MIMIC outcome probes + EHR baseline done (H3.1 passed, mortality AUC 0.846-0.912). Adib: attention map infra done, SAE training in progress. Reza: MIMIC t-SNE complete (23 tasks x 7 models), UMAP regeneration + UHN main figure needed. All 8 GPUs free. Remaining: 14 Phase 1 UHN tasks, 5 hemodynamic B-mode filters, prediction aggregation, Bland-Altman, combined model, acuity conditioning, Phase 2.
+**MVP progress (updated 2026-03-18):** All CSVs, run scripts, and prediction averaging pipeline built and debugged (Bugs 008-010 fixed). Training complete for 5 tasks (5/5 ckpts): LVEF, TR severity, AV mean grad, trajectory onset, trajectory v1. LVEF pred avg G: R²=0.778. TAPSE retraining in progress (G epoch 13/15, ckpts lost per Bug 007). 5 tasks partially trained. AV mean grad pred avg invalidated by Bug 008 (must re-run). CY's MIMIC outcome probes + EHR baseline done (H3.1 passed). Adib: attention map infra done, SAE training in progress. Remaining: finish TAPSE retrain, run pred avg for TR/trajectory/aov_mean_grad, train missing ckpts (AV Vmax G/L/L-K, AR sev 4 models, RVSP 2 models), Bland-Altman, combined model.
 
 ### Verification
 
@@ -290,3 +307,7 @@ See `nature_medicine_task_overview.md` for full analysis. Clinician validation (
 - [x] MViT GPU memory leak (gc + empty_cache every 100 batches)
 - [x] DataLoader resume logic (new DataLoader for resume)
 - [x] TF32 matmul enabled (8x throughput for fp32 models)
+- [x] Checkpoint loss prevention (bug 007) — per-epoch archiving to local + S3
+- [x] Inference probe loading (bug 008) — `resume_checkpoint: true` required in YAML
+- [x] /dev/shm exhaustion (bug 009) — orphan cleanup, reduced workers/batch size
+- [x] Concurrent job safety (bug 010) — ppid=1 filtered orphan cleanup in all scripts

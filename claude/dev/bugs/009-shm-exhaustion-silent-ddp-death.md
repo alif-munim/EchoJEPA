@@ -46,7 +46,7 @@ The runs appeared to complete in 60-90 seconds instead of the expected 80+ minut
 
 ### In `scripts/run_lvef_pred_avg.sh`:
 
-1. **Orphan cleanup between model runs**: Added `pkill -f multiprocessing.spawn` and `pkill -f multiprocessing.resource_tracker` before each model inference starts.
+1. **Orphan cleanup between model runs**: Kill ppid=1 orphaned `multiprocessing.spawn` and `multiprocessing.resource_tracker` workers before each model inference starts.
 
 2. **Reduced `num_workers` from 8 to 4**: Halves per-process shm pressure. Each worker prefetches batches into shared memory; fewer workers = less shm.
 
@@ -55,11 +55,11 @@ The runs appeared to complete in 60-90 seconds instead of the expected 80+ minut
 ### Manual cleanup procedure:
 
 ```bash
-# Kill orphaned workers
-pkill -f "multiprocessing.spawn"
-pkill -f "multiprocessing.resource_tracker"
+# Kill only ORPHANED workers (ppid=1) — safe for concurrent jobs
+ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill
+ps -eo pid,ppid,args | grep "multiprocessing.resource_tracker" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill
 
-# Clean shm files
+# Clean shm files — ONLY when no concurrent GPU jobs are running (see Bug 011)
 rm -f /dev/shm/torch_* /dev/shm/__KMP_* /dev/shm/sem.*
 
 # Verify
@@ -67,10 +67,15 @@ df -h /dev/shm   # should show <1% used
 free -h           # shared column should be near 0
 ```
 
+**WARNING:** Do NOT use `pkill -f "multiprocessing.spawn"` — it kills ALL spawn workers machine-wide, including those belonging to concurrent DDP jobs on other GPUs. See [Bug 010](010-pkill-kills-concurrent-jobs.md).
+
+**WARNING:** Do NOT use `rm -f /dev/shm/torch_*` in scripts when concurrent jobs may be running — it deletes shm files backing live DataLoader workers, crashing the concurrent jobs. See [Bug 011](011-shm-file-cleanup-kills-concurrent-jobs.md). The original fix included this file cleanup, but it was removed in the Bug 011 fix. Process kills (ppid=1 only) are sufficient.
+
 ## Prevention
 
 - Always check `df -h /dev/shm` before launching multi-GPU jobs
-- Any script that runs multiple sequential DDP jobs should clean orphans between runs
+- Any script that runs multiple sequential DDP jobs should clean orphans between runs (ppid=1 only)
 - Monitor for impossible completion times (inference should take minutes-to-hours, not seconds)
 - Consider adding a shm check at the start of eval.py that warns if `/dev/shm` usage exceeds 50%
-- The `run_uhn_probe.sh` script already cleans `/dev/shm/torch_*` between models but does not kill orphaned spawn workers — should be updated to match the fix in `run_lvef_pred_avg.sh`
+- All three run scripts (`run_uhn_probe.sh`, `run_pred_avg.sh`, `run_lvef_pred_avg.sh`) now include ppid=1-filtered cleanup (Bug 010 fix)
+- The `rm -f /dev/shm/torch_*` file cleanup was removed from all scripts — it's unnecessary and kills concurrent jobs (Bug 011)

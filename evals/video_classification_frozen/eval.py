@@ -115,7 +115,8 @@ def _average_by_study(study_ids, predictions_np, labels_np):
     sorted_studies = sorted(study_groups.keys())
     avg_preds = np.array([predictions_np[study_groups[sid]].mean(axis=0) for sid in sorted_studies])
     study_labels = np.array([study_label_map[sid] for sid in sorted_studies])
-    return avg_preds, study_labels, len(sorted_studies)
+    clip_counts = np.array([len(study_groups[sid]) for sid in sorted_studies])
+    return avg_preds, study_labels, len(sorted_studies), sorted_studies, clip_counts
 
 
 def main(args_eval, resume_preempt=False):
@@ -634,6 +635,7 @@ def main(args_eval, resume_preempt=False):
             target_std=target_std,
             class_weights=class_weights,
             prediction_averaging=val_prediction_averaging,
+            output_dir=folder,
         )
 
         # ---- update scalar running stats ----
@@ -796,6 +798,7 @@ def run_one_epoch(
     target_std=None,
     class_weights=None,
     prediction_averaging=False,
+    output_dir=None,
 ):
     # --- NEW: Import tqdm for progress bar ---
     from tqdm import tqdm
@@ -833,6 +836,8 @@ def run_one_epoch(
     # Study ID collection for prediction averaging
     collect_study_ids = prediction_averaging and not training
     all_study_ids = [] if collect_study_ids else None
+    study_ids_sorted = None
+    study_clip_counts = None
 
     # --- NEW: Wrap loader in tqdm if val_only ---
     if val_only:
@@ -1065,7 +1070,7 @@ def run_one_epoch(
                 n_clips = len(gathered_study_ids)
                 for h in range(len(classifiers)):
                     probs_np = gathered_probs[h].numpy()
-                    avg_probs, avg_labels, n_studies = _average_by_study(
+                    avg_probs, avg_labels, n_studies, study_ids_sorted, study_clip_counts = _average_by_study(
                         gathered_study_ids, probs_np, labels_np)
                     gathered_probs[h] = torch.from_numpy(avg_probs)
                 labels_np = avg_labels.astype(int)
@@ -1144,7 +1149,7 @@ def run_one_epoch(
                 n_clips = len(gathered_study_ids)
                 for h in range(len(classifiers)):
                     preds_np = gathered_preds[h].numpy()
-                    avg_preds, avg_labels, n_studies = _average_by_study(
+                    avg_preds, avg_labels, n_studies, study_ids_sorted, study_clip_counts = _average_by_study(
                         gathered_study_ids, preds_np, labels_np)
                     gathered_preds[h] = torch.from_numpy(avg_preds)
                 labels_np = avg_labels
@@ -1161,8 +1166,54 @@ def run_one_epoch(
                 pearson_arr[h] = pearsonr(labels_np, preds_np)[0]
 
             reg_metrics = {"r2": r2_arr, "pearson": pearson_arr}
+
+            # Save per-study predictions for best head (rank 0 only)
+            if study_ids_sorted is not None and output_dir is not None:
+                import torch.distributed as dist
+                is_rank0 = not dist.is_initialized() or dist.get_rank() == 0
+                if is_rank0:
+                    best_h = int(np.nanargmax(r2_arr))
+                    best_preds_z = gathered_preds[best_h].numpy()
+                    t_mean = target_mean if target_mean is not None else 0.0
+                    t_std = target_std if target_std is not None else 1.0
+                    preds_real = best_preds_z * t_std + t_mean
+                    labels_real = labels_np * t_std + t_mean
+                    import pandas as pd
+                    df = pd.DataFrame({
+                        "study_id": study_ids_sorted,
+                        "label": labels_real,
+                        "prediction": preds_real,
+                        "n_clips": study_clip_counts,
+                    })
+                    save_path = os.path.join(output_dir, "study_predictions.csv")
+                    df.to_csv(save_path, index=False)
+                    logger.info(f"Saved {len(df)} study-level predictions to {save_path} (best head {best_h}, R²={r2_arr[best_h]:.4f})")
         except Exception as e:
             logger.warning(f"R²/Pearson computation failed: {e}")
+
+    # Save per-study predictions for classification (best head by AUROC, rank 0 only)
+    if auc_metrics is not None and collect_study_ids and output_dir is not None:
+        try:
+            import torch.distributed as dist
+            is_rank0 = not dist.is_initialized() or dist.get_rank() == 0
+            if is_rank0 and study_ids_sorted is not None:
+                best_h = int(np.nanargmax(auc_metrics["auroc"]))
+                best_probs = gathered_probs[best_h].numpy()
+                import pandas as pd
+                df_data = {
+                    "study_id": study_ids_sorted,
+                    "label": labels_np,
+                    "predicted_class": best_probs.argmax(axis=1),
+                    "n_clips": study_clip_counts,
+                }
+                for c in range(best_probs.shape[1]):
+                    df_data[f"prob_class_{c}"] = best_probs[:, c]
+                df = pd.DataFrame(df_data)
+                save_path = os.path.join(output_dir, "study_predictions.csv")
+                df.to_csv(save_path, index=False)
+                logger.info(f"Saved {len(df)} study-level predictions to {save_path} (best head {best_h}, AUROC={auc_metrics['auroc'][best_h]:.4f})")
+        except Exception as e:
+            logger.warning(f"Classification study prediction save failed: {e}")
 
     return scalar, _agg_metrics, auc_metrics or reg_metrics
 

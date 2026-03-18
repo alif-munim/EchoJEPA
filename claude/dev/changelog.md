@@ -6,6 +6,85 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-18 (Session 20)
+
+### Bugs 008, 009, 010: Inference Pipeline Debugging & Fixes
+
+**Bug 008 — Probe checkpoint never loaded during inference (CRITICAL):**
+- `run_lvef_pred_avg.sh` generated YAML with `probe_checkpoint:` but omitted `resume_checkpoint: true`
+- eval.py line 493 gates loading on `resume_checkpoint` flag; without it, probes run with random Xavier weights
+- Symptom: R²=0.006, Z-score MAE=8.73 (8+ standard deviations from truth = random)
+- Fix: Added `resume_checkpoint: true` to YAML template
+- See `claude/dev/bugs/008-inference-probe-not-loaded.md`
+
+**Bug 009 — /dev/shm exhaustion causes silent DDP worker death (HIGH):**
+- 143GB/144GB of `/dev/shm` consumed by 40+ orphaned `multiprocessing.spawn` workers from previous crashed runs
+- New DDP workers failed to allocate shm, died silently; surviving workers finished, parent exited 0
+- Symptom: inference "completing" in 60-90 seconds (impossible for 266K clips), only 2-3 of 4 workers visible
+- Fix: orphan cleanup between models, reduced num_workers 8→4, G batch_size 192→128
+- See `claude/dev/bugs/009-shm-exhaustion-silent-ddp-death.md`
+
+**Bug 010 — pkill orphan cleanup kills concurrent DDP jobs (HIGH):**
+- Bug 009's fix used `pkill -f "multiprocessing.spawn"` which kills ALL spawn workers machine-wide
+- LVEF pred avg cleanup between models killed TAPSE retrain's DDP workers on separate GPUs
+- TAPSE G died at epoch 13/15, process exited with "56 leaked semaphore objects"
+- Timing proof: LVEF G log_r0.csv written at 01:44, TAPSE died at 01:45:15
+- Fix: replaced `pkill` with ppid=1 filtering — only kills orphaned workers (adopted by init)
+- Applied to all 3 scripts: `run_lvef_pred_avg.sh`, `run_pred_avg.sh`, `run_uhn_probe.sh`
+- See `claude/dev/bugs/010-pkill-kills-concurrent-jobs.md`
+
+**Bug 012 — Resume logic skips inference on stale output dir (HIGH):**
+- With `val_only: true` + `resume_checkpoint: true`, eval.py checks output dir for existing logs
+- Stale header-only `log_r0.csv` from a previous failed run causes eval.py to think inference is already done
+- Exits 0 silently — no warning, no results produced
+- Impact: LVEF pred avg skipped L-K and PanEcho entirely; script reported success
+- Fix: pred avg scripts now clear stale output dirs before each inference run (safe — no training state to preserve)
+- See `claude/dev/bugs/012-resume-skips-inference-on-stale-output.md`
+
+**Bug 011 — `rm -f /dev/shm/torch_*` cleanup kills concurrent jobs (HIGH):**
+- Bug 009's fix included `rm -f /dev/shm/torch_*` between model runs to clean orphaned shm files
+- This indiscriminately deletes ALL torch shm files, including those backing live DataLoader workers in concurrent jobs
+- TAPSE G retrain (GPUs 4-7) crashed 3 times while LVEF pred avg (GPUs 0-3) transitioned between models
+- Each crash correlated exactly with an LVEF model transition: G→L at 01:44, L→EP at 02:40
+- Fix: removed `rm -f /dev/shm/torch_*` from all 3 scripts; ppid=1 process kill is sufficient
+- Also fixed residual Bug 010 regression: `run_uhn_probe.sh` error paths still had unfiltered `pkill`
+- See `claude/dev/bugs/011-shm-file-cleanup-kills-concurrent-jobs.md`
+
+### Generic Prediction Averaging Script
+
+**Updated `scripts/run_pred_avg.sh`** (existed but was missing critical fixes):
+- Added `resume_checkpoint: true` (Bug 008 fix)
+- Added ppid=1-filtered orphan cleanup between models (Bug 009+010 fix)
+- Fixed `NUM_TARGETS=0` → `NUM_CLASSES` for classification tasks
+- Fixed EchoPrime batch size 64 → 256
+- Added `cd $REPO`, `LD_LIBRARY_PATH`, `MASTER_PORT` export
+- Auto-detects task type (regression/classification), view filtering, z-score params
+- Usage: `bash scripts/run_pred_avg.sh <task>` (same interface as `run_uhn_probe.sh`)
+
+### AV Mean Gradient Pred Avg — Invalid Results Discovered
+
+All 5 `aov_mean_grad-*-predavg` output dirs contain results from BEFORE Bug 008 fix:
+- G: val_mae=8.18, R²=-0.044 (random); L: mae=8.24, R²=-0.001; L-K: mae=8.33, R²=-0.009
+- EchoPrime: R²=0.10 (noise from Xavier init); PanEcho: crashed (duplicate header, no data)
+- **Must re-run** with fixed `run_pred_avg.sh`
+
+### LVEF Prediction Averaging — In Progress
+
+Running on GPUs 0-3. EchoJEPA-G complete: R²=0.778, Pearson r=0.889, Z-score MAE=4.78.
+EchoJEPA-L in progress. 3 more models queued.
+
+### TAPSE Retrain — Restarted
+
+Crashed due to Bug 010 (killed by LVEF pred avg's orphan cleanup). Restarted on GPUs 4-7 with
+fixed `run_uhn_probe.sh`. G resuming from epoch 13/15.
+
+### Checkpoint Inventory
+
+Complete (5/5 best.pt): `lvef`, `tr_severity`, `aov_mean_grad`, `trajectory_lvef_onset`, `trajectory_lvef_v1`
+Partial: `rvsp` (3/5), `aov_vmax` (2/5), `tapse` (1/5 retraining), `ar_severity` (1/5), `trajectory_lvef` (3/5)
+
+---
+
 ## 2026-03-16 (Session 19)
 
 ### Bug 007: Checkpoint Loss Fix + Retroactive Archive

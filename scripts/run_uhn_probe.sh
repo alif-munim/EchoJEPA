@@ -299,9 +299,8 @@ run() {
         log ">>> ${tag} (starting fresh)..."
     fi
 
-    # Clean orphaned shared memory and workers before each model (Bug 009 prevention)
-    rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
     # Kill only ORPHANED multiprocessing workers (ppid=1) — safe for concurrent jobs
+    # NOTE: Do NOT delete /dev/shm/torch_* files here — kills concurrent jobs (Bug 011)
     ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
     ps -eo pid,ppid,args | grep "multiprocessing.resource_tracker" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
     sleep 2
@@ -312,9 +311,9 @@ run() {
     unset CHECKPOINT_ARCHIVE_PATH
     if [ "$rc" -ne 0 ]; then
         log ">>> FAILED: ${tag} (exit code ${rc})"
-        rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
-        pkill -f "multiprocessing.spawn" 2>/dev/null || true
-        pkill -f "multiprocessing.resource_tracker" 2>/dev/null || true
+        # Kill only ORPHANED workers (ppid=1) — do NOT use unfiltered pkill (Bug 010) or rm shm files (Bug 011)
+        ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
+        ps -eo pid,ppid,args | grep "multiprocessing.resource_tracker" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
         return "$rc"
     fi
 
@@ -324,9 +323,9 @@ run() {
     n_epochs=$(grep -c "^[0-9]" "$log_csv" 2>/dev/null || echo "0")
     if [ "$n_epochs" -lt "$EPOCHS" ]; then
         log ">>> FAILED: ${tag} (only ${n_epochs}/${EPOCHS} epochs in log — likely crashed)"
-        rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
-        pkill -f "multiprocessing.spawn" 2>/dev/null || true
-        pkill -f "multiprocessing.resource_tracker" 2>/dev/null || true
+        # Kill only ORPHANED workers (ppid=1) — do NOT use unfiltered pkill (Bug 010) or rm shm files (Bug 011)
+        ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
+        ps -eo pid,ppid,args | grep "multiprocessing.resource_tracker" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
         return 1
     fi
 

@@ -16,6 +16,8 @@ Development log for the EchoJEPA project: bug tracker, changelog, operational gu
 | 008 | [Inference config missing `resume_checkpoint`, probe never loaded](bugs/008-inference-probe-not-loaded.md) | **CRITICAL** | **FIXED** | `scripts/run_lvef_pred_avg.sh` |
 | 009 | [/dev/shm exhaustion causes silent DDP worker death](bugs/009-shm-exhaustion-silent-ddp-death.md) | **HIGH** | **FIXED** | `scripts/run_lvef_pred_avg.sh`, system |
 | 010 | [`pkill` orphan cleanup kills concurrent DDP jobs](bugs/010-pkill-kills-concurrent-jobs.md) | **HIGH** | **FIXED** | `scripts/run_lvef_pred_avg.sh`, `scripts/run_pred_avg.sh`, `scripts/run_uhn_probe.sh` |
+| 011 | [`rm /dev/shm/torch_*` cleanup kills concurrent jobs](bugs/011-shm-file-cleanup-kills-concurrent-jobs.md) | **HIGH** | **FIXED** | `scripts/run_lvef_pred_avg.sh`, `scripts/run_pred_avg.sh`, `scripts/run_uhn_probe.sh` |
+| 012 | [Resume logic skips inference on stale output dir](bugs/012-resume-skips-inference-on-stale-output.md) | **HIGH** | **FIXED** | `scripts/run_lvef_pred_avg.sh`, `scripts/run_pred_avg.sh` |
 
 ## Planned Fixes
 

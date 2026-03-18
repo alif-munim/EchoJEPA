@@ -245,9 +245,15 @@ for MODEL in $MODELS; do
 
     log ">>> [${MODEL_IDX}/${MODEL_COUNT}] ${MODEL} — prediction averaging"
 
-    # Clean shared memory and kill orphaned workers (Bug 009 prevention)
-    rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
+    # Clear stale output dir to prevent resume logic from skipping inference (Bug 012)
+    local OUT_TAG_DIR="${OUT_DIR}/video_classification_frozen/${TASK}-predavg-${MODEL}"
+    if [ -d "$OUT_TAG_DIR" ]; then
+        log ">>> Clearing stale output dir: ${OUT_TAG_DIR}"
+        rm -rf "$OUT_TAG_DIR"
+    fi
+
     # Kill only ORPHANED multiprocessing workers (ppid=1) — safe for concurrent jobs
+    # NOTE: Do NOT delete /dev/shm/torch_* files here — kills concurrent jobs (Bug 011)
     ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
     ps -eo pid,ppid,args | grep "multiprocessing.resource_tracker" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
     sleep 2
