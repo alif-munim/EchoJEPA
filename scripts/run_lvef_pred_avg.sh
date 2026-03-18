@@ -203,7 +203,7 @@ for MODEL in $MODELS; do
                 "null" \
                 "    {}" \
                 "    {}" \
-                256)
+                64)
             ;;
         *)
             log "ERROR: Unknown model '$MODEL'"
