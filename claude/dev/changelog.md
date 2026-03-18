@@ -50,6 +50,16 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 - Also fixed residual Bug 010 regression: `run_uhn_probe.sh` error paths still had unfiltered `pkill`
 - See `claude/dev/bugs/011-shm-file-cleanup-kills-concurrent-jobs.md`
 
+### Bug 013: Local `import os` Shadows Module Scope, Breaks study_predictions Save
+
+- `run_one_epoch()` in `eval.py` had a conditional `import os` at line 980 (inside `if predictions_save_path`)
+- Python treats `os` as local to the entire function → the study_predictions save block at line 1188 gets `UnboundLocalError` when the conditional import doesn't execute
+- Symptom: `R²/Pearson computation failed: cannot access local variable 'os'` warning, but R²/Pearson values are actually correct — the error is in the study_predictions save, caught by a broad `except`
+- Impact: LVEF G pred avg completed with correct metrics but no `study_predictions.csv` saved
+- Fix: removed redundant `import os` at line 980; module-level import at line 8 is sufficient
+- Required restarting the full 5-model pred avg pipeline
+- See `claude/dev/bugs/013-os-import-shadows-module-scope.md`
+
 ### Generic Prediction Averaging Script
 
 **Updated `scripts/run_pred_avg.sh`** (existed but was missing critical fixes):

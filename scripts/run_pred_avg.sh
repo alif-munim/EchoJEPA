@@ -246,7 +246,7 @@ for MODEL in $MODELS; do
     log ">>> [${MODEL_IDX}/${MODEL_COUNT}] ${MODEL} — prediction averaging"
 
     # Clear stale output dir to prevent resume logic from skipping inference (Bug 012)
-    local OUT_TAG_DIR="${OUT_DIR}/video_classification_frozen/${TASK}-predavg-${MODEL}"
+    OUT_TAG_DIR="${OUT_DIR}/video_classification_frozen/${TASK}-predavg-${MODEL}"
     if [ -d "$OUT_TAG_DIR" ]; then
         log ">>> Clearing stale output dir: ${OUT_TAG_DIR}"
         rm -rf "$OUT_TAG_DIR"

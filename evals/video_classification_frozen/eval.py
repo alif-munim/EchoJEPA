@@ -977,7 +977,6 @@ def run_one_epoch(
     # Save predictions (Un-normalized)
     if val_only and predictions_save_path is not None and len(all_predictions) > 0:
         import pandas as pd
-        import os
         os.makedirs(os.path.dirname(predictions_save_path), exist_ok=True)
             
         if task_type == "regression":

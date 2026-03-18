@@ -1,0 +1,85 @@
+# Inference: EchoJEPA-L-K LVEF prediction on MIMIC-IV-Echo (lvef_structured)
+# Loads trained probe, scores all clips, averages predictions per study.
+#
+# Usage:
+#   python -m evals.main \
+#     --fname configs/inference/vitl/mimic_lvef_structured.yaml \
+#     --devices cuda:0
+#
+# Prerequisites:
+#   1. Encoder checkpoint: checkpoints/vitl-kinetics-pt220-an55.pt
+#   2. Probe checkpoint:   probes/echojepa-l-k-lvef.pt
+#   3. Dataset CSVs:       datasets/lvef_structured/{train,val,test}.csv
+#   4. Videos at paths listed in the CSVs (local or S3)
+
+app: vjepa
+folder: output/inference
+nodes: 1
+tasks_per_node: 8
+num_workers: 4
+
+eval_name: video_classification_frozen
+val_only: true
+resume_checkpoint: true
+probe_checkpoint: probes/echojepa-l-k-lvef.pt
+tag: lvef-mimic-echojepa-l-k
+
+experiment:
+  classifier:
+    task_type: regression
+    num_heads: 16
+    num_probe_blocks: 1
+    num_targets: 1
+
+  data:
+    dataset_type: VideoDataset
+    dataset_train: datasets/lvef_structured/train.csv
+    dataset_val: datasets/lvef_structured/test.csv
+    num_classes: 1
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 2
+    num_segments: 2
+    num_views_per_segment: 1
+    study_sampling: true
+
+  optimization:
+    batch_size: 2
+    val_batch_size: 256
+    num_epochs: 1
+    use_bfloat16: true
+    use_pos_embed: false
+    multihead_kwargs:
+    # Must match the 12-head training grid so checkpoint classifier indices align
+    # LR=5e-4
+    - {lr: 0.0005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.0005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.0005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    # LR=1e-4
+    - {lr: 0.0001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.0001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.0001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    # LR=5e-5
+    - {lr: 0.00005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.00005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.00005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+    # LR=1e-5
+    - {lr: 0.00001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
+    - {lr: 0.00001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
+    - {lr: 0.00001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
+
+model_kwargs:
+  checkpoint: checkpoints/vitl-kinetics-pt220-an55.pt
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: target_encoder
+      img_temporal_dim_size: null
+      model_name: vit_large
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true
+  wrapper_kwargs:
+    max_frames: 128
+    use_pos_embed: false

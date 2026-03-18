@@ -79,11 +79,100 @@ See [`experiments/nature_medicine/mimic/probe_csvs/README.md`](experiments/natur
 ---
 
 
+## Quickstart: LVEF Inference on MIMIC-IV-Echo
+
+Predict left ventricular ejection fraction (LVEF) from echocardiogram videos using a pretrained EchoJEPA-L-K encoder + frozen attentive probe. This walkthrough uses the `lvef_structured` dataset from MIMIC-IV-Echo (3,159 studies, 39K clips across A4C and A2C views).
+
+### 1. Install
+
+```bash
+conda create -n vjepa2 python=3.12
+conda activate vjepa2
+pip install -e .
+```
+
+### 2. Download checkpoints and data
+
+Download the following from the [shared Google Drive](https://drive.google.com/drive/u/0/folders/17ouOsb_lSf7sfhuM0vOZu2s6xMMtAo_A) and place them in your repo root:
+
+| File | Drive Location | Local Path | Description |
+|------|---------------|------------|-------------|
+| `vitl-kinetics-pt220-an55.pt` | `checkpoints/` | `checkpoints/vitl-kinetics-pt220-an55.pt` | Frozen ViT-L encoder (304M params). Kinetics-initialized, pretrained + annealed on MIMIC-IV-Echo. |
+| `echojepa-l-k-lvef.pt` | `probes/lvef/` | `probes/echojepa-l-k-lvef.pt` | Trained LVEF probe head (d=1 attentive, 12 HP heads). |
+| `lvef_structured.tar.gz` | `datasets/` | — | Task CSVs + Z-score normalization params. |
+
+```bash
+# Unpack the dataset CSVs
+mkdir -p datasets
+tar -xzf lvef_structured.tar.gz -C datasets/
+```
+
+This produces:
+```
+datasets/lvef_structured/
+  train.csv          # 28,514 clips (3,159 studies)
+  val.csv            #  5,463 clips (626 studies)
+  test.csv           #  5,847 clips (646 studies)
+  zscore_params.json # {"target_mean": 54.71, "target_std": 13.13}
+```
+
+### 3. Prepare videos
+
+The CSVs reference preprocessed MP4 files from MIMIC-IV-Echo. You need to convert the original DICOMs:
+
+```bash
+# Download MIMIC-IV-Echo (requires PhysioNet credentials + signed DUA)
+wget -r -N -c -np https://physionet.org/files/mimic-iv-echo/0.1/
+
+# Convert DICOMs to MP4 and apply sector mask
+python preprocessing/convert_dicom.py \
+    --input_dir /path/to/mimic-iv-echo/files \
+    --output_dir /path/to/mimic-mp4s \
+    --resolution 224 --workers 8
+
+python preprocessing/apply_mask.py \
+    --input_dir /path/to/mimic-mp4s \
+    --output_dir /path/to/mimic-mp4s-masked
+```
+
+Then update the video paths in the CSVs to match your local directory. The CSVs are space-delimited (`<video_path> <lvef_value>`, no header):
+
+```bash
+# Replace the S3 prefix with your local video path
+sed -i 's|s3://echodata25/mimic-echo-224px/|/path/to/mimic-mp4s-masked/|g' datasets/lvef_structured/*.csv
+```
+
+### 4. Run inference
+
+```bash
+python -m evals.main \
+    --fname configs/inference/vitl/mimic_lvef_structured.yaml \
+    --devices cuda:0
+```
+
+Use more GPUs for faster inference (e.g., `--devices cuda:0 cuda:1 cuda:2 cuda:3`). On 4 A100s, ViT-L inference on ~6K test clips takes about 10 minutes.
+
+### 5. Results
+
+Output is written to `output/inference/video_classification_frozen/lvef-mimic-echojepa-l-k/`:
+
+| File | Contents |
+|------|----------|
+| `log_r0.csv` | Per-head metrics: train MAE, val MAE, R², Pearson r |
+| `study_predictions.csv` | Per-study predictions: study_id, label (real LVEF %), prediction, n_clips |
+
+The probe was trained with 12 hyperparameter combinations (4 LR x 3 weight decay). The best head is selected automatically by validation R². Predictions in `study_predictions.csv` are de-normalized back to real LVEF units (%).
+
+**How it works:** Each video clip is decoded (16 frames, stride 2, 224px) and passed through the frozen ViT-L encoder, producing 1,568 spatiotemporal tokens. The d=1 attentive probe (a single cross-attention layer with a learned query) pools these tokens into a scalar LVEF prediction. For study-level evaluation, all clips in a study are scored independently and predictions are averaged.
+
+---
+
+
 ## Setup
 
 ```bash
-conda create -n vjepa2-312 python=3.12
-conda activate vjepa2-312
+conda create -n vjepa2 python=3.12
+conda activate vjepa2
 pip install .  # or `pip install -e .` for development mode
 ```
 

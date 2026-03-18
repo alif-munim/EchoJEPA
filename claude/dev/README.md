@@ -18,6 +18,7 @@ Development log for the EchoJEPA project: bug tracker, changelog, operational gu
 | 010 | [`pkill` orphan cleanup kills concurrent DDP jobs](bugs/010-pkill-kills-concurrent-jobs.md) | **HIGH** | **FIXED** | `scripts/run_lvef_pred_avg.sh`, `scripts/run_pred_avg.sh`, `scripts/run_uhn_probe.sh` |
 | 011 | [`rm /dev/shm/torch_*` cleanup kills concurrent jobs](bugs/011-shm-file-cleanup-kills-concurrent-jobs.md) | **HIGH** | **FIXED** | `scripts/run_lvef_pred_avg.sh`, `scripts/run_pred_avg.sh`, `scripts/run_uhn_probe.sh` |
 | 012 | [Resume logic skips inference on stale output dir](bugs/012-resume-skips-inference-on-stale-output.md) | **HIGH** | **FIXED** | `scripts/run_lvef_pred_avg.sh`, `scripts/run_pred_avg.sh` |
+| 013 | [Local `import os` shadows module scope, breaks study_predictions save](bugs/013-os-import-shadows-module-scope.md) | **MEDIUM** | **FIXED** | `evals/video_classification_frozen/eval.py` |
 
 ## Planned Fixes
 
