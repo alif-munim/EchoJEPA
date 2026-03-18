@@ -299,8 +299,12 @@ run() {
         log ">>> ${tag} (starting fresh)..."
     fi
 
-    # Clean orphaned shared memory before each model (prevents shmmni exhaustion)
+    # Clean orphaned shared memory and workers before each model (Bug 009 prevention)
     rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
+    # Kill only ORPHANED multiprocessing workers (ppid=1) — safe for concurrent jobs
+    ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
+    ps -eo pid,ppid,args | grep "multiprocessing.resource_tracker" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
+    sleep 2
 
     local rc=0
     export CHECKPOINT_ARCHIVE_PATH="${ARCHIVE_DIR}/${TASK}/${model_tag}"
@@ -309,6 +313,8 @@ run() {
     if [ "$rc" -ne 0 ]; then
         log ">>> FAILED: ${tag} (exit code ${rc})"
         rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
+        pkill -f "multiprocessing.spawn" 2>/dev/null || true
+        pkill -f "multiprocessing.resource_tracker" 2>/dev/null || true
         return "$rc"
     fi
 
@@ -319,6 +325,8 @@ run() {
     if [ "$n_epochs" -lt "$EPOCHS" ]; then
         log ">>> FAILED: ${tag} (only ${n_epochs}/${EPOCHS} epochs in log — likely crashed)"
         rm -f /dev/shm/torch_* /dev/shm/__KMP_REGISTERED_LIB_* /dev/shm/sem.loky-* /dev/shm/sem.mp-* 2>/dev/null
+        pkill -f "multiprocessing.spawn" 2>/dev/null || true
+        pkill -f "multiprocessing.resource_tracker" 2>/dev/null || true
         return 1
     fi
 

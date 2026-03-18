@@ -13,6 +13,9 @@ Development log for the EchoJEPA project: bug tracker, changelog, operational gu
 | 005 | [`drop_last` not forwarded to DataLoader](bugs/005-drop-last-not-forwarded.md) | **MEDIUM** | **FIXED** | `src/datasets/data_manager.py` |
 | 006 | [train_probe --labels with --train/--val broken](bugs/006-labels-trainval-mode.md) | **MEDIUM** | Open (latent) | `evals/train_probe.py` |
 | 007 | [Probe checkpoint loss — no backup, no S3 push](bugs/007-checkpoint-loss.md) | **CRITICAL** | **FIXED** | `scripts/run_uhn_probe.sh` |
+| 008 | [Inference config missing `resume_checkpoint`, probe never loaded](bugs/008-inference-probe-not-loaded.md) | **CRITICAL** | **FIXED** | `scripts/run_lvef_pred_avg.sh` |
+| 009 | [/dev/shm exhaustion causes silent DDP worker death](bugs/009-shm-exhaustion-silent-ddp-death.md) | **HIGH** | **FIXED** | `scripts/run_lvef_pred_avg.sh`, system |
+| 010 | [`pkill` orphan cleanup kills concurrent DDP jobs](bugs/010-pkill-kills-concurrent-jobs.md) | **HIGH** | **FIXED** | `scripts/run_lvef_pred_avg.sh`, `scripts/run_pred_avg.sh`, `scripts/run_uhn_probe.sh` |
 
 ## Planned Fixes
 
