@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-19 (manuscript B-mode vs all-views clarification, RVSP updated to pred avg R²=0.504, TAPSE updated to pred avg R²=0.633 in manuscript)
+Last updated: 2026-03-19 (comprehensive task/pred avg inventory update; AV mean grad pred avg now VALID; LVEF/TR sev pred avg complete for all 5 models)
 
 ## Evaluation Protocol
 
@@ -386,54 +386,74 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 
 ## Completed Runs — Summary
 
-> **Checkpoint status (updated 2026-03-18)**: LVEF fully retrained (5/5 checkpoints archived, pred avg G R²=0.778). TAPSE retrain in progress (G resuming from epoch 13, 4 more models queued). MR severity, AS severity, and AV Vmax G/L/L-K still need retraining. AV mean grad 5/5 checkpoints archived (training complete) but pred avg results are **INVALID** — ran before Bug 008 fix (missing `resume_checkpoint: true`), probes used random Xavier weights. Must re-run with fixed `run_pred_avg.sh`. See `claude/dev/bugs/007-checkpoint-loss.md` (original loss), `008-inference-probe-not-loaded.md` (pred avg fix), `009-shm-exhaustion-silent-ddp-death.md` (silent DDP death), `010-pkill-kills-concurrent-jobs.md` (concurrent job kill).
+> **Checkpoint status (updated 2026-03-19)**: **11 primary tasks fully trained (all 5 models, best.pt archived)**. RV S' at 3/5 (EP/Pan queued). AV mean grad pred avg re-run VALID (Bug 008 fixed). LVEF and TR severity pred avg complete for all 5 models. See individual tables below for per-model status.
 
-### Regression Tasks
+### Regression Tasks — Training Results (single-clip val)
 
-| Task | Model | Best Val R² | Best Pearson | Best MAE | Best Head (lr, wd) | Best Epoch | Epochs | Checkpoint |
-|------|-------|------------|-------------|---------|-------------------|-----------|--------|------------|
-| LVEF | echojepa-g | **0.720** | **0.849** | 4.462 | 13 (5e-5, 0.01) | 17 | 20 | **retrained** (pred avg R²=0.778) |
-| LVEF | echojepa-l | 0.415 | 0.646 | 6.152 | 5 (1e-4, 0.1) | 14 | 15 | **retrained** |
-| LVEF | echojepa-l-k | 0.582 | 0.763 | 5.265 | 4 (1e-4, 0.01) | 13 | 15 | **retrained** |
-| LVEF | echoprime | 0.559 | 0.751 | 5.399 | 11 (1e-5, 0.1) | 13 | 15 | **retrained** |
-| LVEF | panecho | 0.555 | 0.746 | 5.442 | 6 (5e-5, 0.001) | 15 | 15 | **retrained** |
-| TAPSE | echojepa-g | NaN | NaN | 0.264 | 13 (5e-5, 0.01) | 15 | 20 | **retraining** (ep 13/15, Bug 010 crash → resumed) |
-| TAPSE | echojepa-l | 0.323 | 0.572 | 0.325 | 8 (1e-4, 0.001) | 18 | 20 | LOST (queued) |
-| TAPSE | echojepa-l-k | **0.450** | **0.671** | 0.292 | 6 (5e-5, 0.001) | 14 | 15 | LOST (queued) |
-| TAPSE | echoprime | 0.343 | 0.588 | 0.321 | 17 (1e-5, 0.01) | 18 | 20 | LOST (queued) |
-| TAPSE | panecho | 0.311 | 0.560 | 0.330 | 9 (1e-5, 0.001) | 15 | 15 | LOST (queued) |
-| AV Vmax | echojepa-g | **0.582** | **0.763** | -- | -- | 13 | 15 | LOST (queued after TAPSE+MR+AS) |
-| AV Vmax | echojepa-l | 0.232 | 0.487 | -- | -- | 14 | 15 | LOST (queued) |
-| AV Vmax | echojepa-l-k | 0.388 | 0.623 | -- | -- | 14 | 15 | LOST (queued) |
-| AV Vmax | echoprime | 0.476 | 0.692 | -- | -- | 15 | 15 | archived |
-| AV Vmax | panecho | 0.390 | 0.627 | -- | -- | 15 | 15 | archived |
-| AV mean grad | echojepa-g | -- | -- | -- | -- | -- | 15 | archived |
-| AV mean grad | echojepa-l | -- | -- | -- | -- | -- | 15 | archived |
-| AV mean grad | echojepa-l-k | -- | -- | -- | -- | -- | 15 | archived |
-| AV mean grad | echoprime | -- | -- | -- | -- | -- | 15 | archived |
-| AV mean grad | panecho | -- | -- | -- | -- | -- | 15 | archived |
+| Task | Model | Best Val R² | Best Pearson | Epochs | Checkpoint | Pred Avg R² |
+|------|-------|------------|-------------|--------|------------|-------------|
+| LVEF | echojepa-g | **0.720** | **0.849** | 20 | archived | **0.778** |
+| LVEF | echojepa-l | 0.415 | 0.646 | 15 | archived | 0.577 |
+| LVEF | echojepa-l-k | 0.582 | 0.763 | 15 | archived | 0.702 |
+| LVEF | echoprime | 0.559 | 0.751 | 15 | archived | 0.681 |
+| LVEF | panecho | 0.555 | 0.746 | 15 | archived | 0.665 |
+| TAPSE | echojepa-g | 0.552 | 0.743 | 15 | archived | **0.633** |
+| TAPSE | echojepa-l | 0.288 | -- | 15 | archived | 0.430 |
+| TAPSE | echojepa-l-k | 0.427 | -- | 15 | archived | 0.555 |
+| TAPSE | echoprime | 0.343 | 0.588 | 15 | archived | 0.430 |
+| TAPSE | panecho | 0.311 | 0.560 | 15 | archived | 0.385 |
+| RVSP | echojepa-g | 0.463 | -- | 15 | archived | **0.504** |
+| RVSP | echojepa-l | 0.137 | -- | 15 | archived | 0.168 |
+| RVSP | echojepa-l-k | 0.268 | -- | 15 | archived | 0.317 |
+| RVSP | echoprime | 0.207 | -- | 15 | archived | 0.169 |
+| RVSP | panecho | 0.248 | -- | 15 | archived | 0.274 |
+| AV mean grad | echojepa-g | 0.486 | -- | 15 | archived | **0.579** |
+| AV mean grad | echojepa-l | 0.135 | -- | 15 | archived | 0.147 |
+| AV mean grad | echojepa-l-k | 0.271 | -- | 15 | archived | 0.328 |
+| AV mean grad | echoprime | 0.374 | -- | 15 | archived | 0.462 |
+| AV mean grad | panecho | 0.302 | -- | 15 | archived | 0.378 |
+| AV Vmax | echojepa-g | **0.582** | **0.763** | 15 | archived | TODO |
+| AV Vmax | echojepa-l | 0.232 | 0.487 | 15 | archived | TODO |
+| AV Vmax | echojepa-l-k | 0.388 | 0.623 | 15 | archived | TODO |
+| AV Vmax | echoprime | 0.476 | 0.692 | 15 | archived | TODO |
+| AV Vmax | panecho | 0.390 | 0.627 | 15 | archived | TODO |
+| E/e' medial | echojepa-g | -- | -- | 15 | archived | TODO |
+| E/e' medial | echojepa-l | -- | -- | 15 | archived | TODO |
+| E/e' medial | echojepa-l-k | -- | -- | 15 | archived | TODO |
+| E/e' medial | echoprime | -- | -- | 15 | archived | TODO |
+| E/e' medial | panecho | -- | -- | 15 | archived | TODO |
+| RV S' | echojepa-g | 0.491 | -- | 15 | archived | TODO |
+| RV S' | echojepa-l | 0.234 | -- | 15 | archived | TODO |
+| RV S' | echojepa-l-k | 0.352 | -- | **10/15** | **TRAINING** | -- |
+| RV S' | echoprime | -- | -- | -- | queued | -- |
+| RV S' | panecho | -- | -- | -- | queued | -- |
 
-> **AV mean grad note**: All 5 models trained and checkpoints archived. However, prediction averaging inference results are **INVALID** — ran before Bug 008 fix (`resume_checkpoint: true` missing from YAML). All 5 models showed Z-score MAE ~8.2-8.4 and R² near 0, the telltale signature of random Xavier weights. Must re-run with `scripts/run_pred_avg.sh aov_mean_grad regression`.
+> **AV mean grad note**: Pred avg re-run with fixed `run_pred_avg.sh` (Bug 008 resolved). All 5 results now VALID. G R²=0.579 (Pearson 0.795), EP 0.462, Pan 0.378, L-K 0.328, L 0.147.
 
-### Classification Tasks (B-mode only)
+### Classification Tasks
 
-| Task | Model | Best AUROC | Best Acc | Best Bal Acc | Best Kappa | Best Head (lr, wd) | Best Epoch | Epochs | Checkpoint |
-|------|-------|-----------|---------|-------------|-----------|-------------------|-----------|--------|------------|
-| MR sev. | echojepa-g | **0.860** | 43.75 | 0.561 | 0.280 | 6 (5e-5, 0.001) | 17 | 20 | LOST |
-| MR sev. | echojepa-l | 0.771 | 33.75 | 0.428 | 0.184 | 7 (5e-5, 0.01) | 17 | 20 | LOST |
-| MR sev. | echojepa-l-k | 0.803 | 36.08 | 0.473 | 0.210 | 7 (5e-5, 0.01) | 19 | 19 | LOST |
-| MR sev. | echoprime | 0.770 | 30.58 | 0.416 | 0.160 | 0 (5e-4, 0.001) | 4 | 15 | LOST |
-| MR sev. | panecho | 0.724 | 23.87 | 0.373 | 0.106 | 0 (5e-4, 0.001) | 4 | 9 | LOST |
-| AS sev. | echojepa-g | **0.908** | 70.51 | 0.594 | 0.432 | 5 (1e-4, 0.1) | 16 | 20 | LOST |
-| AS sev. | echojepa-l | 0.786 | 54.25 | 0.427 | 0.239 | 3 (1e-4, 0.001) | 19 | 20 | LOST |
-| AS sev. | echojepa-l-k | 0.821 | 53.26 | 0.467 | 0.235 | 6 (5e-5, 0.001) | 18 | 20 | LOST |
-| AS sev. | echoprime | 0.827 | 57.00 | 0.496 | 0.253 | 10 (1e-5, 0.01) | 16 | 19 | LOST |
-| AS sev. | panecho | 0.762 | 34.65 | 0.420 | 0.086 | 0 (5e-4, 0.001) | 2 | 15 | LOST |
-| TR sev. | echojepa-g | **0.837** | 41.95 | 0.530 | 0.258 | -- | 15 | 15 | archived |
-| TR sev. | echojepa-l | 0.753 | 32.10 | 0.401 | 0.167 | -- | 15 | 15 | archived |
-| TR sev. | echojepa-l-k | 0.786 | 35.74 | 0.469 | 0.201 | -- | 15 | 15 | archived |
-| TR sev. | echoprime | 0.758 | 33.38 | 0.399 | 0.165 | -- | 15 | 15 | archived |
-| TR sev. | panecho | 0.715 | -- | -- | -- | -- | 15 | 15 | archived |
+| Task | Model | Best AUROC | Best Acc | Best Bal Acc | Epochs | Checkpoint | Pred Avg AUROC |
+|------|-------|-----------|---------|-------------|--------|------------|----------------|
+| TR sev. | echojepa-g | 0.837 | 41.95 | 0.530 | 15 | archived | **0.854** |
+| TR sev. | echojepa-l | 0.753 | 32.10 | 0.401 | 15 | archived | 0.787 |
+| TR sev. | echojepa-l-k | 0.786 | 35.74 | 0.469 | 15 | archived | 0.817 |
+| TR sev. | echoprime | 0.758 | 33.38 | 0.399 | 15 | archived | 0.780 |
+| TR sev. | panecho | 0.715 | -- | -- | 15 | archived | 0.778 |
+| MR sev. | echojepa-g | **0.860** | 43.75 | 0.561 | 15 | archived | **0.882** |
+| MR sev. | echojepa-l | 0.771 | 33.75 | 0.428 | 15 | archived | stale (Bug 012) |
+| MR sev. | echojepa-l-k | 0.803 | 36.08 | 0.473 | 15 | archived | stale (Bug 012) |
+| MR sev. | echoprime | 0.770 | 30.58 | 0.416 | 15 | archived | TODO |
+| MR sev. | panecho | 0.724 | 23.87 | 0.373 | 15 | archived | TODO |
+| AS sev. | echojepa-g | **0.908** | 70.51 | 0.594 | 15 | archived | stale (Bug 012) |
+| AS sev. | echojepa-l | 0.786 | 54.25 | 0.427 | 15 | archived | TODO |
+| AS sev. | echojepa-l-k | 0.821 | 53.26 | 0.467 | 15 | archived | TODO |
+| AS sev. | echoprime | 0.827 | 57.00 | 0.496 | 15 | archived | TODO |
+| AS sev. | panecho | 0.762 | 34.65 | 0.420 | 15 | archived | TODO |
+| AR sev. | echojepa-g | -- | -- | -- | 15 | archived | TODO |
+| AR sev. | echojepa-l | -- | -- | -- | 15 | archived | TODO |
+| AR sev. | echojepa-l-k | -- | -- | -- | 15 | archived | TODO |
+| AR sev. | echoprime | -- | -- | -- | 15 | archived | TODO |
+| AR sev. | panecho | -- | -- | -- | 15 | archived | TODO |
 
 ### Trajectory / Onset Tasks (Binary Classification)
 
@@ -510,62 +530,34 @@ MR views: A4C, A2C, A3C, PLAX. AS views: PLAX, PSAX-AV, A3C. Studies after balan
 
 **AV Vmax settings**: B-mode only, views PLAX/A3C/PSAX-AV. Regression canary for hemodynamic pillar — confirms frozen representations predict continuous Doppler-derived measurements from structure alone. G leads by +10pp R² over next-best (EchoPrime). EchoPrime competitive (0.476) likely due to CLIP text supervision. G/L/L-K log_r0.csv lost (run script deletes checkpoint dirs when cycling models); results extracted from raw run log via grep. EchoPrime crashed mid-run (shm exhaustion) but checkpoint was saved; PanEcho completed normally after.
 
-### Surviving Probe Checkpoints
+### Surviving Probe Checkpoints (updated 2026-03-19)
 
-All surviving checkpoints archived to `checkpoints/probes/{task}/{model}/` and S3. MR severity (5), AS severity (5), and AV Vmax G/L/L-K (3) still need retraining (see Bug 007). LVEF fully retrained 2026-03-18. TAPSE retrain in progress.
+All probe checkpoints archived to `checkpoints/probes/{task}/{model}/` and S3. **63 best.pt files** across 14 task directories. All Bug 007 retraining complete.
 
-| Task | Model | Archive path | Status |
-|------|-------|-------------|--------|
-| LVEF | echojepa-g | `checkpoints/probes/lvef/echojepa-g/` | **retrained** (pred avg R²=0.778) |
-| LVEF | echojepa-l | `checkpoints/probes/lvef/echojepa-l/` | **retrained** |
-| LVEF | echojepa-l-k | `checkpoints/probes/lvef/echojepa-l-k/` | **retrained** |
-| LVEF | echoprime | `checkpoints/probes/lvef/echoprime/` | **retrained** |
-| LVEF | panecho | `checkpoints/probes/lvef/panecho/` | **retrained** |
-| TAPSE | echojepa-g | `checkpoints/probes/tapse/echojepa-g/` | **done** (ep 14, R²=0.552) |
-| TAPSE | echojepa-l | `checkpoints/probes/tapse/echojepa-l/` | **done** (ep 15, R²=0.288) |
-| TAPSE | echojepa-l-k | `checkpoints/probes/tapse/echojepa-l-k/` | **partial** (ep 8, R²=0.427, stopped) |
-| RVSP | echojepa-g | `checkpoints/probes/rvsp/echojepa-g/` | **done** (R²=0.463) |
-| RVSP | echojepa-l | `checkpoints/probes/rvsp/echojepa-l/` | **done** (R²=0.137) |
-| RVSP | echojepa-l-k | `checkpoints/probes/rvsp/echojepa-l-k/` | **done** (R²=0.268) |
-| RVSP | echoprime | `checkpoints/probes/rvsp/echoprime/` | **done** (R²=0.207) |
-| RVSP | panecho | `checkpoints/probes/rvsp/panecho/` | **done** (R²=0.248) |
-| AV mean grad | echojepa-g | `checkpoints/probes/aov_mean_grad/echojepa-g/` | archived (pred avg INVALID) |
-| AV mean grad | echojepa-l | `checkpoints/probes/aov_mean_grad/echojepa-l/` | archived (pred avg INVALID) |
-| AV mean grad | echojepa-l-k | `checkpoints/probes/aov_mean_grad/echojepa-l-k/` | archived (pred avg INVALID) |
-| AV mean grad | echoprime | `checkpoints/probes/aov_mean_grad/echoprime/` | archived (pred avg INVALID) |
-| AV mean grad | panecho | `checkpoints/probes/aov_mean_grad/panecho/` | archived (pred avg INVALID) |
-| AV Vmax | echoprime | `checkpoints/probes/aov_vmax/echoprime/` | archived |
-| AV Vmax | panecho | `checkpoints/probes/aov_vmax/panecho/` | archived |
-| TR sev. | echojepa-g | `checkpoints/probes/tr_severity/echojepa-g/` | archived |
-| TR sev. | echojepa-l | `checkpoints/probes/tr_severity/echojepa-l/` | archived |
-| TR sev. | echojepa-l-k | `checkpoints/probes/tr_severity/echojepa-l-k/` | archived |
-| TR sev. | echoprime | `checkpoints/probes/tr_severity/echoprime/` | archived |
-| TR sev. | panecho | `checkpoints/probes/tr_severity/panecho/` | archived |
-| Traj LVEF (3-class) | echojepa-g | `checkpoints/probes/trajectory_lvef/echojepa-g/` | archived |
-| Traj LVEF (3-class) | echojepa-l | `checkpoints/probes/trajectory_lvef/echojepa-l/` | archived |
-| Traj LVEF (3-class) | echojepa-l-k | `checkpoints/probes/trajectory_lvef/echojepa-l-k/` | archived |
-| Onset | echojepa-g | `checkpoints/probes/trajectory_lvef_onset/echojepa-g/` | archived |
-| Onset | echojepa-l | `checkpoints/probes/trajectory_lvef_onset/echojepa-l/` | archived |
-| Onset | echojepa-l-k | `checkpoints/probes/trajectory_lvef_onset/echojepa-l-k/` | archived |
-| Onset | echoprime | `checkpoints/probes/trajectory_lvef_onset/echoprime/` | archived |
-| Onset | panecho | `checkpoints/probes/trajectory_lvef_onset/panecho/` | archived |
+**Summary by task (best.pt count / models):**
+
+| Task | G | L | L-K | EP | Pan | Total | Pred Avg |
+|------|---|---|-----|----|----|-------|----------|
+| LVEF | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| TAPSE | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| RVSP | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| TR severity | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| AV mean grad | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| AV Vmax | Y | Y | Y | Y | Y | 5/5 | 0/5 TODO |
+| AR severity | Y | Y | Y | Y | Y | 5/5 | 0/5 TODO |
+| AS severity | Y | Y | Y | Y | Y | 5/5 | 1/5 (G stale Bug 012) |
+| MR severity | Y | Y | Y | Y | Y | 5/5 | 1/5 (G done; L/L-K stale Bug 012) |
+| E/e' medial | Y | Y | Y | Y | Y | 5/5 | 0/5 TODO |
+| RV S' | Y | Y | Y* | -- | -- | 3/5 | 0/5 (training) |
+| Onset | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| Traj V1 (sup.) | Y | Y | Y | Y | Y | 5/5 | superseded |
+| Traj 3-class (sup.) | Y | Y | Y | -- | -- | 3/5 | superseded |
+
+*L-K at epoch 10/15, training on GPUs 0-3.
 
 S3 restore: `aws s3 sync s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/probes/ checkpoints/probes/`
 
-Dropped (EchoMAE — excluded from Nature Medicine):
-- `lvef-echomae/` — LVEF R²≈0
-- `tapse-echomae/` — TAPSE R²≈0
-
-Archived (old 20-head HP grid, superseded by 12-head):
-- `lvef-echojepa-l.bak_20head/`
-- `lvef-echojepa-l-k.bak_20head/`
-- `tapse-echojepa-l-k.bak_20head/`
-- `tapse-panecho.bak_20head/`
-
 **Notes:**
-- MAE for LVEF is in raw EF points (%). MAE for TAPSE is in Z-score units (multiply by std=0.497 for cm).
-- TAPSE echojepa-g: R²/Pearson NaN on all 20 epochs. MAE is decreasing normally (model is learning). Likely metric computation bug — needs investigation.
-- EchoJEPA-L still improving at epoch 15 for both tasks (not plateaued).
 - MR/AS severity: ALL models extract hemodynamic signal from B-mode video (PanEcho 0.724-0.762). Story is "scale advantage" (+8-9pp for G), not unique capability.
 - MR/AS EchoPrime/PanEcho: best heads are high-LR (5e-4), peak early (epoch 2-4). JEPA models prefer lower LR (5e-5), peak later (epoch 16-19).
 - MR/AS used `class_balance_ratio=3` to cap severe class imbalance (AS: 131K→22K studies, MR: 89K→29K studies).
@@ -586,7 +578,7 @@ Archived (old 20-head HP grid, superseded by 12-head):
 
 6. **Orphaned DDP worker processes**: When a parent run script is killed (`kill PID`), DDP child processes (one per GPU) may survive as orphans attached to init (ppid=1), holding GPU memory indefinitely. Symptom: `nvidia-smi` shows GPUs occupied with no matching Python process in `ps`. Fix: identify orphan PIDs via `nvidia-smi --query-compute-apps=pid`, then `kill -9`. Always check GPU memory before starting new runs.
 
-7. **Checkpoint loss (Bug 007)**: All checkpoint directories for LVEF (5), TAPSE (5), MR severity (5), AS severity (5), and AV Vmax G/L/L-K (3) = 23 runs are gone. Cause unknown (no `rm` in any script, bash history, or Claude session). Historical results preserved in training logs. **Fix applied**: `run_uhn_probe.sh` now archives to `checkpoints/probes/{task}/{model}/` + S3 after each model. See `claude/dev/bugs/007-checkpoint-loss.md`. **LVEF retrain complete (5/5 models). TAPSE retrain: G (ep14) + L (ep15) done, L-K partial (ep8), EP/Pan TODO.**
+7. **Checkpoint loss (Bug 007)**: RESOLVED. All 23 lost checkpoints retrained. All 11 primary tasks now have 5/5 best.pt (except RV S' at 3/5). `run_uhn_probe.sh` archives to `checkpoints/probes/{task}/{model}/` + S3 after each model to prevent recurrence. See `claude/dev/bugs/007-checkpoint-loss.md`.
 
 8. **Inference probe not loaded (Bug 008, CRITICAL, FIXED 2026-03-18)**: `run_lvef_pred_avg.sh` (and early `run_pred_avg.sh`) generated inference YAML configs WITHOUT `resume_checkpoint: true`. Without this flag, `eval.py` initializes probes with random Xavier weights instead of loading the trained checkpoint. Signature: Z-score MAE ~8.2-8.4 (random predictions ~8 std from truth), R² near 0. **All AV mean grad pred avg results are INVALID** due to this bug. **Fix**: `run_pred_avg.sh` now includes `resume_checkpoint: true` in YAML template. See `claude/dev/bugs/008-inference-probe-not-loaded.md`.
 
@@ -740,24 +732,24 @@ No other model can fill all six categories. EchoPrime covers 1 + partial 2 + par
 
 Based on literature review and "six evidence categories" framing. 8 GPUs available (~2 concurrent 4-GPU jobs). Each task = 5 models × 15 epochs ≈ 4-6 hours per model.
 
-### Batch 1 — Complete Hemodynamic Pillar (highest manuscript impact)
-| Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
-|----------|------|------|--------|------|-----------|-------------------|
-| **1a** | ar_severity | Classification, 5-class | Yes | 0-3 | ~20h (5 models) | Hemodynamics |
-| **1b** | rvsp | Regression | Yes | 4-7 | ~15h (5 models) | Hemodynamics |
+### Batch 1 — Complete Hemodynamic Pillar — **DONE**
+| Priority | Task | Type | B-mode | Status |
+|----------|------|------|--------|--------|
+| **1a** | ar_severity | Classification, 5-class | Yes | **5/5 trained**, pred avg TODO |
+| **1b** | rvsp | Regression | Yes | **5/5 trained, 5/5 pred avg DONE** |
 
-### Batch 2 — E/e' + AV hemodynamics (expand Virtual Doppler)
-| Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
-|----------|------|------|--------|------|-----------|-------------------|
-| **2a** | mv_ee (E/e') | Regression | Yes | 0-3 | ~10h (5 models, small dataset) | Hemodynamics |
-| **2b** | aov_mean_grad | Regression | Yes (exists) | 4-7 | ~12h (5 models) | Hemodynamics |
-| **2c** | aov_area | Regression | Yes (exists) | 0-3 | ~10h (5 models) | Hemodynamics |
+### Batch 2 — E/e' + AV hemodynamics — **DONE**
+| Priority | Task | Type | B-mode | Status |
+|----------|------|------|--------|--------|
+| **2a** | mv_ee_medial (E/e') | Regression | Yes | **5/5 trained**, pred avg TODO |
+| **2b** | aov_mean_grad | Regression | Yes | **5/5 trained, 5/5 pred avg DONE** |
+| **2c** | aov_area | Regression | Yes | Not trained (lower priority, CSV ready) |
 
-### Batch 3 — RV Mechanics (fills Pillar 2)
-| Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
-|----------|------|------|--------|------|-----------|-------------------|
-| **3a** | rv_sp (RV S') | Regression | No | 0-3 | ~20h (5 models) | Deformation |
-| **3b** | rv_fac | Regression | No | 4-7 | ~10h (5 models, small dataset) | Deformation |
+### Batch 3 — RV Mechanics (fills Pillar 2) — IN PROGRESS
+| Priority | Task | Type | B-mode | Status |
+|----------|------|------|--------|--------|
+| **3a** | rv_sp (RV S') | Regression | No | **3/5 trained** (G 0.491, L 0.234, L-K ep 10/15). EP/Pan queued. |
+| **3b** | rv_fac | Regression | No | Not trained (CSV ready) |
 
 ### Batch 4 — Disease Panel (fills Pathology category)
 | Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
@@ -774,17 +766,24 @@ Based on literature review and "six evidence categories" framing. 8 GPUs availab
 | **5a** | diastolic_function | Classification, 4-class | **Need B-mode filter** | 0-3 | ~12h | Hemodynamics |
 | **5b** | pa_pressure | Classification, 4-class | **Need B-mode filter** | 4-7 | ~10h | Hemodynamics |
 
-### Batch 6 — Prediction Averaging Inference (test numbers for all completed tasks)
+### Batch 6 — Prediction Averaging Inference
 
-Use `scripts/run_pred_avg.sh <task> <task_type> [gpus]`. Requires Bug 008 fix (`resume_checkpoint: true`).
+Use `scripts/run_pred_avg.sh <task>`. Bug 008 fix baked in.
 
 | Priority | Task | Models | Status |
 |----------|------|--------|--------|
-| **6a** | lvef | 5 | **RUNNING** — G R²=0.778 done. L in progress, L-K/EP/Pan queued. |
-| **6b** | tr_severity | 5 | Checkpoints archived, ready |
-| **6c** | trajectory_lvef_onset | 5 | **DONE** — G 0.793, EP 0.776, Pan 0.759, L-K 0.677, L 0.514 |
-| **6d** | aov_mean_grad | 5 | **INVALID** (Bug 008). Checkpoints archived. Must re-run with fixed script. |
-| **6e** | Other completed tasks | Varies | Need retrain for lost checkpoints (TAPSE in progress, MR, AS, AV Vmax queued) |
+| **6a** | lvef | 5 | **DONE** — G 0.778, L-K 0.702, EP 0.681, Pan 0.665, L 0.577 |
+| **6b** | tapse | 5 | **DONE** — G 0.633, L-K 0.555, L 0.430, EP 0.430, Pan 0.385 |
+| **6c** | rvsp | 5 | **DONE** — G 0.504, L-K 0.317, Pan 0.274, EP 0.169, L 0.168 |
+| **6d** | tr_severity | 5 | **DONE** — G 0.854, L-K 0.817, L 0.787, EP 0.780, Pan 0.778 |
+| **6e** | aov_mean_grad | 5 | **DONE** — G 0.579, EP 0.462, Pan 0.378, L-K 0.328, L 0.147 |
+| **6f** | trajectory_lvef_onset | 5 | **DONE** — G 0.793, EP 0.776, Pan 0.759, L-K 0.677, L 0.514 |
+| **6g** | mr_severity | 5 | G 0.882 DONE. L/L-K stale (Bug 012). EP/Pan TODO. |
+| **6h** | as_severity | 5 | G stale (Bug 012). L/L-K/EP/Pan TODO. |
+| **6i** | aov_vmax | 5 | All TODO. Checkpoints archived. |
+| **6j** | ar_severity | 5 | All TODO. Checkpoints archived. |
+| **6k** | mv_ee_medial | 5 | All TODO. Checkpoints archived. |
+| **6l** | rv_sp | 3 | All TODO (after EP/Pan training). |
 
 ### Batch 7 — MIMIC Biomarkers (CY or us, fills Biochemistry category)
 | Priority | Task | Type | Studies | Evidence category |
@@ -894,32 +893,32 @@ Chain: LVEF (5) → TAPSE (5) → MR severity (5) → AS severity (5) → AV Vma
 
 | Task | Models to retrain | Historical best (G) | Status |
 |------|-------------------|-------|--------|
-| lvef | all 5 | R² 0.720 | **DONE** — all 5 retrained, archived. Pred avg: G R²=0.778, others in progress. |
-| tapse | all 5 | R² 0.450 (L-K; G had NaN bug) | **RUNNING** — G at ep 13/15 (crashed by Bug 010 at ep 13, resumed). L/L-K/EP/Pan queued. |
-| mr_severity | all 5 | AUROC 0.860 | Queued |
-| as_severity | all 5 | AUROC 0.908 | Queued |
-| aov_vmax | G, L, L-K only | R² 0.582 | Queued |
+| lvef | all 5 | R² 0.720 | **DONE** — all 5 trained + pred avg. G R²=0.778, L-K 0.702, EP 0.681, Pan 0.665, L 0.577. |
+| tapse | all 5 | R² 0.552 (G) | **DONE** — all 5 trained + pred avg. G R²=0.633, L-K 0.555, L 0.430, EP 0.430, Pan 0.385. |
+| mr_severity | all 5 | AUROC 0.860 | **DONE** — all 5 trained. Pred avg: G 0.882 done, 4 remaining. |
+| as_severity | all 5 | AUROC 0.908 | **DONE** — all 5 trained. Pred avg TODO (all 5). |
+| aov_vmax | all 5 | R² 0.582 | **DONE** — all 5 trained. Pred avg TODO (all 5). |
 
 ### Tier 1 — Main text Pillar 2: Hemodynamics (B-mode only)
 
 | Task | Type | Classes | VF Train Clips | Status |
 |------|------|---------|---------------|--------|
-| mr_severity | classification | 5 | 1,648,091 | **RETRAIN** queued (checkpoints lost, was G 0.860) |
-| as_severity | classification | 4 | 1,487,709 | **RETRAIN** queued (checkpoints lost, was G 0.908) |
-| aov_vmax | regression | -- | 269,567 | **RETRAIN G/L/L-K** queued (EchoPrime+PanEcho archived) |
-| aov_mean_grad | regression | -- | 109,542 | Training DONE (5/5 archived). **Pred avg INVALID** (Bug 008). Re-run needed. |
-| tr_severity | classification | 5 | 1,365,676 | **ALL 5 DONE** + archived. G 0.838, L-K 0.787, EchoPrime 0.758, L 0.755, PanEcho 0.715. |
-| ar_severity | classification | 5 | 969,896 | READY |
-| mv_ee | regression | -- | 71,562 | READY (B-mode filter rebuilt) |
-| rvsp | regression | -- | 139,861 | READY (B-mode filter rebuilt) |
+| mr_severity | classification | 5 | 1,648,091 | **ALL 5 DONE**. Pred avg: G 0.882; L/L-K Bug 012; EP/Pan TODO. |
+| as_severity | classification | 4 | 1,487,709 | **ALL 5 DONE**. Pred avg TODO (G Bug 012). |
+| aov_vmax | regression | -- | 269,567 | **ALL 5 DONE**. Pred avg TODO. |
+| aov_mean_grad | regression | -- | 109,542 | **ALL 5 DONE** + pred avg DONE. G R²=0.579, EP 0.462, Pan 0.378, L-K 0.328, L 0.147. |
+| tr_severity | classification | 5 | 1,365,676 | **ALL 5 DONE** + pred avg DONE. G 0.854, L-K 0.817, L 0.787, EP 0.780, Pan 0.778. |
+| ar_severity | classification | 5 | 969,896 | **ALL 5 DONE**. Pred avg TODO. |
+| mv_ee_medial | regression | -- | 190,270 | **ALL 5 DONE**. Pred avg TODO. |
+| rvsp | regression | -- | 139,861 | **ALL 5 DONE** + pred avg DONE. G R²=0.504, L-K 0.317, Pan 0.274, EP 0.169, L 0.168. |
 
 ### Tier 2 — Main text Pillar 1: RV Mechanics
 
 | Task | Type | VF Train Clips | Status |
 |------|------|---------------|--------|
-| tapse | regression | 280,638 | **RETRAINING** — G at ep 13/15 (Bug 010 crash, resumed). L/L-K/EP/Pan queued. |
-| rv_sp | regression | 391,778 | READY |
-| rv_fac | regression | 80,046 | READY |
+| tapse | regression | 280,638 | **ALL 5 DONE** + pred avg DONE. G R²=0.633. |
+| rv_sp | regression | 391,778 | **3/5 trained** (G 0.491, L 0.234, L-K ep 10/15). EP/Pan queued. |
+| rv_fac | regression | 80,046 | Not started (CSV ready) |
 | rv_basal_dim | regression | -- | **BLOCKED** (labels not built) |
 
 ### Tier 3 — Main text Pillar 3: Trajectory Forecasting

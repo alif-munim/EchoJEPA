@@ -13,7 +13,7 @@ The core novelty is organized around **Wendy's three pillars**:
 
 Standard benchmarks are brief (one paragraph + Extended Data). Disease detection is supporting evidence, not headline. SAE interpretability and core lab evaluation are Strong Additions / deferred to revision.
 
-**5 models** (updated 2026-03-13): EchoJEPA-G, EchoJEPA-L, EchoJEPA-L-K, EchoPrime, PanEcho. EchoMAE dropped (undertrained checkpoint). ICML preprint carries JEPA-vs-MAE comparison.
+**4 manuscript models** (updated 2026-03-19): EchoJEPA-G, EchoJEPA-L-K, EchoPrime, PanEcho. EchoJEPA-L is internal testing only (not in manuscript). EchoMAE dropped (undertrained checkpoint). ICML preprint carries JEPA-vs-MAE comparison and G-vs-L scale comparison.
 
 ---
 
@@ -61,39 +61,73 @@ Built `evals/regenerate_uhn_downstream.py`. Generated splits for G and L (53 tas
 
 ---
 
-## Blocking Work — Priority Order (updated 2026-03-18)
+## Blocking Work — Manuscript-Aligned Priorities (updated 2026-03-19)
 
-1. **Fix failed pred avg runs** — LVEF L-K (socket error) + PanEcho (forward crash). Re-run on idle GPUs 0-3.
-2. **Finish TR severity pred avg** — L-K running, EP/Pan queued (auto-chained). Then AS severity training.
-3. **Re-run AV mean grad pred avg** — Bug 008 invalidated all 5 results. Checkpoints archived, just need inference.
-4. **Train missing checkpoints** — AR severity (G at ep11, 4 models TODO), TAPSE (L-K ep8, EP/Pan TODO)
-5. **JEPA-unique experiments** — 6.1 (forward prediction), 6.4 (anomaly detection via prediction error), 5.4 (trajectory onset expansion: MR severity + TAPSE)
-6. **Complete Tier 1 hemodynamic tasks** — E/e' medial (novel), AV area
-7. **Ship code + checkpoints to Goodfire** — repo with Claude docs, clean CSVs, L/L-K checkpoints, G NPZ embeddings
-8. **Bland-Altman analysis** in eval post-processing (Wendy: MAE alone insufficient for Nature Medicine)
-9. **Email Joe for Chicago demographics** (age, sex, race/ethnicity) — blocking for cross-site fairness
+Organized by what the manuscript (`sn-article.tex`) actually needs. `‡` markers = experiments not yet run. `\tbd` = values needing data. ~30 `‡` markers and ~70 `\tbd` placeholders remain.
 
-**DONE since last update (2026-03-19):**
+### P1: Finish UHN Probe Pipeline (Alif, compute-only)
+1. **RV S' training** — L-K at ep 10/15 on GPUs 0-3, EP/Pan queued. G done (0.491), L done (0.234).
+2. **RV FAC training** — 5 models, CSV ready. Fills §2.3 RV mechanics.
+3. **Pred avg** — MR sev (4), AS sev (5), AV Vmax (5), AR sev (5), E/e' medial (5), RV S'/FAC (after training) = ~29 runs. Use GPUs 4-7.
+4. **Bland-Altman analysis** — post-processing for all regression tasks. Wendy: MAE alone insufficient for Nature Medicine.
+
+### P2: MIMIC Strategy E Probes (Alif, large compute — §2.5 outcomes table)
+5. **MIMIC outcome probes (Strategy E)** — 8 tasks × 4 models: mortality (1yr/90d/30d/in-hospital), readmission, discharge dest, remaining LOS, end-of-life. Currently only G has sklearn results (†-marked in manuscript).
+6. **MIMIC biomarkers** — troponin, NT-proBNP, creatinine, lactate. G + L-K minimum.
+7. **MIMIC cross-institution pred avg** — more tasks beyond LVEF (TAPSE, RVSP, etc.)
+
+### P3: Novel/JEPA-Unique Experiments (Alif — §2.5 trajectory + §2.8 ablation)
+8. **Forward prediction (Exp 6.1)** — JEPA predictor, first-N-frame inference. Key differentiator. Write `evals/forward_prediction.py`.
+9. **Anomaly detection (Exp 6.4)** — JEPA prediction error as zero-shot anomaly score vs HCM/DCM/amyloidosis.
+10. **Trajectory expansion** — EF change (UHN+MIMIC), multi-parameter trajectory, new HF diagnosis (MIMIC). §2.5 has ‡ markers on all.
+
+### P4: Supporting Experiments (Alif/Reza — §2.6 diseases, §2.1 extended data)
+11. **Disease panel** — 9 diseases × 4 models (CSVs ready): HCM, amyloidosis, takotsubo, STEMI, endocarditis, DCM, bicuspid AV, myxomatous MV, rheumatic MV.
+12. **Additional hemodynamics** — diastolic function, PA pressure, cardiac output (CSVs need B-mode filter build).
+
+### P5: Delegated Work (blocked on other people)
+13. **CY**: Combined echo+EHR model (§2.5), acuity conditioning/H_confound, outcome baselines (EF baseline matrix).
+14. **Ali/Wendy**: Core lab reader recruitment (3 minimum, §Extended Data).
+15. **Adib/Goodfire**: SAE training + frame shuffling (§2.8, blocked on checkpoint delivery).
+16. **Reza**: UMAP main figure (t-SNE done, need UMAP + UHN).
+
+### P6: Fairness (CY — §2.7, blocked on Chicago demographics)
+17. **Email Joe for Chicago demographics** — blocking Table 1 + entire §2.7.
+18. **Fairness runs**: LVEF MAE, mortality AUC by sex/race/age/insurance. ECE, equalized odds.
+
+### P7: Methods/Admin
+19. **REB protocol number** — from Wendy.
+20. **Methods placeholders** — masking strategy details, preprocessing params, frame count, FPS.
+21. **UHN demographics for Table 1** — age, sex distribution.
+
+### Pred Avg Summary (6/12 tasks fully done)
+
+| Task | G | L | L-K | EP | Pan | Status |
+|------|---|---|-----|----|----|--------|
+| LVEF | 0.778 | 0.577 | 0.702 | 0.681 | 0.665 | **DONE** |
+| TAPSE | 0.633 | 0.430 | 0.555 | 0.430 | 0.385 | **DONE** |
+| RVSP | 0.504 | 0.168 | 0.317 | 0.169 | 0.274 | **DONE** |
+| AV mean grad | 0.579 | 0.147 | 0.328 | 0.462 | 0.378 | **DONE** |
+| TR severity | 0.854 | 0.787 | 0.817 | 0.780 | 0.778 | **DONE** |
+| Onset | 0.793 | 0.514 | 0.677 | 0.776 | 0.759 | **DONE** |
+| MR severity | 0.882 | -- | -- | -- | -- | 1/5 |
+| AS severity | -- | -- | -- | -- | -- | 0/5 (G stale) |
+| AV Vmax | -- | -- | -- | -- | -- | 0/5 |
+| AR severity | -- | -- | -- | -- | -- | 0/5 |
+| E/e' medial | -- | -- | -- | -- | -- | 0/5 |
+| RV S' | -- | -- | -- | -- | -- | training |
+
+**DONE since 2026-03-18:**
 - Manuscript B-mode vs all-views clarification (6 sections of sn-article.tex edited)
 - RVSP updated to pred-avg R²=0.504 in manuscript (from single-clip 0.463)
 - TAPSE updated to pred-avg R²=0.633 in manuscript (from single-clip 0.537)
-- RVSP duplication between §2.2 and §2.3 resolved (now only in §2.2 with cross-reference)
-- Methods: new B-mode filtering paragraph with task-level inventory + 2 new citations
-
-**DONE previously (2026-03-18):**
-- RVSP all 5 models complete: G R²=0.463 (val), L-K 0.268, Pan 0.248, EP 0.207, L 0.137
-- LVEF pred avg 3/5: G R²=0.778, EP 0.681, L 0.577 (L-K/Pan failed, re-run needed)
-- TR severity pred avg: G AUROC=0.854 (+1.6pp), L 0.787 (+3.2pp). L-K running.
-- TAPSE: G R²=0.552 (ep14), L R²=0.288 (ep15). L-K stopped at ep 8.
-- Manuscript restructured around three-level world model (cross-modal, cross-system, cross-temporal)
-- Bugs 008-010 found and fixed (inference checkpoint loading, shm exhaustion, concurrent job safety)
-- Generic `scripts/run_pred_avg.sh` updated with all fixes
-
-**DONE previously:**
-- Study-level prediction aggregation: **DONE** (auto-enables when `val_only=True` + `study_sampling=True`)
-- Hemodynamic training: MR (G 0.860), AS (G 0.908), TR (G 0.838), AV Vmax (G R²=0.582) all 5 models
-- Trajectory onset: **DONE** (G 0.793)
-- LVEF training: all 5 models retrained (15 ep)
+- LVEF pred avg complete: all 5 models (L-K 0.702, Pan 0.665 added)
+- TR severity pred avg complete: all 5 models (EP 0.780, Pan 0.778 added)
+- AV mean grad pred avg re-run VALID: all 5 models (G 0.579, Bug 008 fixed)
+- MR severity pred avg: G 0.882
+- AR severity, AS severity, MR severity, AV Vmax, E/e' medial: all 5/5 trained
+- RV S': G 0.491, L 0.234 done; L-K training
+- All Bug 007 checkpoint retraining complete (11 tasks × 5 models = 55 best.pt)
 - Literature review: B-mode hemodynamic prior art documented
 
 ## View-Filtered Training Pipeline — DONE (2026-03-11)
@@ -131,55 +165,52 @@ B-mode-only view filtering applied via `build_viewfiltered_csvs.py` with `bmode_
 | mv_ee_medial | A4C | Yes | QUEUED |
 | aov_area | PLAX, A3C, PSAX-AV | Yes | QUEUED |
 
-### Strategy E Results (updated 2026-03-18)
+### Strategy E Results (updated 2026-03-19)
 
-All results: d=1 attentive probes, 15 epochs, 12-head HP grid. Results marked (PA) include prediction averaging; others are single-clip best-head val metrics.
+All results: d=1 attentive probes, 15 epochs, 12-head HP grid. (PA) = prediction-averaged test-set metrics (final). Others are single-clip best-head val metrics.
 
-**Hemodynamic Inference (B-mode only, single-clip)**
-
-| Task | G | L-K | EchoPrime | L | PanEcho |
-|------|---|-----|-----------|---|---------|
-| AS severity (4-class AUROC) | **0.908** | 0.821 | 0.827 | 0.786 | 0.762 |
-| MR severity (5-class AUROC) | **0.860** | 0.803 | 0.770 | 0.771 | 0.724 |
-| TR severity (5-class AUROC) | **0.838** | 0.787 | 0.758 | 0.755 | 0.731 |
-| AV Vmax (R²) | **0.582** | 0.388 | 0.476 | 0.232 | 0.390 |
-| RVSP (R²) | **0.463** | 0.268 | 0.207 | 0.137 | 0.248 |
-| AR severity (AUROC) | 0.740* | — | — | — | — |
-
-*AR severity: G only at ep 11, training stopped. 4 models TODO.
-
-**Trajectory Prediction (single-clip training, pred avg at test)**
-
-| Task | G | EchoPrime | PanEcho | L-K | L |
-|------|---|-----------|---------|-----|---|
-| Onset cardiomyopathy (AUROC) | **0.793** | 0.776 | 0.759 | 0.677 | 0.514 |
-
-**Standard Benchmarks**
+**Pred Avg Complete (6 tasks, all 5 models)**
 
 | Task | G | L-K | EchoPrime | L | PanEcho |
 |------|---|-----|-----------|---|---------|
-| TAPSE (R²) | **0.552** | 0.427* | — | 0.288 | — |
-| LVEF (R², single-clip) | **0.583** | 0.583 | 0.563 | 0.556 | 0.556 |
-| LVEF (R², pred avg) | **0.778** | FAIL | 0.681 | 0.577 | FAIL |
+| LVEF R² | **0.778** | 0.702 | 0.681 | 0.577 | 0.665 |
+| TAPSE R² | **0.633** | 0.555 | 0.430 | 0.430 | 0.385 |
+| RVSP R² | **0.504** | 0.317 | 0.169 | 0.168 | 0.274 |
+| AV mean grad R² | **0.579** | 0.328 | 0.462 | 0.147 | 0.378 |
+| TR severity AUROC | **0.854** | 0.817 | 0.780 | 0.787 | 0.778 |
+| Trajectory onset AUROC | **0.793** | 0.677 | 0.776 | 0.514 | 0.759 |
+| MR severity AUROC | **0.882** (PA) | 0.803* | 0.770* | 0.765* | 0.724* |
 
-*TAPSE L-K stopped at ep 8. EP/Pan not started. LVEF pred avg L-K/Pan failed (socket/forward errors).
+**Training Complete, Pred Avg TODO (single-clip val shown)**
 
-Note: LVEF pred avg in progress (G done, L/L-K/EP/Pan running). TAPSE retraining (G epoch 13/15, ckpts lost per Bug 007).
+| Task | G | L-K | EchoPrime | L | PanEcho |
+|------|---|-----|-----------|---|---------|
+| AS severity AUROC | **0.908*** | 0.821* | 0.827* | 0.786* | 0.762* |
+| AV Vmax R² | **0.582*** | 0.388* | 0.476* | 0.232* | 0.390* |
+| E/e' medial R² | **0.558*** | 0.438* | 0.391* | 0.296* | 0.400* |
+| AR severity AUROC | **0.739*** | 0.650* | 0.673* | 0.644* | 0.653* |
+| RV S' R² | **0.491*** | training | — | 0.234* | — |
 
-### Checkpoint Inventory (2026-03-18)
+*Single-clip val metrics. Pred avg forthcoming.
 
-| Task | G | L | L-K | EP | Pan | Pred Avg Status |
-|------|---|---|-----|----|----|----------------|
-| lvef | best.pt | best.pt | best.pt | best.pt | best.pt | G done (R²=0.778), L in progress |
-| tr_severity | best.pt | best.pt | best.pt | best.pt | best.pt | Not started (ready) |
-| aov_mean_grad | best.pt | best.pt | best.pt | best.pt | best.pt | **INVALID** (Bug 008, must re-run) |
-| trajectory_lvef_onset | best.pt | best.pt | best.pt | best.pt | best.pt | Not started (ready) |
-| trajectory_lvef_v1 | best.pt | best.pt | best.pt | best.pt | best.pt | Not started |
-| tapse | best.pt | — | — | — | — | G retraining (epoch 13/15) |
-| rvsp | best.pt | best.pt | best.pt | — | — | Needs 2 more models |
-| aov_vmax | — | — | — | best.pt | best.pt | Needs 3 more models |
-| ar_severity | best.pt | — | — | — | — | Needs 4 more models |
-| trajectory_lvef | best.pt | best.pt | best.pt | — | — | Needs 2 more models |
+### Checkpoint Inventory (2026-03-19)
+
+All 11 trained tasks have best.pt for all 5 models (G, L, L-K, EP, Pan).
+
+| Task | Pred Avg Status |
+|------|----------------|
+| LVEF | **ALL 5 DONE** |
+| TAPSE | **ALL 5 DONE** |
+| RVSP | **ALL 5 DONE** |
+| AV mean grad | **ALL 5 DONE** |
+| TR severity | **ALL 5 DONE** |
+| Trajectory onset | **ALL 5 DONE** |
+| MR severity | G DONE (0.882). L/L-K/EP/Pan TODO |
+| AS severity | 0/5 (all TODO) |
+| AV Vmax | 0/5 (all TODO) |
+| E/e' medial | 0/5 (all TODO) |
+| AR severity | 0/5 (all TODO) |
+| RV S' | G+L done. L-K training (ep 10/15). EP/Pan queued |
 
 **Key findings:**
 - B-mode video contains hemodynamic severity information — this is a clinical discovery, not model-specific
@@ -223,7 +254,7 @@ Note: LVEF pred avg in progress (G done, L/L-K/EP/Pan running). TAPSE retraining
 | MIMIC fairness: discrimination parity, calibration equity | CY | TODO | Fairness |
 | Frame shuffling (motion-dependence proof) | Goodfire | TODO (blocked on checkpoint delivery) | Interpretability |
 
-**MVP progress (updated 2026-03-18):** All CSVs, run scripts, and prediction averaging pipeline built and debugged (Bugs 008-010 fixed). Training complete for 5 tasks (5/5 ckpts): LVEF, TR severity, AV mean grad, trajectory onset, trajectory v1. LVEF pred avg G: R²=0.778. TAPSE retraining in progress (G epoch 13/15, ckpts lost per Bug 007). 5 tasks partially trained. AV mean grad pred avg invalidated by Bug 008 (must re-run). CY's MIMIC outcome probes + EHR baseline done (H3.1 passed). Adib: attention map infra done, SAE training in progress. Remaining: finish TAPSE retrain, run pred avg for TR/trajectory/aov_mean_grad, train missing ckpts (AV Vmax G/L/L-K, AR sev 4 models, RVSP 2 models), Bland-Altman, combined model.
+**MVP progress (updated 2026-03-19):** Infrastructure complete (CSVs, scripts, pred avg pipeline, Bugs 007-014 fixed). **11 tasks × 5 models ALL TRAINED.** 6 tasks with ALL 5 pred avg DONE: LVEF, TAPSE, RVSP, AV mean grad, TR severity, trajectory onset. MR severity G pred avg done (0.882). Manuscript updated with all available results + vision-only/data-efficiency emphasis + ‡/\tbd markers for remaining work. **Remaining for tables**: pred avg for 5 more tasks (~29 runs), RV S' + FAC training, MIMIC Strategy E (8 outcomes × 4 models), Bland-Altman. **Remaining for sections**: disease panel (§2.6), fairness (§2.7, blocked), forward prediction (§2.8), methods placeholders. CY: combined model + confounding TODO. Ali: core lab TODO.
 
 ### Verification
 
@@ -235,21 +266,23 @@ Note: LVEF pred avg in progress (G done, L/L-K/EP/Pan running). TAPSE retraining
 
 ## Strong Additions — Elevates paper
 
-| Task | Owner | Status | Section |
-|------|-------|--------|---------|
-| **Frame shuffling motion-dependence test** | **Goodfire** | **TODO** (blocked on checkpoint delivery) | Interpretability |
-| SAE training + basic analysis (proxy classifiers, retention curves) | Adib/Goodfire | **IN PROGRESS** (training started, GPU broke, restarting) | Interpretability |
-| Attention map visualization (supplementary) | Adib | **Infra DONE** (hooks for ViT-G + EchoPrime). Head specialization + temporal consistency findings. | Extended Data |
-| Prosthetic valve detection (NPZs need building) | Alif | TODO | 2c |
-| Core lab infrastructure + pilot | Ali | TODO | Human eval |
-| Fine-tuned ViT-L baseline (DeLong vs frozen G) | Adib | TODO | Baselines |
-| Disease detection: HCM, amyloidosis, takotsubo, endocarditis | Reza | TODO | 2d (supporting) |
-| Representation visualization (UMAP + k-NN + spatial info gap) | Reza/Alif | **t-SNE DONE** (23 tasks x 7 models on MIMIC). Need UMAP regen + UHN main figure. | Figure X (main) |
-| Troponin 48h biomarker labels | CY | TODO | 2f |
-| Trajectory pair analysis | CY/Alif | TODO | 3a |
-| EF baseline matrix (echo measurement ensemble) | CY | TODO | 2e |
-| E/e', cardiac output, cardiac rhythm | Alif | TODO | 2.1 Extended Data |
-| Forward prediction (JEPA predictor, first N frames) | Alif | TODO | 3b |
+| Task | Owner | Status | Manuscript Section |
+|------|-------|--------|-------------------|
+| **Forward prediction (JEPA predictor, Exp 6.1)** | Alif | **TODO** — Key JEPA differentiator | §2.8 Ablations |
+| **Anomaly detection (Exp 6.4)** | Alif | **TODO** — Zero-shot, JEPA-only | §2.8 Ablations |
+| **Disease panel (9 diseases × 4 models)** | Alif/Reza | **TODO** — CSVs ready | §2.6 Disease Detection |
+| **MIMIC Strategy E outcomes (8 tasks × 4 models)** | Alif | **TODO** — currently sklearn G only (†) | §2.5 Outcomes Table |
+| **Trajectory expansion (EF change, new HF diagnosis)** | Alif | **TODO** — ‡ in manuscript | §2.5 Trajectory |
+| **Combined echo+EHR model** | CY | **TODO** — key additive value claim | §2.5 Outcomes |
+| **Fairness analysis** | CY | **TODO** — blocked on Chicago demographics | §2.7 Fairness |
+| **Core lab (3 readers minimum)** | Ali/Wendy | **TODO** | Extended Data |
+| SAE training + analysis | Adib/Goodfire | **IN PROGRESS** (GPU issues) | §2.8 Interpretability |
+| Frame shuffling | Goodfire | **TODO** (blocked on checkpoint delivery) | §2.8 |
+| Attention map figures | Adib | **Infra DONE** | Extended Data |
+| UMAP main figure | Reza/Alif | **t-SNE DONE**, need UMAP + UHN | Main Figure |
+| Diastolic function, PA pressure, cardiac output | Alif | **TODO** — CSVs need B-mode filter | §2.2 Extended Data |
+| EF baseline matrix (echo measurement ensemble) | CY | **TODO** | §2.5 |
+| Troponin 48h biomarker labels | CY | **TODO** | §2.5 Biomarkers |
 
 ---
 

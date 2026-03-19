@@ -6,6 +6,26 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-19 (Session 21, continued)
+
+### Doc Update: Comprehensive Task & Pred Avg Inventory
+
+Audited all checkpoint directories and pred avg output directories to build accurate inventory.
+
+**Key findings during audit:**
+- AV mean grad pred avg has been re-run with fixed `run_pred_avg.sh` — all 5 VALID (G R²=0.579, EP 0.462, Pan 0.378, L-K 0.328, L 0.147). Previous MEMORY entry was stale ("INVALID").
+- LVEF pred avg now complete for all 5 models (L-K R²=0.702, Pan 0.665 added since last update).
+- TR severity pred avg complete for all 5 models (EP 0.780, Pan 0.778 added).
+- MR severity pred avg: G 0.882 done, L/L-K stale (Bug 012 header-only), EP/Pan not started.
+- AS severity pred avg: G stale (Bug 012 header-only), rest not started.
+- RV S' training in progress: G R²=0.491, L R²=0.234 done, L-K at ep 10/15.
+- All Bug 007 retraining complete: 63 best.pt files across 14 task directories.
+
+**Files updated:**
+- `experiments/nature_medicine/TASK_TRACKER.md` — Rewrote checkpoint status, regression/classification results tables, surviving checkpoints summary, batch status
+- `claude/dev/roadmap.md` — Updated blocking work priorities, added pred avg summary table
+- `MEMORY.md` — Updated run status, blocking work, hemodynamic results
+
 ## 2026-03-19 (Session 21)
 
 ### Manuscript: B-mode vs All-Views Distinction Clarified
