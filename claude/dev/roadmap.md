@@ -2,7 +2,7 @@
 
 Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-19.
 
-Source of truth for paper scope and task priorities: `uhn_echo/nature_medicine/context_files/nature_medicine_task_overview.md`. Detailed specs in `planning/tasks/`. Per-person assignments in `roles/`. This file is the cross-cutting infrastructure and experiment summary.
+Source of truth for paper scope and task priorities: `uhn_echo/nature_medicine/context_files/nature_medicine_task_overview.md`. Comprehensive manuscript task inventory (every experiment in sn-article.tex with status): `uhn_echo/nature_medicine/context_files/dev/manuscript-tasks.md`. Detailed specs in `planning/tasks/`. Per-person assignments in `roles/`. This file is the cross-cutting infrastructure and experiment summary.
 
 ## Paper Framing (from task overview)
 
