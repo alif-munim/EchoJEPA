@@ -6,6 +6,22 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-19 (Session 21)
+
+### Manuscript: B-mode vs All-Views Distinction Clarified
+
+Systematic edit to `sn-article.tex` clarifying which tasks use B-mode-only input (hemodynamic/cross-modal claims) vs all available echo views (RV mechanics, standard benchmarks, trajectory, outcomes). Six edits across abstract, introduction, results sections 2.2 and 2.3, methods, and discussion.
+
+**Key changes:**
+- **Section 2.3 (RV mechanics):** Removed RVSP from this section (was duplicated from §2.2). Added explicit paragraph stating RV probes use all available echo views. Updated TAPSE to pred-avg R²=0.633 (from single-clip 0.537). Cross-references §2.2 for RVSP.
+- **Section 2.2 (Hemodynamics):** Updated RVSP to pred-avg R²=0.504 (from 0.463). Added all 5 model comparisons.
+- **Abstract + Introduction:** Added "from all available echo views" qualifier to RV mechanics mentions. Added TAPSE R²=0.633 to abstract.
+- **Methods:** Added new `\paragraph{B-mode input restriction for hemodynamic tasks}` with clinical motivation (POCUS accessibility), literature citations (Akkus 2021 review, Zhang 2018 multi-pathology, plus existing Holste/EchoNet-Dynamic/Hughes refs), and explicit task-level inventory of B-mode-only vs all-views tasks.
+- **Discussion:** Separated B-mode hemodynamic claims (RVSP R²=0.504) from all-views RV function (TAPSE R²=0.633).
+- **Bibliography:** Added Akkus et al. 2021 (`akkus_ai_echo`) and Zhang et al. 2018 (`zhang_multipathology`).
+
+---
+
 ## 2026-03-18 (Session 20)
 
 ### Bugs 008, 009, 010: Inference Pipeline Debugging & Fixes

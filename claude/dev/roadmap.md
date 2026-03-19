@@ -1,6 +1,6 @@
 # Roadmap
 
-Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-18.
+Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-19.
 
 Source of truth for paper scope and task priorities: `uhn_echo/nature_medicine/context_files/nature_medicine_task_overview.md`. Detailed specs in `planning/tasks/`. Per-person assignments in `roles/`. This file is the cross-cutting infrastructure and experiment summary.
 
@@ -73,8 +73,15 @@ Built `evals/regenerate_uhn_downstream.py`. Generated splits for G and L (53 tas
 8. **Bland-Altman analysis** in eval post-processing (Wendy: MAE alone insufficient for Nature Medicine)
 9. **Email Joe for Chicago demographics** (age, sex, race/ethnicity) — blocking for cross-site fairness
 
-**DONE since last update (2026-03-18):**
-- RVSP all 5 models complete: G R²=0.463, L-K 0.268, Pan 0.248, EP 0.207, L 0.137
+**DONE since last update (2026-03-19):**
+- Manuscript B-mode vs all-views clarification (6 sections of sn-article.tex edited)
+- RVSP updated to pred-avg R²=0.504 in manuscript (from single-clip 0.463)
+- TAPSE updated to pred-avg R²=0.633 in manuscript (from single-clip 0.537)
+- RVSP duplication between §2.2 and §2.3 resolved (now only in §2.2 with cross-reference)
+- Methods: new B-mode filtering paragraph with task-level inventory + 2 new citations
+
+**DONE previously (2026-03-18):**
+- RVSP all 5 models complete: G R²=0.463 (val), L-K 0.268, Pan 0.248, EP 0.207, L 0.137
 - LVEF pred avg 3/5: G R²=0.778, EP 0.681, L 0.577 (L-K/Pan failed, re-run needed)
 - TR severity pred avg: G AUROC=0.854 (+1.6pp), L 0.787 (+3.2pp). L-K running.
 - TAPSE: G R²=0.552 (ep14), L R²=0.288 (ep15). L-K stopped at ep 8.

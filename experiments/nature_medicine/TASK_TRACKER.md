@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-18 (RVSP 5/5 done, LVEF pred avg 3/5 done, TR pred avg G+L done, TAPSE G+L done, AR severity G ep11, manuscript restructured around three-level world model)
+Last updated: 2026-03-19 (manuscript B-mode vs all-views clarification, RVSP updated to pred avg R²=0.504, TAPSE updated to pred avg R²=0.633 in manuscript)
 
 ## Evaluation Protocol
 
@@ -714,6 +714,7 @@ No other model can fill all six categories. EchoPrime covers 1 + partial 2 + par
   - *NOT novel tasks*: PanEcho does TAPSE (supervised, MAE 3.4mm) and RV S' (MAE 1.9cm/s). EchoNet-RV does RVFAC (task-specific, MAE 5.8-6.4%).
   - *Novel approach*: Frozen SSL representations encode RV function without task-specific training. PanEcho is our direct comparison baseline. Three-way taxonomy: self-supervised (EchoJEPA) vs language-supervised (EchoPrime) vs supervised (PanEcho).
   - *RVSP moved to Pillar 1*: RVSP is a hemodynamic/Doppler measurement (requires TR jet velocity), not an RV mechanics measurement.
+  - *Input modality*: RV mechanics probes use **all available echo views** (incl. M-mode, tissue Doppler). The question is whether frozen SSL encodes RV function, NOT cross-modal B-mode inference. Manuscript §2.3 now explicitly distinguishes this from B-mode hemodynamic claims (§2.2). Methods §bmode_filtering provides task-level inventory.
 
 - **Pillar 3 Trajectory**: Onset cardiomyopathy (G 0.793). No foundation model does temporal risk stratification. Keep as is.
 
