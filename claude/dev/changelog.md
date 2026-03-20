@@ -6,6 +6,61 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-20 (Session 22, continued)
+
+### Disease Label Rebuild — Full Provenance (9 diseases)
+
+Rebuilt all 9 disease detection NPZs with fully documented provenance. The original datasets were built by a now-deleted notebook with no surviving code.
+
+**New file: `experiments/nature_medicine/uhn/build_disease_labels.py`** (~1000 lines):
+- 9 builder functions: HCM, amyloidosis, takotsubo, STEMI, endocarditis, DCM, bicuspid AV, myxomatous MV, rheumatic MV
+- Three label sources queried per disease: Syngo structured obs, HeartLab SENTENCE+NOTE, Syngo free-text
+- Full negation filtering (no X, r/o X, rule out X, etc.) with per-disease custom patterns
+- `--patient_propagation` flag for old-notebook-style labeling vs conservative study-level
+- `--validate` mode compares against existing NPZs
+- Provenance JSON output per disease
+
+**Key discoveries:**
+- HeartLab SENTENCE path (via `heartlab_findings.SENTENCE`) captures ~90% of HL matches; NOTE is supplementary
+- Old notebook used patient-level propagation (if ANY study mentions disease, label ALL patient studies)
+- **Endocarditis old NPZ (11,286 pos) was contaminated** — 82.6% negation rate. Reduced to 4,021 after proper filtering.
+- Spot-check found family history contamination in patient-propagated amyloidosis labels
+
+**Output:**
+- `labels_v2/`: 9 disease NPZs with patient propagation + 10 provenance JSONs
+- `labels_v2_study_level/`: 9 disease NPZs study-level (conservative) + provenance JSONs
+- `DISEASE_PROVENANCE.md`: Full per-disease documentation (search terms, SQL sources, negation rates, confidence tiers)
+- `CLASS_MAPS.md`: Disease section updated with source breakdown, confidence tiers
+
+**Validation (study-level vs old NPZ):**
+- HCM +0.5%, Bicuspid AV +7.5%, Rheumatic MV +13% — good matches
+- Endocarditis -64% (intentional — old was contaminated)
+- Myxomatous MV +242% (SENTENCE-level "mitral valve prolapse" captures more; old used narrower terms)
+
+## 2026-03-20 (Session 22)
+
+### Results: AS Severity Pred Avg + RV S' Training Complete
+
+**AS severity pred avg (4/5 on disk):**
+- G: AUROC 0.932, L: 0.846, L-K: 0.868, Pan: 0.813
+- EP: 0.868 (confirmed in chain log, disk files lost in concurrent session collision — re-run needed)
+- Major improvement over single-clip val: G went from 0.908* → 0.932
+
+**RV S' training (4/5 done, Pan in progress):**
+- G: R²=0.491, L-K: 0.374, EP: 0.284, L: 0.234 (all 15/15)
+- Pan: ep 3/15 (R²=0.183 so far)
+
+**Pred avg chain running (GPUs 4-7):** AV Vmax G → then 4 more tasks (AR sev, E/e', MR sev)
+
+**Bug investigation:** EchoPrime AS severity disk files disappeared due to concurrent chain sessions on GPUs 4-7 — both chains wrote to same output dirs. Not a code bug. The `rm -rf` cleanup in run_pred_avg.sh is working as designed.
+
+**Files updated:**
+- `experiments/nature_medicine/TASK_TRACKER.md` — AS sev pred avg results, RV S' training status, checkpoint inventory
+- `uhn_echo/nature_medicine/context_files/dev/manuscript-tasks.md` — AS sev PARTIAL, RV S' all trained, updated scoreboard + priorities
+- `MEMORY.md` — Run status, pred avg results
+
+---
+
 ## 2026-03-19 (Session 21, continued)
 
 ### Doc Update: Comprehensive Task & Pred Avg Inventory

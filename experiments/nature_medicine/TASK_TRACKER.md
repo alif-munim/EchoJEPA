@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-19 (comprehensive task/pred avg inventory update; AV mean grad pred avg now VALID; LVEF/TR sev pred avg complete for all 5 models)
+Last updated: 2026-03-20 15:30 UTC (10 tasks PA complete. RV FAC PA 4/5, AR sev PA 3/5, RV S' PA 2/5. MIMIC temporal split rebuilt.)
 
 ## Evaluation Protocol
 
@@ -241,7 +241,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | Inference | Single random clip per study per val epoch. **No prediction averaging.** |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/tr_severity/train_vf.csv` |
 
-### AR Severity (classification, B-mode only) — QUEUED
+### AR Severity (classification, B-mode only) — ALL 5 TRAINED, PA 3/5 (G failed, Pan running)
 
 | Setting | Value |
 |---------|-------|
@@ -262,7 +262,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | Inference | Single random clip per study per val epoch. **No prediction averaging.** |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/ar_severity/train_vf.csv` |
 
-### E/e' (mv_ee, regression, B-mode only) — QUEUED
+### E/e' (mv_ee, regression, B-mode only) — ALL 5 TRAINED + PA DONE
 
 | Setting | Value |
 |---------|-------|
@@ -306,7 +306,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | Inference | Single random clip per study per val epoch. **No prediction averaging.** |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/rvsp/train_vf.csv` |
 
-### RV S' (rv_sp, regression) — QUEUED
+### RV S' (rv_sp, regression) — ALL 5 TRAINED, PA 2/5 (L-K running)
 
 | Setting | Value |
 |---------|-------|
@@ -328,7 +328,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | Inference | Single random clip per study per val epoch. **No prediction averaging.** |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/rv_sp/train_vf.csv` |
 
-### RV FAC (rv_fac, regression) — QUEUED
+### RV FAC (rv_fac, regression) — ALL 5 TRAINED, PA 4/5 (G failed)
 
 | Setting | Value |
 |---------|-------|
@@ -386,7 +386,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 
 ## Completed Runs — Summary
 
-> **Checkpoint status (updated 2026-03-19)**: **11 primary tasks fully trained (all 5 models, best.pt archived)**. RV S' at 3/5 (EP/Pan queued). AV mean grad pred avg re-run VALID (Bug 008 fixed). LVEF and TR severity pred avg complete for all 5 models. See individual tables below for per-model status.
+> **Checkpoint status (updated 2026-03-20 15:30 UTC)**: **13 primary tasks fully trained (all 5 models, best.pt archived)**. 10/13 tasks pred avg ALL 5 DONE. RV FAC PA 4/5 (G failed). AR severity PA 3/5 (G failed, Pan running). RV S' PA 2/5 (L-K running). MIMIC temporal split rebuilt (random → temporal 70/15/15).
 
 ### Regression Tasks — Training Results (single-clip val)
 
@@ -412,23 +412,29 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | AV mean grad | echojepa-l-k | 0.271 | -- | 15 | archived | 0.328 |
 | AV mean grad | echoprime | 0.374 | -- | 15 | archived | 0.462 |
 | AV mean grad | panecho | 0.302 | -- | 15 | archived | 0.378 |
-| AV Vmax | echojepa-g | **0.582** | **0.763** | 15 | archived | TODO |
-| AV Vmax | echojepa-l | 0.232 | 0.487 | 15 | archived | TODO |
-| AV Vmax | echojepa-l-k | 0.388 | 0.623 | 15 | archived | TODO |
-| AV Vmax | echoprime | 0.476 | 0.692 | 15 | archived | TODO |
-| AV Vmax | panecho | 0.390 | 0.627 | 15 | archived | TODO |
-| E/e' medial | echojepa-g | -- | -- | 15 | archived | TODO |
-| E/e' medial | echojepa-l | -- | -- | 15 | archived | TODO |
-| E/e' medial | echojepa-l-k | -- | -- | 15 | archived | TODO |
-| E/e' medial | echoprime | -- | -- | 15 | archived | TODO |
-| E/e' medial | panecho | -- | -- | 15 | archived | TODO |
-| RV S' | echojepa-g | 0.491 | -- | 15 | archived | TODO |
-| RV S' | echojepa-l | 0.234 | -- | 15 | archived | TODO |
-| RV S' | echojepa-l-k | 0.352 | -- | **10/15** | **TRAINING** | -- |
-| RV S' | echoprime | -- | -- | -- | queued | -- |
-| RV S' | panecho | -- | -- | -- | queued | -- |
+| AV Vmax | echojepa-g | **0.582** | **0.763** | 15 | archived | **0.679** |
+| AV Vmax | echojepa-l | 0.232 | 0.487 | 15 | archived | 0.242 |
+| AV Vmax | echojepa-l-k | 0.388 | 0.623 | 15 | archived | 0.492 |
+| AV Vmax | echoprime | 0.476 | 0.692 | 15 | archived | 0.574 |
+| AV Vmax | panecho | 0.390 | 0.627 | 15 | archived | 0.479 |
+| E/e' medial | echojepa-g | 0.558 | 0.747 | 15 | archived | **0.598** |
+| E/e' medial | echojepa-l | 0.296 | 0.550 | 15 | archived | 0.370 |
+| E/e' medial | echojepa-l-k | 0.438 | 0.662 | 15 | archived | 0.491 |
+| E/e' medial | echoprime | 0.391 | 0.628 | 15 | archived | 0.422 |
+| E/e' medial | panecho | 0.400 | 0.640 | 15 | archived | 0.454 |
+| RV S' | echojepa-g | 0.491 | -- | 15 | archived | **0.591** |
+| RV S' | echojepa-l | 0.234 | -- | 15 | archived | 0.350 |
+| RV S' | echojepa-l-k | 0.374 | -- | 15 | archived | `[R]` |
+| RV S' | echoprime | 0.284 | -- | 15 | archived | TODO |
+| RV S' | panecho | 0.183 | -- | 15 | archived | TODO |
 
 > **AV mean grad note**: Pred avg re-run with fixed `run_pred_avg.sh` (Bug 008 resolved). All 5 results now VALID. G R²=0.579 (Pearson 0.795), EP 0.462, Pan 0.378, L-K 0.328, L 0.147.
+>
+> **RV FAC note**: All 5 models trained, PA completed for L/L-K/EP/Pan. G PA failed (header-only log). Results: L-K R²=0.444, L 0.325, Pan 0.301, EP 0.278.
+>
+> **RV S' note**: All 5 models trained, PA completed for G and L. Results so far: G R²=0.591, L 0.350. L-K running, EP/Pan queued.
+>
+> **E/e' medial note**: All 5 PA DONE. G R²=0.598, L-K 0.491, Pan 0.454, EP 0.422, L 0.370.
 
 ### Classification Tasks
 
@@ -440,20 +446,20 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | TR sev. | echoprime | 0.758 | 33.38 | 0.399 | 15 | archived | 0.780 |
 | TR sev. | panecho | 0.715 | -- | -- | 15 | archived | 0.778 |
 | MR sev. | echojepa-g | **0.860** | 43.75 | 0.561 | 15 | archived | **0.882** |
-| MR sev. | echojepa-l | 0.771 | 33.75 | 0.428 | 15 | archived | stale (Bug 012) |
-| MR sev. | echojepa-l-k | 0.803 | 36.08 | 0.473 | 15 | archived | stale (Bug 012) |
-| MR sev. | echoprime | 0.770 | 30.58 | 0.416 | 15 | archived | TODO |
-| MR sev. | panecho | 0.724 | 23.87 | 0.373 | 15 | archived | TODO |
-| AS sev. | echojepa-g | **0.908** | 70.51 | 0.594 | 15 | archived | stale (Bug 012) |
-| AS sev. | echojepa-l | 0.786 | 54.25 | 0.427 | 15 | archived | TODO |
-| AS sev. | echojepa-l-k | 0.821 | 53.26 | 0.467 | 15 | archived | TODO |
-| AS sev. | echoprime | 0.827 | 57.00 | 0.496 | 15 | archived | TODO |
-| AS sev. | panecho | 0.762 | 34.65 | 0.420 | 15 | archived | TODO |
-| AR sev. | echojepa-g | -- | -- | -- | 15 | archived | TODO |
-| AR sev. | echojepa-l | -- | -- | -- | 15 | archived | TODO |
-| AR sev. | echojepa-l-k | -- | -- | -- | 15 | archived | TODO |
-| AR sev. | echoprime | -- | -- | -- | 15 | archived | TODO |
-| AR sev. | panecho | -- | -- | -- | 15 | archived | TODO |
+| MR sev. | echojepa-l | 0.771 | 33.75 | 0.428 | 15 | archived | 0.808 |
+| MR sev. | echojepa-l-k | 0.803 | 36.08 | 0.473 | 15 | archived | 0.837 |
+| MR sev. | echoprime | 0.770 | 30.58 | 0.416 | 15 | archived | 0.818 |
+| MR sev. | panecho | 0.724 | 23.87 | 0.373 | 15 | archived | 0.789 |
+| AS sev. | echojepa-g | **0.908** | 70.51 | 0.594 | 15 | archived | **0.932** |
+| AS sev. | echojepa-l | 0.786 | 54.25 | 0.427 | 15 | archived | 0.846 |
+| AS sev. | echojepa-l-k | 0.821 | 53.26 | 0.467 | 15 | archived | 0.868 |
+| AS sev. | echoprime | 0.827 | 57.00 | 0.496 | 15 | archived | 0.868 |
+| AS sev. | panecho | 0.762 | 34.65 | 0.420 | 15 | archived | 0.813 |
+| AR sev. | echojepa-g | 0.739 | -- | -- | 15 | archived | FAILED |
+| AR sev. | echojepa-l | 0.644 | -- | -- | 15 | archived | 0.670 |
+| AR sev. | echojepa-l-k | 0.650 | -- | -- | 15 | archived | 0.680 |
+| AR sev. | echoprime | 0.673 | -- | -- | 15 | archived | 0.701 |
+| AR sev. | panecho | 0.653 | -- | -- | 15 | archived | `[R]` |
 
 ### Trajectory / Onset Tasks (Binary Classification)
 
@@ -545,10 +551,10 @@ All probe checkpoints archived to `checkpoints/probes/{task}/{model}/` and S3. *
 | AV mean grad | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
 | AV Vmax | Y | Y | Y | Y | Y | 5/5 | 0/5 TODO |
 | AR severity | Y | Y | Y | Y | Y | 5/5 | 0/5 TODO |
-| AS severity | Y | Y | Y | Y | Y | 5/5 | 1/5 (G stale Bug 012) |
+| AS severity | Y | Y | Y | Y | Y | 5/5 | **4/5** (G 0.932, L 0.846, L-K 0.868, Pan 0.813; EP lost in collision, re-run needed) |
 | MR severity | Y | Y | Y | Y | Y | 5/5 | 1/5 (G done; L/L-K stale Bug 012) |
 | E/e' medial | Y | Y | Y | Y | Y | 5/5 | 0/5 TODO |
-| RV S' | Y | Y | Y* | -- | -- | 3/5 | 0/5 (training) |
+| RV S' | Y | Y | Y | Y | Y* | **5/5** (Pan ep 3/15) | 0/5 (after Pan training) |
 | Onset | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
 | Traj V1 (sup.) | Y | Y | Y | Y | Y | 5/5 | superseded |
 | Traj 3-class (sup.) | Y | Y | Y | -- | -- | 3/5 | superseded |
@@ -748,10 +754,17 @@ Based on literature review and "six evidence categories" framing. 8 GPUs availab
 ### Batch 3 — RV Mechanics (fills Pillar 2) — IN PROGRESS
 | Priority | Task | Type | B-mode | Status |
 |----------|------|------|--------|--------|
-| **3a** | rv_sp (RV S') | Regression | No | **3/5 trained** (G 0.491, L 0.234, L-K ep 10/15). EP/Pan queued. |
+| **3a** | rv_sp (RV S') | Regression | No | **5/5 trained** (G 0.491, L-K 0.374, EP 0.284, L 0.234, Pan ep 3/15). Pred avg TODO. |
 | **3b** | rv_fac | Regression | No | Not trained (CSV ready) |
 
 ### Batch 4 — Disease Panel (fills Pathology category)
+
+**Labels rebuilt (2026-03-20)**: `build_disease_labels.py` with full provenance. Two versions:
+- `labels_v2_study_level/` — conservative (recommended), study-level only
+- `labels_v2/` — patient-propagated (matches old notebook style)
+- See `DISEASE_PROVENANCE.md` and `CLASS_MAPS.md` for per-disease confidence tiers
+- **Next step**: Build probe CSVs from new NPZs before training
+
 | Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
 |----------|------|------|--------|------|-----------|-------------------|
 | **4a** | disease_amyloidosis | Binary | No | 0-3 | ~8h | Pathology |
@@ -779,11 +792,11 @@ Use `scripts/run_pred_avg.sh <task>`. Bug 008 fix baked in.
 | **6e** | aov_mean_grad | 5 | **DONE** — G 0.579, EP 0.462, Pan 0.378, L-K 0.328, L 0.147 |
 | **6f** | trajectory_lvef_onset | 5 | **DONE** — G 0.793, EP 0.776, Pan 0.759, L-K 0.677, L 0.514 |
 | **6g** | mr_severity | 5 | G 0.882 DONE. L/L-K stale (Bug 012). EP/Pan TODO. |
-| **6h** | as_severity | 5 | G stale (Bug 012). L/L-K/EP/Pan TODO. |
+| **6h** | as_severity | 5 | **4/5 DONE** (G 0.932, L 0.846, L-K 0.868, Pan 0.813). EP re-run needed. |
 | **6i** | aov_vmax | 5 | All TODO. Checkpoints archived. |
 | **6j** | ar_severity | 5 | All TODO. Checkpoints archived. |
 | **6k** | mv_ee_medial | 5 | All TODO. Checkpoints archived. |
-| **6l** | rv_sp | 3 | All TODO (after EP/Pan training). |
+| **6l** | rv_sp | 5 | All TODO (after Pan training finishes). |
 
 ### Batch 7 — MIMIC Biomarkers (CY or us, fills Biochemistry category)
 | Priority | Task | Type | Studies | Evidence category |
@@ -896,7 +909,7 @@ Chain: LVEF (5) → TAPSE (5) → MR severity (5) → AS severity (5) → AV Vma
 | lvef | all 5 | R² 0.720 | **DONE** — all 5 trained + pred avg. G R²=0.778, L-K 0.702, EP 0.681, Pan 0.665, L 0.577. |
 | tapse | all 5 | R² 0.552 (G) | **DONE** — all 5 trained + pred avg. G R²=0.633, L-K 0.555, L 0.430, EP 0.430, Pan 0.385. |
 | mr_severity | all 5 | AUROC 0.860 | **DONE** — all 5 trained. Pred avg: G 0.882 done, 4 remaining. |
-| as_severity | all 5 | AUROC 0.908 | **DONE** — all 5 trained. Pred avg TODO (all 5). |
+| as_severity | all 5 | AUROC 0.932 (pred avg) | **DONE** — all 5 trained. Pred avg 4/5 done (EP re-run needed). |
 | aov_vmax | all 5 | R² 0.582 | **DONE** — all 5 trained. Pred avg TODO (all 5). |
 
 ### Tier 1 — Main text Pillar 2: Hemodynamics (B-mode only)
@@ -904,7 +917,7 @@ Chain: LVEF (5) → TAPSE (5) → MR severity (5) → AS severity (5) → AV Vma
 | Task | Type | Classes | VF Train Clips | Status |
 |------|------|---------|---------------|--------|
 | mr_severity | classification | 5 | 1,648,091 | **ALL 5 DONE**. Pred avg: G 0.882; L/L-K Bug 012; EP/Pan TODO. |
-| as_severity | classification | 4 | 1,487,709 | **ALL 5 DONE**. Pred avg TODO (G Bug 012). |
+| as_severity | classification | 4 | 1,487,709 | **ALL 5 DONE**. Pred avg 4/5 done (G 0.932, L 0.846, L-K 0.868, Pan 0.813). EP re-run needed. |
 | aov_vmax | regression | -- | 269,567 | **ALL 5 DONE**. Pred avg TODO. |
 | aov_mean_grad | regression | -- | 109,542 | **ALL 5 DONE** + pred avg DONE. G R²=0.579, EP 0.462, Pan 0.378, L-K 0.328, L 0.147. |
 | tr_severity | classification | 5 | 1,365,676 | **ALL 5 DONE** + pred avg DONE. G 0.854, L-K 0.817, L 0.787, EP 0.780, Pan 0.778. |
@@ -917,7 +930,7 @@ Chain: LVEF (5) → TAPSE (5) → MR severity (5) → AS severity (5) → AV Vma
 | Task | Type | VF Train Clips | Status |
 |------|------|---------------|--------|
 | tapse | regression | 280,638 | **ALL 5 DONE** + pred avg DONE. G R²=0.633. |
-| rv_sp | regression | 391,778 | **3/5 trained** (G 0.491, L 0.234, L-K ep 10/15). EP/Pan queued. |
+| rv_sp | regression | 391,778 | **5/5 trained** (G 0.491, L-K 0.374, EP 0.284, L 0.234, Pan ep 3/15). Pred avg TODO. |
 | rv_fac | regression | 80,046 | Not started (CSV ready) |
 | rv_basal_dim | regression | -- | **BLOCKED** (labels not built) |
 

@@ -1,6 +1,6 @@
 # Roadmap
 
-Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-19.
+Consolidated view of outstanding work across UHN and MIMIC pipelines. Updated 2026-03-20.
 
 Source of truth for paper scope and task priorities: `uhn_echo/nature_medicine/context_files/nature_medicine_task_overview.md`. Comprehensive manuscript task inventory (every experiment in sn-article.tex with status): `uhn_echo/nature_medicine/context_files/dev/manuscript-tasks.md`. Detailed specs in `planning/tasks/`. Per-person assignments in `roles/`. This file is the cross-cutting infrastructure and experiment summary.
 
@@ -82,7 +82,7 @@ Organized by what the manuscript (`sn-article.tex`) actually needs. `‡` marker
 10. **Trajectory expansion** — EF change (UHN+MIMIC), multi-parameter trajectory, new HF diagnosis (MIMIC). §2.5 has ‡ markers on all.
 
 ### P4: Supporting Experiments (Alif/Reza — §2.6 diseases, §2.1 extended data)
-11. **Disease panel** — 9 diseases × 4 models (CSVs ready): HCM, amyloidosis, takotsubo, STEMI, endocarditis, DCM, bicuspid AV, myxomatous MV, rheumatic MV.
+11. **Disease panel** — 9 diseases × 4 models. **Labels rebuilt** (2026-03-20): `build_disease_labels.py` with full provenance. NPZs in `labels_v2/` (patient-propagated) and `labels_v2_study_level/` (conservative). Probe CSVs not yet built from new NPZs. See `DISEASE_PROVENANCE.md` for per-disease confidence tiers.
 12. **Additional hemodynamics** — diastolic function, PA pressure, cardiac output (CSVs need B-mode filter build).
 
 ### P5: Delegated Work (blocked on other people)
