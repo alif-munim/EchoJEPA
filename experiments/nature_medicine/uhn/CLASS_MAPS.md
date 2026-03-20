@@ -302,33 +302,55 @@ documented in surviving code.
 ## Classification: Disease Detection (9 tasks)
 
 Binary (0/1) tasks. Positive cohorts built from disease-specific observations, findings,
-and free-text search across Syngo reports and HeartLab data. Negative controls are matched.
-**Original build code is not available** (deleted notebook).
+and free-text search across Syngo reports and HeartLab data. Negative controls are
+clinically-matched hard negatives (not random).
 
-| Task | Pos | Neg | Total | Syngo Obs Coverage | HeartLab Coverage |
-|------|-----|-----|-------|-------------------|-------------------|
-| disease_amyloidosis | 1,473 | 12,426 | 13,899 | -- | -- |
-| disease_bicuspid_av | 7,382 | 117,110 | 124,492 | 18% (AoV_structure_uhn/sD_obs) | ~80% (estimated) |
-| disease_dcm | 1,716 | 20,173 | 21,889 | -- | -- |
-| disease_endocarditis | 11,286 | 19,187 | 30,473 | 1.3% (UHN_Endocarditis_obs) | ~98% (estimated) |
-| disease_hcm | 12,655 | 60,807 | 73,462 | -- | -- |
-| disease_myxomatous_mv | 1,931 | 7,935 | 9,866 | 19% (MV_Structure_functionuhn_obs) | ~80% |
-| disease_rheumatic_mv | 2,131 | 2,096 | 4,227 | 12.5% (MV_Structure_functionuhn_obs) | ~87% |
-| disease_stemi | 8,815 | 2,437 | 11,252 | -- | -- |
-| disease_takotsubo | 399 | 8,808 | 9,207 | -- | -- |
+**Build script:** `build_disease_labels.py` (created 2026-03-20). Full provenance in
+`DISEASE_PROVENANCE.md`. **Recommended: `labels_v7_study_level/`** (v7 = v6 + STEMI ischemic obs fix + myxomatous criteria negation + endocarditis dropped).
 
-**Key finding:** Syngo structured observations account for only 1-19% of positive cases.
-The majority come from HeartLab findings (SENTENCE-based or HLCODE-based) and possibly
-free-text reports. The `hcm_hard_control_cohort.csv` in `data_exploration/` documents
-that HCM positives were identified from "hypertrophic cardiomyopathy/HOCM/HCM" free-text
-search (2,757 Syngo patients + 12,431 HeartLab patients).
+### Source Architecture
 
-**Cohort design notes:**
-- Negative controls were likely matched but matching criteria are undocumented
-- `disease_rheumatic_mv` has near-equal pos/neg (2,131 vs 2,096), suggesting 1:1 matching
-- `disease_stemi` has more positives than negatives (8,815 vs 2,437), unusual for case-control
-- `disease_takotsubo` is extremely rare (399 positive studies)
-- WARNING: Some positive cohorts may include indication/rule-out labels (see DATASET_PROVENANCE.md)
+Three label sources queried per disease, then unioned:
+1. **Syngo structured obs** (`syngo_observations`): Name/Value lookup (1-16% of positives)
+2. **HeartLab findings** (SENTENCE + NOTE): SENTENCE path via `heartlab_findings.SENTENCE` (~90% of HL matches), NOTE free-text (supplementary). ~60-93% of positives.
+3. **Syngo free-text**: `syngo_analytics_study` + `syngo_study_details` (StudyComments, PatientHistory). 4-41% of positives.
+
+Negation filtering via pattern matching + proximity negation (v5). Word boundary validation for short acronyms (v5). `--exclude_indication` removes referral fields. `--require_heartlab` drops studies confirmed only by Syngo free-text.
+
+### Disease Summary (v7.2 study-level, 8 diseases)
+
+| Task | Pos | Neg | Neg Control | Notes |
+|------|-----|-----|-------------|-------|
+| disease_hcm | 10,264 | 38,072 | Concentric LVH | v7.1: -1,246 neg (HCM indication cross-check) |
+| disease_dcm | 2,438 | 14,023 | HF without DCM | |
+| disease_bicuspid_av | 7,390 | 177,415 | Tricuspid AV | |
+| disease_amyloidosis | 747 | 10,247 | HCM | v7.2: -3 pos (family history exclusion) |
+| disease_rheumatic_mv | 2,292 | 1,104 | Non-rheumatic MS | v7.2: -113 neg (finding-group exclusion, spacing fix) |
+| disease_stemi | 603 | 1,125 | NSTEMI | v7: ischemic obs disabled |
+| disease_myxomatous_mv | 4,989 | 121,696 | Non-myxomatous MR | v7.2: -548 pos (VALVE/ROOT DISEASE group excluded) |
+| disease_takotsubo | 74 | 602 | STEMI | Most pos hedged; N=74 |
+| ~~disease_endocarditis~~ | — | — | — | **DROPPED v7**: 30% precision, unfixable |
+
+Four audit rounds: 50 pos auto (seed=789), 10+10 manual (seeds 42, 9999, 7777).
+Full provenance, per-sample verdicts, and known limitations in `DISEASE_PROVENANCE.md`.
+
+### Cohort Design Notes
+
+- All negative cohorts are **hard negatives** (clinically similar conditions), not random controls
+- Endocarditis negatives are studies where endocarditis was specifically ruled out
+- **STEMI v4 was catastrophically broken** — `LIKE '%STEMI%'` matched "systemic" (89.6% of HL matches false). v5 uses word boundary regex.
+- Takotsubo has only 74 positives in v5 — may be underpowered for probe training
+- STEMI test set is 173 studies — small but usable
+- Endocarditis 88% precision has residual RO leaks from non-adjacent negation
+
+### Confidence Tiers (v6 automated + manual raw-text audit)
+
+| Tier | Diseases | Audit Prec | Manual | Recommendation |
+|------|----------|:----------:|:------:|----------------|
+| **Use confidently** | HCM, DCM, Bicuspid AV, STEMI, Amyloidosis, Rheumatic MV | 96-100% | Clean | Include in manuscript |
+| **Use with caveats** | Myxomatous MV | 100% | Neg class impure | Include; some negs have no MR |
+| **Use with caveats** | Takotsubo | 98% | Pos hedged | Include; most pos are "?takotsubo" queries. N=74 |
+| **Problematic** | Endocarditis | 80% | 2/3 pos false | Use with strong caveat; intervening-word negation unfixable |
 
 ---
 
@@ -356,7 +378,7 @@ search (2,757 Syngo patients + 12,431 HeartLab patients).
 | Cardiac rhythm | 1/1 | 99.9% class match from echo.db |
 | RV function | 1/1 | 80% class match (merge logic uncertain) |
 | RWMA | 1/1 | Not verifiable (multi-source, undocumented logic) |
-| Disease detection | 9/9 | NPZ counts confirmed; source cohort logic undocumented |
+| Disease detection | 9/9 | Rebuilt v6 with full provenance; 88-100% audit precision |
 
 ### Cross-reference method (classification)
 

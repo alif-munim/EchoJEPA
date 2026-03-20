@@ -174,13 +174,14 @@ def main():
         help="Base directory for UHN data",
     )
     parser.add_argument("--output_dir", type=str, default=None)
+    parser.add_argument("--labels_dir", type=str, default=None, help="Override labels directory (default: {base_dir}/labels)")
     args = parser.parse_args()
 
     if not args.task and not args.tasks and not args.all:
         parser.error("Specify --task, --tasks, or --all")
 
     base_dir = args.base_dir
-    labels_dir = os.path.join(base_dir, "labels")
+    labels_dir = args.labels_dir or os.path.join(base_dir, "labels")
     clips_csv = os.path.join(base_dir, "uhn_all_clips.csv")
     index_cache = os.path.join(base_dir, "study_to_clips_index.pkl")
     output_dir = args.output_dir or os.path.join(base_dir, "probe_csvs")
