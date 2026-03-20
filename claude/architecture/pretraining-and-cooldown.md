@@ -60,12 +60,17 @@ All configs live in `configs/train/{vitl16,vith16,vitg16}/`.
 
 ### Echo/MIMIC Configs (single medical dataset)
 
-| Config | Phase | Model | Frames | Crop | Epochs |
-|--------|-------|-------|--------|------|--------|
-| `vitl16/pretrain-mimic-224px-16f.yaml` | pretrain | ViT-L | 16 | 224 | 240 |
-| `vitl16/pretrain-mimic-224px-16f-cont120.yaml` | pretrain (continuation) | ViT-L | 16 | 224 | 120 |
-| `vitg16/pretrain-336px-16f-echo.yaml` | pretrain | ViT-g | 16 | 336 | 12 |
-| `vitg16/cooldown-336px-16f-echo.yaml` | cooldown | ViT-g | 16 | 336 | 50 |
+| Config | Phase | App | Model | Frames | Crop | Batch | Epochs |
+|--------|-------|-----|-------|--------|------|-------|--------|
+| `vitl16/pretrain-mimic-224px-16f.yaml` | pretrain | vjepa | ViT-L | 16 | 224 | 128 | 240 |
+| `vitl16/pretrain-mimic-224px-16f-cont120.yaml` | pretrain (cont.) | vjepa | ViT-L | 16 | 224 | 128 | 120 |
+| `vitl16/cooldown-mimic-224px-16f.yaml` | cooldown | vjepa | ViT-L | 16 | 224 | 128 | 60 |
+| `vitl16/pretrain-21-mimic-224px-16f.yaml` | pretrain | **vjepa_2_1** | ViT-L | 16 | 224 | 128 | 120 |
+| `vitl16/cooldown-21-mimic-224px-32f.yaml` | cooldown | **vjepa_2_1** | ViT-L | **32** | 224 | 64 | 30 |
+| `vitb16/pretrain-21-mimic-224px-16f.yaml` | pretrain | **vjepa_2_1** | ViT-B | 16 | 224 | 128 | 120 |
+| `vitb16/cooldown-21-mimic-224px-32f.yaml` | cooldown | **vjepa_2_1** | ViT-B | **32** | 224 | 64 | 30 |
+| `vitg16/pretrain-336px-16f-echo.yaml` | pretrain | vjepa | ViT-g | 16 | 336 | 80 | 12 |
+| `vitg16/cooldown-336px-16f-echo.yaml` | cooldown | vjepa | ViT-g | 16 | 336 | 80 | 50 |
 
 ## Kinetics vs Echo: Key Differences
 
@@ -163,6 +168,103 @@ Two mask generators per sample: one with many small blocks (8 × 15%), one with 
 ```
 
 Saved every epoch. `prune_local_checkpoints()` keeps only the last 4 epoch checkpoints. `robust_checkpoint_loader()` retries up to 3 times with exponential backoff for S3/NFS reliability.
+
+## MIMIC ViT-L Config Analysis
+
+Comparison of MIMIC pretrain/cooldown configs against the V-JEPA 2 paper recipe. See `vjepa2-paper-recipes.md` for full paper numbers.
+
+### What matches the paper
+
+| Parameter | MIMIC Config | Paper | Notes |
+|---|---|---|---|
+| LR scaling | 1.75e-4 | 5.25e-4 × (1024/3072) | Correct linear scaling |
+| Warmup steps | 40ep × 300ipe = 12K | 12,000 | Exact match |
+| LR shape | Warmup → constant | Warmup → constant | Correct |
+| EMA | 0.99925 fixed | 0.99925 fixed | Match |
+| Weight decay | 0.04 | 0.04 | Match |
+| Masking | 8@0.15 + 2@0.7 | [0.15, 0.7] dual | Match |
+| Loss | L1 | L1 | Match |
+
+### Gaps identified
+
+**1. Cooldown doesn't increase frames or resolution.**
+Paper goes 16→64 frames and 256→384px during cooldown. MIMIC cooldown stays at 224px/16 frames. The paper shows +1.3% IN1K, +1.2% SSv2, +0.7% K400 from resolution increase alone. However, the V-JEPA 2 recipe (4fps × 64 frames = 16s) is impossible on MIMIC data (max video is 6s). See recommended alternative below.
+
+**2. Training passes through data.**
+Paper: ~35 passes (252K steps × 3072 batch / 22M samples). MIMIC: ~140 passes (72K × 1024 / 525K). 4× more passes through data, but rising loss during JEPA pretraining is expected (see below) and doesn't indicate overfitting.
+
+**3. Resolution is 224px vs 256px.**
+14×14 spatial grid vs 16×16 = 196 vs 256 tokens/frame. Acceptable for VideoMAE comparison but not optimal.
+
+**4. FPS is 8 vs 4.**
+Gives 2s vs 4s temporal window. Reasonable for echo (fast, repetitive motion), but narrower context.
+
+### Recommended MIMIC cooldown (frame increase)
+
+Based on video statistics (see `data/mimic-video-statistics.md`): MIMIC videos are 30fps native, median 74 frames (2.5s), ~42% single-frame stills.
+
+Best feasible cooldown: **24fps, 32 frames**:
+- 100% coverage (all videos have ≥32 native frames)
+- 1.3s temporal window (1–2 cardiac cycles)
+- 2× tokens (3136 vs 1568) — halve batch to 64/GPU
+- No padding needed for actual videos
+
+```yaml
+# Suggested cooldown-mimic-224px-32f.yaml
+data:
+  dataset_fpcs: [32]
+  fps: 24
+  batch_size: 64       # halved for 2x tokens
+optimization:
+  epochs: 30            # ~9K steps
+  lr: 1.75e-4
+  final_lr: 1.0e-6
+  is_anneal: true
+  warmup: 0
+```
+
+## Loss Curve Behavior in JEPA Pretraining
+
+**Rising pretraining loss is expected and normal** for V-JEPA / joint-embedding methods. The target encoder is updated via EMA of the online encoder. As the encoder learns better representations, prediction targets become harder (more informative), so L1 loss naturally rises — even as downstream feature quality improves.
+
+From Meta maintainer David Fan ([issue #56](https://github.com/facebookresearch/vjepa2/issues/56)):
+> "The pretraining loss is not a 'traditional' loss...the target is moving (we use EMA)...if the prediction target becomes easier, the loss will look nice, but maybe the model didn't learn anything useful."
+
+Typical JEPA loss curve: sharp drop in early epochs → gradual rise for the remainder of training. **Later checkpoints with higher loss produce better downstream probe results.** Multiple users independently confirmed this pattern across datasets (ImageNet, Kinetics, custom data).
+
+**What to watch for:**
+- **Gradual loss rise**: Normal, indicates improving representations
+- **Sudden loss drop**: Potential partial collapse — may need restart with different seed or hyperparameter tuning ([issue #74](https://github.com/facebookresearch/vjepa2/issues/74))
+- **Downstream probe evaluation**: The only reliable way to assess feature quality. The paper evaluates every 60K steps.
+
+V-JEPA 2.0 ViT-L on MIMIC showed this exact pattern: 0.53 → 0.47 (epoch 9) → 0.57 (epoch 224). This is healthy training, not overfitting.
+
+## V-JEPA 2.1 Pretraining
+
+The V-JEPA 2.1 training loop lives in `app/vjepa_2_1/train.py` (set `app: vjepa_2_1` in config). See `vjepa21-code-diff.md` for architecture differences and `vjepa2-paper-recipes.md` for hyperparameters.
+
+Key config additions for 2.1:
+```yaml
+app: vjepa_2_1
+loss:
+  predict_all: true           # context loss
+  weight_distance_loss: false  # distance-weighted context loss
+  offset_context_loss: false
+model:
+  lambda_value_vid: 0.5       # context loss weight (video)
+  lambda_value_img: 0.7       # context loss weight (image)
+  lambda_progressive: false    # IMPORTANT: hardcoded warmup (15K-30K steps) assumes 135K+ total steps.
+                               # For short runs (<40K steps), set false for constant lambda from step 0.
+  levels_predictor: 4          # hierarchical 4-layer output (1 for distilled checkpoints)
+  n_output_distillation: 4     # must match levels_predictor (1 for distilled checkpoints)
+  normalize_predictor: false
+  modality_embedding: true     # required for distilled checkpoints (have img/video mod embeds)
+  img_temporal_dim_size: 1     # required for distilled checkpoints (have patch_embed_img)
+```
+
+**Distilled vs full 2.1 configs**: Public ViT-B/L checkpoints are distilled from ViT-G and use `n_output_distillation: 1`, `levels_predictor: 1`, `pred_depth: 12`. Full 2.1 recipe (ViT-g/G) uses `4`, `4`, `24`. See `vjepa21-code-diff.md` for details.
+
+**Operational notes**: ViT-B MIMIC training verified at 3.4s/iter on 8× A100 80GB (batch=128, num_workers=4). batch=256 caused OOM; num_workers=8 exhausted /dev/shm. See `vjepa21-code-diff.md` operational notes for full issue tracker.
 
 ## Distributed Training
 

@@ -8,7 +8,9 @@ Technical documentation for the codebase internals.
 
 | File | Contents |
 |------|----------|
-| `pretraining-and-cooldown.md` | Two-phase training (pretrain vs cooldown), LR schedules, masking strategies, kinetics vs echo config differences, resume/force-load behavior |
+| `pretraining-and-cooldown.md` | Two-phase training (pretrain vs cooldown), LR schedules, masking strategies, kinetics vs echo config differences, resume/force-load behavior, MIMIC config analysis, V-JEPA 2.1 config reference |
+| `vjepa2-paper-recipes.md` | Official V-JEPA 2 and 2.1 training recipes extracted from the papers: hyperparameters, progressive resolution, data, masking, scaling rules, ablation results |
+| `vjepa21-code-diff.md` | V-JEPA 2.1 vs 2.0 code differences, EchoJEPA ports, checkpoint compatibility (distilled vs full, shape mismatches, ema_encoder). MIMIC configs for ViT-B and ViT-L. Operational notes from first training run: 7 issues fixed, verified perf (3.4s/iter on 8×A100), monitoring commands |
 | `probe-system.md` | Frozen probe evaluation: attentive/linear/MLP heads, classification vs regression, view-filtered training pipeline, DistributedStudySampler, multi-view fusion, hyperparameter grid search, inference mode, prediction output |
 | `classifier-pipeline.md` | ConvNeXt/Swin classifier pipeline: training, cooldown, 18M inference, data prep stages, label mappings, experiment history |
 
@@ -24,6 +26,7 @@ Datasets, database schemas, and manuscript scope.
 | `uhn-database.md` | UHN echocardiography database (echo.db, Syngo/HeartLab schemas, rare disease cohorts) |
 | `uhn-mapping.md` | DICOM UID → Syngo StudyRef mapping chain: deid key files, date extraction patterns, coverage analysis, patient ID systems, HeartLab bridge, action items |
 | `mimic-database.md` | MIMIC-IV linked to echo (prediction targets, biomarker coverage, data engineering notes) |
+| `mimic-video-statistics.md` | MIMIC echo video statistics (n=50 sample): 30fps native, median 74 frames/2.5s, 42% stills, frame coverage at different FPC/fps settings, cooldown feasibility analysis |
 
 ## preprint/
 
