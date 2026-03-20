@@ -1,0 +1,114 @@
+# configs/train/vitb16/pretrain-21-mimic-224px-16f.yaml
+# V-JEPA 2.1 domain adaptation on MIMIC-IV-Echo, ViT-B (80M params).
+# Distilled from ViT-G-384. Smaller/faster alternative to ViT-L.
+#
+# Launch:
+#   python -m app.main --fname configs/train/vitb16/pretrain-21-mimic-224px-16f.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+app: vjepa_2_1
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 220G
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain_21/mimic/vjepa2_1_vitb_224px_16f
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /home/sagemaker-user/user-default-efs/vjepa2/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
+  batch_size: 128               # match ViT-L; batch=256 caused OOM with 2.1 context loss overhead
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4                  # reduced from 8; 8*8=64 persistent workers exhaust /dev/shm
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+  shift_by_n: 0
+  predict_all: true
+  weight_distance_loss: false
+  offset_context_loss: false
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: true
+  read_checkpoint: null
+  save_every_freq: 5
+  s3_checkpoint_uri: "s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/vjepa-2.1-b/"
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_base            # 80M params, embed=768, depth=12
+  pred_depth: 12                  # distilled checkpoint
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  n_output_distillation: 1        # distilled: single-layer prediction
+  lambda_value_vid: 0.5
+  lambda_value_img: 0.5
+  lambda_progressive: false        # constant lambda from step 0 (hardcoded warmup thresholds assume 135K+ steps)
+  levels_predictor: 1
+  normalize_predictor: false
+  modality_embedding: true
+  img_temporal_dim_size: 1
+  interpolate_rope: true
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  use_rope: true
+  zero_init_mask_tokens: true
+  has_cls_first: false
+  is_causal: false
+  pred_is_causal: false
+  n_registers: 0
+  n_registers_predictor: 0
+
+optimization:
+  force_load_pretrain: false      # switched to resume from latest.pt
+  anneal_ckpt: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/vjepa2_1_vitb.pt
+  is_anneal: false
+
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+
+  # LR scaled: 5.25e-4 * (1024/3072) = 1.75e-4 (same as ViT-L)
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+
+  ipe: 300
+  ipe_scale: 1.25
+  warmup: 40                     # 40 * 300 = 12K steps (matches paper and ViT-L)
+
+  # 120 epochs * 300 ipe = 36K steps, ~70 passes (same as ViT-L)
+  # Set force_load_pretrain: false + load_checkpoint: true to resume
+  epochs: 120

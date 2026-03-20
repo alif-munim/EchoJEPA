@@ -1,0 +1,117 @@
+# configs/train/vitl16/cooldown-21-mimic-224px-32f.yaml
+# V-JEPA 2.1 cooldown on MIMIC-IV-Echo with frame increase (16→32 frames).
+# Increases temporal context: 32 frames at 24fps = 1.3s (1-2 cardiac cycles).
+# All MIMIC videos have ≥32 native frames at 24fps — no padding needed.
+#
+# Launch:
+#   python -m app.main --fname configs/train/vitl16/cooldown-21-mimic-224px-32f.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+app: vjepa_2_1
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 220G
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/cooldown_21/mimic/vjepa2_1_vitl_224px_32f
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /home/sagemaker-user/user-default-efs/vjepa2/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
+  batch_size: 64                  # halved from 128 (2x tokens from 2x frames)
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [32]             # 2x frames for cooldown (was 16)
+  fps: 24                        # high temporal resolution; all videos have ≥32 native frames
+  tubelet_size: 2
+  num_workers: 8
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+  shift_by_n: 0
+  predict_all: true
+  weight_distance_loss: false
+  offset_context_loss: false
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: true           # resume cooldown if interrupted
+  read_checkpoint: null
+  save_every_freq: 5
+  seed: 239
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  n_output_distillation: 1
+  lambda_value_vid: 0.5
+  lambda_value_img: 0.5
+  lambda_progressive: false       # no warmup during cooldown (paper sets false)
+  levels_predictor: 1
+  normalize_predictor: false
+  modality_embedding: true
+  img_temporal_dim_size: 1
+  interpolate_rope: true
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  use_rope: true
+  zero_init_mask_tokens: true
+  has_cls_first: false
+  is_causal: false
+  pred_is_causal: false
+  n_registers: 0
+  n_registers_predictor: 0
+
+optimization:
+  is_anneal: true                 # linear LR decay
+  resume_anneal: true             # can resume cooldown if interrupted
+
+  # Force-load from pretrain output
+  force_load_pretrain: true       # set false + load_checkpoint true to resume cooldown
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain_21/mimic/vjepa2_1_vitl_224px_16f/latest.pt
+
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+
+  # LR: linear decay 1.75e-4 → 1e-6
+  start_lr: 1.75e-4
+  lr: 1.75e-4
+  final_lr: 1.0e-6
+
+  ipe: 300
+  ipe_scale: 1.0                  # schedule reaches final_lr exactly at end
+
+  warmup: 0                      # no warmup for cooldown
+
+  # 30 epochs * 300 ipe = 9K steps (paper uses 12K at 3x batch)
+  epochs: 30
