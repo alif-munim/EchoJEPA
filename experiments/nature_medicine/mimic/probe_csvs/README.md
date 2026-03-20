@@ -96,7 +96,7 @@ probe_csvs/
   misc/                    # Original 23 MIMIC tasks (mortality, biomarkers, diseases, etc.)
 ```
 
-Patient-level splits (70/15/15) ensure no patient appears in multiple splits.
+Patient-level **temporal** splits (70/15/15 by earliest study date) ensure no patient appears in multiple splits and no temporal leakage. Train: 2109–2176, Val: 2176–2188, Test: 2188–2211 (MIMIC shifted years).
 
 ## Probe Architecture
 
