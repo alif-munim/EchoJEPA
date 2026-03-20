@@ -53,11 +53,23 @@ class MaskCollator(object):
 
     def __call__(self, batch):
 
-        # Batch: [buffer, label, clip_indices]
+        # Batch: [buffer, label, clip_indices, ...] for video
+        # or [buffer, label] for images
+        # clip_indices is always the 3rd element (index 2) when present
         filtered_batches = {fpc: [] for fpc in self.mask_generators}
         for sample in batch:
-            fpc = len(sample[-1][-1])
-            filtered_batches[fpc] += [sample]
+            fpc = 1  # default for images / stills
+            if len(sample) >= 3:
+                # clip_indices is sample[2]; look for frame indices in the last sub-list
+                clip_indices = sample[2]
+                if isinstance(clip_indices, (list, tuple)) and len(clip_indices) > 0:
+                    last_clip = clip_indices[-1]
+                    if isinstance(last_clip, (list, tuple)):
+                        fpc = len(last_clip)
+                    elif hasattr(last_clip, '__len__'):
+                        fpc = len(last_clip)
+            if fpc in filtered_batches:
+                filtered_batches[fpc] += [sample]
 
         fpc_collations = []
         for fpc in filtered_batches:
@@ -71,7 +83,9 @@ class MaskCollator(object):
                 masks_enc, masks_pred = mask_generator(batch_size)
                 collated_masks_enc.append(masks_enc)
                 collated_masks_pred.append(masks_pred)
-            fpc_collations += [(collated_batch, collated_masks_enc, collated_masks_pred)]
+            fpc_collations += [
+                (collated_batch, collated_masks_enc, collated_masks_pred)
+            ]
 
         return fpc_collations
 
