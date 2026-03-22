@@ -1,0 +1,543 @@
+\documentclass[]{fairmeta}
+% Option "twocolumn" available, but please prioritize single-column
+\usepackage{arydshln}
+\usepackage{makecell}
+\usepackage{amssymb}
+\usepackage{pifont}
+\usepackage{tabularx}
+\usepackage{wrapfig}
+\usepackage{bbding}
+%\usepackage{optimistic}
+\newcolumntype{C}{>{\centering\arraybackslash}p{0.19\textwidth}}
+\newcolumntype{D}{>{\centering\arraybackslash}p{0.24\textwidth}}
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+
+\title{V-JEPA 2.1: Unlocking Dense Features in Video Self-Supervised Learning}
+
+\author[1,2,*]{Lorenzo Mur-Labadia}
+\author[1]{Matthew Muckley}
+\author[1]{Amir Bar}
+\author[1]{Mido Assran}
+\author[1]{Koustuv Sinha}
+\author[1]{Mike Rabbat}
+\author[1]{Yann LeCun}
+% \author[1]{}
+\author[1,\dagger]{Nicolas Ballas}
+\author[1,\dagger]{Adrien Bardes}
+
+\affiliation[1]{FAIR at Meta}
+\affiliation[2]{Universidad de Zaragoza}
+
+\contribution[*]{Work done at Meta}
+\contribution[\dagger]{Joint last author}
+
+\newcommand{\nicolas}[1]{\textcolor{blue}{Nicolas: #1}}
+\newcommand{\adrien}[1]{\textcolor{orange}{Adrien: #1}}
+\newcommand{\matt}[1]{\textcolor{purple}{Matt: #1}}
+\newcommand{\loren}[1]{\textcolor{brown}{Loren: #1}}
+\newcommand{\mike}[1]{\textcolor{magenta}{Mike: #1}}
+
+\newcommand{\TODO}[1]{\textcolor{red}{TODO: #1}}
+
+
+\abstract{
+% Animals and humans understand a lot from the world through passive observation of their environement. In opposition, modern AI systems have limited understanding of the physical world, and lack basic notions of intuitive physics and visual reasonning. Self-Supervised Learning from video is a promising approach to bridge this capability gap.
+% Towards this goal, we introduce V-JEPA 2.1, a fundamental improvement to the V-JEPA training recipe that focuses on learning high quality dense video features. By making our prediction loss hierarchical, and appling it on the full spatio-temporal context, we significantly increase the quality of the learned dense features, demonstrated with visually appearing and consistent across time PCA maps. This improvement unlocks state-of-the-art performance on dense downstream applications such as image segmentation (XX mIoU on ADE20k linear evaluation), video segmentation (XX Y on DAVIS-S), depth estimation (XX Y on NYUv2) and localized prediction (XX Y on Ego4d Short-Term Anticipation), while maintaning the performance of V-JEPA 2 on standard global video understanding tasks.
+% This work is a step towards better representations for physical world models, unlocking impactful applications in video understanding along the way.
+
+% AI Improved verion:
+
+%Animals and humans gain a deep understanding of the world through passive observation of their environment. In contrast, 
+
+%Modern AI systems exhibit limited comprehension of the physical world, lacking fundamental capabilities such as understanding visual semantics, motion and dynamics, and object interactions. Self-supervised learning from video is promising avenue to bridge this gap in capability, and in pursuit of this goal, V-JEPA 2 demonstrated that self-supervised learning at scale unlocks high-quality visual and motion features with state-of-the-art performance on global understanding downstream tasks. However, we identified that V-JEPA 2 is severely limited on dense tasks that require pixel-level understanding. Reliable estimates of depth, object placement, and dynamics enable better prediction and control, are essential components for robotics and autonomous systems, and performance on dense tasks is therefore a key challenge towards AI systems that can perceive and interact with the physical world. \\
+%In this work, we introduce V-JEPA 2.1, a significant advancement in the V-JEPA training methodology, designed to learn high-quality, dense video features. As opposed to V-JEPA 2, our approach employs a hierarchical prediction loss applied to the spatio-temporal locations that corresponds to the context of the prediction \textit{in addition} to the locations to predict, substantially enhancing the quality of the learned dense features, as evidenced by visually coherent and temporally consistent PCA maps. V-JEPA 2.1 achieves strong performance on frozen dense downstream tasks, including image segmentation (85.0 mIoU on Pascal VOC linear evaluation), video segmentation (72.7 $\mathcal{J}\&\mathcal{F}$-Mean on Youtube-VOS), depth estimation (0.307 RMSE on NYUv2), and short-term action anticipation (7.71 mAP on Ego4d), while maintaining a strong performance on global video understanding tasks (77.7$\%$ on Something-Something-v2). Our work represents a step towards more robust and versatile spatio-temporal representations for physical world modeling, enabling impactful applications in video understanding.
+
+%We introduce V-JEPA 2.1, a family of self-supervised models that capture high-quality dense features within visual scenes—both images and videos—while simultaneously enabling robust global understanding of the scene.
+%The V-JEPA 2.1 approach leverages: (1) Weighted-Context Self-Supervision, where both masked and unmasked tokens contribute to the self-supervised  training objective; (2) Deep Self-Supervision, which applies the self-supervised loss at multiple intermediate representations of the encoder models;  (3) Multi-Modal Tokenizers for images and videos; and we show that our approach benefit from (4) model and  data scaling . These contributions enhance the quality of the learned dense features, as evidenced by spatially structured, semantically coherent and temporally consistent PCA visualizations. 
+%Using a frozen-encoder evaluation protocol, V-JEPA 2.1 achieves state-of-the-art performance on prediction tasks, including short-term object-interaction anticipation (7.71 mAP Overall on Ego4D) and action anticipation (40.8 Recall@5 on Epic-Kitchens 100).
+%The spatio-temporal consistency enforced during video-based self-supervised training further yields to state-of-the-art in linear-probe depth estimation (0.307 RMSE on NYUv2,), obtains temporally consistent features for video object segmentation (72.7 $\mathcal{J}\&\mathcal{F}$-Mean on YouTube-VOS), and shows competitive semantic segmentation performance (85.0 mIoU on VOC12, linear probe).
+%V-JEPA 2.1 also supports strong global scene understanding, achieving  state-of-the-art in action-recognition accuracy (77.7$\%$ on Something-Something-v2).
+%Finally, \nicolas{todo mentions key planning results}
+%Our work represents a step towards more robust and versatile spatio-temporal representations for physical world modeling.
+
+%% Abstract v3
+%We introduce V-JEPA 2.1, a family of self-supervised models that capture high-quality dense features within visual scenes—both images and videos—while simultaneously enabling robust global understanding of the scene.
+%Our approach makes three technical contributions: (1) \textbf{Dense Predictive Loss}, a masking-based self-supervision objective where \emph{all tokens} (both visible/context and masked tokens) contribute to the self-supervised training loss to enforce their spatio-temproal grounding; (2) \textbf{Deep Self-Supervision}, which applies the self-supervised loss hierarchically at multiple intermediate representations of the encoder models; (3) \textbf{Multi-Modal Tokenizers} for images and videos; and we show that our approach benefit from (4) \textbf{Model and data scaling}. These contributions enhance the quality of the learned dense features, as evidenced by spatially structured, semantically coherent and temporally consistent PCA visualizations.
+%Emprically, V-JEPA 2.1 achieves state-of-the-art performance on prediction tasks, including low-level short-term object-interaction anticipation (7.71 mAP Overall on Ego4D) and high-level action anticipation (40.8 Recall@5 on EpicKitchen-100).
+%\nicolas{todo mentions key planning results}
+%V-JEPA 2.1 further yields state-of-the-art in dense understanding tasks (0.307 RMSE on NYUv2 using a linear-probe protocol) and global scene understanding (77.7$\%$ on Something-Something-v2).
+%obtains temporally consistent features for video object segmentation (72.7 $\mathcal{J}\&\mathcal{F}$-Mean on YouTube-VOS), and shows competitive semantic segmentation performance (85.0 mIoU on VOC12, linear probe).
+%V-JEPA 2.1 also supports strong global scene understanding, achieving state-of-the-art in action-recognition accuracy (77.7$\%$ on Something-Something-v2).
+%Our work represents a step towards more robust and versatile spatio-temporal representations for physical world modeling.
+
+%% Abstract v4
+We present \textbf{V-JEPA 2.1}, a family of self-supervised models that learns \emph{dense}, high-quality representations for visual scenes in both images and videos, while retaining strong \emph{global} scene understanding. V-JEPA 2.1 combines four key ingredients: (i) a \textbf{Dense Predictive Loss}, a masking-based objective in which \emph{all} tokens---visible context and masked tokens alike---contribute to the training loss, encouraging explicit spatial and temporal grounding; (ii) \textbf{Deep Self-Supervision}, which applies the self-supervised objective hierarchically at multiple intermediate encoder layers to improve representation quality ; (iii) \textbf{Multi-Modal Tokenizers} that support unified training over images and videos; and (iv) effective \textbf{model and data scaling}. These design choices substantially improve dense feature quality, yielding representations that are spatially structured, semantically coherent, and temporally consistent. 
+. Empirically, V-JEPA 2.1 achieves state-of-the-art results on a range of benchmarks: 7.71 mAP on Ego4D for short-term object-interaction anticipation, 40.8 Recall@5 on EPIC-KITCHENS for high-level action anticipation, and a 20\% improvement in real-robot grasping success rate over VJEPA-2 AC. The model also demonstrates state-of-art performances in robotic navigation (5.687 ATE on Tartan Drive), depth estimation (0.307 RMSE on NYUv2 with a linear probe), and global recognition (77.7\% on Something-Something-V2).
+Our results demonstrate that V-JEPA 2.1 advances the state of the art in dense visual understanding and world modeling.
+
+%Empirically, V-JEPA 2.1 achieves state-of-the-art results on prediction and anticipation benchmarks, including low-level short-term object-interaction anticipation on Ego4D (7.71 mAP Overall) and high-level action anticipation on EPIC-KITCHENS (40.8 Recall@5). We further show that better dense-features also improves performances on world modelling planning tasks (+20\% success rate on Grasp with a real robot compared to VJEPA-2 AC) and also achieves state-of-art performances on robotic navigations (1.038 ATE on Tartan Drive). Additionally, V-JEPA 2.1 achieves state-of-the-art performance on dense understanding tasks such  depth estimation (0.307 RMSE  on NYUv2  using a linear-probe protocol), and on global recognition benchmarks such as Something-Something-V2 (77.7\%).
+
+
+}
+
+\date{\today}
+\correspondence{\email{lmur@unizar.es}, \email{abardes@meta.com}}
+
+% You can add additional metadata fields as follows 
+\metadata[Code]{\url{https://github.com/facebookresearch/vjepa2}}
+%\metadata[Blogpost]{\url{https://ai.meta.com/blog/?page=1}}
+
+\begin{document}
+
+\maketitle
+
+%\begin{figure}[t]
+%\centering
+%\setlength{\tabcolsep}{1pt}
+%\renewcommand{\arraystretch}{1.2}
+
+%\begin{tabularx}{\textwidth}{ccc @{\hspace{2mm}} ccc}
+
+    % Encabezados
+    %\multicolumn{3}{c}{\textbf{Image-based}} &
+    %\multicolumn{3}{c}{\textbf{Video-based}} \\
+
+%    \textbf{Image} & \textbf{V-JEPA 2} & \textbf{V-JEPA 2.1}
+%    &
+%    \textbf{Frames sequence} & \textbf{V-JEPA 2} & \textbf{V-JEPA 2.1} \\
+
+    % Row 1
+%    \raisebox{0.25\height}{\includegraphics[width=0.16\textwidth]{cityscapes_imgs/step6_img.png}} &
+%    \raisebox{0.25\height}{\includegraphics[width=0.16\textwidth]{cityscapes_imgs/step6_features.png}} &
+%    \raisebox{0.25\height}{\includegraphics[width=0.16\textwidth]{cityscapes_imgs/step6_ours.png}}  &
+%    \includegraphics[width=0.16\textwidth]{diving_3/NEW_IMG_X1.png} &
+%    \includegraphics[width=0.16\textwidth]{diving_3/NEW_IMG_X4.png} &
+%    \includegraphics[width=0.16\textwidth]{diving_3/img13.png} \\
+    %\includegraphics[width=0.16\textwidth]{diving_3/vjepa22.png} &
+    %\includegraphics[width=0.16\textwidth]{diving_3/ours1.png} \\
+
+    % Row 2
+%    \includegraphics[width=0.16\textwidth]{voc12_images/step16_img.png} &
+%    \includegraphics[width=0.16\textwidth]{voc12_images/step16_vjepa2.png} &
+%    \includegraphics[width=0.16\textwidth]{voc12_images/step16_ours.png} &
+%    \includegraphics[width=0.16\textwidth]{diving_3/vjepa22.png} &
+%    \includegraphics[width=0.16\textwidth]{diving_3/vjepa25.png} &
+%    \includegraphics[width=0.16\textwidth]{diving_3/vjepa212.png} \\
+    %\includegraphics[width=0.16\textwidth]{diving_3/ours7.png} \\
+    
+    % Row 3
+%    \includegraphics[width=0.16\textwidth]{voc12_images/step35_img.png} &
+%    \includegraphics[width=0.16\textwidth]{voc12_images/step35_vjepa2.png} &
+%    \includegraphics[width=0.16\textwidth]{voc12_images/step35_ours.png} &
+%    \includegraphics[width=0.16\textwidth]{diving_3/ours1.png} &
+%    \includegraphics[width=0.16\textwidth]{diving_3/ours7.png} &
+%    \includegraphics[width=0.16\textwidth]{diving_3/ours16.png}\\
+
+%\end{tabularx}
+%\caption{\textbf{V-JEPA 2.1 unlocks dense video features}\nicolas{Caption should be self-explanatory}}
+%\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}{0.015\linewidth}
+        \centering
+        \rotatebox{90}{\textbf{V-JEPA 2.1 \quad \quad V-JEPA 2 \quad \quad Image/Video}}
+    \end{minipage}\hfill
+    \begin{minipage}{0.98\linewidth}
+    \centering
+        \includegraphics[width=\linewidth]{sections/teaser_screenshot_5dice_onlyimg_OLD.png}
+    \end{minipage}
+    \caption{\textbf{V-JEPA 2.1 unlocks high-quality dense features.} \normalfont We compute PCA on patch features extracted from the same image or video and map the top three components to RGB channels for both V-JEPA 2 (ViT-g) and V-JEPA 2.1 (ViT-G).
+    Our novel V-JEPA 2.1 produces dense representations with strong spatial and temporal consistency, learning semantically coherent features where similar objects map to the same PCA components.}
+    \label{fig:teaser1}
+\end{figure}
+
+
+
+
+
+
+
+\section{Introduction} \label{section:intro}
+
+
+World models hold the promise of enabling agents to perceive, predict, and plan effectively in the physical world~\citep{sutton1981adaptive,ha2018world,assran2023self}. At the core of these models lies the state-estimation problem: learning representations that reliably summarize the current world state from low-level, noisy perceptual inputs. Self-Supervised Learning (SSL) from video has recently emerged as a powerful route to this goal~\citep{caron2021dino,assran2025v}, because it can exploit large-scale, label-free data to learn representations that capture scene geometry, dynamics, and intrinsic physical properties~\citep{simeoni2025dinov3,garrido2025intuitive}.
+
+
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.99\linewidth]{diagrams/bars_teaser_tikz.pdf}
+    \caption{\textbf{V-JEPA 2.1 ViT-G performance across dense and global prediction tasks.} \normalfont We show the relative improvements of V-JEPA 2.1 compared to the previous V-JEPA 2 ViT-g model~\citep{assran2025v}. We also report the performance of previous SOTA models using a frozen backbone evaluation: DINOv3~\citep{simeoni2025dinov3} is the reference model for depth estimation, object tracking, semantic segmentation, SSv2 action recognition, and image classification; InternVideo2s~\citep{wang2024internvideo2} for K400 action recognition, STAformer~\citep{mur2024aff} for short-term object interaction anticipation, and PlausiVL~\citep{mittal2024can} for action anticipation.
+    Tasks where V-JEPA 2.1 ViT-G obtains SOTA in frozen-backbone evaluation are \underline{underlined}.}
+    % \mike{Are the underlined ones absolute SOTA, or SOTA in frozen backbone eval? It would be good to clarify here and throughout.}}
+    \label{fig:teaser2}
+\end{figure}
+
+
+Despite rapid progress, learning representations that simultaneously preserve \emph{dense} spatio-temporal structure (needed for localization, geometry, and tracking) while also capturing \emph{dynamics} and supporting \emph{global} understanding (needed for high-level recognition) remains an open challenge.
+Among recent advances, Joint Embedding Predictive Architectures (JEPA)~\citep{lecun2022path}—and in particular the V-JEPA family~\citep{bardes2024revisiting, assran2025v}—have demonstrated strong global video understanding, especially in settings that require modeling motion and dynamics, and have shown promise for enabling prediction and planning in embodied agents~\citep{assran2025v}. However, as illustrated in Figure~\ref{fig:teaser1}, their learned representations can be less amenable to extracting fine-grained local spatial structure. In contrast, other SSL approaches such as DINO~\citep{caron2021dino, oquab2023dinov2, simeoni2025dinov3} yield high-quality dense features for detection and segmentation, but are primarily image-based and therefore do not directly learn temporal dynamics from video.
+
+
+%World models hold the promise of enabling agents to understand and plan effectively within the physical world~\citep{sutton1981adaptive,ha2018world,assran2023self}. At the core of these models lies the state-estimation problem~\citep{barfoot2024state}. Learning representations that accurately depict the current world state from low-level and noisy perceptual input is fundamental to developing efficient predictive models and Self-Supervised Learning (SSL) from video has emerged as a powerful approach to learn representations from perceptual inputs~\citep{caron2021dino,assran2023self}. By allowing systems to learn without explicit supervision, SSL can leverage large-scale, label-free data to learn representations that capture scene geometry, dynamics, and intrinsic physical properties~\citep{simeoni2025dinov3,garrido2025intuitive}.
+
+
+
+%Learning representations that capture both dense spatial and temporal structure remains an open challenge.
+%Among recent advances, Joint Embedding Predictive Architectures (JEPA)~\citep{lecun2022path} —and in particular, the V-JEPA family~\citep{bardes2024revisiting, assran2025v} have demonstrated strong global video understanding, especially when requiring an understanding of motion and dynamics.
+%However, as illustrated in Figure~\ref{fig:teaser1}, the local spatinlfjnuvnvkleteegkgcbchjdkdejtigifdhetjgbgrlfdrrvlflbltrttucferkeal structure cannot be easily extracted from the V-JEPA representations. 
+%In contrast, other self-supervised learning approaches such as DINO~\citep{caron2021dino, oquab2023dinov2, simeoni2025dinov3} have proven highly effective for dense tasks such as image detection and segmentation, but only focus on learning from a still image and therefore do not learn to capture temporal dynamics.
+
+In this work, we study self-supervised learning with a latent mask-denoising objective, where the model predicts masked segments of an image or video directly in a learned representation space. Our central finding is that high-quality \emph{dense} spatio-temporal features—preserving fine-grained spatial layout and motion dynamics—do not emerge reliably when the prediction loss is applied only to masked regions. Instead, extending the predictive loss to the \emph{entire} input, both masked and unmasked segments, substantially improves the low-level (dense) representations.
+
+Building on this insight, we introduce \textbf{V-JEPA 2.1}, a self-supervised approach for learning unified image and video representations. V-JEPA 2.1 uses a \emph{dense predictive loss} applied to \emph{all tokens} (both visible context and masked tokens), grounding each token in its spatio-temporal location and preventing visible tokens from acting as global aggregators—an effect that is key to \emph{improving} dense feature quality (Figure~\ref{fig:methods_1}). Additionally, we find that \emph{deep self-supervision}—applying the loss hierarchically at multiple intermediate encoder layers to provide training signals throughout the network—yields consistent gains on both dense and global downstream tasks. To enable native joint training across modalities, we use modality-specific learned tokenizers for images and videos within a single shared encoder. Finally, we show these improvements scale with data and model capacity: expanding the image component from 1M to 142M images using VisionMix-163M and scaling the model from 300M to 2B parameters leads to systematic downstream gains.
+
+
+
+
+%In this work, we introduce V-JEPA 2.1, a self-supervised approach for learning unified image and video representations with a latent mask-denoising objective: the model predicts masked segments of an image or video directly in a learned representation space.
+%V-JEPA 2.1 is designed to produce high-quality \emph{dense} spatio-temporal features that preserve fine-grained spatial structure and motion dynamics, while simultaneously supporting strong \emph{global} scene understanding. To achieve this, we introduce the following contributions:
+%\begin{itemize}
+%    \item \textit{Dense Predictive Loss.} Rather than applying the self-supervised objective only on the masked regions to be predicted, we apply the loss to \emph{all tokens}—both visible (context) and masked tokens—of the input image or video. This grounds every visual token to its spatio-temporal location and prevents context tokens from acting as global aggregators, which is key to improve substantially the  dense features quality (Figure~\ref{fig:methods_1}).
+%    \item \textit{Deep Self-Supervision.} We apply the self-supervised loss not only at the encoder output, but also at multiple intermediate representations. This provides direct training signals throughout the network and yields consistent gains on both dense and global downstream tasks.
+%    \item \textit{Multi-modal Tokenizer.} We leverage modality-specific learned tokenizers for images and videos, enabling a single encoder to process both modalities natively and supporting efficient joint training on mixed image--video data.
+%    \item \textit{Scaling.} We show that V-JEPA 2.1 benefits from data and model scaling: we expand the image component from 1M to 142M images via our VisionMix-163M dataset and scale model size from 300M to 2B parameters, leading to systematic improvements across downstream tasks.
+%\end{itemize}
+
+We train and release a suite of V-JEPA 2.1 models (ViT-g/G, 1B/2B), along with two distilled, smaller variants (ViT-B/L, 80M/300M). Empirically, V-JEPA 2.1 achieves state-of-the-art performance on \emph{predictive} video benchmarks spanning both fine-grained and semantic forecasting: it reaches 7.71 mAP on Ego4D short-term object-interaction anticipation, which requires predicting \emph{where} and \emph{when} interactions will occur (localized interaction regions and time-to-interaction), and 40.8 Recall@5 on EPIC-KITCHENS-100 action anticipation, which evaluates the ability to forecast upcoming actions from partial temporal context. 
+
+We further show that better dense-features also improves performances on world modelling tasks. V-JEPA 2.1 dense-features leads to +20\% success rate compared to VJEPA-2 AC~\citep{assran2025v} on grasping when when deploy our model on real Franka arms in new environment zero-shot. V-JEPA 2.1 is also suitable for robot navigation where it achieves state-of-art performances  (5.687 ATE on Tartan Drive) while having 10x faster planning speed compared to previous work~\citep{Bar_2025_CVPR}.
+
+
+Beyond prediction and planning, V-JEPA 2.1 also delivers strong performance in both \emph{dense} and \emph{global} understanding tasks. For dense tasks, V-JEPA 2.1 ViT-G sets a new state of the art in linear-probe monocular depth estimation (0.307 RMSE on NYUv2), achieves competitive linear-probe semantic segmentation (85.0 mIoU on Pascal VOC), and produces temporally consistent features for video object segmentation (72.7 $\mathcal{J}\&\mathcal{F}$-Mean on YouTube-VOS). At the global level, it also attains state-of-the-art accuracy in action recognition (77.7\% on Something-Something-v2) and achieves competitive performances in Video Question Answering (VQA) tasks (83.1 accuracy on PerceptionTest).
+
+
+
+%V-JEPA 2.1 achieves state-of-the-art performance on short-term action anticipation (7.71 mAP Overall on Ego4d), action anticipation (40.8 Recall@5 on EpicKitchen-100) and action recognition (77.7$\%$ on Something-Something-v2), while demonstrating strong performance on dense vision tasks, including image segmentation (85.0 mIoU on Pascal VOC linear evaluation), video segmentation (72.7 $\mathcal{J}\&\mathcal{F}$-Mean on Youtube-VOS), and depth estimation (0.307 RMSE on NYUv2 linear evaluation). We also provide distilled versions (ViT-S/B/L 20M/80M/300M), covering a range of capacities and use cases. 
+
+%To summarize, our work makes the following key contributions:
+%\begin{itemize}
+    %\item We identify a key limitation of the V-JEPA 2 training methodology: context tokens do not receive supervision, leading to local information being aggregated in those tokens and thus being lost. This is observed with noisy PCA visualization of the feature maps. We propose to apply the loss on context tokens, effectively preventing the aggregation mechanism, and significantly improving the quality of the PCA maps, as show by Figure~\ref{fig:methods_1}. This change is also key in improving performance on dense downstream tasks.
+    %\item We train and release a suite of models (ViT-g/G 1B/2B) and provide distilled versions (ViT-S/B/L 20M/80M/300M), covering a range of capacities and use cases. V-JEPA 2.1 achieves state-of-the-art results on dense tasks such as image and video segmentation, depth estimation, and localized prediction, while maintaining competitive performance on global video understanding benchmarks. Our models perform on par or better than previous approaches such as V-JEPA 2 and DINOv2/3.
+%\end{itemize}
+
+We hope that these contributions will foster research in learning strong representations for physical world modelling, while empowering many applications in video understanding. We make our code and pretrained models publicly available to facilitate further research and applications.
+
+
+
+\input{sections/methods}
+\input{sections/results}
+
+
+\section{Related work} \label{section:related_work}
+
+\paragraph{\textbf{Self-Supervised Learning.}}
+
+Early SSL approaches in vision focus on simple pretext tasks such as predicting the relative position of image patches~\citep{doersch2015context}, reordering shuffled patches~\citep{noroozi2016jigsaw, misra2020pirl}, inpainting missing regions~\citep{pathak2016context}, re-colorizing grayscale images~\citep{zhang2016colorful}, or predicting applied image transformations~\citep{gidaris2018rotnet}. Beyond hand-crafted tasks, view-invariant approaches proposed to use a joint-embedding architecture to learn invariances to visual transformations, which led to significant advances in SSL, with contrastive approaches~\citep{henaff2019data, he2020moco, chen2020simclr}, non-contrastive approaches~\citep{chen2020simsiam, grill2020byol, bardes2021vicreg}, or clustering-based techniques~\citep{caron2018clustering, caron2020swav}. Later, the adoption of vision transformers~\citep{dosovitskiy2020image} became the standard in self-supervised learning, first by revisiting existing view-invariant approaches ~\citep{chen2021mocov3, caron2021dino}, and then with masked image modeling approaches, which can operate in pixel space~\citep{xie2021simmim, wei2021masked}, or in the latent space of the transformer~\citep{Bao2021beit}. Most powerful approaches employ a combination of view-invariant and masked image-modeling techniques~\citep{zhou2021ibot, oquab2023dinov2}. The concept of learning representations by predicting missing information in latent space is formalized by the Joint-Embedding Predictive Architecture (JEPA)~\citep{lecun2022path}, which have been successfully applied across multiple modalities, including audio~\citep{baevski2022data2vec}, images~\citep{assran2023self,barstochastic}, and video~\citep{bardes2024revisiting}.
+
+\paragraph{\textbf{Video Models.}}
+
+Motion cues from videos have inspired many early video pretext tasks. Early methods predicted camera transformations between image pairs~\citep{agrawal2015moving} or future frames from ego-motion~\citep{jayaraman2015ego}. Others brought consecutive frame patches closer in feature space~\citep{wang2015videos} or used unsupervised object retrieval for segmentation~\citep{pathak2017objects}. The rise a large labeled video datasets such as Kinetics~\citep{carreira2017quovadis} changed the focus of the community towards supervised video models. Early approaches used image sequences with late fusion~\citep{donahue2015long} or 3D convolutions~\citep{tran2015learning}, but 3D ConvNets are computationally expensive. Recent work improves efficiency with 2D spatial and 1D temporal convolutions~\citep{tran2018look, xie2018rethinking}, dual-pathways~\citep{feichtenhofer2019slowfast}, and vision transformers adapted for video~\citep{arnab2021vivit, bertasius2021spacetime}. Despite rapid progress, supervised learning requires extensive labeled data and may not fully exploit temporal information, and the focus went back to self-supervised learning.
+
+Early self-supervised learning methods focused on temporal order verification~\citep{misra2016shuffle, xu2019self}, contrastive learning~\citep{han2020self, dave2022tclr}, and future prediction~\citep{han2019video}. Recent masked modeling approaches, like VideoMAE~\citep{tong2022videomae, feichtenhofer2022masl}, extend image-based masking to video. Other advances include masked modeling in CLIP space~\citep{li2023unmasked}, joint image-video training (OmniMAE~\citep{girdhar2023omnimae}), and architectural innovations such as hierarchical transformers~\citep{ryali2023hiera} and decoupled encoders/decoders~\citep{gupta2023decoupled}. Despite progress, defining optimal pretext tasks and efficient video processing remain open challenges.
+
+Scaling existing approaches, both in terms of data and model size, has demonstrated that generalist video encoders can be learned from extensive observation datasets of videos using self-supervised learning~\citep{carreira2024scaling, wang2023videomae, rajasegaran2025empirical}. In particular, Joint-Embedding Predictive architectures show promising efficiency gains at large scale compared to generative approaches~\citep{bardes2024revisiting}, and open the door to applications in world modeling~\citep{assran2025v}. Self-supervised models can also incorporated weak language supervision~\citep{zhao2024videoprism, wang2024internvideo2, bolya2025perception}, unlocking language-based tasks.
+
+
+\paragraph{\textbf{Learning dense features.}}
+
+Learning dense features is often achieved through designing \textit{local} loss functions and objectives, such as leveraging spatio-temporal consistency in videos~\citep{jabri2020space}, spatial alignment between image crops~\citep{pinheiro2020unsupervised, bardes2022vicregl}, and patch consistency~\citep{yun2022patch}. Contrastive learning approaches such as DetCon~\citep{henaff2021efficient} and ORL~\citep{xie2021unsupervised} use region proposals, while newer methods relax this requirement~\citep{henaff2022object, wen2022slotcon}. Recent distillation-based methods combine strengths from multiple encoders, such as AM-RADIO~\citep{ranzinger2024radio}, Perception Encoder~\citep{bolya2025perception}, and DINOv3~\citep{simeoni2025dinov3}, using objectives like cosine similarity and Gram matrix regularization to improve dense features. Some works focus on post-hoc improvements, including fine-tuning with clustering objectives~\citep{ziegler2022self}, patch alignment~\citep{salehi2023time}, and patch-sorting~\citep{pariza2025near}. Others enhance features without fine-tuning, such as STEGO~\citep{hamilton2022unsupervised} and feature augmentation~\citep{simoncini2024no}.
+
+Beyond playing with the loss function, the standard Vision Transformer (ViT)~\citep{dosovitskiy2021vit} can be adapted for dense prediction tasks, \citet{ranftl2021dpt} introduced the Dense Prediction Transformer (DPT), evolving from their prior CNN-based work on MiDaS~\citep{ranftl2020midas}. DPT solved the token-to-pixel problem using a "reassemble" operation that converts the 1D ViT sequence into multi-scale 2D feature maps, which are then fused by a convolutional decoder adapted from RefineNet~\citep{lin2017refinenet}. This design, which leverages the global receptive field of the transformer backbone, proved effective for obtaining structural coherence, moving beyond the limitations of purely hierarchical CNNs. The work also catalyzed parallel research, including the development of purely transformer-based decoders like Segmenter~\citep{strudel2021segmenter} and hierarchical transformer backbones like the Swin Transformer~\citep{liu2021swin} and the Multiscale Vision Transformer~\citep{fan2021multiscale}. DPT architectural framework has proven to be the most influential design for scaling up, serving as the basis for current state-of-the-art foundation models like Depth Anything~\citep{yang2024depthanything}.
+
+
+\section{Conclusion and Future work} \label{section:conclusion}
+
+This work demonstrates how Joint-Embedding Predictive Architectures and Self-Supervised Learning from video unlock high-quality dense local features with strong global semantic understanding.
+Our key ingredient is a novel deep spatio-temporal self-supervision, composed by a weighted context loss and a multi-level predictor that enables supervision across the intermediate encoder layers.
+This design unlocks high-quality dense features that are spatially structured, semantically coherent and temporally consistent, as evidenced by PCA visualizations.
+Beyond the training objective, we demonstrate the importance of modality-specific tokenizers, large-scale and balanced image–video data curation, and scaling to ViT-G, which together enable an effective distillation to compact models.
+Our V-JEPA 2.1 ViT-G achieves absolute state-of-the-art performance in short-term object interaction anticipation, action anticipation and action recognition, showcasing its excellent predictive and motion understanding capabilities. 
+Moreover, the dense feature maps achieve linear-probe state-of-the-art performance in monocular depth estimation and strong results in semantic segmentation and video object tracking. We hope these findings encourage further research on predictive physical world modeling.
+
+%, with a careful design of the loss function, unlock dense video features, which yield excellent downstream performance on dense tasks. The key ingredient is to apply the loss at the spatio-temporal locations corresponding to the context of the prediction \textit{in addition} to the locations to predict, which is highlighted by high-quality and temporally consistent PCA visualizations. V-JEPA 2.1 significantly improves the performance of V-JEPA 2 on image, video segmentation and depth estimation tasks, reaching comparable performance to DINOv3, while preserving the global video understanding capabilities. V-JEPA 2.1 also sets new state-of-the-art performances on prediction tasks: action anticipation, and short-term action anticipation that requires predicting bounding boxes of objects that will interact in the future in ego-centric videos.
+
+
+\paragraph{\bf Future work.} 
+
+Future work will focus on several promising directions. First, scaling along two axes: a) model size, we observe a very positive trend scaling from 1B to 2B and other work such as DINOv3 showed the benefit of scaling to 7B in vision; b) data size, our work on data curation highlighted that video self-supervised learning really benefit from large-scale datasets. Second, this work focus on learning better representation, whereas V-JEPA 2 showed the potential of building world models on top of these representations. Future work in this direction will explore world modeling aspects with the prism of learning dense prediction capabilities~\citep{karypidis2025dinof, baldassarre2025dinow}. Finally, world models with dense understanding and prediction abilities will unlock many applications in robotics and autonomous agents, where a precise estimation of the state down to the pixel level is required, for example navigation in challenging real world environment, or fine-grained manipulation.
+
+
+% \section*{Acknowledgements}
+
+% We thank \TODO{} for their feedback and support of this project.
+
+
+
+% We thank
+% Rob Fergus, Joelle Pineau, Stephane Kasriel, Naila Murray, Mrinal Kalakrishnan, Jitendra Malik, 
+% Randall Balestriero, Julen Urain,
+% Gabriel Synnaeve, Michel Meyer, Pascale Fung, Justine Kao, Florian Bordes, Aaron Foss,
+% Nikhil Gupta, Cody Ohlsen, Kalyan Saladi, Ananya Saxena, Mack Ward, Parth Malani, Shubho Sengupta, Leo Huang,
+% Kamila Benzina, Rachel Kim,
+% Ana Paula Kirschner Mofarrej, Alyssa Newcomb, Nisha Deo, Yael Yungster, Kenny Lehmann, Karla Martucci, 
+% and the PerceptionLM team, including Christoph Feichtenhofer, Andrea Madotto, Tushar Nagarajan, and Piotr Dollar
+% for their feedback and support of this project.
+
+
+% \begin{table*}[t]
+%     \centering
+%     \begin{NiceTabular}{lcccccc}
+%     \CodeBefore
+%     \rectanglecolor{metabg}{3-4}{4-4}
+%     \rectanglecolor{metabg}{5-6}{6-6}
+%     \Body
+%     \toprule
+%                                &   & \multicolumn{3}{c}{Vision tasks} & \multicolumn{2}{c}{Language tasks}\\
+%     \cmidrule{3-7}
+%                                &               & DatasetA             & DatasetB             & DatasetC             & DatasetD             & DatasetE \\
+%     \midrule
+%     \multirow{2}{*}{BaselineA} & $\lambda = 0$ & $\nm{0.84 \pm 0.22}$ & $\bm{0.83 \pm 0.14}$ & $\nm{0.84 \pm 0.24}$ & $\nm{0.86 \pm 0.16}$ & $\nm{0.81 \pm 0.18}$\\
+%                                & $\lambda = 1$ & $\nm{0.83 \pm 0.26}$ & $\nm{0.82 \pm 0.20}$ & $\nm{0.88 \pm 0.23}$ & $\nm{0.87 \pm 0.12}$ & $\nm{0.84 \pm 0.20}$\\
+%     \multirow{2}{*}{BaselineB} & $\lambda = 0$ & $\nm{0.84 \pm 0.15}$ & $\nm{0.86 \pm 0.16}$ & $\nm{0.89 \pm 0.11}$ & $\nm{0.84 \pm 0.17}$ & $\nm{0.87 \pm 0.30}$\\
+%                                & $\lambda = 1$ & $\bm{0.90 \pm 0.15}$ & $\nm{0.81 \pm 0.22}$ & $\nm{0.88 \pm 0.18}$ & $\nm{0.83 \pm 0.23}$ & $\nm{0.80 \pm 0.27}$\\
+%     \midrule 
+%     \textbf{Our method}        &               & $\nm{0.86 \pm 0.19}$ & $\nm{0.81 \pm 0.18}$ & $\bm{0.95 \pm 0.16}$ & $\bm{0.91 \pm 0.13}$ & $\bm{0.92 \pm 0.30}$\\
+%     \bottomrule
+%     \end{NiceTabular}
+%     \caption{A nice table does not require vertical separators and uses bolding---here implemented by the \texttt{\textbackslash{}bm\{\}} and \texttt{\textbackslash{}nm\{\}} commands---sparingly.
+%     %
+%     Using the \texttt{NiceTabular} environment from the \texttt{nicematrix} package to highlight the background of some cells easily, using the official \texttt{metabg} color.}
+%     \label{table:demo}
+% \end{table*}
+
+
+% \begin{figure*}[t]
+%      \centering
+%      \begin{subfigure}[b]{0.48\textwidth}
+%          \centering
+%          \includegraphics[]{assets/plot_demo.pdf}
+%          \caption{First plot.}
+%          \label{fig:plots:a}
+%      \end{subfigure}
+%      \hfill
+%      \begin{subfigure}[b]{0.48\textwidth}
+%          \centering
+%          \includegraphics[]{assets/plot_demo.pdf}
+%          \caption{Second plot.}
+%          \label{fig:plots:b}
+%      \end{subfigure}
+%      \caption{Plots generated with the script \texttt{nice\_plot.py} included in this template.
+%      % 
+%      For more information on producing figures, please refer to \href{https://fb.workplace.com/notes/1767028093764250}{this Workplace post}.
+%      %
+%      If you would like to use a figure teaser, place it immediately after \texttt{\textbackslash{}maketitle}, forcing its location with the \texttt{[h!]} optional argument.
+%      %
+%      Please consider using the \href{https://www.facebook.com/brand/meta/color/}{Meta palette} to color your figures.
+%      }
+%      \label{fig:plots}
+% \end{figure*}
+
+% \section{References and citations}
+
+% Take a look at~\cref{table:demo}, appearing on~\cref{section:intro}.
+% %
+% Some citation of previous work~\citep{goodman}.
+
+\clearpage
+\newpage
+\bibliographystyle{assets/plainnat}
+\bibliography{paper}
+
+\clearpage
+\newpage
+\beginappendix
+
+
+\section{Pretraining details} \label{app:pretraining}
+
+\begin{table}
+\centering
+\caption{\textbf{Pretraining hyperparameters for the Primary and Cooldown phases.} Hyperparameters are identical across all our ViT architectures (ViT-L, -g and -G).}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Parameter} & \textbf{Primary Phase} & \textbf{Cooldown Phase} \\
+\midrule
+Number of frames               & 16                      & 64                      \\
+Frames per Second             & 4.0                     & 4.0                     \\
+Video Crop Size& 256                     & 384\\
+ Image Crop Size& 256&512\\
+Random Resize Aspect Ratio    & [0.75, 1.35]            & [0.75, 1.35]            \\
+Random Resize Scale           & [0.3, 1.0]              & [0.3, 1.0]              \\
+Steps                         & 135,000& 12000                   \\
+Warmup Steps                  & 12,000& N/A                     \\
+Image batch Size (global)& 2,304& 2,304\\
+Video batch Size (global)& 128&128\\
+Starting Learning Rate        & 1e-4                    & 6e-4\\
+Final Learning Rate           & 5.25e-4                 & 1e-6                    \\
+Weight Decay                  & 0.04                    & 0.04                    \\
+EMA                           & 0.99925                 & 0.99925                 \\
+Spatial Mask Scale            & [0.15, 0.7]             & [0.15, 0.7]             \\
+Temporal Mask Scale           & [1.0, 1.0]              & [1.0, 1.0]              \\
+Mask Aspect Ratio             & [0.75, 1.5]             & [0.75, 1.5]             \\
+Tubelet Size                  & 2                       & 2                       \\
+Patch Size                    & 16                      & 16                      \\
+Predictor Blocks              & 24                      & 24                      \\
+Predictor Embedding Size      & 384                     & 384                      \\
+Encoder Intermediate Blocks (ViT-G)   & [12, 24, 36, 48]        & [12, 24, 36, 48]         \\
+Context Loss $\lambda$   & 0.5 for video, 0.7 for image        & 0.5 for videos, 0.7 for images        \\
+\bottomrule
+\end{tabular}
+\vspace{5mm}
+\label{tab:training_phases}
+\end{table}
+
+In this section, we detail our pretraining protocol and provide hyper-parameters. We use identical hyper-parameters for all our ViT architectures (ViT-L, -g and -G). Following~\cite{assran2025v}, pretraining consists of two phases: 1) the primary phase, lasting for 135k iterations, where the learning rate follows a warmup (from 1e-4 to 5.25e-4) for 12k iterations, then a constant schedule (5.25e-4); and 2) a cooldown phase, lasting for 12k iterations, where the learning rate is decayed to a small value (from 6e-4 to 1e-6).
+
+During the primary phase, video samples consist of 16-frames clips sampled at 4 frames per second, both video and images have a resolution of $256 \times 256$. The cooldown phase is shorter, allowing for higher input resolution with manageable compute resources, video samples consist of 64-frames clips at resolution $384 \times 384$ and images are sampled at resolution $512 \times 512$. During both phases, the masking strategy follows the one introduced in~\cite{bardes2024revisiting}, the image and video batch sizes are set to, respectively, 2304 and 128, the weight-decay is set to 0.04 and the EMA coefficient is set to 0.99925.
+
+We use the standard ViT architecture with a patch size of 16 for both images and videos, and a tubelet size of 2 for videos. Our predictor has 24 blocks (versus 12 in V-JEPA 2) and an embedding size of 384. For our deep self-supervision loss, we use 4 intermediate blocks of the encoder, at equally spaced indices. The parameter $\lambda$ we use for Eq.~\ref{eq:lambda_i} is different for video and images, with a value of 0.5 for video and 0.7 for images.
+
+\section{Distillation details} \label{app:distillation}
+
+Our distillation protocol is adapted from the pretraining recipe, maintaining the same JEPA loss, masking, architecture, and hyperparameters, except for a few key modifications: the Exponential Moving Average (EMA) encoder is replaced by a frozen Teacher network. The predictor's final layer embedding dimension is adapted to match the Teacher's dimension to enable the computation of the loss. We do not use deep-self-supervision for distillation: the predictor operates only on the last layer of the encoder, and the loss is only calculated on this last layer. We do not initialize the predictor with the pretraining weights and instead retrain a new predictor, which has 12 blocks (instead of 24 for pretraining), greatly improving distillation stability. Throughout training, a separate EMA of the context encoder is maintained, corresponding to Polyak averaging, which is never used in the loss calculation but serves as the final, high-performing model released for downstream tasks. 
+
+Distillation follows a multi-stage training approach similar to pretraining. Stage 1 (Primary Phase) with a warmup-then-constant schedule and low-resolution data (16 frames, $256 \times 256$ pixels) using a pre-cooldown low-resolution V-JEPA 2.1 ViT-G as the teacher, and Stage 2 (Cooldown Phase) with a short annealing schedule and high-resolution data (64 frames, $384 \times 384$) using the corresponding post-cooldown high-resolution V-JEPA 2.1 ViT-G as the teacher. The Stage 2 student network is initialized with the EMA student network from Stage 1, a two-stage strategy found to produce the best-performing models compared to alternatives such as single-stage approaches or always distilling from the final high-resolution V-JEPA 2.1 teacher.
+
+\section{Evaluation protocols} \label{app:evaluation}
+
+\subsection{Depth Estimation}
+
+\paragraph{\bf Datasets and Metrics.} We evaluated the geometric quality of the dense features of V-JEPA 2.1 in depth estimation on NYUv2~\citep{silberman2018nyuv2} and KITTI~\citep{geiger2013kitti}, reporting the root mean square error (RMSE).
+
+\paragraph{\bf Evaluation Protocol.} For fair comparison with the state-of-the-art, we adopted the same protocol reported by \cite{simeoni2025dinov3}, training a corresponding linear classifier on the training set of each data set. 
+The linear layer is applied only on top of the V-JEPA 2.1 visual encoder frozen patch features, and it is further normalized using a learned BatchNorm layer.
+Note that we both train and evaluate single-image classifiers, as we process individual images using the 2D Convolution image tokenizer described in Sec.\ref{sec:tokenizer}. 
+We sweep learning rates $\{1.5\!\times\!10^{-3}, 1\!\times\!10^{-3}, 8\!\times\!10^{-4}, 3\!\times\!10^{-4}, 1\!\times\!10^{-4}, 8\!\times\!10^{-5}, 3\!\times\!10^{-5}\}$ and weight decay $\{10^{-3}, 10^{-4}\}$.
+
+\subsection{Semantic Segmentation}
+
+\paragraph{\bf Datasets and Metrics.} We evaluate semantic segmentation with linear probing on the image semantic segmentation datasets ADE20K~\citep{zhou2017ade20k}, Pascal VOC12~\citep{everingham2015pascal}, and Cityscapes~\citep{cordts2016cityscapes}, reporting mean intersection-over-union (mIoU).
+
+\paragraph{\bf Evaluation Protocol.} Similarly, we also follow the same protocol reported in DINOv3 \cite{simeoni2025dinov3}.
+We train a linear classifier on top of last-block patch features from the frozen encoder (already normalized via LayerNorm).
+Similar to the depth estimation evaluation protocol, we both train and evaluate single-image classifiers.
+Linear probes are optimized with AdamW using learning rates 
+$\{1.5\!\times\!10^{-3}, 8\!\times\!10^{-4}, 5\!\times\!10^{-4}, 8\!\times\!10^{-5}\}$ and weight decay  $\{0.1, 0.01, 10^{-4}\}$.
+We use a $512$px resolution for ADE20K and VOC12, and $1024$px height for Cityscapes.
+
+\subsection{Video Object Segmentation Tracking}
+
+\paragraph{\bf Dataset and Metrics.} We evaluate on DAVIS 2017~\citep{pont20172017} and YouTube-VOS~\citep{xu2018youtube}. DAVIS provides dense annotations for train/val (60/30 videos). In YouTube-VOS, as only the training set is publicly available, we divided this set both training (80$\%$) and validation (20$\%$) videos.
+
+\paragraph{\bf Evaluation Protocol.}
+Following \citep{rajasegaran2025empirical} and \cite{simeoni2025dinov3}, we implement a non-parametric label-propagation approach based on cosine similarity between patch features from a frozen backbone. 
+Segmentation labels from the first frame are encoded as one-hot patch assignments. For each subsequent frame, we compute similarities with patches from the first frame and a small set of past frames, and propagate labels via a weighted $k$-NN scheme within a spatial neighborhood. 
+
+We sweep over several hyperparameters, including context length $\{4,7,10,15\}$, neighborhood size $\{12,24,36\}$, neighborhood shape $\{\text{square},\text{circle}\}$, top-$k$ neighbors $\{3,5,10\}$, and similarity temperature $\{0.01, 0.1, 0.2, 0.7\}$. 
+Hyperparameters are selected on the DAVIS training set and applied to all test splits. We use an input resolution of 480px.
+
+
+\subsection{Short Term Object Interaction Anticipation}
+
+\paragraph{\bf Dataset and Metrics.}
+We evaluate V-JEPA 2.1 on the STA v2 split of Ego4D \citep{grauman2022ego4d}, which comprises 243 hours of annotated video clips spanning 128 noun and 81 verb categories, with a total of 98,276 training and 47,395 validation samples.
+Following the established evaluation protocol \citep{grauman2022ego4d}, we report Top-5 Average Precision (AP) and Top-5 mean Average Precision (mAP) metrics. As in standard mAP, predictions are matched to ground-truth boxes using IoU > 0.5 and additional class-specific criteria. For instance, the Top-5 mAP All variant requires a correct noun, correct verb, IoU above 0.5, and a time-to-contact $\delta$ prediction within a 0.25-second tolerance. To address the inherently multi-modal nature of future anticipation—where multiple plausible next-active objects may exist—the metric discounts up to four highest-scoring false positives per example, thereby avoiding penalties for plausible but unannotated predictions.
+Additionally, we report individual metrics to evaluate the temporal ($\delta$), spatial (bounding boxes), and semantic (noun and verb) dimensions of the task.
+
+\paragraph{\bf Evaluation Protocol.}
+
+For a fair comparison with the previous state-of-the-art, we follow the official StillFast baseline implementation~\citep{ragusa2023stillfast}, which extends Faster R-CNN~\citep{girshick2015fast}. 
+Our attentive probe consists of four attention blocks followed by the frame-guided temporal pooling mechanism of~\citep{mur2024aff}, since STA predictions must remain spatially aligned with the last video frame.
+This pooling mechanism adopts a residual cross-attention module between the 3D tokens of the full video clip and the 2D tokens of the last frame. Queries are computed from the last-frame tokens via a linear projection, while keys and values are obtained from the video tokens using corresponding projections.
+Once the video tokens are pooled in 2D, we apply a bilinear interpolation to match the resolution of the high-resolution image tokens. Both representations are summed and fused through a 2D convolution layer. Finally, we upsample this representation to produce a multi-scale pyramid at $1/4$, $1/8$, $1/16$, $1/32$, and $1/64$ of the image input resolution. This pyramid forms the input to the prediction head, which follows the design used in prior work~\citep{ragusa2023stillfast, mur2024aff, thakur2023guided}.
+
+\paragraph{\bf Probe Architecture.} In this prediction head, first a Region Proposal Network (RPN) generates proposals from a feature pyramid, and RoIAlign extracts corresponding local features. 
+To enrich these features with scene-level context, we concatenate to each local RoI feature the resulting pooled token from the 4-layers attentive probe.
+The fused representation is processed by two fully connected layers and added back to the local features through a residual connection, enabling global cues to modulate––rather than replace––local information.
+Noun, verb and time to contact $\delta$ are predicted using respective linear layers from the fused RoI features. A Softplus activation layers is applied to the $\delta$ output in order to obtain positive predictions.
+Training is end-to-end, combining standard Faster R-CNN losses with an additional verb loss $\mathcal{L}_v$ and a Smooth-$L_1$ TTC loss $\mathcal{L}_{\text{ttc}}$, weighted by 0.1 and 0.5 respectively. 
+
+\paragraph{\bf Optimization.} Models are optimized with Adam using learning rates in  $\{1\!\times\!10^{-5},\, 8\!\times\!10^{-5},\, 1.2\!\times\!10^{-4},\, 2\!\times\!10^{-4},\, 5\!\times\!10^{-4}\}$.  We additionally explore different input configurations, including sampling rates  $\{16, 8, 4, 2\}\,\text{fps}$, clip lengths $\{32, 16, 8, 4\}$ frames, and spatial resolutions $\{256\text{px},\, 384\text{px}\}$, covering videos with varying temporal spans. We follow the multi-scale training strategy of Faster R-CNN, sampling image short sides uniformly from $\{640,672,704,736,768,800\}$ with a maximum long side of 1333~px. Our final best configuration consist of 16 frames videos at 384px with a sampling rate of 2 fps, and using a learning rate of $1.2\!\times\!10^{-4}$. We apply the same protocol to DINOv2 \cite{oquab2023dinov2}, DINOv3 \cite{simeoni2025dinov3} and V-JEPA 2 \cite{assran2025v} models, reporting the best respective performance.
+
+\subsection{Video and Image Classification} \label{app:classification}
+
+\paragraph{\bf Dataset and Metrics.} We use the evaluation benchmarks of V-JEPA 2 and evaluate our models on image classification on ImageNet~\cite{deng2009imagenet}, and video classification on Kinetics-400~\cite{kay2017kinetics}, Something-Something-v2~\cite{goyal2017something} and Diving-48~\cite{li2018resound}.
+
+\paragraph{\bf Probe Architecture.} We train an attentive probe on top of the frozen encoder output using the training data from each downstream task. Our attentive probe is composed of four transformer blocks, each using 16 heads in the attention layer. The first three blocks use standard self-attention; the final block uses a cross-attention layer with a learnable query token. The output of the cross-attention layer in the final block is added back to the query token as a residual connection before applying the rest of the block (LayerNorm, followed by MLP with a single GeLU activation). The transformer blocks are followed by a final linear classifier layer.
+
+\paragraph{\bf Evaluation Protocol.} We follow the evaluation protocol of V-JEPA 2. For video evaluations, we sampled multiple clip segments from each input video. During validation, we also extracted three spatial views from each segment (instead of one view during training). The number of clip segments, frame step parameter, and global batch size vary for each evaluation. We use $64 \times 2 \times 3$ input for SSv2 (16 frames clip, 2 temporal crops, 3 spatial crops), $16 \times 8 \times 3$ for K400, and $32 \times 4 \times 3$ for Diving-48. For all benchmarks, we use a spatial resolution of $384 \times 384$. We use the 2D or 3D tokenizer, respectively, for image and video benchmarks. We use a batch size of 256 except for ImageNet, we use 1024. For ImageNet, we do not use multiple clips or views per sample. For Diving-48, we employ a multilayer strategy. Instead of attending to the tokens from only the last layer of the encoder, we extract tokens from four encoder layers (the last layer and three intermediate layers) and attend to all of them.
+
+\paragraph{\bf Optimization.} For each evaluation, we simultaneously train multiple classifier heads with different hyper-parameters (learning rate and weight decay), reporting the accuracy of the best-performing classifier. For most of our evaluations (Kinetics, SSv2, and ImageNet), we train for 20 epochs and use 20 heads, each
+using one of five learning rate values and four weight decay values, and the learning rate decays according to a cosine schedule. For Diving-48, which benefit from longer training, we train for 50 epochs.
+
+
+\subsection{Action Anticipation}
+
+\paragraph{\bf Dataset and Metrics.} We evaluated V-JEPA 2.1 on the Action Anticipation task of the Epic-Kitchen-100 benchmark~\cite{Damen2022rescaling}. The EK100 dataset is comprised of 100 hours of cooking activities recorded from an egocentric perspective across 45 kitchen environments. Each video in EK100 is annotated with action segments, which include a start timestamp, an end timestamp, and an action label. There are 3,568 unique action labels, each consisting of a verb and a noun category, with a total of 97 verb categories and 300 noun categories. The EK100 action anticipation task involves predicting noun, verb, and action (i.e., predicting verb and noun jointly) from a video clip, referred to as context, that occurs before the start timestamp of an action segment.
+The interval between the end of the context and the beginning of the action segment is the anticipation time, which is set to 1 second by default. Given that different future actions may be possible from a given context, mean-class recall-at-5 for noun, verb and action, is used as the metric to measure performance~\citep{Damen2022rescaling}.
+
+\paragraph{\bf Evaluation Protocol.} We follow the same evaluation protocol introduced in V-JEPA 2 and use a focal loss~\cite{lin2017focal} with $\alpha$ = 0.25 and $\gamma$ = 2.0 when training the probe. We used a context of 32 frames with a frame-rate of 8 frames per second at resolution $384 \times 384$. During probe training, we randomly sample an anticipation time between 0.25 and 1.75 seconds and an anticipation point between 0.0 and 0.25. Our probe architecture for action anticipation follows the architecture introduced in V-JEPA 2 and described in Appendix~\ref{app:classification}, consisting of four transformer blocks, including a last cross-attention layer with a set of learnable query tokens, followed by a final linear classifier layer for each query token.
+
+
+\section{Additional Ablations}
+
+\subsection{Multi-scale evaluation} \label{app:multiscale_evaluation}
+
+We evaluate the impact of Deep Self-Supervision on the need for multi-scale evaluation, i.e. using multiple layers of the encoder as input to the evaluation probe. Table~\ref{tab:multilayers} compares a model trained with Deep Self-Supervision with a model trained without, and we measure performance on image segmentation on ADE20k, depth estimation on NYU, and action recognition on Diving-48, using either; a) only the last layer of the encoder as input to the probe (Last-Layer) or b) 4 equally spaced intermediate layers (4-Layers). We observe that the model trained \textit{without} Deep Self-Supervision has a wide gap in performance between using Last-Layer and 4-Layers, and benefits a lot from multi-scale evaluation. On the other hand, the model trained \textit{with} Deep Self-Supervision is already stronger using Last-Layer, and only benefits a little from using 4-Layers.
+
+\begin{table}
+\centering
+\caption{\textbf{Impact of deep self-supervision on the need for multi-scale evaluation.} We conduct experiments with  our V-JEPA 2.1 ViT-L trained from scratch. Last-Layer indicates that evaluation is conducted with only the last layer of the encoder as input to the probe. 4-Layers indicates that evaluation is conducted by concatenating 4 intermediate layers of the encoder and feeding it to the probe.}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{ccccccc}
+\toprule
+
+\textbf{Deep Self-Supervision} &
+\multicolumn{2}{c}{\textbf{ADE20k}}&
+\multicolumn{2}{c}{\textbf{NYU}}& \multicolumn{2}{c}{\textbf{Diving-48}}\\
+% \cmidrule(lr){3-4} \cmidrule(lr){5-6}
+& Last-Layer & 4-Layers & Last-Layer & 4-Layers & Last-Layer & 4-Layers \\
+
+% \textbf{Method} & \textbf{Multi-Layers Pred.} & \textbf{ADE20k Last-Layer} & \textbf{ADE20k 4-Layers} & \textbf{NYU Last-Layer} & \textbf{NYU 4-Layers} & \textbf{Diving-48 Last-Layer} & \textbf{Diving 4-Layers}\\
+\midrule
+% V-JEPA 2 ViT-L & & 24.4 &	33.4&	0.649&	0.591&	84.3&	89.0 \\
+% \hdashline
+\XSolidBrush	& 34.9&	39.1	&0.513	&0.463	&85.8	& 86.9 \\
+\CheckmarkBold & 42 &	43.9&	0.381	&0.370	&87.2&	88.1 \\
+\bottomrule
+\end{tabular}
+}
+\label{tab:multilayers}
+\end{table}
+
+
+\subsection{Pretraining Spatial Resolution}
+
+Table~\ref{tab:lowres_pretraining} presents the impact of the resolution used during the cooldown phase of pretraining on performance on most of our downstream tasks. We compare models trained with a video spatial resolution of $256 \times 256$ to the models we present in the main paper that are trained with a video spatial resolution of $384 \times 384$. V-JEPA 2.1 benefits from higher resolution pretraining across all of our downstream tasks.
+
+\begin{table}
+\caption{\textbf{Impact of pretraining spatial resolution.} We compare models trained during the cooldown phase at $256 \times 256$ spatial resolution against $384 \times 384$.}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccccccccccccc}
+\toprule
+
+\textbf{Model} & \textbf{Res} &
+\bf SSv2 &	\bf D-48 &	\bf K400 & \bf IN1K & \bf EK100 & \bf ADE20k & \bf Citys. & \bf VOC &	\bf NYU	& \bf KITTI & \bf DAVIS & \bf YT-VOS \\
+\midrule
+ViT-g  & 256 &	76.7&	88.6&	86.2&	84.1&	35.7	&47.8&	71.7&	84.6&	0.359&	2.611&	68.0&	72.0 \\
+
+ViT-g  & 384&	76.9&	89	&87	&84.8&	38.4	&47.8	&71.8&	84.7&	0.350&	2.601&	67.4	&71.3\\
+
+\hdashline
+
+ViT-G & 256&	77.1&	89.5&	87.3&	84.8	&38.8	&47.8	&73.2	&84.7&	0.313&	2.472&	68.6	&72.7\\
+
+ViT-G & 384 &	77.7	&89.2	&87.7	&85.5	&40.8	&47.9	&73.5&	85.0&	0.307	&2.461	&69.0	&72.6 \\
+\bottomrule
+\end{tabular}
+}
+\label{tab:lowres_pretraining}
+\end{table}
+
+\end{document}
