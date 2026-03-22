@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-20 15:30 UTC (10 tasks PA complete. RV FAC PA 4/5, AR sev PA 3/5, RV S' PA 2/5. MIMIC temporal split rebuilt.)
+Last updated: 2026-03-22 16:30 UTC (**ALL 13 primary tasks pred avg DONE** for all 5 models. **7/7 disease probes trained** (takotsubo dropped). **Disease pred avg: 6/7 DONE (4/4 models)**. Bicuspid AV 3/4 done, Pan RUNNING. Myxo MV newly complete. MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE.)
 
 ## Evaluation Protocol
 
@@ -241,7 +241,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | Inference | Single random clip per study per val epoch. **No prediction averaging.** |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/tr_severity/train_vf.csv` |
 
-### AR Severity (classification, B-mode only) — ALL 5 TRAINED, PA 3/5 (G failed, Pan running)
+### AR Severity (classification, B-mode only) — ALL 5 TRAINED + PA DONE
 
 | Setting | Value |
 |---------|-------|
@@ -306,7 +306,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | Inference | Single random clip per study per val epoch. **No prediction averaging.** |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/rvsp/train_vf.csv` |
 
-### RV S' (rv_sp, regression) — ALL 5 TRAINED, PA 2/5 (L-K running)
+### RV S' (rv_sp, regression) — ALL 5 TRAINED + PA DONE
 
 | Setting | Value |
 |---------|-------|
@@ -328,7 +328,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | Inference | Single random clip per study per val epoch. **No prediction averaging.** |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/rv_sp/train_vf.csv` |
 
-### RV FAC (rv_fac, regression) — ALL 5 TRAINED, PA 4/5 (G failed)
+### RV FAC (rv_fac, regression) — ALL 5 TRAINED + PA DONE
 
 | Setting | Value |
 |---------|-------|
@@ -386,7 +386,7 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 
 ## Completed Runs — Summary
 
-> **Checkpoint status (updated 2026-03-20 15:30 UTC)**: **13 primary tasks fully trained (all 5 models, best.pt archived)**. 10/13 tasks pred avg ALL 5 DONE. RV FAC PA 4/5 (G failed). AR severity PA 3/5 (G failed, Pan running). RV S' PA 2/5 (L-K running). MIMIC temporal split rebuilt (random → temporal 70/15/15).
+> **Checkpoint status (updated 2026-03-22 16:30 UTC)**: **13 primary tasks fully trained (all 5 models, best.pt archived)**. **ALL 13 tasks pred avg ALL 5 DONE.** **Disease training: 7/7 DONE** (all 4 manuscript models, takotsubo dropped). **Disease pred avg: 6/7 DONE (4/4 models each)**. Bicuspid AV 3/4 done (Pan RUNNING). **MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE** (amyloidosis G 0.947, HCM G 0.847).
 
 ### Regression Tasks — Training Results (single-clip val)
 
@@ -424,15 +424,15 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | E/e' medial | panecho | 0.400 | 0.640 | 15 | archived | 0.454 |
 | RV S' | echojepa-g | 0.491 | -- | 15 | archived | **0.591** |
 | RV S' | echojepa-l | 0.234 | -- | 15 | archived | 0.350 |
-| RV S' | echojepa-l-k | 0.374 | -- | 15 | archived | `[R]` |
-| RV S' | echoprime | 0.284 | -- | 15 | archived | TODO |
-| RV S' | panecho | 0.183 | -- | 15 | archived | TODO |
+| RV S' | echojepa-l-k | 0.374 | -- | 15 | archived | 0.473 |
+| RV S' | echoprime | 0.284 | -- | 15 | archived | 0.353 |
+| RV S' | panecho | 0.183 | -- | 15 | archived | 0.301 |
 
 > **AV mean grad note**: Pred avg re-run with fixed `run_pred_avg.sh` (Bug 008 resolved). All 5 results now VALID. G R²=0.579 (Pearson 0.795), EP 0.462, Pan 0.378, L-K 0.328, L 0.147.
 >
-> **RV FAC note**: All 5 models trained, PA completed for L/L-K/EP/Pan. G PA failed (header-only log). Results: L-K R²=0.444, L 0.325, Pan 0.301, EP 0.278.
+> **RV FAC note**: All 5 PA DONE. G R²=0.539, L-K 0.444, L 0.325, Pan 0.301, EP 0.278. G recovered from shm failure.
 >
-> **RV S' note**: All 5 models trained, PA completed for G and L. Results so far: G R²=0.591, L 0.350. L-K running, EP/Pan queued.
+> **RV S' note**: All 5 PA DONE. G R²=0.591, L-K 0.473, EP 0.353, L 0.350, Pan 0.301.
 >
 > **E/e' medial note**: All 5 PA DONE. G R²=0.598, L-K 0.491, Pan 0.454, EP 0.422, L 0.370.
 
@@ -455,11 +455,11 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | AS sev. | echojepa-l-k | 0.821 | 53.26 | 0.467 | 15 | archived | 0.868 |
 | AS sev. | echoprime | 0.827 | 57.00 | 0.496 | 15 | archived | 0.868 |
 | AS sev. | panecho | 0.762 | 34.65 | 0.420 | 15 | archived | 0.813 |
-| AR sev. | echojepa-g | 0.739 | -- | -- | 15 | archived | FAILED |
+| AR sev. | echojepa-g | 0.739 | -- | -- | 15 | archived | **0.765** |
 | AR sev. | echojepa-l | 0.644 | -- | -- | 15 | archived | 0.670 |
 | AR sev. | echojepa-l-k | 0.650 | -- | -- | 15 | archived | 0.680 |
 | AR sev. | echoprime | 0.673 | -- | -- | 15 | archived | 0.701 |
-| AR sev. | panecho | 0.653 | -- | -- | 15 | archived | `[R]` |
+| AR sev. | panecho | 0.653 | -- | -- | 15 | archived | 0.692 |
 
 ### Trajectory / Onset Tasks (Binary Classification)
 
@@ -536,9 +536,9 @@ MR views: A4C, A2C, A3C, PLAX. AS views: PLAX, PSAX-AV, A3C. Studies after balan
 
 **AV Vmax settings**: B-mode only, views PLAX/A3C/PSAX-AV. Regression canary for hemodynamic pillar — confirms frozen representations predict continuous Doppler-derived measurements from structure alone. G leads by +10pp R² over next-best (EchoPrime). EchoPrime competitive (0.476) likely due to CLIP text supervision. G/L/L-K log_r0.csv lost (run script deletes checkpoint dirs when cycling models); results extracted from raw run log via grep. EchoPrime crashed mid-run (shm exhaustion) but checkpoint was saved; PanEcho completed normally after.
 
-### Surviving Probe Checkpoints (updated 2026-03-19)
+### Surviving Probe Checkpoints (updated 2026-03-21)
 
-All probe checkpoints archived to `checkpoints/probes/{task}/{model}/` and S3. **63 best.pt files** across 14 task directories. All Bug 007 retraining complete.
+All probe checkpoints archived to `checkpoints/probes/{task}/{model}/` and S3. **65+ best.pt files** across 14+ task directories. All Bug 007 retraining complete.
 
 **Summary by task (best.pt count / models):**
 
@@ -549,17 +549,16 @@ All probe checkpoints archived to `checkpoints/probes/{task}/{model}/` and S3. *
 | RVSP | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
 | TR severity | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
 | AV mean grad | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| AV Vmax | Y | Y | Y | Y | Y | 5/5 | 0/5 TODO |
-| AR severity | Y | Y | Y | Y | Y | 5/5 | 0/5 TODO |
-| AS severity | Y | Y | Y | Y | Y | 5/5 | **4/5** (G 0.932, L 0.846, L-K 0.868, Pan 0.813; EP lost in collision, re-run needed) |
-| MR severity | Y | Y | Y | Y | Y | 5/5 | 1/5 (G done; L/L-K stale Bug 012) |
-| E/e' medial | Y | Y | Y | Y | Y | 5/5 | 0/5 TODO |
-| RV S' | Y | Y | Y | Y | Y* | **5/5** (Pan ep 3/15) | 0/5 (after Pan training) |
+| AV Vmax | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| E/e' medial | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| MR severity | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| AS severity | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| AR severity | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| RV S' | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| RV FAC | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
 | Onset | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
 | Traj V1 (sup.) | Y | Y | Y | Y | Y | 5/5 | superseded |
 | Traj 3-class (sup.) | Y | Y | Y | -- | -- | 3/5 | superseded |
-
-*L-K at epoch 10/15, training on GPUs 0-3.
 
 S3 restore: `aws s3 sync s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/probes/ checkpoints/probes/`
 
@@ -751,27 +750,26 @@ Based on literature review and "six evidence categories" framing. 8 GPUs availab
 | **2b** | aov_mean_grad | Regression | Yes | **5/5 trained, 5/5 pred avg DONE** |
 | **2c** | aov_area | Regression | Yes | Not trained (lower priority, CSV ready) |
 
-### Batch 3 — RV Mechanics (fills Pillar 2) — IN PROGRESS
+### Batch 3 — RV Mechanics (fills Pillar 2) — DONE
 | Priority | Task | Type | B-mode | Status |
 |----------|------|------|--------|--------|
-| **3a** | rv_sp (RV S') | Regression | No | **5/5 trained** (G 0.491, L-K 0.374, EP 0.284, L 0.234, Pan ep 3/15). Pred avg TODO. |
-| **3b** | rv_fac | Regression | No | Not trained (CSV ready) |
+| **3a** | rv_sp (RV S') | Regression | No | **ALL 5 trained + PA DONE.** G 0.591, L-K 0.473, EP 0.353, L 0.350, Pan 0.301. |
+| **3b** | rv_fac | Regression | No | **ALL 5 trained + PA DONE.** G 0.539, L-K 0.444, L 0.325, Pan 0.301, EP 0.278. |
 
 ### Batch 4 — Disease Panel (fills Pathology category)
 
-**Labels rebuilt (2026-03-20)**: `build_disease_labels.py` with full provenance. Two versions:
-- `labels_v2_study_level/` — conservative (recommended), study-level only
-- `labels_v2/` — patient-propagated (matches old notebook style)
-- See `DISEASE_PROVENANCE.md` and `CLASS_MAPS.md` for per-disease confidence tiers
-- **Next step**: Build probe CSVs from new NPZs before training
+**Labels v7.2 (2026-03-20)**: `build_disease_labels.py` with full provenance. CSVs rebuilt at 3:1 neg cap (2026-03-21). Endocarditis dropped (30% precision). 5/8 view-filtered.
 
-| Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
-|----------|------|------|--------|------|-----------|-------------------|
-| **4a** | disease_amyloidosis | Binary | No | 0-3 | ~8h | Pathology |
-| **4b** | disease_hcm | Binary | No | 4-7 | ~15h | Pathology |
-| **4c** | disease_dcm | Binary | No | 0-3 | ~8h | Pathology |
-| **4d** | disease_endocarditis | Binary | No | 4-7 | ~8h | Pathology |
-| **4e** | disease_bicuspid_av | Binary | No | 0-3 | ~20h | Pathology |
+| Priority | Task | Type | VF | Training | Pred Avg |
+|----------|------|------|-----|----------|----------|
+| **4a** | disease_hcm | Binary | Yes | **DONE** (val: G 0.942, L-K 0.845, EP 0.778, Pan 0.816) | **DONE 4/4** — G **0.960**, L-K **0.903**, EP **0.806**, Pan **0.866** |
+| **4b** | disease_amyloidosis | Binary | Yes | **DONE** (val: G 0.935, L-K 0.706, EP 0.755, Pan 0.801) | **DONE 4/4** — G **0.927**, L-K **0.754**, EP **0.771**, Pan **0.826** |
+| **4c** | disease_myxomatous_mv | Binary | Yes | **DONE** (val: G 0.917, L-K 0.854, EP 0.813, Pan 0.759) | **DONE 4/4** — G **0.946**, L-K **0.912**, EP **0.859**, Pan **0.835** |
+| **4d** | disease_dcm | Binary | No | **DONE** (val: G 0.846, L-K 0.760, EP 0.763, Pan 0.733) | **DONE 4/4** — G **0.837**, L-K **0.772**, EP **0.785**, Pan **0.768** |
+| **4e** | disease_stemi | Binary | No | **DONE** (val: G 0.837, L-K 0.729, EP 0.770, Pan 0.731) | **DONE 4/4** — G **0.826**, L-K **0.623**, EP **0.810**, Pan **0.788** |
+| **4f** | disease_rheumatic_mv | Binary | Yes | **DONE** (val: G 0.795, L-K 0.714, EP 0.749, Pan 0.702) | **DONE 4/4** — G **0.846**, L-K **0.785**, EP **0.739**, Pan **0.745** |
+| **4g** | disease_bicuspid_av | Binary | Yes | **DONE** — G 0.932, L-K 0.779, EP 0.804, Pan trained | **3/4** — G **0.975**, L-K **0.881**, EP **0.901**. Pan RUNNING |
+| **4h** | disease_takotsubo | Binary | No | **DROPPED** (30% definitive labels, N=300, low confidence) | — |
 
 ### Batch 5 — Expanded Hemodynamics (B-mode, need CSV build first)
 | Priority | Task | Type | B-mode | GPUs | Est. time | Evidence category |
@@ -791,12 +789,25 @@ Use `scripts/run_pred_avg.sh <task>`. Bug 008 fix baked in.
 | **6d** | tr_severity | 5 | **DONE** — G 0.854, L-K 0.817, L 0.787, EP 0.780, Pan 0.778 |
 | **6e** | aov_mean_grad | 5 | **DONE** — G 0.579, EP 0.462, Pan 0.378, L-K 0.328, L 0.147 |
 | **6f** | trajectory_lvef_onset | 5 | **DONE** — G 0.793, EP 0.776, Pan 0.759, L-K 0.677, L 0.514 |
-| **6g** | mr_severity | 5 | G 0.882 DONE. L/L-K stale (Bug 012). EP/Pan TODO. |
-| **6h** | as_severity | 5 | **4/5 DONE** (G 0.932, L 0.846, L-K 0.868, Pan 0.813). EP re-run needed. |
-| **6i** | aov_vmax | 5 | All TODO. Checkpoints archived. |
-| **6j** | ar_severity | 5 | All TODO. Checkpoints archived. |
-| **6k** | mv_ee_medial | 5 | All TODO. Checkpoints archived. |
-| **6l** | rv_sp | 5 | All TODO (after Pan training finishes). |
+| **6g** | mr_severity | 5 | **DONE** — G 0.882, L-K 0.837, EP 0.818, L 0.808, Pan 0.789 |
+| **6h** | as_severity | 5 | **DONE** — G 0.932, L-K 0.868, EP 0.868, L 0.846, Pan 0.813 |
+| **6i** | aov_vmax | 5 | **DONE** — G 0.679, EP 0.574, L-K 0.492, Pan 0.479, L 0.242 |
+| **6j** | ar_severity | 5 | **DONE** — G 0.765, EP 0.701, Pan 0.692, L-K 0.680, L 0.670 |
+| **6k** | mv_ee_medial | 5 | **DONE** — G 0.598, L-K 0.491, Pan 0.454, EP 0.422, L 0.370 |
+| **6l** | rv_sp | 5 | **DONE** — G 0.591, L-K 0.473, EP 0.353, L 0.350, Pan 0.301 |
+| **6m** | rv_fac | 5 | **DONE** — G 0.539, L-K 0.444, L 0.325, Pan 0.301, EP 0.278 |
+
+**Disease Pred Avg (chain running on GPUs 0-3, 4 manuscript models each):**
+
+| Priority | Task | Test Clips | Status |
+|----------|------|-----------|--------|
+| **6n** | disease_hcm | 438K (vf) | **DONE 4/4** — G **0.960**, L-K **0.903**, EP **0.806**, Pan **0.866** |
+| **6o** | disease_amyloidosis | 111K (vf) | **DONE 4/4** — G **0.927**, L-K **0.754**, EP **0.771**, Pan **0.826** |
+| **6p** | disease_myxomatous_mv | 548K (vf) | **DONE 4/4** — G **0.946**, L-K **0.912**, EP **0.859**, Pan **0.835** |
+| **6q** | disease_dcm | 127K | **DONE 4/4** — G **0.837**, L-K **0.772**, EP **0.785**, Pan **0.768** |
+| **6r** | disease_stemi | 9K | **DONE 4/4** — G **0.826**, L-K **0.623**, EP **0.810**, Pan **0.788** |
+| **6s** | disease_rheumatic_mv | 10K (vf) | **DONE 4/4** — G **0.846**, L-K **0.785**, EP **0.739**, Pan **0.745** |
+| **6t** | disease_bicuspid_av | 469K (vf) | **3/4** — G **0.975**, L-K **0.881**, EP **0.901**. Pan RUNNING |
 
 ### Batch 7 — MIMIC Biomarkers (CY or us, fills Biochemistry category)
 | Priority | Task | Type | Studies | Evidence category |
@@ -930,8 +941,8 @@ Chain: LVEF (5) → TAPSE (5) → MR severity (5) → AS severity (5) → AV Vma
 | Task | Type | VF Train Clips | Status |
 |------|------|---------------|--------|
 | tapse | regression | 280,638 | **ALL 5 DONE** + pred avg DONE. G R²=0.633. |
-| rv_sp | regression | 391,778 | **5/5 trained** (G 0.491, L-K 0.374, EP 0.284, L 0.234, Pan ep 3/15). Pred avg TODO. |
-| rv_fac | regression | 80,046 | Not started (CSV ready) |
+| rv_sp | regression | 391,778 | **ALL 5 DONE** + pred avg DONE. G R²=0.591, L-K 0.473, EP 0.353, L 0.350, Pan 0.301. |
+| rv_fac | regression | 80,046 | **ALL 5 DONE** + pred avg DONE. G R²=0.539, L-K 0.444, L 0.325, Pan 0.301, EP 0.278. |
 | rv_basal_dim | regression | -- | **BLOCKED** (labels not built) |
 
 ### Tier 3 — Main text Pillar 3: Trajectory Forecasting
@@ -1254,11 +1265,11 @@ Preliminary linear probe results: NT-proBNP r=0.40, creatinine r=0.29 (small tes
 
 De-risked by preliminary sklearn results (mortality AUC 0.846). Question is whether attentive probes push echo above the EHR baseline (0.856). Sklearn results are a safety net.
 
-**RV mechanics (RV S', RV FAC)** — NOT STARTED
+**RV mechanics (RV S', RV FAC)** — **DONE** (all 5 trained + pred avg)
 
 TAPSE already works (MAE 0.264 Z-score). Extensions failing doesn't break anything.
 
-**Disease detection, fairness, SAE** — NOT STARTED
+**Disease detection** — **6/8 TRAINED** (HCM, DCM, STEMI, amyloidosis, myxo MV, rheum MV). **Fairness, SAE** — NOT STARTED
 
 Supporting evidence / Extended Data. Failures shrink scope but don't touch core claims.
 

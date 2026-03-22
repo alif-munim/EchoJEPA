@@ -6,6 +6,36 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-22 (Session 24)
+
+### Disease Pred Avg Completion + MIMIC Cross-Transfer Analysis
+
+**Disease pred avg 6/7 DONE (4/4 manuscript models each):**
+- Myxo MV newly complete: EP **0.859**, Pan **0.835**
+- Bicuspid AV 3/4: EP **0.901** done, Pan RUNNING
+- DCM/STEMI/rheumatic MV all 4/4 DONE (other machine): DCM G 0.837, STEMI G 0.826, rheumatic G 0.846
+
+**MIMIC cross-institution disease transfer (4 diseases × 4 models DONE):**
+- Amyloidosis: G **0.947** (improves over UHN 0.927!), EP 0.917, Pan 0.902, L-K 0.741
+- HCM: G **0.847**, L-K 0.707, Pan 0.633, EP 0.516
+- DCM: EP **0.721**, G 0.717, L-K 0.683, Pan 0.682
+- STEMI: G **0.657**, L-K 0.636, EP 0.588, Pan 0.582
+- Key: amyloidosis transfers exceptionally (structural signature is institution-invariant). HCM EP collapses (0.516). STEMI weak across all models.
+
+**Cross-transfer analysis (class map compatibility):**
+- MR severity: UHN 5-class (none/trace/mild/mod/sev) vs MIMIC 4-class (none-trivial/mild/mod/sev). Post-hoc merge feasible (sum logits 0+1).
+- TR severity: same 5→4 mismatch. Same fix.
+- LVEF: direct (both regression in %). Trivially runnable.
+- MIMIC has afib/HF/tamponade/takotsubo labels without UHN counterparts (need fresh MIMIC training, not cross-transfer).
+
+**STEMI L-K investigation:**
+- L-K drops from 0.729 (val) to 0.623 (pred avg). Initially suspected collapse, but AUROC above chance is statistically significant (p=0.013). Real but weak signal — L-K's low UHN number was honest while EP/Pan were inflated by single-clip lucky sampling.
+
+**Files modified:**
+- TASK_TRACKER.md, roadmap ×2, probe-results.md, manuscript-tasks.md, changelog (this), MEMORY.md — all updated with disease PA completion + MIMIC xfer results
+
+---
+
 ## 2026-03-21 (Session 23)
 
 ### Comprehensive Pred Avg Completion + Disease Training Results
