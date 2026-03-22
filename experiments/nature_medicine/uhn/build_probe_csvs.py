@@ -72,7 +72,8 @@ def build_study_to_clips_index(clips_csv_path, index_cache_path):
     return study_to_clips
 
 
-def build_csvs_for_task(task, labels_dir, study_to_clips, output_dir, phys_ranges=None):
+def build_csvs_for_task(task, labels_dir, study_to_clips, output_dir, phys_ranges=None,
+                        max_neg_pos_ratio=None):
     """Build train/val/test CSVs for a single task."""
     label_path = os.path.join(labels_dir, f"{task}.npz")
     if not os.path.exists(label_path):
@@ -118,6 +119,26 @@ def build_csvs_for_task(task, labels_dir, study_to_clips, output_dir, phys_range
         mask = splits == split_name
         split_sids = study_ids[mask]
         split_labels = labels[mask]
+
+        # Downsample majority class in train split only (val/test stay intact)
+        n_capped = 0
+        if split_name == "train" and max_neg_pos_ratio is not None and not is_regression:
+            unique_cls = np.unique(split_labels)
+            if len(unique_cls) == 2:
+                pos_count = int((split_labels == 1).sum())
+                neg_count = int((split_labels == 0).sum())
+                max_neg = int(pos_count * max_neg_pos_ratio)
+                if neg_count > max_neg:
+                    rng = np.random.RandomState(42)
+                    pos_idx = np.where(split_labels == 1)[0]
+                    neg_idx = np.where(split_labels == 0)[0]
+                    neg_keep = rng.choice(neg_idx, size=max_neg, replace=False)
+                    keep_idx = np.sort(np.concatenate([pos_idx, neg_keep]))
+                    n_capped = neg_count - max_neg
+                    split_sids = split_sids[keep_idx]
+                    split_labels = split_labels[keep_idx]
+                    print(f"  Train neg cap ({max_neg_pos_ratio}:1): kept {max_neg}/{neg_count} neg "
+                          f"({pos_count} pos, {n_capped} neg removed)")
 
         rows = []
         n_studies = 0
@@ -175,6 +196,9 @@ def main():
     )
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--labels_dir", type=str, default=None, help="Override labels directory (default: {base_dir}/labels)")
+    parser.add_argument("--max_neg_pos_ratio", type=float, default=None,
+                        help="Cap negative:positive ratio in train split (e.g. 10 for 10:1). "
+                             "Only applies to binary classification tasks. Val/test unaffected.")
     args = parser.parse_args()
 
     if not args.task and not args.tasks and not args.all:
@@ -206,7 +230,8 @@ def main():
     for task in tasks:
         print(f"--- {task} ---")
         try:
-            stats = build_csvs_for_task(task, labels_dir, study_to_clips, output_dir, phys_ranges)
+            stats = build_csvs_for_task(task, labels_dir, study_to_clips, output_dir, phys_ranges,
+                                       max_neg_pos_ratio=args.max_neg_pos_ratio)
         except FileNotFoundError as e:
             print(f"  SKIPPED: {e}")
             continue
