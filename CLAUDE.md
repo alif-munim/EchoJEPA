@@ -22,6 +22,10 @@ The `claude/` directory contains persistent reference docs organized by topic. S
 
 Additional source references: `uhn_echo/nature_medicine/CLAUDE.md`, `uhn_echo/nature_medicine/data_exploration/CLAUDE.md`, `uhn_echo/nature_medicine/data_exploration/mimic/CLAUDE.md`
 
+### Data Auditing Reference
+
+**`uhn_echo/nature_medicine/context_files/data-auditing.md`** — Comprehensive best practices for auditing clinical AI labels and data pipelines. 62 items across 8 categories (label FP/FN, temporal integrity, leakage, confounds, pipeline bugs, statistical pitfalls, documentation), pre-flight and publication checklists, precision audit protocol. Distilled from 100+ real issues encountered across UHN (v1-v7.2) and MIMIC (v1-v4.2) label builds. Read before building or auditing any label set.
+
 ## Common Commands
 
 ### Setup
