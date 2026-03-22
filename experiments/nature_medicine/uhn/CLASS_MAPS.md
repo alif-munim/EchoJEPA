@@ -306,7 +306,7 @@ and free-text search across Syngo reports and HeartLab data. Negative controls a
 clinically-matched hard negatives (not random).
 
 **Build script:** `build_disease_labels.py` (created 2026-03-20). Full provenance in
-`DISEASE_PROVENANCE.md`. **Recommended: `labels_v7_study_level/`** (v7 = v6 + STEMI ischemic obs fix + myxomatous criteria negation + endocarditis dropped).
+`UHN_DISEASE_PROVENANCE.md`. **Recommended: `labels_v7_study_level/`** (v7 = v6 + STEMI ischemic obs fix + myxomatous criteria negation + endocarditis dropped).
 
 ### Source Architecture
 
@@ -332,7 +332,7 @@ Negation filtering via pattern matching + proximity negation (v5). Word boundary
 | ~~disease_endocarditis~~ | — | — | — | **DROPPED v7**: 30% precision, unfixable |
 
 Four audit rounds: 50 pos auto (seed=789), 10+10 manual (seeds 42, 9999, 7777).
-Full provenance, per-sample verdicts, and known limitations in `DISEASE_PROVENANCE.md`.
+Full provenance, per-sample verdicts, and known limitations in `UHN_DISEASE_PROVENANCE.md`.
 
 ### Cohort Design Notes
 

@@ -158,7 +158,7 @@ JEPA-format splits, raw labels, scalers, notebooks, and scripts. See `claude/dat
 
 - `checkpoints/` — all model weights: pretrain, anneal, cooldown, eval probes, SSv2 probe
 - `indices/` — S3 URI manifests for the 18M dataset (`master_index_18M.csv`, `master_index_18M_cleaned.csv`, `s3_pretrain.csv`, annotations)
-- `experiments/` — precomputed frozen embeddings organized by paper: `icml/` (UHN benchmarks), `nature_medicine/mimic/` (7 models, 23 tasks), `nature_medicine/uhn/mapping/` (DICOM↔Syngo deid keys, gitignored). See `experiments/README.md`, `claude/data/embedding-pipeline.md`, `claude/data/uhn-mapping.md`
+- `experiments/` — precomputed frozen embeddings organized by paper: `icml/` (UHN benchmarks), `nature_medicine/mimic/` (7 models, 23 tasks), `nature_medicine/uhn/mapping/` (DICOM↔Syngo deid keys, gitignored). UHN label provenance docs: `nature_medicine/uhn/DATASET_PROVENANCE.md` (all tasks), `nature_medicine/uhn/UHN_DISEASE_PROVENANCE.md` (disease v1-v7.2), `nature_medicine/uhn/CLASS_MAPS.md` (class mappings). See `experiments/README.md`, `claude/data/embedding-pipeline.md`, `claude/data/uhn-mapping.md`
 - `predictions/` — probe and classifier prediction CSVs (LVEF, RVSP, EchoNet, view, quality, zoom)
 - `results/` — data efficiency experiment runs (epoch checkpoints + logs)
 - `scripts/` — SBATCH scripts, Python utilities, demos, `run_details.md`

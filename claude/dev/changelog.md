@@ -6,6 +6,38 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-21 (Session 23)
+
+### Comprehensive Pred Avg Completion + Disease Training Results
+
+**ALL 13 primary tasks pred avg DONE (all 5 models):**
+- Final 3 tasks completed: RV S' (L-K 0.473, EP 0.353, Pan 0.301), RV FAC G (0.539), AR sev G (0.765) + Pan (0.692)
+- shm failures resolved by running G jobs sequentially with different MASTER_PORT (29503)
+
+**Disease probes trained (6/8, single-clip val AUROC):**
+| Disease | G | L-K | EP | L | Pan | Machine |
+|---------|---|-----|----|----|-----|---------|
+| HCM | **0.942** | 0.845 | 0.778 | — | 0.816 | This |
+| DCM | **0.846** | 0.760 | 0.763 | — | 0.733 | This |
+| STEMI | **0.837** | 0.729 | 0.770 | 0.718 | 0.731 | Other |
+| Amyloidosis | **0.935** | 0.706 | 0.755 | 0.683 | 0.801 | Other |
+| Myxomatous MV | **0.917** | 0.854 | 0.813 | 0.756 | 0.759 | Other |
+| Rheumatic MV | **0.795** | 0.714 | 0.749 | 0.735 | 0.702 | Other |
+
+Bicuspid AV training launched (GPUs 4-7, G model). Takotsubo remaining.
+
+**Disease probe pipeline (from earlier in session):**
+- `build_probe_csvs.py` extended with `--max_neg_pos_ratio` flag for train-only negative downsampling (val/test untouched)
+- Disease CSVs rebuilt at 3:1 cap from v7.2 labels. 5/8 diseases have view-filtered variants.
+- Class imbalance handled at 3 levels: (1) 3:1 CSV neg cap, (2) `class_balance_ratio=3` in sampler, (3) inverse-freq class weighting in CE loss
+
+**Files modified:**
+- `experiments/nature_medicine/uhn/build_probe_csvs.py` — added `--max_neg_pos_ratio` CLI arg + downsampling logic
+- All doc files updated with disease results and pred avg completion (TASK_TRACKER, roadmap ×2, changelog ×2, manuscript-tasks, probe-results, MEMORY)
+- `claude/dev/changelog.md` — this entry
+
+---
+
 ## 2026-03-20 (Session 22, continued)
 
 ### Disease Label Rebuild — Full Provenance (9 diseases)
@@ -29,7 +61,7 @@ Rebuilt all 9 disease detection NPZs with fully documented provenance. The origi
 **Output:**
 - `labels_v2/`: 9 disease NPZs with patient propagation + 10 provenance JSONs
 - `labels_v2_study_level/`: 9 disease NPZs study-level (conservative) + provenance JSONs
-- `DISEASE_PROVENANCE.md`: Full per-disease documentation (search terms, SQL sources, negation rates, confidence tiers)
+- `UHN_DISEASE_PROVENANCE.md`: Full per-disease documentation (search terms, SQL sources, negation rates, confidence tiers)
 - `CLASS_MAPS.md`: Disease section updated with source breakdown, confidence tiers
 
 **Validation (study-level vs old NPZ):**
