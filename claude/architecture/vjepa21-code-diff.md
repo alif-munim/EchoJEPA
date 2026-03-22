@@ -282,6 +282,37 @@ nvidia-smi --query-gpu=index,utilization.gpu,memory.used --format=csv
 df -h /dev/shm
 ```
 
+### /dev/shm exhaustion after crashes
+
+PyTorch DataLoader workers use `/dev/shm` (shared memory) for IPC — each worker `mmap`s segments to pass prefetched batches to the main process. When processes crash or are killed ungracefully (SIGKILL, OOM, DDP hang), these anonymous mmap'd segments become **orphaned** and persist in `/dev/shm` until a reboot or manual cleanup.
+
+Multiple crash-restart cycles accumulate orphaned segments. With 8 GPUs × 4 workers × large video batches, each crash cycle leaks several GB. After a few restarts, `/dev/shm` fills up (143GB/144GB), causing `unable to allocate shared memory` errors that prevent any new training from starting.
+
+**Recovery:**
+```bash
+# Check usage
+df -h /dev/shm
+
+# If full, clear orphaned segments (safe if no other training runs active)
+rm -rf /dev/shm/*
+
+# Or reboot the instance / restart the kernel to reclaim
+```
+
+**Prevention:**
+- Use `num_workers: 4` (not 8) to halve per-crash leak
+- Clean up /dev/shm between crash-restart cycles
+- If a run crashes, check `/dev/shm` before relaunching
+
+### Partial collapse and restart (epoch 153-154)
+
+At epoch 153-154 (original seed=231), loss suddenly dropped from ~0.62 to ~0.45 — a partial collapse (sudden drops are bad in JEPA training; rising loss is normal). Recovery steps:
+1. Stopped the run
+2. Deleted `latest.pt` (points to collapsed checkpoint) and `e154.pt`
+3. Set `read_checkpoint: e144.pt` and `seed: 571` in config
+4. Cleared `/dev/shm` and relaunched
+5. After successful resume, set `read_checkpoint: null` so future restarts use `latest.pt`
+
 ### Checkpoint outputs
 
 - `latest.pt` — overwritten every epoch

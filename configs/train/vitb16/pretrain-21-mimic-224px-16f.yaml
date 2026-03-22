@@ -60,10 +60,10 @@ meta:
   dtype: bfloat16
   eval_freq: 100
   load_checkpoint: true
-  read_checkpoint: null
+  read_checkpoint: e144.pt         # resume from pre-collapse checkpoint (seed=571)
   save_every_freq: 5
   s3_checkpoint_uri: "s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/vjepa-2.1-b/"
-  seed: 234
+  seed: 571
   use_sdpa: true
 
 model:
@@ -109,6 +109,6 @@ optimization:
   ipe_scale: 1.25
   warmup: 40                     # 40 * 300 = 12K steps (matches paper and ViT-L)
 
-  # 120 epochs * 300 ipe = 36K steps, ~70 passes (same as ViT-L)
+  # 240 epochs * 300 ipe = 72K steps, ~140 passes (matches V-JEPA 2.0 ViT-L MIMIC run)
   # Set force_load_pretrain: false + load_checkpoint: true to resume
-  epochs: 120
+  epochs: 240

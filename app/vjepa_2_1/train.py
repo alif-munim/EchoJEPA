@@ -352,7 +352,7 @@ def main(args, resume_preempt=False):
                 load_path = anneal_ckpt
                 resume_anneal = False
         else:
-            load_path = r_file if r_file is not None else latest_path
+            load_path = os.path.join(folder, r_file) if r_file is not None else latest_path
         if not os.path.exists(load_path):
             load_path = None
             load_model = False
