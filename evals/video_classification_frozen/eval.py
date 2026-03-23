@@ -833,6 +833,10 @@ def run_one_epoch(
     all_head_preds = [[] for _ in classifiers] if collect_for_r2 else None
     all_reg_labels = [] if collect_for_r2 else None
 
+    # Per-head pooler feature collection (val_only inference for downstream reuse)
+    collect_features = val_only
+    all_head_features = [[] for _ in classifiers] if collect_features else None
+
     # Study ID collection for prediction averaging
     collect_study_ids = prediction_averaging and not training
     all_study_ids = [] if collect_study_ids else None
@@ -868,7 +872,18 @@ def run_one_epoch(
             with torch.no_grad():
                 outputs = encoder(clips, clip_indices)
                 if not training:
-                    outputs = [[c(o) for o in outputs] for c in classifiers]
+                    if collect_features:
+                        # Extract pooler features alongside predictions
+                        results = [[c(o, return_features=True) for o in outputs] for c in classifiers]
+                        outputs = [[r[0] for r in head_results] for head_results in results]
+                        batch_features = [
+                            sum([r[1] for r in head_results]) / len(head_results)
+                            for head_results in results
+                        ]
+                        for h, feat in enumerate(batch_features):
+                            all_head_features[h].append(feat.float().cpu())
+                    else:
+                        outputs = [[c(o) for o in outputs] for c in classifiers]
             if training:
                 outputs = [[c(o) for o in outputs] for c in classifiers]
 
@@ -1064,6 +1079,10 @@ def run_one_epoch(
 
             labels_np = all_labels_t.numpy().astype(int)
 
+            # Save clip-level data before study averaging overwrites gathered_probs
+            clip_level_probs = [p.numpy().copy() for p in gathered_probs]
+            clip_level_labels = labels_np.copy()
+
             # Prediction averaging: average probabilities per study
             if gathered_study_ids is not None:
                 n_clips = len(gathered_study_ids)
@@ -1143,6 +1162,11 @@ def run_one_epoch(
 
             labels_np = all_labels_t.numpy()
 
+            # Snapshot clip-level data before study averaging overwrites gathered_preds
+            if collect_features:
+                clip_preds_snapshot = [gp.clone() for gp in gathered_preds]
+                clip_labels_snapshot = labels_np.copy()
+
             # Prediction averaging: average predictions per study
             if gathered_study_ids is not None:
                 n_clips = len(gathered_study_ids)
@@ -1187,6 +1211,51 @@ def run_one_epoch(
                     save_path = os.path.join(output_dir, "study_predictions.csv")
                     df.to_csv(save_path, index=False)
                     logger.info(f"Saved {len(df)} study-level predictions to {save_path} (best head {best_h}, R²={r2_arr[best_h]:.4f})")
+
+            # Save clip-level predictions (all heads) + pooler features (best head)
+            if collect_features and output_dir is not None:
+                import torch.distributed as dist
+                is_rank0 = not dist.is_initialized() or dist.get_rank() == 0
+
+                # Gather features across ranks
+                local_feats = [torch.cat(all_head_features[h], dim=0) for h in range(len(classifiers))]
+                if dist.is_initialized() and dist.get_world_size() > 1:
+                    gathered_feats = []
+                    for h in range(len(classifiers)):
+                        local_h_gpu = local_feats[h].to(device)
+                        gathered_h = [torch.zeros_like(local_h_gpu) for _ in range(dist.get_world_size())]
+                        dist.all_gather(gathered_h, local_h_gpu)
+                        gathered_feats.append(torch.cat(gathered_h, dim=0).cpu())
+                else:
+                    gathered_feats = local_feats
+
+                if is_rank0:
+                    best_h = int(np.nanargmax(r2_arr))
+                    clip_preds_all = np.stack([cp.numpy() for cp in clip_preds_snapshot], axis=1)
+                    best_feats = gathered_feats[best_h].numpy()
+                    t_mean_val = target_mean if target_mean is not None else 0.0
+                    t_std_val = target_std if target_std is not None else 1.0
+
+                    save_dict = {
+                        "clip_predictions_all_heads": clip_preds_all,  # [n_clips, n_heads] z-scored
+                        "clip_labels": clip_labels_snapshot,  # [n_clips] z-scored
+                        "clip_features_best_head": best_feats,  # [n_clips, embed_dim]
+                        "best_head_idx": np.array([best_h]),
+                        "r2_per_head": r2_arr,
+                        "pearson_per_head": pearson_arr,
+                        "zscore_mean": np.array([t_mean_val]),
+                        "zscore_std": np.array([t_std_val]),
+                    }
+                    if gathered_study_ids is not None:
+                        save_dict["clip_study_ids"] = np.array(gathered_study_ids)
+
+                    clip_save_path = os.path.join(output_dir, "clip_outputs.npz")
+                    np.savez(clip_save_path, **save_dict)
+                    logger.info(
+                        f"Saved clip-level outputs to {clip_save_path}: "
+                        f"{clip_preds_all.shape[0]} clips, {clip_preds_all.shape[1]} heads, "
+                        f"features shape {best_feats.shape} (head {best_h}, R²={r2_arr[best_h]:.4f})"
+                    )
         except Exception as e:
             logger.warning(f"R²/Pearson computation failed: {e}")
 
@@ -1196,7 +1265,14 @@ def run_one_epoch(
             import torch.distributed as dist
             is_rank0 = not dist.is_initialized() or dist.get_rank() == 0
             if is_rank0 and study_ids_sorted is not None:
-                best_h = int(np.nanargmax(auc_metrics["auroc"]))
+                auroc_vals = auc_metrics["auroc"]
+                if np.all(np.isnan(auroc_vals)):
+                    # Fallback: use balanced accuracy or kappa when AUROC unavailable (e.g. missing class)
+                    fallback = auc_metrics.get("balanced_acc", auc_metrics.get("kappa", np.zeros(len(auroc_vals))))
+                    best_h = int(np.nanargmax(fallback)) if not np.all(np.isnan(fallback)) else 0
+                    logger.warning(f"AUROC all NaN; using fallback metric for best head selection (head {best_h})")
+                else:
+                    best_h = int(np.nanargmax(auroc_vals))
                 best_probs = gathered_probs[best_h].numpy()
                 import pandas as pd
                 df_data = {
@@ -1213,6 +1289,58 @@ def run_one_epoch(
                 logger.info(f"Saved {len(df)} study-level predictions to {save_path} (best head {best_h}, AUROC={auc_metrics['auroc'][best_h]:.4f})")
         except Exception as e:
             logger.warning(f"Classification study prediction save failed: {e}")
+
+    # Save clip-level outputs for classification (all heads probs + pooler features)
+    if collect_features and collect_for_auc and output_dir is not None:
+        try:
+            import torch.distributed as dist
+            is_rank0 = not dist.is_initialized() or dist.get_rank() == 0
+
+            # Gather features across ranks
+            local_feats = [torch.cat(all_head_features[h], dim=0) for h in range(len(classifiers))]
+            if dist.is_initialized() and dist.get_world_size() > 1:
+                gathered_feats = []
+                for h in range(len(classifiers)):
+                    local_h_gpu = local_feats[h].to(device)
+                    gathered_h = [torch.zeros_like(local_h_gpu) for _ in range(dist.get_world_size())]
+                    dist.all_gather(gathered_h, local_h_gpu)
+                    gathered_feats.append(torch.cat(gathered_h, dim=0).cpu())
+            else:
+                gathered_feats = local_feats
+
+            if is_rank0:
+                if auc_metrics is not None and not np.all(np.isnan(auc_metrics["auroc"])):
+                    best_h = int(np.nanargmax(auc_metrics["auroc"]))
+                elif auc_metrics is not None:
+                    # Fallback when AUROC all NaN (e.g. missing class in cross-institution transfer)
+                    fallback = auc_metrics.get("balanced_acc", auc_metrics.get("kappa", np.zeros(1)))
+                    best_h = int(np.nanargmax(fallback)) if not np.all(np.isnan(fallback)) else 0
+                else:
+                    best_h = 0
+                best_feats = gathered_feats[best_h].numpy()
+
+                # clip_level_probs/labels saved before study averaging
+                clip_probs_all = np.stack(clip_level_probs, axis=1)  # [n_clips, n_heads, n_classes]
+
+                save_dict = {
+                    "clip_probs_all_heads": clip_probs_all,
+                    "clip_labels": clip_level_labels,
+                    "clip_features_best_head": best_feats,
+                    "best_head_idx": np.array([best_h]),
+                    "auroc_per_head": auc_metrics["auroc"] if auc_metrics is not None else np.array([]),
+                }
+                if gathered_study_ids is not None:
+                    save_dict["clip_study_ids"] = np.array(gathered_study_ids)
+
+                clip_save_path = os.path.join(output_dir, "clip_outputs.npz")
+                np.savez(clip_save_path, **save_dict)
+                logger.info(
+                    f"Saved clip-level outputs to {clip_save_path}: "
+                    f"{clip_probs_all.shape[0]} clips, {clip_probs_all.shape[1]} heads, "
+                    f"features shape {best_feats.shape} (head {best_h})"
+                )
+        except Exception as e:
+            logger.warning(f"Classification clip-level save failed: {e}")
 
     return scalar, _agg_metrics, auc_metrics or reg_metrics
 

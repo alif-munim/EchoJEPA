@@ -174,13 +174,15 @@ class AttentiveClassifier(nn.Module):
 
         return slot_emb.repeat_interleave(tokens_per_slot, dim=1)  # [B,N,D]
 
-    def forward(self, x, key_padding_mask=None):
+    def forward(self, x, key_padding_mask=None, return_features=False):
         # Backwards compatible: if not using embeddings, behave exactly like before
         if self.use_slot_embeddings:
             B, N, D = x.shape
             x = x + self._build_slot_emb(B, N, x.device)
-        x = self.pooler(x, key_padding_mask=key_padding_mask).squeeze(1)
-        x = self.linear(x)
+        features = self.pooler(x, key_padding_mask=key_padding_mask).squeeze(1)
+        x = self.linear(features)
+        if return_features:
+            return x, features
         return x
 
 
@@ -243,11 +245,13 @@ class AttentiveRegressor(nn.Module):
         return slot_emb.repeat_interleave(tokens_per_slot, dim=1)  # [B,N,D]
 
       
-    def forward(self, x, key_padding_mask=None):
+    def forward(self, x, key_padding_mask=None, return_features=False):
         if self.use_slot_embeddings:
             B, N, D = x.shape
             x = x + self._build_slot_emb(B, N, x.device)
-            
-        x = self.pooler(x, key_padding_mask=key_padding_mask).squeeze(1)
-        x = self.regressor(x)
+
+        features = self.pooler(x, key_padding_mask=key_padding_mask).squeeze(1)
+        x = self.regressor(features)
+        if return_features:
+            return x, features
         return x
