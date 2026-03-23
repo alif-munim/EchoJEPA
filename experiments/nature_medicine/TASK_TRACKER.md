@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-22 16:30 UTC (**ALL 13 primary tasks pred avg DONE** for all 5 models. **7/7 disease probes trained** (takotsubo dropped). **Disease pred avg: 6/7 DONE (4/4 models)**. Bicuspid AV 3/4 done, Pan RUNNING. Myxo MV newly complete. MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE.)
+Last updated: 2026-03-23 06:00 UTC (**ALL 13 UHN primary tasks pred avg DONE** for all 5 models. **MIMIC outcome chain IN PROGRESS**: G phase complete (10/11 tasks, in_hospital_mortality port collision → queued), L-K training pair 1. **CY baselines integrated into manuscript** (40+ cells filled). **7/7 disease probes trained**. **Disease pred avg: 7/7 DONE (4/4 models)**.)
 
 ## Evaluation Protocol
 
@@ -131,6 +131,52 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 - Prediction averaging validated: +0.08-0.09 AUC over single mean-pool embedding
 
 **Pending**: Combined echo+EHR model, acuity conditioning (H_confound).
+
+### MIMIC — Strategy E Outcome Results (d=1 attentive probes, 2026-03-23)
+
+11 outcome/biomarker tasks × 4 manuscript models. d=1 attentive probe, 15-head HP grid (5 LR × 3 WD), 35 epochs, BS2, study sampling. Training: `scripts/run_mimic_probe.sh`. Pred avg: `scripts/run_mimic_pred_avg.sh`. Chain: `scripts/run_mimic_outcome_chain.sh`.
+
+**EchoJEPA-G Pred Avg Results (study-level test metrics):**
+
+| Task | Type | N (test) | Metric | Value |
+|------|------|----------|--------|-------|
+| 1-yr mortality | AUROC | 1,087 | 0.791 | head 5 |
+| 90-day mortality | AUROC | 1,087 | 0.826 | head 7 |
+| 30-day mortality | AUROC | 1,087 | 0.881 | head 8 |
+| in_hospital_mortality | AUROC | — | PENDING | port collision, requeued |
+| readmission_30d | AUROC | — | NEEDS RE-RUN | pred avg completed but study_predictions.csv not saved |
+| discharge_destination | AUROC | 382 | 0.677 | head 14 |
+| los_remaining | R² | 440 | 0.036 | head 6 |
+| Troponin T | R² | 240 | 0.013 | head 5 |
+| NT-proBNP | R² | 126 | 0.076 | head 11 |
+| Creatinine | R² | 535 | 0.029 | head 12 |
+| Lactate | R² | 154 | 0.008 | head 9 |
+
+**Comparison with CY linear probes (mean-pooled sklearn, same split):**
+
+| Task | Strategy E (G) | CY linear† | Delta |
+|------|---------------|------------|-------|
+| 1-yr mortality | 0.791 | 0.846 | -5.5pp |
+| 90-day mortality | 0.826 | 0.883 | -5.7pp |
+| 30-day mortality | 0.881 | 0.912 | -3.1pp |
+| discharge_destination | 0.677 | 0.689 | -1.2pp |
+
+**Key finding**: Strategy E d=1 attentive probes **underperform** CY's mean-pooled linear probes on MIMIC outcomes by 1-6pp. This is the opposite of the UHN pattern where attentive probes consistently beat linear probes. Possible causes: (1) smaller MIMIC datasets (126-1087 test studies), (2) 15-head HP grid may not cover optimal range, (3) study sampler gives limited exposure per epoch. Investigation ongoing.
+
+**Chain status (2026-03-23 06:00 UTC):**
+- **G phase COMPLETE** (10/11 tasks trained + pred avg). in_hospital_mortality failed (DDP port collision), standalone requeue waiting.
+- **L-K phase IN PROGRESS**: pair 1 (mortality_1yr + mortality_90d), epoch ~11/35.
+- **Remaining**: L-K pairs 2-6, then EchoPrime, then PanEcho.
+- **Port collision fix committed**: `run_mimic_outcome_chain.sh` now has `cleanup_orphans()` + `wait_for_port_free()` between pairs + retry loop.
+- **readmission_30d G**: pred avg ran but study_predictions.csv not saved. Needs re-run.
+
+**Biomarker pred avg (multi-model, from earlier runs):**
+
+| Task | G R² | G r | L-K R² | EP R² | Pan R² |
+|------|------|-----|--------|-------|--------|
+| Troponin T | 0.013 | 0.250 | 0.012 | 0.005 | -0.007 |
+| Creatinine | 0.029 | 0.213 | -0.022 | 0.010 | -0.009 |
+| Lactate | 0.008 | 0.209 | 0.042 | 0.011 | 0.001 |
 
 ---
 

@@ -1,6 +1,6 @@
 # Roadmap
 
-Consolidated view of outstanding work for the Nature Medicine data pipeline. Updated 2026-03-22 16:30 UTC (ALL 13 tasks pred avg DONE. 7/7 diseases trained. Disease pred avg: **6/7 DONE (4/4 models)**. Bicuspid AV 3/4, Pan RUNNING. MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE).
+Consolidated view of outstanding work for the Nature Medicine data pipeline. Updated 2026-03-23 06:00 UTC (ALL 13 UHN tasks pred avg DONE. **MIMIC outcome chain IN PROGRESS**: G phase complete (10/11), L-K pair 1. CY baselines integrated into manuscript. 7/7 diseases trained. Disease pred avg: **7/7 DONE (4/4 models)**. MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE).
 
 For code-level roadmap (extraction scripts, bug fixes), see `vjepa2/claude/dev/roadmap.md`.
 For UHN label inventories and data quality notes, see `uhn-pipeline.md` (in this directory).
@@ -14,20 +14,20 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 
 **4 manuscript models**: EchoJEPA-G, EchoJEPA-L-K, EchoPrime, PanEcho. EchoJEPA-L is internal testing only.
 
-### Tier 0: Current Status (2026-03-22 16:30 UTC)
-- **GPUs 0-3**: Bicuspid AV PanEcho pred avg RUNNING (chain_v2 script). Last remaining disease PA.
-- **GPUs 4-7**: Idle.
-- **Disease pred avg — 6/7 DONE (all 4 manuscript models)**:
-  - Bicuspid AV: G **0.975**, L-K **0.881**, EP **0.901**, Pan RUNNING
-  - HCM: G **0.960**, L-K **0.903**, EP **0.806**, Pan **0.866**
-  - Myxo MV: G **0.946**, L-K **0.912**, EP **0.859**, Pan **0.835** (newly complete)
-  - Amyloidosis: G **0.927**, L-K **0.754**, EP **0.771**, Pan **0.826**
-  - Rheumatic MV: G **0.846**, L-K **0.785**, EP **0.739**, Pan **0.745**
-  - DCM: G **0.837**, L-K **0.772**, EP **0.785**, Pan **0.768**
-  - STEMI: G **0.826**, L-K **0.623**, EP **0.810**, Pan **0.788**
+### Tier 0: Current Status (2026-03-23 06:00 UTC)
+- **GPUs 0-7**: MIMIC outcome chain running (PID 352661). L-K phase, pair 1 (mortality_1yr + mortality_90d), epoch ~11/35.
+- **Standalone requeue**: in_hospital_mortality G (PID 2060121) waiting for chain to finish.
+- **MIMIC outcome chain G phase COMPLETE** (10/11 tasks trained + pred avg):
+  - Mortality: 1yr **0.791**, 90d **0.826**, 30d **0.881** (all pred avg AUROC)
+  - discharge_destination **0.677**, los_remaining R²=0.036
+  - Biomarkers: troponin_t R²=0.013, NT-proBNP R²=0.076, creatinine R²=0.029, lactate R²=0.008
+  - in_hospital_mortality: FAILED (DDP port collision), standalone requeue waiting
+  - readmission_30d: pred avg ran but study_predictions.csv not saved — needs re-run
+  - **Key finding**: Strategy E attentive probes underperform CY linear probes by 1-6pp on mortality. Under investigation.
+- **CY baselines integrated into manuscript** (40+ `\tbd` cells filled, tbd count 60→44)
+- **Disease pred avg — 7/7 DONE (all 4 manuscript models)**
 - **MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE** (amyloidosis G 0.947, HCM G 0.847, DCM EP 0.721, STEMI G 0.657)
-- **Completed**: ALL 13 primary tasks × 5 models TRAINED + PRED AVG DONE. 7/7 diseases trained.
-- **Next**: Bicuspid AV Pan PA finishes (~1-2h), then all disease PA complete. Consider MIMIC cross-transfer for MR/TR severity (class map mismatch: UHN 5-class vs MIMIC 4-class needs post-hoc merge) and LVEF.
+- **Next**: Chain finishes L-K/EP/Pan phases (~12-18h). Then in_hospital_mortality G runs. Then readmission_30d G pred avg re-run. Then investigate attentive vs linear probe gap.
 
 ### P1: Finish UHN Probe Pipeline (Alif, compute-only — blocks §2.2-2.4 tables)
 
@@ -42,8 +42,8 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 
 | # | Task | Effort | Status | Notes |
 |---|------|--------|--------|-------|
-| 5 | **8 outcome tasks × 4 models** (mortality ×4, readmission, discharge, LOS, end-of-life) | ~4 days | TODO | Currently sklearn G only (†). Need d=1 attentive probes. |
-| 6 | **Biomarkers** (troponin, NT-proBNP, creatinine, lactate) × G+L-K | ~1 day | TODO | §2.5 biomarker rows all `\tbd` |
+| 5 | **8 outcome tasks × 4 models** (mortality ×4, readmission, discharge, LOS, end-of-life) | ~4 days | **G 10/11 DONE** (PA complete). L-K/EP/Pan IN PROGRESS (chain running). | Strategy E underperforms CY linear by 1-6pp. in_hosp_mort G requeued. |
+| 6 | **Biomarkers** (troponin, NT-proBNP, creatinine, lactate) × 4 models | ~1 day | **G PA DONE**, L-K/EP/Pan partial | R² very low (0.008-0.076). All models struggle. |
 | 7 | **Cross-institution** — more tasks beyond LVEF | ~hours/task | LVEF + 4 diseases DONE | §2.5 cross-site table. MR/TR severity feasible but 5→4 class mismatch needs post-hoc merge. |
 
 ### P3: Novel/JEPA-Unique Experiments (Alif — blocks §2.5 trajectory + §2.8 ablation ‡ markers)
@@ -58,7 +58,7 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 
 | # | Task | Effort | Owner | Notes |
 |---|------|--------|-------|-------|
-| 11 | **Disease panel** (7 diseases × 4 models) | ~1-2 days | Alif/Reza | **7/7 training DONE** (takotsubo dropped). **Pred avg: 6/7 DONE (4/4 models)**. Bicuspid AV Pan RUNNING (last). MIMIC xfer: 4 diseases × 4 models DONE. |
+| 11 | **Disease panel** (7 diseases × 4 models) | ~1-2 days | Alif/Reza | **7/7 training DONE** (takotsubo dropped). **Pred avg: 7/7 DONE (4/4 models)**. MIMIC xfer: 4 diseases × 4 models DONE. |
 | 12 | **Diastolic function, PA pressure, cardiac output** | ~1-2 days | Alif | CSVs need B-mode filter build. §2.2 Extended Data. |
 
 ### P5: Delegated Work (blocked on other people)
@@ -107,25 +107,28 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 ### Critical Path
 
 ```
-P1 DONE (all 13 primary pred avg complete)
-  → P4 disease panel (6/7 PA DONE, bicuspid Pan PA ~1-2h remaining)
-    → P2 (MIMIC Strategy E outcomes, ~4 days. Cross-institution xfer for MR/TR/LVEF feasible now.)
-      → P3 (forward prediction + anomaly detection, ~3-4 days)
-        → P5/CY (combined model + confounding, ~4 days parallel)
-          → P6/CY (fairness, ~2 days, after Chicago demographics)
-            → P7 (methods placeholders, ~1 day)
-              → Paper draft with all ‡ and \tbd resolved
+P1 DONE (all 13 UHN primary pred avg complete)
+  → P4 disease panel DONE (7/7 PA complete)
+    → P2 MIMIC Strategy E (G 10/11 done, chain running L-K/EP/Pan ~12-18h remaining)
+      → Investigate attentive vs linear probe gap on MIMIC outcomes
+        → P3 (forward prediction + anomaly detection, ~3-4 days)
+          → P5/CY (combined model + confounding, ~4 days parallel)
+            → P6/CY (fairness, ~2 days, after Chicago demographics)
+              → P7 (methods placeholders, ~1 day)
+                → Paper draft with all ‡ and \tbd resolved
 ```
 
 ---
 
 ## Recent Completed Work
 
-### Done (March 22 — disease pred avg completion + MIMIC cross-transfer)
-- **Disease pred avg 6/7 DONE (4/4 models each)**: Myxo MV newly complete (EP 0.859, Pan 0.835). Bicuspid AV 3/4 (EP 0.901, Pan RUNNING).
-- **DCM/STEMI/rheumatic MV pred avg ALL DONE** (run on other machine): DCM G 0.837, STEMI G 0.826, rheumatic G 0.846
+### Done (March 22-23 — MIMIC outcome chain + CY baselines + disease completion)
+- **MIMIC outcome chain launched** (11 tasks × 4 models): G phase complete (10/11 tasks trained + pred avg). in_hospital_mortality G failed (port collision), requeued. L-K phase in progress.
+- **CY baseline results integrated into manuscript**: 40+ `\tbd` cells filled (outcomes table). XGBoost EHR, LVEF, Elixhauser, echo measurements for all 12 rows.
+- **Port collision fix committed** (c3517d7): cleanup_orphans + wait_for_port_free + retry loop
+- **Key finding**: Strategy E attentive probes underperform CY linear probes by 1-6pp on MIMIC mortality (0.791 vs 0.846 for 1yr). Checkpoint integrity verified (md5sum match, all 35 epochs completed).
+- **Disease pred avg 7/7 DONE (4/4 models each)**
 - **MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE**: Amyloidosis G **0.947**, HCM G 0.847, DCM EP 0.721, STEMI G 0.657
-- **Cross-transfer analysis**: MR/TR severity feasible but 5→4 class mismatch (UHN has trace, MIMIC merges none+trivial). LVEF trivially runnable.
 
 ### Done (March 21-22 earlier — disease probes + labels)
 - **7/7 disease probes trained** (takotsubo dropped), all 4 manuscript models. Bicuspid AV Pan training completed.
@@ -277,14 +280,14 @@ All results: d=1 attentive probes, 15 epochs, 12-head HP grid. All values are pr
 | Fairness demographics | `mvp_fairness_demographics.md` | CY | **DONE** | Sec 2.4 |
 | Acuity covariates | `mvp_acuity_covariates.md` | CY | **DONE** | Sec 2.3 |
 | MIMIC 7-model extraction + splits | — | Alif | **DONE** | All MIMIC experiments |
-| d=1 attentive probe training (MIMIC: 23×5) | — | Alif | **TODO** | Sec 2.3-2.4 |
-| d=1 attentive probe training (UHN: 47×5) | — | Alif | **13 tasks × 5 models ALL TRAINED + PRED AVG DONE.** 6/8 diseases × 4 models done. Bicuspid AV EP+Pan + takotsubo remaining. 3 non-disease tasks TODO. | Sec 2.1, Extended Data |
+| d=1 attentive probe training (MIMIC: 11 outcomes × 4) | — | Alif | **G 10/11 PA DONE**. Chain running L-K/EP/Pan. | Sec 2.3-2.4 |
+| d=1 attentive probe training (UHN: 47×5) | — | Alif | **13 tasks × 5 models ALL PRED AVG DONE.** 7/7 diseases × 4 models PA DONE. 3 non-disease tasks TODO. | Sec 2.1, Extended Data |
 | Core lab reader recruitment (3 minimum) | — | Ali/Wendy | TODO | Sec 2.1, Extended Data |
 | Rare disease label verification | — | Ali/Wendy | TODO | Sec 2.2 |
 | **True forward prediction (Exp 6.1)** | `06_forward_prediction.md` | Alif | **TODO** — Key JEPA differentiator. Write `evals/forward_prediction.py`, run inference. ~2-3 days. | Sec 2.3 |
 | Chicago demographics from Joe | — | Alif | **TODO** (blocking fairness) | Sec 2.4 |
 
-**MVP progress (updated 2026-03-22 06:30):** Infrastructure complete (CSVs, scripts, pred avg pipeline, Bugs 007-014 fixed). **13 tasks × 5 models ALL TRAINED + PRED AVG DONE.** **7/7 diseases trained** (takotsubo dropped). **Disease pred avg: 2/7 DONE** (HCM, amyloidosis), myxo MV 2/4, chain running for DCM/STEMI/rheumatic. Bicuspid AV Pan still training, then needs PA. **Remaining**: finish disease pred avg chain (~4h) + bicuspid PA (~2.5h), MIMIC Strategy E (P2), JEPA-unique experiments (P3), 3 non-disease tasks (cardiac output, diastolic fn, RV fn), fairness (P6), methods placeholders (P7).
+**MVP progress (updated 2026-03-23 06:00):** Infrastructure complete (CSVs, scripts, pred avg pipeline, Bugs 007-014 fixed). **13 UHN tasks × 5 models ALL PRED AVG DONE.** **7/7 diseases PA DONE (4/4 models).** **MIMIC outcomes: G 10/11 PA DONE**, chain running L-K/EP/Pan. CY baselines integrated (40+ cells). **Remaining**: finish MIMIC outcome chain (~12-18h), in_hospital_mortality G requeue, investigate attentive vs linear gap, JEPA-unique experiments (P3), 3 non-disease UHN tasks, fairness (P6), methods placeholders (P7).
 
 Spec files at `../planning/tasks/`. Each is self-contained with pipeline steps, output paths, and dependencies.
 
@@ -316,8 +319,8 @@ Now integrated into the P1-P7 priority structure above. See priority tiers for c
 |------|-------|--------|----------|
 | Forward prediction (Exp 6.1) | Alif | TODO | P3 #8 |
 | Anomaly detection (Exp 6.4) | Alif | TODO | P3 #9 |
-| Disease panel (7 diseases × 4 models) | Alif/Reza | 7/7 trained. PA: 2/7 DONE, myxo 2/4, 4 queued | P4 #11 |
-| MIMIC Strategy E outcomes (8 × 4) | Alif | TODO | P2 #5 |
+| Disease panel (7 diseases × 4 models) | Alif/Reza | **7/7 PA DONE (4/4 models)** | P4 #11 |
+| MIMIC Strategy E outcomes (11 × 4) | Alif | **G 10/11 PA DONE**, chain running L-K/EP/Pan | P2 #5 |
 | Combined echo+EHR model | CY | TODO | P5 #13 |
 | SAE Phase A | Adib/Goodfire | IN PROGRESS (GPU issues) | P5 #17 |
 | Frame shuffling | Goodfire | TODO (blocked) | P5 #17 |

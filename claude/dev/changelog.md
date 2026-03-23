@@ -6,6 +6,61 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-23 (Session 25)
+
+### MIMIC Outcome Chain + CY Baseline Integration
+
+**Manuscript update — CY baseline results integrated:**
+- Filled 40+ `\tbd` cells in outcomes table (`sn-article.tex` lines 239-266): all 5 baseline columns (LVEF, LVEF+demo+CCI, Elixhauser, XGBoost EHR, echo measurements) for 8 outcome + 4 biomarker rows
+- Updated outcome prose (lines 219-227): replaced "in progress" with actual baseline comparisons
+- Updated discussion (line 539) and limitations (line 551) with XGBoost context
+- Revised biomarker claim to be honest: LVEF slightly outperforms EchoJEPA linear probes on troponin T (0.624 vs 0.600) and lactate (0.555 vs 0.534). Deferred "substantially stronger" claim to attentive probes.
+- Updated footnote: `†` now defined as "mean-pooled frozen embeddings with linear probes"
+- `\tbd` count: 60 → 44
+
+**MIMIC outcome chain (`scripts/run_mimic_outcome_chain.sh`) — created and launched:**
+- 11 tasks × 4 models (G first for manuscript priority)
+- 2 tasks in parallel on split GPUs (0-3 and 4-7), ports 29500/29501
+- Skip logic: checks `checkpoints/probes/mimic/{task}/{model}/best.pt`
+- End-of-life excluded (CSVs not yet built)
+
+**DDP port collision bug and fix:**
+- **Root cause**: mortality_90d pred avg took 127 min on GPUs 4-7 (port 29501). When pair 2 launched in_hospital_mortality on same port, DDP init timed out after 300s.
+- **Fix** (committed c3517d7): Added `cleanup_orphans()` + `wait_for_port_free()` (600s timeout with force-kill) between pairs. Added retry loop at end of each model phase.
+- **Impact**: in_hospital_mortality G failed. Standalone requeue script (`scripts/run_mimic_inhospmort_g.sh`) launched, waits for chain to finish.
+
+**MIMIC outcome pred avg results — EchoJEPA-G (Strategy E):**
+
+| Task | Metric | Value |
+|------|--------|-------|
+| 1-yr mortality | AUROC | 0.791 |
+| 90-day mortality | AUROC | 0.826 |
+| 30-day mortality | AUROC | 0.881 |
+| discharge_destination | AUROC | 0.677 |
+| los_remaining | R² | 0.036 |
+| Troponin T | R² | 0.013 |
+| NT-proBNP | R² | 0.076 |
+| Creatinine | R² | 0.029 |
+| Lactate | R² | 0.008 |
+
+**Key finding — attentive probes underperform linear probes on MIMIC outcomes:**
+- Strategy E (d=1 attentive) mortality AUROCs: 0.791, 0.826, 0.881
+- CY linear probes (mean-pooled sklearn): 0.846, 0.883, 0.912
+- Delta: -3 to -6pp. Opposite of UHN pattern. Under investigation.
+- Checkpoint integrity verified: md5sum confirms eval dir and archive dir best.pt are identical. All tasks completed 35 epochs (latest.pt epoch=35).
+
+**Chain status at session end:**
+- G phase COMPLETE (10/11 tasks). L-K phase IN PROGRESS (pair 1, epoch ~11/35).
+- in_hospital_mortality G: standalone requeue (PID 2060121) waiting for chain.
+- readmission_30d G: pred avg ran but study_predictions.csv not saved — needs re-run.
+
+**Git commits this session:**
+- CY baseline results in manuscript (sn-article.tex)
+- Organized prior uncommitted changes (train.py fix, pretrain config, docs, run scripts, papers)
+- `c3517d7` — Port collision fix + standalone requeue script
+
+---
+
 ## 2026-03-22 (Session 24)
 
 ### Disease Pred Avg Completion + MIMIC Cross-Transfer Analysis
