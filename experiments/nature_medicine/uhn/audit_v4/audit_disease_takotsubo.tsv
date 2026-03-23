@@ -1,0 +1,51 @@
+study_id	source	finding_group	matched_term	text	auto_class
+1.2.276.0.7230010.3.1.2.859333938.1.1703131662.8298833	HL_NOTE		tako-tsubo	Previous Tako-Tsubo cardiomyopathy.  AI.	HISTORY
+1.2.276.0.7230010.3.1.2.1714512485.1.1703252383.13037102	HL_NOTE		takotsubo	?takotsubo	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703350120.15161330	HL_NOTE		stress cardiomyopath	evere hypokinesis involving the mid LV. The very basal wall segments and the tip of the apex move well.  ? Stress cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703230522.9861700	HL_NOTE		takotsubo	F/U Takotsubo.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703743098.23069409	HL_NOTE		takotsubo	 Myocarditis. ?Takotsubo. R/o LV function.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714578744.1.1703363928.12733887	HL_NOTE		stress cardiomyopath	 Previous stress cardiomyopathy; EF ~20%, ?LV thrombus.	HISTORY
+1.2.276.0.7230010.3.1.2.1714578744.1.1703447344.14130437	HL_NOTE		takotsubo	Takotsubo cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703475554.14531820	HL_NOTE		takotsubo	 Takotsubo - normal coronaries. Reassess LV function - recovery?	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703579648.15588276	HL_NOTE		takotsubo	Takotsubo CM.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703211905.9739245	HL_NOTE		takotsubo	 Takotsubo Cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703656689.16317544	HL_NOTE		takotsubo	 82F Takotsubo's cardiomyopathy, reassess LV function.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703349002.12152642	HL_NOTE		tako-tsubo	 Previous Tako-Tsubo cardiomyopathy.	HISTORY
+1.2.276.0.7230010.3.1.2.1714578744.1.1703355330.12441680	HL_NOTE		tako-tsubo	 Post surgery - C1 vertebral fracture. Now with chest pain; has diffuse (but mostly inferior) neg T's. Assess for Tako-tsubo; cardiac contusion. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703494198.14703012	HL_NOTE		takotsubo	Hypotension or hemodynamically instability of suspected cardiac etiology. Previous Takotsubo, shock likley septic. R/O cardiogenic.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714512485.1.1703295824.13794384	HL_NOTE		takotsubo	Takotsubo cardiomyopathy. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703363943.18402385	HL_NOTE		takotsubo	 80F diagnosed with Takotsubo and LVEF of 30%.	HISTORY
+1.2.276.0.7230010.3.1.2.859333938.1.1703351059.12358120	HL_NOTE		takotsubo	 Takotsubo cardiomyopathy. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703746306.17233799	HL_NOTE		takotsubo	Hx of Takotsubo. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703722012.22740078	HL_NOTE		takotsubo	 Takotsubo Cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703229393.12526549	HL_NOTE		takotsubo	Takotsubo cardiomyopathy 01/2011.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703350097.12293752	HL_NOTE		takotsubo	 Anterior MI. Normal coronaries. Takotsubo cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703244369.10187655	HL_NOTE		takotsubo	; Takotsubo cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703461134.14371361	HL_NOTE		stress cardiomyopath	Patient developed flash pulmonary edema, normal coronaries - Query stress cardiomyopathy?	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703403469.13715425	HL_NOTE		takotsubo	Admitted to TGH ER in 2010 with Takotsubo cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703448954.17328201	HL_NOTE		stress cardiomyopath	 Post liver transplant, r/o stress cardiomyopathy.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.811753780.1.1703223274.9954043	HL_NOTE		tako-tsubo	 Pt. 10 months post partum. R/O post partum cardiomyopathy or Tako-Tsubo cardiomyopathy.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.811753780.1.1703698618.16735036	HL_NOTE		tako-tsubo	; Tako-Tsubo syndrome or stress cardiomyopathy 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703520266.15050345	HL_NOTE		takotsubo	 Previous echo from 29/06/2011 _ LV function 2-3/4 9 Takotsubo cardiomyopathy ).	HISTORY
+1.2.276.0.7230010.3.1.2.1714512485.1.1703302106.13968864	HL_NOTE		tako-tsubo	Previous Tako-Tsubo cardiomyopathy	HISTORY
+1.2.276.0.7230010.3.1.2.1714512485.1.1703348805.15087740	HL_NOTE		apical ballooning	Pt. came as CODE STEMI troponin of 17 with apical ballooning on LV angiogram and no significant CAD.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703213834.9775704	HL_NOTE		takotsubo	 Takotsubo. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703736419.17119602	HL_NOTE		takotsubo	 Takotsubo cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703506417.14856568	HL_NOTE		takotsubo	Hypotension; query Takotsubo?	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703502194.14777149	HL_NOTE		takotsubo	Takotsubo cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703347462.12085908	HL_NOTE		takotsubo	; assess for Takotsubo syndrome 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703281288.10719462	HL_NOTE		takotsubo	 Takotsubo cardiomyopathy 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703363838.12823276	HL_NOTE		tako-tsubo	 F/U Tako-tsubo CM.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703494231.20342096	HL_NOTE		stress cardiomyopath	Stress cardiomyopathy?	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703592648.18942400	HL_NOTE		takotsubo	Takotsubo cardiomyopathy?	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703203543.9342095	HL_NOTE		takotsubo	Takotsubo cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703356883.12609914	HL_NOTE		stress cardiomyopath	The basal LV and the very apex move well. Mid LV severely hypokinetic c/w stress cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703154708.8827015	HL_NOTE		takotsubo	Previous Takotsubo.	HISTORY
+1.2.276.0.7230010.3.1.2.859333938.1.1703201404.9354313	HL_NOTE		takotsubo	Likely Takotsubo cardiomyopathy in November 2010.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703492637.14660755	HL_NOTE		takotsubo	 Follow-up for Takotsubo cardiomyopathy. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703594182.15777465	HL_NOTE		stress cardiomyopath	Stress cardiomyopathy	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703202257.11911230	HL_NOTE		tako-tsubo	 Tako-Tsubo.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703359630.15605650	HL_NOTE		stress cardiomyopath	 Complicated medical hx. Received allo-BMT for MDS, and since has deteriorated clinically. Currently decreased LOC and seizure activity (now controlled on medications) - cause GVHD of leptomeninges vs. infectious cause. Developed stress cardiomyopathy while in hospital. Now resolving clinically. Ple	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703363825.12822630	HL_NOTE		takotsubo	Takotsubo CMP	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703146997.13885374	HL_NOTE		takotsubo	Myocardial Ischemia / Infarct / ACS. CP and troponitis. CAD? Takotsubo?	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703518658.18208982	HL_NOTE		takotsubo	 Anterior MI. Normal coronaries. Takotsubo cardiomyopathy.	DEFINITIVE

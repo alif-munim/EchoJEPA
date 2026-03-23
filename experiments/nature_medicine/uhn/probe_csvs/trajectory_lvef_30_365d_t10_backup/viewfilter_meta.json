@@ -1,0 +1,15 @@
+{
+  "task": "trajectory_lvef",
+  "mode": "classification",
+  "threshold": 10,
+  "classes": {
+    "0": "declined",
+    "1": "stable",
+    "2": "improved"
+  },
+  "allowed_views": [
+    "A4C",
+    "A2C"
+  ],
+  "bmode_only": false
+}

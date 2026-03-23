@@ -1,0 +1,10 @@
+disease	n_sampled	DEFINITIVE	HISTORY	HEDGED	RULE_OUT_LEAK	FAMILY_HX	NO_EVIDENCE
+disease_hcm	50	50	0	0	0	0	0
+disease_amyloidosis	50	46	1	0	3	0	0
+disease_takotsubo	50	40	4	1	5	0	0
+disease_stemi	50	50	0	0	0	0	0
+disease_endocarditis	50	33	3	3	11	0	0
+disease_dcm	50	48	0	0	2	0	0
+disease_bicuspid_av	50	48	1	0	0	1	0
+disease_myxomatous_mv	50	48	0	0	2	0	0
+disease_rheumatic_mv	50	50	0	0	0	0	0

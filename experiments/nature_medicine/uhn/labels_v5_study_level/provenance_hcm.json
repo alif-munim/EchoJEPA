@@ -1,0 +1,19 @@
+{
+  "disease": "disease_hcm",
+  "total_positive": 10264,
+  "total_negative": 39318,
+  "sources": {
+    "syngo_obs": 12,
+    "heartlab_freetext": 15324,
+    "syngo_freetext": 1947
+  },
+  "negation": {
+    "heartlab_negated": 13599,
+    "syngo_text_negated": 93,
+    "overall_rate": 0.442
+  },
+  "indication_only": 1815,
+  "syngo_text_only_removed": 1945,
+  "confidence": "LOW",
+  "note": "High negation rate suggests many rule-out mentions"
+}

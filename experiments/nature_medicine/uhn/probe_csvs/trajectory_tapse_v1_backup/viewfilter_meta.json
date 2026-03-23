@@ -1,0 +1,7 @@
+{
+  "task": "trajectory_tapse",
+  "allowed_views": [
+    "A4C"
+  ],
+  "bmode_only": false
+}

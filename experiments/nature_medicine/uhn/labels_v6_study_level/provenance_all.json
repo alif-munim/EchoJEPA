@@ -1,0 +1,173 @@
+[
+  {
+    "disease": "disease_hcm",
+    "total_positive": 10264,
+    "total_negative": 39318,
+    "sources": {
+      "syngo_obs": 12,
+      "heartlab_freetext": 15324,
+      "syngo_freetext": 1947
+    },
+    "negation": {
+      "heartlab_negated": 13599,
+      "syngo_text_negated": 93,
+      "overall_rate": 0.442
+    },
+    "indication_only": 1815,
+    "syngo_text_only_removed": 1945,
+    "confidence": "LOW",
+    "note": "High negation rate suggests many rule-out mentions"
+  },
+  {
+    "disease": "disease_amyloidosis",
+    "total_positive": 750,
+    "total_negative": 10247,
+    "sources": {
+      "syngo_obs": 1,
+      "heartlab_freetext": 749,
+      "syngo_freetext": 120
+    },
+    "negation": {
+      "heartlab_negated": 101,
+      "syngo_text_negated": 47,
+      "overall_rate": 0.1454
+    },
+    "indication_only": 186,
+    "syngo_text_only_removed": 120,
+    "confidence": "MEDIUM",
+    "note": "Almost entirely free-text derived; no structured validation"
+  },
+  {
+    "disease": "disease_takotsubo",
+    "total_positive": 74,
+    "total_negative": 662,
+    "sources": {
+      "syngo_obs": 0,
+      "heartlab_freetext": 74,
+      "syngo_freetext": 47
+    },
+    "negation": {
+      "heartlab_negated": 8,
+      "syngo_text_negated": 13,
+      "overall_rate": 0.1479
+    },
+    "indication_only": 52,
+    "syngo_text_only_removed": 47,
+    "confidence": "MEDIUM",
+    "note": "Mixed sources"
+  },
+  {
+    "disease": "disease_stemi",
+    "total_positive": 663,
+    "total_negative": 1125,
+    "sources": {
+      "syngo_obs": 59,
+      "heartlab_freetext": 604,
+      "syngo_freetext": 392
+    },
+    "negation": {
+      "heartlab_negated": 38,
+      "syngo_text_negated": 29,
+      "overall_rate": 0.0597
+    },
+    "indication_only": 319,
+    "syngo_text_only_removed": 392,
+    "confidence": "MEDIUM",
+    "note": "Mixed sources"
+  },
+  {
+    "disease": "disease_endocarditis",
+    "total_positive": 2329,
+    "total_negative": 4502,
+    "sources": {
+      "syngo_obs": 0,
+      "heartlab_freetext": 2329,
+      "syngo_freetext": 1217
+    },
+    "negation": {
+      "heartlab_negated": 17420,
+      "syngo_text_negated": 2234,
+      "overall_rate": 0.8472
+    },
+    "indication_only": 980,
+    "syngo_text_only_removed": 1217,
+    "confidence": "LOW",
+    "note": "High negation rate suggests many rule-out mentions"
+  },
+  {
+    "disease": "disease_dcm",
+    "total_positive": 2438,
+    "total_negative": 14025,
+    "sources": {
+      "syngo_obs": 13,
+      "heartlab_freetext": 2425,
+      "syngo_freetext": 170
+    },
+    "negation": {
+      "heartlab_negated": 7,
+      "syngo_text_negated": 7,
+      "overall_rate": 0.0053
+    },
+    "indication_only": 147,
+    "syngo_text_only_removed": 170,
+    "confidence": "MEDIUM",
+    "note": "Almost entirely free-text derived; no structured validation"
+  },
+  {
+    "disease": "disease_bicuspid_av",
+    "total_positive": 7391,
+    "total_negative": 177417,
+    "sources": {
+      "syngo_obs": 1379,
+      "heartlab_freetext": 6012,
+      "syngo_freetext": 1066
+    },
+    "negation": {
+      "heartlab_negated": 90,
+      "syngo_text_negated": 26,
+      "overall_rate": 0.0135
+    },
+    "indication_only": 1440,
+    "syngo_text_only_removed": 470,
+    "confidence": "HIGH",
+    "note": "Substantial structured observation support"
+  },
+  {
+    "disease": "disease_myxomatous_mv",
+    "total_positive": 5964,
+    "total_negative": 121286,
+    "sources": {
+      "syngo_obs": 236,
+      "heartlab_freetext": 5728,
+      "syngo_freetext": 242
+    },
+    "negation": {
+      "heartlab_negated": 2368,
+      "syngo_text_negated": 18,
+      "overall_rate": 0.2777
+    },
+    "indication_only": 225,
+    "syngo_text_only_removed": 206,
+    "confidence": "MEDIUM",
+    "note": "Almost entirely free-text derived; no structured validation"
+  },
+  {
+    "disease": "disease_rheumatic_mv",
+    "total_positive": 2292,
+    "total_negative": 1217,
+    "sources": {
+      "syngo_obs": 214,
+      "heartlab_freetext": 2078,
+      "syngo_freetext": 155
+    },
+    "negation": {
+      "heartlab_negated": 22,
+      "syngo_text_negated": 5,
+      "overall_rate": 0.0109
+    },
+    "indication_only": 177,
+    "syngo_text_only_removed": 103,
+    "confidence": "MEDIUM",
+    "note": "Mixed sources"
+  }
+]

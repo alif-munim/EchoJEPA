@@ -1,0 +1,18 @@
+{
+  "disease": "disease_takotsubo",
+  "total_positive": 132,
+  "total_negative": 6360,
+  "sources": {
+    "syngo_obs": 0,
+    "heartlab_freetext": 78,
+    "syngo_freetext": 54
+  },
+  "negation": {
+    "heartlab_negated": 2,
+    "syngo_text_negated": 3,
+    "overall_rate": 0.0365
+  },
+  "indication_only": 57,
+  "confidence": "MEDIUM",
+  "note": "Mixed sources"
+}

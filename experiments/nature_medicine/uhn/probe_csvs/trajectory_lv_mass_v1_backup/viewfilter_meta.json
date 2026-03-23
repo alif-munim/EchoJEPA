@@ -1,0 +1,13 @@
+{
+  "task": "trajectory_lv_mass",
+  "allowed_views": [
+    "PLAX",
+    "A4C",
+    "A2C",
+    "PSAX-AV",
+    "PSAX-MV",
+    "PSAX-PM",
+    "PSAX-AP"
+  ],
+  "bmode_only": false
+}

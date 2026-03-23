@@ -1,0 +1,53 @@
+study_id	source	finding_group	matched_term	text	auto_class
+1.2.276.0.7230010.3.1.2.811753780.1.1703420603.13901875	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703753832.17330861	HL_NOTE		amyloid	Bradycardia, cardiomegaly, signs of CHF, family history of amyloidosis.	FAMILY_HX
+1.2.276.0.7230010.3.1.2.859333938.1.1703359446.12685657	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703712669.16793808	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703137126.8375880	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703619780.15895090	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703333097.11924973	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703403791.13735397	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703261733.10691151	HL_NOTE		amyloid	 Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703391088.13349721	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703236589.10054005	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703397091.19096938	HL_NOTE		amyloid	 Non ischemic CM ( not amyloid) . B cell lymphoma .	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703401440.13632818	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703231787.9961366	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703540429.18449691	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703351620.12397361	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703444135.17265493	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703304451.11184871	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703500185.14763094	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703157741.8678660	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703501218.20426365	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703303531.16771134	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703245486.10210622	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703382794.16098627	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703383670.16126293	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703133436.13676731	HL_NOTE		amyloid	 Post heart transplant 2004. Recurrent IgA amyloid.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703305858.16829814	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703113075.10354180	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703113075.10354180	HL_NOTE		amyloid	- in marrow and tongue; heart failure; query: cardiac amyloidosis. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703604259.15899728	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703137886.10787501	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703680973.19912990	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703392423.13387551	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703195278.9408821	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703315085.17039118	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703194433.9392873	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703679441.22343617	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703679441.22343617	HL_NOTE		amyloid	Bright echo pattern c/w amyloid infiltration.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703271868.16196547	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703359193.12725464	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703299063.11051367	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703439183.19762541	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703293890.10929817	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703360403.15632319	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703377179.13018379	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703240456.10042530	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703381879.16079861	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703258102.13173461	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703294820.11144430	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703188881.9123757	HL_NOTE		amyloid	Amyloidosis of the skin.  Infiltrative. Now with leg swelling.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703404266.16794404	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703673546.19827062	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE

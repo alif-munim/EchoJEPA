@@ -1,0 +1,19 @@
+{
+  "disease": "disease_amyloidosis",
+  "total_positive": 750,
+  "total_negative": 10247,
+  "sources": {
+    "syngo_obs": 1,
+    "heartlab_freetext": 749,
+    "syngo_freetext": 120
+  },
+  "negation": {
+    "heartlab_negated": 101,
+    "syngo_text_negated": 47,
+    "overall_rate": 0.1454
+  },
+  "indication_only": 186,
+  "syngo_text_only_removed": 120,
+  "confidence": "MEDIUM",
+  "note": "Almost entirely free-text derived; no structured validation"
+}

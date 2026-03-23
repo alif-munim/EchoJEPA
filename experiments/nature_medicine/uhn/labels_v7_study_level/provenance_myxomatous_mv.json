@@ -1,0 +1,19 @@
+{
+  "disease": "disease_myxomatous_mv",
+  "total_positive": 4989,
+  "total_negative": 121707,
+  "sources": {
+    "syngo_obs": 236,
+    "heartlab_freetext": 4753,
+    "syngo_freetext": 242
+  },
+  "negation": {
+    "heartlab_negated": 3036,
+    "syngo_text_negated": 18,
+    "overall_rate": 0.3686
+  },
+  "indication_only": 225,
+  "syngo_text_only_removed": 206,
+  "confidence": "LOW",
+  "note": "High negation rate suggests many rule-out mentions"
+}

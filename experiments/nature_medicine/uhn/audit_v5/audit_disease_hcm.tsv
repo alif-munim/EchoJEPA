@@ -1,0 +1,137 @@
+study_id	source	finding_group	matched_term	text	auto_class
+1.2.276.0.7230010.3.1.2.1714578744.1.1703238128.10006614	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703238128.10006614	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703184309.11548229	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703184309.11548229	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterior wall, from base to apex.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703184309.11548229	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Systolic anterior motion is visualized with LV outflow tract obstruction.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703728944.22862197	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703728944.22862197	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Chordal systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703728944.22862197	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterolateral wall.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703728944.22862197	HL_NOTE		SAM	 From SAX view, basal anterior septum measures 22mm, basal anterior wall 23mm, basal anterolateral wall 22mm, mid anterior septum 29mm, mid anterior wall 29mm, mid anterolateral wall 24mm, apical septum 22mm, apical anterior wall 23mm apical lateral wall 20mm. Chordal SAM. Apical and mid cavity obli	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703513743.20636005	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703513743.20636005	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703513743.20636005	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Systolic anterior motion is visualized with LV outflow tract obstruction.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703513743.20636005	HL_NOTE		SAM	 The septal thickness is 1.9cm with a depth of 2.38 and a SAM septal contact of 1.45cm	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703295289.16562097	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703295289.16562097	HL_SENTENCE	EARLY POST OP CARDIAC SURGERY	HOCM	Post-op septal myectomy for HOCM	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703295289.16562097	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Mild systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703295289.16562097	HL_NOTE		SAM	LVOT peak gradient increased from 13 to 25 mmHG post amyl nitrate. Chordal SAM present. Myectomy site thickness is 13mm and 19 mm at mid ventricle. No VSD. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703331156.14701245	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703331156.14701245	HL_SENTENCE	Sigmoid Septum	SAM	There is a sigmoid basal ventricular septum with SAM and an increased LVOT gradient.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703331156.14701245	HL_SENTENCE	Cardiomyopathy	hypertrophic cardiomyopath	There is 2-D evidence of a hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703331156.14701245	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Severe systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703341536.12074571	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterior wall, from base to the mid LV level.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703341536.12074571	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Systolic anterior motion is visualized with LV outflow tract obstruction.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703341536.12074571	HL_NOTE		SAM	 The septum measures 2.1cm with a SAM-septal contact point at 2.1cm There is a perimembranous septal anuerysm without VSD.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703341536.12074571	HL_NOTE		HOCM	 HOCM	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703516969.18182551	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703516969.18182551	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703516969.18182551	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Chordal systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703582692.18847124	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterolateral wall, from base to apex.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703582692.18847124	HL_NOTE		SAM	Basal septum-17mm, mid septum-19mm. Apical segments measured 18mm. Basal posterior wall spared at 11mm. No SAM at rest. LVOT gradient at rest and post Valsalva-5mmHg,post Amyl-15mmHg.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703313142.14246725	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703114076.13347326	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Systolic anterior motion is visualized with LV outflow tract obstruction.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703114076.13347326	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703114076.13347326	HL_SENTENCE	Sigmoid Septum	SAM	There is a sigmoid basal ventricular septum with SAM and an increased LVOT gradient.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703386965.13304354	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703221848.9762864	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703221848.9762864	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Chordal systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703402194.16674941	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703402194.16674941	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703576731.15611518	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703576731.15611518	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Chordal systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703298857.11125105	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Chordal systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703298857.11125105	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703147683.8529113	HL_SENTENCE	EARLY POST OP CARDIAC SURGERY	HOCM	Post-op septal myectomy for HOCM	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703636284.21857375	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Chordal systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703636284.21857375	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703384898.18800716	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Chordal systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703384898.18800716	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterior wall, from base to apex.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703384898.18800716	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703444014.19816874	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703444014.19816874	HL_NOTE		SAM	 Basal septum measures 16mm. No mitral SAM seen. No significant gradient detected at rest or with VALSALVA maneuver.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703667279.16378483	HL_SENTENCE	EARLY POST OP CARDIAC SURGERY	HOCM	Post-op septal myectomy for HOCM	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703314161.11480788	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703314161.11480788	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterior wall, from base to the mid LV level.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703314161.11480788	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Mild systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703314161.11480788	HL_NOTE		SAM	 Focal hypertrophy with basal septum 20mm.  Moderate SAM seen at rest.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703781078.17841148	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703781078.17841148	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	No systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703293918.16530743	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterior wall, from base to the mid LV level.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703293918.16530743	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Chordal systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703293918.16530743	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703293918.16530743	HL_NOTE		SAM	 Basal anteroseptum measures 21mm with mild chordal SAM.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703293918.16530743	HL_NOTE		hypertrophic cardiomyopath	 Latent hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703559545.15309269	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703559545.15309269	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterior wall, from base to apex.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703559545.15309269	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Systolic anterior motion is visualized with LV outflow tract obstruction.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703207020.12025035	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterolateral wall, from base to the mid LV level.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703207020.12025035	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703207020.12025035	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Systolic anterior motion is visualized with LV outflow tract obstruction.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703325776.11818836	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703325776.11818836	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Systolic anterior motion is visualized with LV outflow tract obstruction.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703325776.11818836	HL_NOTE		SAM	 The IVS measures 22mm and the SAM septal contact is at 16mm.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703300189.13918168	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703300189.13918168	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterolateral wall, from base to apex.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703300189.13918168	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Systolic anterior motion is visualized with LV outflow tract obstruction.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703743921.23083850	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Chordal systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703743921.23083850	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703743921.23083850	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterior wall, from base to the mid LV level.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703219023.9706708	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	No systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703219023.9706708	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703666687.19758172	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703666687.19758172	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	No systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703666687.19758172	HL_NOTE		HCM	? apical HCM.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703752439.17445266	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703752439.17445266	HL_NOTE		SAM	basal septum measures 13mm. No SAM at rest. LVOT gradient at rest 5mmhg, 7mmHg post Valsalva maneuver.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703217826.9845177	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703217826.9845177	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterolateral wall.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703217826.9845177	HL_NOTE		SAM	There is a very prominent septal bulge at the basal septum which measures 24mm.  No SAM or LVOT gradient with rest, valsalva or amyl.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703743862.23082898	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703743862.23082898	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703678047.22327281	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703678047.22327281	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterolateral wall, from base to apex.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703678047.22327281	HL_NOTE		SAM	Basal anterior septum measures 15mm, mid septum (maximum thickness) 18mm, basal posterior wall 16mm, mid posterior wall 8mm. There is mid and apical cavity near obliteration with no significant (5mmHg) gradient at rest. No SAM. No LVOT gradient at rest or post Valsalva maneuver.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703534321.15192172	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	No systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703534321.15192172	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703534321.15192172	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703325842.11735701	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703325842.11735701	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Systolic anterior motion is visualized with LV outflow tract obstruction.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703438384.17201217	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	No systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703438384.17201217	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterolateral wall.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703438384.17201217	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703438384.17201217	HL_NOTE		SAM	From apical four chamber view, basal septum measures 21mm, mid septum 16mm, distal septum 15mm, anterolateral wall 15mm. Posterior wall measures 16mm from PLAX view. No leaflet or chordal SAM seen. Resting LVOT gradient measures 4mmHg. No change with Valsalva maneuver. Post Amyl inhalation gradient 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703710088.16905121	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Rule out Hypertrophic Cardiomyopathy.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.859333938.1.1703710088.16905121	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703710088.16905121	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	No systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703710088.16905121	HL_NOTE		hypertrophic cardiomyopath	Family history of Hypertrophic Cardiomyopathy.	FAMILY_HX
+1.2.276.0.7230010.3.1.2.811753780.1.1703137902.8585072	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703301308.11188107	HL_SENTENCE	EARLY POST OP CARDIAC SURGERY	HOCM	Post-op septal myectomy for HOCM	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703301308.11188107	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	No systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703502556.17928534	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703502556.17928534	HL_NOTE		HCM	 R/O HCM.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714512485.1.1703502556.17928534	HL_NOTE		SAM	 Basal septum measures 13-14mm. Chordal SAM noted. No significant LVOT gradient detected at rest or with VALSALVA maneuver; post Amyl inhalation LV gradient rose to 47 mmHg(HR increases from 71 to 82bpm).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703123760.13504372	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703123760.13504372	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703123760.13504372	HL_NOTE		SAM	Basal septum measures 15mm. No SAM. No significant gradient seen on LVOT at rest (6mmHg) and post Valsalva (7mmHg).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703441844.14149589	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703441844.14149589	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	No systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703221826.12359872	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterolateral wall, from base to apex.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703221826.12359872	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703221826.12359872	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Mild systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703221826.12359872	HL_NOTE		SAM	 Basal septum measures 19mm, mid septum 21mm, anterolateral wall 15-17mm. Apical to mid cavity obliteration with resting gradient of 27, without significant change post Valsalva and amyl.Mild SAM without LVOT gradient.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703122628.13485413	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703122628.13485413	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	No systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703122628.13485413	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterolateral wall.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703382822.13167504	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703382822.13167504	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	No systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703382822.13167504	HL_NOTE		SAM	There is mild hypertrophy of the anterior septum at 14mm with maximum of hypertrophy at the apex at 16mm. apex is severely thickened, but there are also prominent trabeculations with deep intertrabecular recesses. There is no significant LV cavity gradient seen. No SAM. No LVOT gradient at rest or p	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703213564.15047439	HL_SENTENCE	Systolic Anterior Motion	systolic anterior motion	Mild systolic anterior motion is visualized.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703213564.15047439	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703213564.15047439	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterior wall.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703213564.15047439	HL_NOTE		SAM	Basal anterior septum measures 18mm.  Mild SAM. The LVOT gradient measures 20 mmHg at rest, 45mmHg post Valsalva and 58 post Amyl. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703494228.20342058	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703494228.20342058	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH) extending to the anterolateral wall, from base to the mid LV level.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703366249.12934010	HL_SENTENCE	Asymmetric Hypertrophy	asymmetric septal hypertrophy	Asymmetric septal hypertrophy is observed (ASH).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703366249.12934010	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	hypertrophic cardiomyopath	Hypertrophic cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703366249.12934010	HL_NOTE		SAM	Maximum septal thickness 17 mm at basal LV. Severe SAM. LVOT gradient at rest 92 mmHg.	DEFINITIVE

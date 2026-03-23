@@ -1,0 +1,74 @@
+study_id	source	finding_group	matched_term	text	auto_class
+1.2.276.0.7230010.3.1.2.859333938.1.1703613526.15976514	HL_SENTENCE	Flail	mitral valve prolapse	There is mild mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703613526.15976514	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703609825.19155898	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703609825.19155898	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703609825.19155898	HL_SENTENCE	Leaflet Morphology	myxomatous	The tricuspid valve leaflet appearance is consistent with myxomatous disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703244352.15676626	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703244352.15676626	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703390880.16329605	HL_NOTE		MVP	Body of AMVL closes on annular plane - no definite MVP.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.811753780.1.1703728330.17021881	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703728330.17021881	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is moderate bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703730023.22878645	HL_SENTENCE	VALVE/ROOT  DISEASE	mitral valve prolapse	Assess mitral valve prolapse	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703744386.17347200	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703744386.17347200	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is severe bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703332270.11824280	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703383792.16131214	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703589307.15717099	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703187592.9105342	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703511350.18067793	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703191511.14569874	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703191511.14569874	HL_SENTENCE	VALVE/ROOT  DISEASE	mitral valve prolapse	Assess mitral valve prolapse	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703307805.14120498	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703115561.7992090	HL_NOTE		MVP	AMVL appears elongated. Very slight prolapse of body of AMVL but does not meet criteria for MVP.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703183315.8988727	HL_NOTE		mitral valve prolapse	 No definite mitral valve prolapse.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.859333938.1.1703570804.15548370	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is borderline mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703420650.13902225	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703420650.13902225	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703529599.15178910	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895693665.1.1724679263.2710992	Syngo_obs	MV_Structure_functionuhn_obs	myxomatous	MV_Structure_functionuhn_obs = myxomatous	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703386353.16232489	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703126633.8418928	HL_SENTENCE	Leaflet Morphology	myxomatous	The tricuspid valve leaflet appearance is consistent with myxomatous disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703126633.8418928	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703364931.18444677	HL_SENTENCE	Flail	mitral valve prolapse	There is mild mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703428445.14030743	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703428445.14030743	HL_SENTENCE	VALVE/ROOT  DISEASE	mitral valve prolapse	Assess mitral valve prolapse	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703513002.18103280	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is borderline mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703731142.17019831	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703731142.17019831	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703731142.17019831	HL_NOTE		mitral valve prolapse	The mechanism of the mitral regurgitation is bileaflet mitral valve prolapse with predominant prolapse of the middle scallop (P2) of the posterior mitral valve leaflet and the middle segment (A2) of the anterior mitral valve leaflet. There is mild prolpase of the medial scallop (P3) of the posterior	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703209062.9514601	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703209062.9514601	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703442625.19792734	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703764563.20986248	Syngo_obs	MV_Structure_functionuhn_obs	myxomatous	MV_Structure_functionuhn_obs = myxomatous	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703312744.14236717	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is borderline mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703428461.14031119	HL_SENTENCE	VALVE/ROOT  DISEASE	mitral valve prolapse	Assess mitral valve prolapse	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703428461.14031119	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703325837.11819870	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703247884.10406420	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703654273.19562097	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is borderline mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703126121.8207387	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703401347.19228011	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703429052.17104994	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703429052.17104994	HL_NOTE		mitral valve prolapse	 Wilms' tumour with radiation and chemotherapy; Mitral valve prolapse with mild MR; palpitations NYD.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703497850.14712359	HL_SENTENCE	Flail	mitral valve prolapse	There is mild mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703368930.15866053	HL_SENTENCE	Flail	mitral valve prolapse	There is mild mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703514521.14884419	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703443497.17252616	HL_SENTENCE	VALVE/ROOT  DISEASE	mitral valve prolapse	Assess mitral valve prolapse	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703443497.17252616	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is borderline mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703457450.14309764	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703457450.14309764	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is severe bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703457450.14309764	HL_SENTENCE	VALVE/ROOT  DISEASE	mitral valve prolapse	Assess mitral valve prolapse	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703457450.14309764	HL_NOTE		mitral valve prolapse	Barlow type mitral valve prolapse. A1 is the least prolpsing segment. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703414755.13858255	HL_SENTENCE	VALVE/ROOT  DISEASE	mitral valve prolapse	Assess mitral valve prolapse	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703414755.13858255	HL_SENTENCE	Flail	mitral valve prolapse	There is mild mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703749468.17408599	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703390872.18942508	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703215404.12212624	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is borderline mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703399048.19179469	HL_SENTENCE	VALVE/ROOT  DISEASE	mitral valve prolapse	Assess mitral valve prolapse	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703399048.19179469	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is no mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703403788.16763244	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is mild bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703198286.14707436	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is moderate bileaflet mitral valve prolapse.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703198286.14707436	HL_SENTENCE	VALVE/ROOT  DISEASE	mitral valve prolapse	Assess mitral valve prolapse	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703198286.14707436	HL_SENTENCE	Morphology	myxomatous	The mitral valve leaflets appear myxomatous.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703509548.14913271	HL_SENTENCE	Leaflet Prolapse	mitral valve prolapse	There is severe bileaflet mitral valve prolapse.	DEFINITIVE

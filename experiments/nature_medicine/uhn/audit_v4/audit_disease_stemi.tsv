@@ -1,0 +1,53 @@
+study_id	source	finding_group	matched_term	text	auto_class
+1.2.276.0.7230010.3.1.2.895693665.1.1724261131.1416783	Syngo_obs	Cardiomyopathy_obs	ischemic	Cardiomyopathy_obs = ischemic	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703332749.14750111	HL_NOTE		STEMI	Post Ant STEMI, LAD and RCA PCI	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703739787.20595273	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703147462.13892976	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703345017.12128734	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703280582.10711199	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703259703.13215259	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703313141.11457806	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703584974.21356747	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703176203.14348533	HL_NOTE		STEMI	repair. Coils/balloon occlusion of bronchial/ systemic collaterals.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703388461.13214932	HL_SENTENCE	Systemic Ventricle	STEMI	The morphologic right ventricle is the systemic ventricle.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703388461.13214932	HL_SENTENCE	Subaortic Valve	STEMI	The morphologic tricuspid valve is the systemic atrioventricular valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703547711.21008651	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703113071.8215865	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703441088.17221419	HL_NOTE		STEMI	(this is the systemic AV valve regurgitation).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703214676.9559797	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703442260.17232577	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703207732.14924016	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703746053.20695925	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703570790.15501416	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703468774.17542798	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703343905.14955944	HL_NOTE		STEMI	Post anterolateral STEMI resce PCI	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703355825.12465289	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703414173.13852474	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703422355.13921973	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703185697.9022609	HL_NOTE		STEMI	Previous CAD presents with STEMI; MI; infarction; ACS.	HISTORY
+1.2.276.0.7230010.3.1.2.845494328.1.1703470021.20102708	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703743544.17334275	HL_NOTE		STEMI	 (repair by subclavian flap).  Biscuspid aortic valve.  Systemic hypertension. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703595313.15808937	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703157362.11111683	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703583313.21342841	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703646053.19471286	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703190004.9081387	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703631648.15993108	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703244908.15688767	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703187219.9044130	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703185867.9080545	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703212620.12151504	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703153900.13996261	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703397461.13420386	HL_SENTENCE	Systemic Ventricle	STEMI	The morphologic right ventricle is the systemic ventricle.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703397461.13420386	HL_SENTENCE	Subaortic Valve	STEMI	The morphologic tricuspid valve is the systemic atrioventricular valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703353574.12459268	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703575395.18782146	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703228117.9882615	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703414286.19466896	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703413687.13741863	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703350078.15158467	HL_NOTE		STEMI	 STEMI. Triple vessel dse. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703278913.10691268	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703475684.14419490	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703367730.12953540	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703588410.21387899	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703298247.11029141	HL_NOTE		STEMI	 STEMI 	DEFINITIVE

@@ -1,0 +1,19 @@
+{
+  "disease": "disease_stemi",
+  "total_positive": 603,
+  "total_negative": 1125,
+  "sources": {
+    "syngo_obs": 0,
+    "heartlab_freetext": 603,
+    "syngo_freetext": 392
+  },
+  "negation": {
+    "heartlab_negated": 40,
+    "syngo_text_negated": 30,
+    "overall_rate": 0.0657
+  },
+  "indication_only": 319,
+  "syngo_text_only_removed": 392,
+  "confidence": "MEDIUM",
+  "note": "Mixed sources"
+}

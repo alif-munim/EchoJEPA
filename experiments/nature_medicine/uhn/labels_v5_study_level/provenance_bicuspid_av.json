@@ -1,0 +1,19 @@
+{
+  "disease": "disease_bicuspid_av",
+  "total_positive": 7391,
+  "total_negative": 177417,
+  "sources": {
+    "syngo_obs": 1379,
+    "heartlab_freetext": 6012,
+    "syngo_freetext": 1066
+  },
+  "negation": {
+    "heartlab_negated": 90,
+    "syngo_text_negated": 26,
+    "overall_rate": 0.0135
+  },
+  "indication_only": 1440,
+  "syngo_text_only_removed": 470,
+  "confidence": "HIGH",
+  "note": "Substantial structured observation support"
+}

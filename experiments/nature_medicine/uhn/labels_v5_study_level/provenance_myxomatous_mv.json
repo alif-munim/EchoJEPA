@@ -1,0 +1,19 @@
+{
+  "disease": "disease_myxomatous_mv",
+  "total_positive": 5964,
+  "total_negative": 121286,
+  "sources": {
+    "syngo_obs": 236,
+    "heartlab_freetext": 5728,
+    "syngo_freetext": 242
+  },
+  "negation": {
+    "heartlab_negated": 2368,
+    "syngo_text_negated": 18,
+    "overall_rate": 0.2777
+  },
+  "indication_only": 225,
+  "syngo_text_only_removed": 206,
+  "confidence": "MEDIUM",
+  "note": "Almost entirely free-text derived; no structured validation"
+}

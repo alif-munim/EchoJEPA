@@ -1,0 +1,60 @@
+study_id	source	finding_group	matched_term	text	auto_class
+1.2.276.0.7230010.3.1.2.845494328.1.1703686252.22435480	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703483971.17698588	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724809934.2047923	Syngo_STUDY_COMMENTS		STEMI	Very complicated repair and re-repair of double outlet RV (TGA type). Current anatomy similar to post arterial switch repair  Surgical/Interventional History: 1992, Jul 10 – Diagnostic cardiac catheterisation, HSC, Dr. Robert Hamilton 1992, Jul 17 – Pulmonary artery banding and Blalock-Hanlon at	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703387610.16276798	HL_SENTENCE	Subaortic Valve	STEMI	The morphologic tricuspid valve is the systemic atrioventricular valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703387610.16276798	HL_SENTENCE	Systemic Ventricle	STEMI	The morphologic right ventricle is the systemic ventricle.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703387610.16276798	HL_NOTE		STEMI	No stenosis. There is at least mild to moderate systemic AV valve regurgitation.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703387610.16276798	HL_NOTE		STEMI	Severely enlarged systemic ventricle (when compared to venous ventricle from apical four chamber view). Systemic ventricle measures 52mm. The systemic ventricule function is severely reduced.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703588934.15713671	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703284662.10764579	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703534863.15199208	HL_NOTE		STEMI	Extensive CAD for CV surgery; talken to cath lab for code STEMI and had angioplasty to LAD	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703288311.11022727	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724111920.856294	Syngo_Indication		STEMI	Systemic hypertension/hypertensive heart disease	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724111920.856294	Syngo_StudyComments		STEMI	Systemic hypertension - hypertensive heart disease;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703145496.8496101	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703356734.12511794	HL_NOTE		STEMI	 PCI to mid RCA with no re-flow and postero-inferior STEMI.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703583837.21347273	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703386379.13283700	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703260293.13229262	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703783356.23620975	HL_NOTE		STEMI	Mechanical systemic AV valve with mild regurgitation. Peak graduent of 8 mmHg, mean gradient of 4 mmHg ( at heart rate of 68 bpm) .	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703783356.23620975	HL_NOTE		STEMI	Original cardiac diagnosis: Congenitally corrected transposition of the great arteries with VSD and PS. Current status:Post  VSD closure and LV to PA conduit Residual LV-PA narrowing with regurgitation.Native LV-PA outflow remains patent but is stenosed. Post tricuspid (systemic AV) valve replacemen	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703595931.19023960	HL_SENTENCE	Systemic Ventricle	STEMI	The morphologic right ventricle is the systemic ventricle.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703595931.19023960	HL_SENTENCE	Subaortic Valve	STEMI	The morphologic tricuspid valve is the systemic atrioventricular valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703575753.15478572	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703315575.11515958	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703349152.17809463	HL_NOTE		STEMI	 STEMI with anterior ST elevation, LAD occlusion on Cath. Post stenting.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703604169.15771782	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895693665.1.1724108414.977065	Syngo_Indication		STEMI	Systemic hypertension	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895693665.1.1724108414.977065	Syngo_StudyComments		STEMI	Systemic hypertension - hypertensive heart disease;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895693665.1.1724431945.1933636	Syngo_Indication		STEMI	Original Anatomy: • Double inlet left ventricle  • VA discordance. Aorta is anterior and to the left of the pulmonary artery. • Hypoplastic right ventricle • Pulmonary valve stenosis and dysplastic left AV valve  Interventions: • Lateral tunnel Fontan procedure • Damus-Kaye-Stansel procedure	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703265638.13320912	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724104686.839014	Syngo_Indication		STEMI	Systemic hypertension - hypertensive heart disease;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703344611.12121938	HL_NOTE		STEMI	Posterior STEMI	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703318583.11667701	Syngo_PATIENT_HISTORY		STEMI	STEMI POST CATH LAB	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703195774.14656770	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895693665.1.1724901638.3372343	Syngo_PATIENT_HISTORY		STEMI	post cath for STEMI	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714500150.1.1725200290.2237911	Syngo_Indication		STEMI	Pulmonary hypertension; Systemic sclerosis	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714500150.1.1725200290.2237911	Syngo_StudyComments		STEMI	Autoimmune Disease - specify: Systemic sclerosis;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703656540.16312714	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703646678.19476362	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703207566.9484819	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703157362.11111683	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703293275.13730581	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703185867.9080545	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714500150.1.1724739922.813167	Syngo_obs	Cardiomyopathy_obs	ischemic	Cardiomyopathy_obs = ischemic	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724501406.1095910	Syngo_Indication		STEMI	Post inferior-STEMI with stenting of the RCA and LAD; Assess LV systolic function	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724501406.1095910	Syngo_StudyComments		STEMI	Post-inferior STEMI with stenting to RCA and LAD. Assess LV function.;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1724438429.1082072	Syngo_Indication		STEMI	Symptoms suggesting Cardiac Etiology (e.g. chest pain, shortness of breath, palpitations);  Lightheadedness/Presyncope/Syncope;  Systemic hypertension - hypertensive heart disease;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703354753.15400752	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703683381.16687356	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724879158.2262174	Syngo_STUDY_COMMENTS		STEMI	Systemic hypertension - hypertensive heart disease;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703292706.16501887	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703546316.18495792	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703588719.15587041	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703171501.14276616	HL_NOTE		STEMI	It is located anteriorly to the hypoplastic LV. The RV appears moderately dilated and hypertrophied in keeping with a systemic RV. The RV apex is particularly trabeculated. There is moderately impaired RV systolic function. Lateral wall TAPSE 9mm, FAC: 22%. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703209211.9517407	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703452608.14170565	HL_NOTE		STEMI	 Post STEMI; DES to RCA and LAD. Low SBP.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703143566.8663371	HL_NOTE		STEMI	; Ascending aorta replacement; ligation of ductus arteriosus; systemic typertension.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703488190.17735166	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703256627.10584480	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	STEMI	Systemic hypertension / hypertensive heart disease.	DEFINITIVE

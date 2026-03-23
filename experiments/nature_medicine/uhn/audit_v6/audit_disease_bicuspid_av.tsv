@@ -1,0 +1,72 @@
+study_id	source	finding_group	matched_term	text	auto_class
+1.2.276.0.7230010.3.1.2.811753780.1.1703512016.14921913	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-NCC raphe (1-7 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703756379.23256687	Syngo_obs	AoV_structure_uhn_obs	bicuspid_10_4	AoV_structure_uhn_obs = bicuspid_10_4	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703756379.23256687	Syngo_Indication		bicuspid	Balloon dilation of aortic coarctation-hypoplasia;  Stent placement;  Bicuspid aortic valve;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703340328.11971158	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-NCC raphe (1-7 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703290614.10941935	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703427537.14002688	HL_SENTENCE	CONGENITAL HEART DISEASE	bicuspid	F/U bicuspid aortic valve	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703427537.14002688	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-NCC raphe (1-7 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1724651274.1073224	Syngo_obs	AoV_structure_uhn_obs	bicuspid	AoV_structure_uhn_obs = bicuspid	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703516190.18167578	HL_SENTENCE	Structure	bicuspid	Functionally bicuspid aortic valve with fusion of 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703533301.20873353	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-NCC raphe (1-7 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1724254638.521488	Syngo_obs	AoV_structure_uhn_obs	bicuspid_1_7	AoV_structure_uhn_obs = bicuspid_1_7	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1724254638.521488	Syngo_Indication		bicuspid	Other - specify : Dx: Bicuspid aortic valve;  Aortic valvar stenosis - moderate;  Aortic regurgitation - mild (2+);	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703273115.10623795	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703206297.9397827	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703206297.9397827	HL_NOTE		bicuspid	Functional bicuspid with fusion of RCC and LCC. No echo sign of coarctation of the aorta.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703277575.16264992	HL_SENTENCE	Structure	bicuspid	Functionally bicuspid aortic valve with fusion of 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703355610.12454891	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703329843.17383463	HL_SENTENCE	Structure	bicuspid	Functionally bicuspid aortic valve with fusion of 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703522313.14988207	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724550211.1255553	Syngo_obs	AoV_structure_uhn_obs	functional_bicuspid	AoV_structure_uhn_obs = functional_bicuspid	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724550211.1255553	Syngo_Indication		bicuspid	Bicuspid aortic valve	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703528294.15128072	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703528294.15128072	HL_SENTENCE	CONGENITAL HEART DISEASE	bicuspid	F/U bicuspid aortic valve	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703285856.13583570	HL_SENTENCE	CONGENITAL HEART DISEASE	bicuspid	F/U bicuspid aortic valve	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703285856.13583570	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703258778.10496390	HL_SENTENCE	CONGENITAL HEART DISEASE	bicuspid	F/U bicuspid aortic valve	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703258778.10496390	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703716434.22688160	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703296125.11060752	HL_SENTENCE	CONGENITAL HEART DISEASE	bicuspid	F/U bicuspid aortic valve	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703296125.11060752	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703530355.20840362	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703179760.8943976	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-NCC raphe (1-7 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703306375.16842348	HL_NOTE		bicuspid	Family history of bicuspid aortic valve.	FAMILY_HX
+1.2.276.0.7230010.3.1.2.811753780.1.1703420979.13904833	HL_SENTENCE	Structure	bicuspid	Functionally bicuspid aortic valve with fusion of 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703320844.11612661	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-NCC raphe (1-7 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703511884.14952817	HL_SENTENCE	Structure	bicuspid	Functionally bicuspid aortic valve with fusion of 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703428349.19645700	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703285961.13585448	HL_SENTENCE	CONGENITAL HEART DISEASE	bicuspid	F/U bicuspid aortic valve	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703285961.13585448	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-NCC raphe (1-7 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703329549.14654375	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703301612.11195647	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703322289.14439684	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-NCC raphe (1-7 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1724141314.182960	Syngo_obs	AoV_structure_uhn_obs	bicuspid_10_4	AoV_structure_uhn_obs = bicuspid_10_4	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1724141314.182960	Syngo_Indication		BAV	BAV	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1724163980.252378	Syngo_obs	AoV_structure_sD_obs	functionally bicuspid.	AoV_structure_sD_obs = functionally bicuspid.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1725268384.3025895	Syngo_obs	AoV_structure_uhn_obs	bicuspid_10_4	AoV_structure_uhn_obs = bicuspid_10_4	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1725268384.3025895	Syngo_Indication		bicuspid	F/U bicuspid aortic valve; 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1725268384.3025895	Syngo_StudyComments		BAV	BAV / PPM	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703213208.15039837	HL_NOTE		bicuspid	Difficlt to determine # leaflets but appears ?functionally bicuspid	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703261191.10680945	HL_SENTENCE	CONGENITAL HEART DISEASE	bicuspid	F/U bicuspid aortic valve	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703261191.10680945	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-NCC raphe (1-7 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.929392183.1.1724150722.579066	Syngo_obs	AoV_structure_uhn_obs	bicuspid_10_4	AoV_structure_uhn_obs = bicuspid_10_4	DEFINITIVE
+1.2.276.0.7230010.3.1.2.929392183.1.1724150722.579066	Syngo_Indication		bicuspid	Coarctation-hypoplasia of aorta repair;  Aortic valvotomy: open;  Bicuspid aortic valve;  Aortic valvar stenosis - mild	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703515365.15017017	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724205745.1124759	Syngo_obs	AoV_structure_uhn_obs	bicuspid_10_4	AoV_structure_uhn_obs = bicuspid_10_4	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724205745.1124759	Syngo_Indication		bicuspid	Coarctation resection with end-to-end anastomosis; Mild aortic arch hypoplasia; Bicuspid aortic valve with mild aortic stenosis; Ligated PDA; Treated systemic hypertension ;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703746941.17240724	HL_SENTENCE	Structure	bicuspid	Functionally bicuspid aortic valve with fusion of 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703382705.13038675	HL_SENTENCE	CONGENITAL HEART DISEASE	bicuspid	F/U bicuspid aortic valve	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703382705.13038675	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703401183.13626754	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-NCC raphe (1-7 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703187844.9053095	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703187844.9053095	HL_NOTE		bicuspid	Coarctation repair by end-to-end anastomosis. Bicuspid aortic valve and parachute mitral 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703516302.14916834	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703692209.22489413	HL_SENTENCE	Structure	bicuspid	Functionally bicuspid aortic valve with fusion of 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703463185.20022910	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-NCC raphe (1-7 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703157613.8623048	HL_SENTENCE	CONGENITAL HEART DISEASE	bicuspid	F/U bicuspid aortic valve	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703157613.8623048	HL_SENTENCE	Structure	bicuspid	The aortic valve appears bicuspid with RCC-LCC raphe (10-4 o'clock closure line).	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703153267.11042542	HL_NOTE		bicuspid	Original diagnosis: bicuspid aortic valve with critical aortic stenosis. Current status: post Ross procedure in 1999. Focal apical infarct diagnosed in 2009 on myocardial perfusion study.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1725226255.2865381	Syngo_obs	AoV_structure_uhn_obs	bicuspid_10_4	AoV_structure_uhn_obs = bicuspid_10_4	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1725226255.2865381	Syngo_Indication		bicuspid	Bicuspid aortica valve; ; Assess LV size and function	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1725226255.2865381	Syngo_StudyComments		bicuspid	Other  specify: bicuspid aortic valve;	DEFINITIVE

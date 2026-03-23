@@ -1,0 +1,19 @@
+{
+  "disease": "disease_endocarditis",
+  "total_positive": 2656,
+  "total_negative": 4335,
+  "sources": {
+    "syngo_obs": 160,
+    "heartlab_freetext": 2496,
+    "syngo_freetext": 1302
+  },
+  "negation": {
+    "heartlab_negated": 17076,
+    "syngo_text_negated": 2035,
+    "overall_rate": 0.8284
+  },
+  "indication_only": 1178,
+  "syngo_text_only_removed": 1255,
+  "confidence": "LOW",
+  "note": "High negation rate suggests many rule-out mentions"
+}

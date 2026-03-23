@@ -1,0 +1,67 @@
+study_id	source	finding_group	matched_term	text	auto_class
+1.2.276.0.7230010.3.1.2.811753780.1.1703574871.15548470	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703380428.13091899	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1667523124.1.1725272920.2633080	Syngo_obs	MV_Structure_functionuhn_obs	rheumatic	MV_Structure_functionuhn_obs = rheumatic	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703576059.15558092	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703309847.11482807	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1667523124.1.1724135652.414901	Syngo_obs	MV_Structure_functionuhn_obs	rheumatic	MV_Structure_functionuhn_obs = rheumatic	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703276453.13452404	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703231971.9898733	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703191230.14565560	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703180134.11487157	HL_SENTENCE	Leaflet Morphology	rheumatic	The tricuspid valve leaflet appearance is consistent with rheumatic disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703180134.11487157	HL_NOTE		rheumatic	Rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703151972.13965103	HL_NOTE		rheumatic	esp at tips. PMVL restricted (images 44, 57,58).  Malcoaptation of leaflet tips with AMVL coapting behind PMVL. ?Rheumatic valve disease	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703493067.14575647	HL_NOTE		rheumatic	 74m with rheumatic heart disease presenting with fever NYD and CP. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703348652.12135519	HL_SENTENCE	Leaflet Morphology	rheumatic	The tricuspid valve leaflet appearance is consistent with rheumatic disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703348652.12135519	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703329578.14654863	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703329578.14654863	HL_SENTENCE	Leaflet Calcification	rheumatic	The aortic valve cusp appearance is consistent with rheumatic disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703511837.14918321	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703432192.19707881	HL_NOTE		rheumatic	The AMVL has a mild rheumatic appearance.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703687097.16722206	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703297670.13841892	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703524592.15091266	HL_SENTENCE	VALVE/ROOT  DISEASE	rheumatic	Rheumatic heart disease	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703524592.15091266	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703513253.18108738	HL_SENTENCE	VALVE/ROOT  DISEASE	rheumatic	Rheumatic heart disease	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703321527.11711881	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703480215.17667977	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703673749.19829248	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703427488.17063064	HL_SENTENCE	VALVE/ROOT  DISEASE	rheumatic	Rheumatic heart disease	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703427488.17063064	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703349869.12345509	HL_NOTE		rheumatic	PMVL restricted. AMVL tethered. ?mild rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703301081.11182024	HL_SENTENCE	VALVE/ROOT  DISEASE	rheumatic	Rheumatic heart disease	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703235508.15517934	HL_SENTENCE	VALVE/ROOT  DISEASE	rheumatic	Rheumatic heart disease	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703235508.15517934	HL_SENTENCE	Leaflet Morphology	rheumatic	The tricuspid valve leaflet appearance is consistent with rheumatic disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703235508.15517934	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703517606.20706840	HL_SENTENCE	Appearance	rheumatic	The aortic valve cusp appearance is consistent with rheumatic disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703307586.14115217	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703517037.18183829	HL_SENTENCE	Appearance	rheumatic	The aortic valve cusp appearance is consistent with rheumatic disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703517037.18183829	HL_SENTENCE	VALVE/ROOT  DISEASE	rheumatic	Rheumatic heart disease	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703517037.18183829	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703443803.14188963	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703318999.11674317	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703471999.14470274	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703303922.16781953	HL_NOTE		rheumatic	The anterior MV leaflet has a mild rheumatic appearance.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703328859.17365780	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703730303.17145108	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703534564.15195309	HL_SENTENCE	VALVE/ROOT  DISEASE	rheumatic	Rheumatic heart disease	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703534564.15195309	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703534564.15195309	HL_SENTENCE	Appearance	rheumatic	The aortic valve cusp appearance is consistent with rheumatic disease.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703157216.14047766	HL_SENTENCE	VALVE/ROOT  DISEASE	rheumatic	Rheumatic heart disease	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703157216.14047766	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703206204.14890249	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703206204.14890249	HL_NOTE		rheumatic	The posterior leaflet appears fixed and the anterior leaflet shows 'doming' in diastole typical of rheumatic valvular disease.Malcoaptation of leaflet tips with anterior MVL tip coapting slightly behind PMVL tip.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703330147.11840415	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703595407.15685845	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703595407.15685845	HL_NOTE		rheumatic	 Rule out evidence of rheumatic heart disease, post-stroke patient with atrial fibrillation.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714578744.1.1703322802.11560448	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703315744.11612346	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724695653.1710259	Syngo_obs	MV_Structure_functionuhn_obs	rheumatic	MV_Structure_functionuhn_obs = rheumatic	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1667523124.1.1724175938.533779	Syngo_obs	MV_Structure_functionuhn_obs	rheumatic	MV_Structure_functionuhn_obs = rheumatic	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703179621.8996676	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703179621.8996676	HL_NOTE		rheumatic	Rheumatic mitral valve with history of paroxismal afib/flutter and previous cardioembolic stroke; now on coumadin.  Assess severity of MR.	HISTORY
+1.2.276.0.7230010.3.1.2.859333938.1.1703179621.8996676	HL_NOTE		rheumatic	 known rheumatic MS, with AF, SOB, planning for intervetion/valvuloplasty, assess the degree of MR.	HISTORY
+1.2.276.0.7230010.3.1.2.859333938.1.1703156950.8665740	HL_SENTENCE	Morphology	rheumatic	The anterior MV leaflet has a mild rheumatic appearance. There is no evidence of significant mitral stenosis.  	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.845494328.1.1703303568.16772109	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703362832.12823472	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703597610.21525441	HL_SENTENCE	Morphology	rheumatic	The mitral valve leaflets appear rheumatic.	DEFINITIVE

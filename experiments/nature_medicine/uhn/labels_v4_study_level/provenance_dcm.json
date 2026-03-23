@@ -1,0 +1,19 @@
+{
+  "disease": "disease_dcm",
+  "total_positive": 2441,
+  "total_negative": 14105,
+  "sources": {
+    "syngo_obs": 13,
+    "heartlab_freetext": 2428,
+    "syngo_freetext": 179
+  },
+  "negation": {
+    "heartlab_negated": 2,
+    "syngo_text_negated": 2,
+    "overall_rate": 0.0015
+  },
+  "indication_only": 155,
+  "syngo_text_only_removed": 179,
+  "confidence": "MEDIUM",
+  "note": "Almost entirely free-text derived; no structured validation"
+}

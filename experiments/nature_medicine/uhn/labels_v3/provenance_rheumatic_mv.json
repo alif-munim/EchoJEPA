@@ -1,0 +1,18 @@
+{
+  "disease": "disease_rheumatic_mv",
+  "total_positive": 2406,
+  "total_negative": 99205,
+  "sources": {
+    "syngo_obs": 214,
+    "heartlab_freetext": 2089,
+    "syngo_freetext": 155
+  },
+  "negation": {
+    "heartlab_negated": 7,
+    "syngo_text_negated": 3,
+    "overall_rate": 0.0041
+  },
+  "indication_only": 179,
+  "confidence": "MEDIUM",
+  "note": "Mixed sources"
+}

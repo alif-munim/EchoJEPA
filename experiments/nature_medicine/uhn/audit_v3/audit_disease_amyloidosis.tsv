@@ -1,0 +1,56 @@
+study_id	source	finding_group	matched_term	text	auto_class
+1.2.276.0.7230010.3.1.2.1714578744.1.1703558325.15301007	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895693665.1.1724211477.1270216	Syngo_PatientHistory		amyloid	cardiac amyloidosis	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703192101.9349894	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703367083.15840375	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703250874.10468067	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714500150.1.1725270160.2500804	Syngo_Indication		amyloid	Amyloidosis; Congestive heart failure	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714500150.1.1725270160.2500804	Syngo_PatientHistory		amyloid	Cardiac amyloidosis with acute decompensated heart failure.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703303531.16771134	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703130812.10671241	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703235493.9967770	HL_NOTE		amyloid	 Hx of Amyloidosis on dialysis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703504214.14735220	HL_NOTE		amyloid	amyloidosis	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703296118.11060597	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703398998.19177525	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703309396.14157843	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703727038.17084515	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703730271.17144758	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703197001.9262726	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703197001.9262726	HL_NOTE		amyloid	 Diffusely increased LV wall thickness c/w cardiac amyloid. The LV apex is trabeculated. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703212843.9756669	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703212843.9756669	HL_NOTE		amyloid	 Amyloid with doppler and LV mas, LVM index, check diastolic function.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703528241.15046114	HL_NOTE		amyloid	multiple myeloma and amyloidosis, acute LV failure, auto-stem cell transplant	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703382857.16100053	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703657334.22110986	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703520681.20742000	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703313446.17000355	HL_NOTE		amyloid	History of myeloma and amyloidosis, rule out cardiac involvement.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.859333938.1.1703541223.15300816	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703265800.10748501	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703167531.11284066	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703245486.10210622	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703387924.13328019	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703211701.9565862	HL_NOTE		amyloid	 Amyloid.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703208752.14946161	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895693665.1.1724518158.2209646	Syngo_PatientHistory		amyloid	hx of lymphoma and amyloid - r/o cardiac amyloid invovlement - p	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.845494328.1.1703192730.14592876	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703192730.14592876	HL_NOTE		amyloid	 Patient with cardiac amyloidosis presented with NSTEMI.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703712869.16795540	HL_NOTE		amyloid	 Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703239993.10034931	HL_NOTE		amyloid	 for cardiac amyloidosis 2004. Denies cardiac symptoms. Sedentary lifestyle.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1724342438.778819	Syngo_PatientHistory		amyloid	?amyloid, limited study for strain analysis	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1667523124.1.1725240181.2508621	Syngo_Indication		amyloid	Cardiac amyloidosis; research protocol C16007; 07001-002; cycle 42	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1667523124.1.1725240181.2508621	Syngo_PatientHistory		amyloid	cardiac amyloidosis	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703271868.16196547	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703727498.20395075	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703168457.11299544	HL_NOTE		amyloid	 Recent diagnosis of amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703115894.10389288	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703179852.11482951	HL_NOTE		amyloid	 AL amyloidosis kidney.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703153153.11040521	HL_NOTE		amyloid	High risk myeloma and amyloid.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703156990.14043860	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703383669.13161832	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724226016.1184449	Syngo_Indication		amyloid	Other - specify : History of amyloidosis. Chest pain and dyspnea. BNP rise;	HISTORY
+1.2.276.0.7230010.3.1.2.1714512485.1.1703403719.16759153	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703230947.15412592	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703392964.18968954	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703503575.14807065	HL_NOTE		amyloid	 GI Amyloidosis, rule out heart involvement.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.859333938.1.1703673513.16568324	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703121902.10496999	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	amyloid	Amyloidosis.	DEFINITIVE

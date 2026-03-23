@@ -1,0 +1,8 @@
+{
+  "task": "trajectory_rv_sp",
+  "allowed_views": [
+    "A4C",
+    "Subcostal"
+  ],
+  "bmode_only": false
+}

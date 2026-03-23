@@ -1,0 +1,52 @@
+study_id	source	finding_group	matched_term	text	auto_class
+1.2.276.0.7230010.3.1.2.845494328.1.1703386615.18860994	HL_NOTE		dilated cardiomyopath	 For epicardial/endocardial ablation. Please rule out intracardiac thrombus with Definity contrast study. Dilated cardiomyopathy. Grade 4 LV. Recurrent VT for ablation.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714512485.1.1703659756.19683723	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703274477.10716930	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703442626.14158625	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703553729.15351758	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703349505.15124750	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703498130.14741610	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703212350.9515502	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703179991.11485036	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1725206457.2789962	Syngo_Indication		DCM	Cardiac assessment- work up for translplant. Patient has cystinosis. At risk for DCM and aortic aneurysm. Renal transplant on August 18, 2015.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.842097970.1.1725206457.2789962	Syngo_StudyComments		DCM	Other - specify : Patient has cystinosis. At risk for DCM and aortic aneurysms. Please re-assess prior to renal transplant August 18, 2015.;	HISTORY
+1.2.276.0.7230010.3.1.2.811753780.1.1703428641.14027966	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703725814.16925356	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703242792.10300593	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703442798.14062215	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703198705.9295026	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.929392183.1.1724435276.1441642	Syngo_Indication		dilated cardiomyopathy	hx of dilated cardiomyopathy and mitral regurgitation post mitral valve anuloplasty. Please assess ventricular function and valve pathology. Patient admitted with atrial fibrillation. ;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703442809.14161157	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703607493.19133420	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703254709.15906690	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703359032.12581297	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703402923.19295700	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703450553.14154809	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895693665.1.1724391643.1804055	Syngo_Indication		dilated cardiomyopathy	Other - specify : Dx: Duchenne's muscular dystrophy;  Dilated cardiomyopathy;  Pacemaker system placement: dual chamber;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703356513.15493768	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703595040.15675187	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703352829.12346056	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703503463.14717721	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703755233.23238699	Syngo_PatientHistory		DCM	DCM previous echo at MSH could not rule out thrombus	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714578744.1.1703165839.8744590	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703315934.11443922	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703408810.13703194	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703204890.9428539	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703748142.17390105	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703296775.16599383	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703736232.20524964	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703381288.13140550	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703323865.17220700	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703583192.21341971	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703387166.16264421	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703459041.14329345	HL_NOTE		dilated cardiomyopath	Patient with progressive HF secondary to dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703461266.17454280	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703511585.20593045	HL_SENTENCE	Cardiomyopathy	dilated cardiomyopath	There is 2-D evidence of a dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703376818.12917200	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703401835.19244201	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703531923.20857002	Syngo_obs	Cardiomyopathy_obs	dilated	Cardiomyopathy_obs = dilated	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703372206.12999186	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703344350.12188774	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703150892.13947550	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703385671.18827165	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703512735.14968931	HL_SENTENCE	Syndromes;Systemic/Cardiac Diseases	dilated cardiomyopath	Dilated cardiomyopathy.	DEFINITIVE

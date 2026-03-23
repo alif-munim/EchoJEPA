@@ -1,0 +1,126 @@
+study_id	source	finding_group	matched_term	text	auto_class
+1.2.276.0.7230010.3.1.2.1714578744.1.1703307366.11252777	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the mitral valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703307366.11252777	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714578744.1.1703307366.11252777	HL_NOTE		endocarditis	35 yo F.  Hx of recurrent TV and AV endocarditis with redo replacement in 2010.  Presents with fever and cultures positive for candida with a documented PE on CT angiogram with hypoxia.  Pt with prior complex surgical history including PFO repair and LVOT/mitral annulus/LA repair with pericardium pa	HISTORY
+1.2.276.0.7230010.3.1.2.1714578744.1.1703307366.11252777	HL_NOTE		vegetation	It terminates in the right atrial appendage.  In the right atrial appendage, there is a highly mobile echogenic collection which has the appearance of thrombus versus vegetation.  This persisted once the PICC line infusion was terminated.  This echogenic material is new compared with prior TEE	HISTORY
+1.2.276.0.7230010.3.1.2.1714512485.1.1703558362.18589008	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703558362.18589008	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714512485.1.1703558362.18589008	HL_NOTE		vegetation	No vegetations was visualised. There is only trace tricuspid regurgitation.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703144724.10897647	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703144724.10897647	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714512485.1.1703144724.10897647	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703144724.10897647	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the mitral valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703144724.10897647	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the pulmonic valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703463308.14282332	HL_SENTENCE	Vegetation	vegetation	A mass is visualized on the mitral valve which appears consistent with a vegetation.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703463308.14282332	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703463308.14282332	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the pulmonic valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703463308.14282332	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714578744.1.1703463308.14282332	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703463308.14282332	HL_NOTE		vegetation	GBS growing in blood. ?vegetation seen on MV in community hospital. Assess for IE.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703113561.13342757	HL_NOTE		vegetation	 There is a tiny ill-defined linear mass attached to the NCC which may represent degenerative change, small lambl's excresence or less likely vegetation. Clinical correlation is required.	HEDGED
+1.2.276.0.7230010.3.1.2.1714512485.1.1703308559.14138768	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	F/U vegetation / endocarditis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703322030.11548195	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703322030.11548195	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the pulmonic valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703322030.11548195	HL_SENTENCE	Vegetation	vegetation	A mass is visualized on the mitral valve which appears consistent with a vegetation.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703322030.11548195	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703459806.14241980	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	F/U vegetation / endocarditis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703134079.8532571	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.811753780.1.1703134079.8532571	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the mitral valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703134079.8532571	HL_NOTE		endocarditis	 CHF, CAD, bioprosthetic AoV w/ previous AoV infective endocarditis & recent S. Bovis endocarditis w/out vegetation on TEE. Returning w/ fever; on antimicrobial therapy.	HISTORY
+1.2.276.0.7230010.3.1.2.811753780.1.1703134079.8532571	HL_NOTE		vegetation	 What appears to be a mobile strand at the RCC/NCC junction is likely an artifact produced by the calcified bioprosthetc cusps & aortic root. Regardless, an aortic valve vegetation cannot be ruled out in the current study.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703134079.8532571	HL_NOTE		vegetation	 A tricuspid valve vegetation cannot be ruled out in the current study.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703134079.8532571	HL_NOTE		vegetation	 A pulmonic valve vegetation cannot be ruled out in the current study.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703635529.21850251	HL_SENTENCE	Vegetation	vegetation	A mass is visualized on the mitral valve which appears consistent with a vegetation.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703635529.21850251	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703635529.21850251	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703635529.21850251	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714512485.1.1703187974.11609312	HL_NOTE		endocarditis	 There is a small jet of mitral regurgitation originating from the base of the anterior mitral valve leaflet (likely A2)at the aorto-mitral curtain. The ERO of this jet is estimated at 0.07cm2 by 3D QLab. Mild commisural MR. Overall, the severity of mitral regurgitation is mild to moderate. Tiny mob	FALSE_MATCH
+1.2.276.0.7230010.3.1.2.859333938.1.1703292614.10979451	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703292614.10979451	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.859333938.1.1703292614.10979451	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the mitral valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703622989.19262118	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	F/U vegetation / endocarditis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703457138.17399119	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	F/U vegetation / endocarditis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1667523124.1.1724399119.1193203	Syngo_obs	UHN_Endocarditis_obs	Endocarditis_possible	UHN_Endocarditis_obs = Endocarditis_possible	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1667523124.1.1724399119.1193203	Syngo_Indication		vegetation	Other - specify : strep viridans bacteremia. please assess valves for vegetation ;	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703775341.23550068	HL_NOTE		vegetation	There is thin, highly mobile linear echo (at least 1.5 cm)seen in LVOT ?attached to aortic cusps-likely fibrinous strand. Less likely vegetation. Clinical correlation required.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703418662.13889293	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	F/U vegetation / endocarditis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703341108.14911016	HL_NOTE		vegetation	There is evidence of significant leaflet thickening.There is an independently mobile mass attached to NCC which could represent vegetation or flail leaflet.	HEDGED
+1.2.276.0.7230010.3.1.2.1714512485.1.1703325370.14536401	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	F/U vegetation / endocarditis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703124381.8176838	HL_NOTE		endocarditis	 Right ventricular outflow tract obstruction; pulmonary regurgitation - moderate; infective endocarditis; pulmonary arterioplasty/reconstruction: peripheral (at-beyond hilar bifurcation); central pulmonary arterial stenosis: proximal to hilar bifurcation - right pulmonary artery.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703467346.20062990	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.845494328.1.1703467346.20062990	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the pulmonic valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703467346.20062990	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703467346.20062990	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703467346.20062990	HL_NOTE		vegetation	There is normal bileaflet function with normal washing jets. On the left atrial surface of the posterior prosthetic mitral valve annulus there is an echogenic mass measuring 0.6x0.4 cm.  There are no mobile components.  It is associated with a jet of mild valvular regurgitation. This may represent v	FALSE_MATCH
+1.2.276.0.7230010.3.1.2.845494328.1.1703530322.20840039	HL_SENTENCE	Vegetation	vegetation	A mass is visualized on the aortic valve which appears consistent with a vegetation.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703335310.17520360	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703335310.17520360	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	F/U vegetation / endocarditis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703335310.17520360	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the mitral valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703457610.14311854	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703457610.14311854	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703457610.14311854	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the pulmonic valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703457610.14311854	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.811753780.1.1703457610.14311854	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the mitral valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703320668.14413842	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714512485.1.1703320668.14413842	HL_NOTE		vegetation	There is a vegetation and perforation of the non coronary cusp. There is also lack of coapation of the non-coronary cusp and right coronary cusp of the Aortic valve. The AI jet fills the LVOT in diastole.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703491773.14651521	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the mitral valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703491773.14651521	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the pulmonic valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703491773.14651521	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.811753780.1.1703491773.14651521	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703491773.14651521	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703520873.14974681	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	F/U vegetation / endocarditis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703323204.14458860	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703323204.14458860	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the mitral valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703323204.14458860	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703690567.16752962	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.859333938.1.1703690567.16752962	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703690567.16752962	HL_NOTE		vegetation	The regurgitant jet originates from a perforation in the AMVL. Multiple mobile vegetations are noted on the atrial side of the mitral valve involving the AMVL and the P2 and P3 segments of the PMVL.  The largest vegetation is bilobed and is located at the base of the AMVL and measures 9 X 12 mm. The	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703312274.11356596	HL_NOTE		endocarditis	 Paravalvular aortic regurgitation. Mitral Valve Repair. MV annuloplasty. Severe mitral regurgitation. Prior infective endocarditis. 	HISTORY
+1.2.276.0.7230010.3.1.2.1714512485.1.1703276883.13457925	HL_NOTE		vegetation	There is an independently mobile strand measuring 7mm on the LV side of the aortic valve, may represent degenerative change or vegetation. Clinical correlation required.	HEDGED
+1.2.276.0.7230010.3.1.2.1714512485.1.1703148833.10968225	HL_NOTE		vegetation	There is a poorly defined 0.3x0.3 cm^2 mass attached to the anterior mitral valve leaflet. Differential diagnosis includes ruptured chordae, healed vegetation, thrombus, papilliary fibroelastoma. Clinical correlation is required.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895693665.1.1724379036.1764400	Syngo_obs	UHN_Endocarditis_obs	Endocarditis_possible	UHN_Endocarditis_obs = Endocarditis_possible	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895693665.1.1724379036.1764400	Syngo_Indication		endocarditis	r/o endocarditis;	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.895693665.1.1724379036.1764400	Syngo_StudyComments		endocarditis	Focused study  f/u or r/o endocarditis;	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.859333938.1.1703387432.13294254	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	F/U vegetation / endocarditis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703387432.13294254	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.811753780.1.1703459260.14331813	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.811753780.1.1703459260.14331813	HL_NOTE		vegetation	Severe prolapse of the posterior mitral valve which is thinned out and aneurysmal.  The anterior leaflet is thickened with an inhomogenous texture and it is difficult to discern whether there is a vegetation or whether this is simply myxamotous changes which are longstanding. Severe MR is seen mostl	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703508241.20547285	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703508241.20547285	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the mitral valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703508241.20547285	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.845494328.1.1703508241.20547285	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the pulmonic valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703508241.20547285	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703508241.20547285	HL_NOTE		endocarditis	 Respiratory failure secondary to ARDS. Blastomycosis, now gram negative sepsis. R/O endocarditis. 	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714578744.1.1703735521.17067740	HL_NOTE		endocarditis	Mesocardia; Prior BT shunt; Ligation of ductus arteriosus; Right aortic arch; LV to PA conduit; Valved conduit; Patch closure VSD; suture closure ASD; Prior infective endocarditis; Severe TR; Congestive heart failure treated; Situs inversus.	HISTORY
+1.2.276.0.7230010.3.1.2.859333938.1.1703312611.11446180	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.859333938.1.1703312611.11446180	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703312611.11446180	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703312611.11446180	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the pulmonic valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.859333938.1.1703312611.11446180	HL_NOTE		vegetation	MV morphology consistent with MV repair. Multiple gortex chords seen. MV annuloplasty ring seen. No evidence of mass/vegetation associated with MV or chords. No evidence of paravalvular abscess. Trivial mitral regurgitation.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714578744.1.1703138394.8343621	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714578744.1.1703138394.8343621	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703138394.8343621	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the pulmonic valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703138394.8343621	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the mitral valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703138394.8343621	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703138394.8343621	HL_NOTE		vegetation	 and mild calcification of the subvalvular apparatus. No vegetations seen. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714512485.1.1703369781.15875920	HL_NOTE		vegetation	There is small, poorly visualized, mobile echodensity attached to the posterior mitral annulus. May represent degenerative change or echo artefact, unlikely vegetation but clinical correlation required.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.895627313.1.1724631162.1506934	Syngo_obs	UHN_Endocarditis_obs	Endocarditis_possible	UHN_Endocarditis_obs = Endocarditis_possible	DEFINITIVE
+1.2.276.0.7230010.3.1.2.895627313.1.1724631162.1506934	Syngo_Indication		endocarditis	R/O vegetation / endocarditis	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.895627313.1.1724631162.1506934	Syngo_StudyComments		endocarditis	Focused study  f/u or r/o endocarditis;	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714500150.1.1724699547.689622	Syngo_obs	UHN_Endocarditis_obs	Endocarditis_possible	UHN_Endocarditis_obs = Endocarditis_possible	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714500150.1.1724699547.689622	Syngo_Indication		endocarditis	Rule out infective endocarditis. 	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.859333938.1.1703390234.13338885	HL_NOTE		vegetation	There is a mobile mass attached to the anterior TV leaflet measures 16x13mm. The mass appears similar in appearance when compared to the prior study in 11/07. Differential includes tumor or vegetation. Clinical correlation is required. 	HISTORY
+1.2.276.0.7230010.3.1.2.1714512485.1.1703587004.18884468	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	F/U vegetation / endocarditis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703398974.13584526	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	F/U vegetation / endocarditis.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.811753780.1.1703398974.13584526	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.845494328.1.1703351673.17964309	HL_NOTE		endocarditis	 New; assess LV function; severe CHF; endocarditis; diffuse infiltrates in CXR	DEFINITIVE
+1.2.276.0.7230010.3.1.2.1714578744.1.1703117382.8019505	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.1714578744.1.1703117382.8019505	HL_NOTE		vegetation	This mainly involves the posterior leaflet and the basal to mid anterior leaflet. There is a mobile mass, 18mm x 3mm, prolapsing to LA, attached to the posterior mitral leaflet/annulus. This could represent flail leaflet, torn chord or vegetation.	HEDGED
+1.2.276.0.7230010.3.1.2.859333938.1.1703166392.8807359	HL_NOTE		endocarditis	 Wolfe-Parkinson-White syndrome. Idiopathic dilation/aneurysm of the ascending aorta. Prior infective endocarditis. Patient on coumadin.	HISTORY
+1.2.276.0.7230010.3.1.2.845494328.1.1703140366.13782572	HL_SENTENCE	Vegetation	vegetation	A mass is visualized on the mitral valve which appears consistent with a vegetation.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703140366.13782572	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the pulmonic valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703140366.13782572	HL_SENTENCE	Vegetation	vegetation	No vegetation is observed on the tricuspid valve.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703140366.13782572	HL_SENTENCE	Vegetation	vegetation	There is no aortic vegetation present.	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703140366.13782572	HL_SENTENCE	ENDOCARDITIS/MASSES/CLOTS	endocarditis	R/O vegetation / endocarditis.	RULE_OUT_LEAK
+1.2.276.0.7230010.3.1.2.845494328.1.1703140366.13782572	HL_NOTE		endocarditis	 The subvalvular apparatus associated with the posteriomedial papillary muscle is very thickened with multiple independantly mobile echodenisities attached. This is  consistent with acute endocarditis. The posteriomedial papillary muscle appears thickened and bright. 	DEFINITIVE
+1.2.276.0.7230010.3.1.2.845494328.1.1703246766.15731763	HL_NOTE		endocarditis	. Previous endocarditis.	HISTORY
