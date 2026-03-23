@@ -60,10 +60,10 @@ meta:
   dtype: bfloat16
   eval_freq: 100
   load_checkpoint: true
-  read_checkpoint: e144.pt         # resume from pre-collapse checkpoint (seed=571)
+  read_checkpoint: e169.pt         # resume from pre-collapse checkpoint (2nd collapse at e176)
   save_every_freq: 5
   s3_checkpoint_uri: "s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/vjepa-2.1-b/"
-  seed: 571
+  seed: 842
   use_sdpa: true
 
 model:

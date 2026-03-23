@@ -304,14 +304,82 @@ rm -rf /dev/shm/*
 - Clean up /dev/shm between crash-restart cycles
 - If a run crashes, check `/dev/shm` before relaunching
 
-### Partial collapse and restart (epoch 153-154)
+### Collapse analysis (V-JEPA 2.1 ViT-B on MIMIC)
 
-At epoch 153-154 (original seed=231), loss suddenly dropped from ~0.62 to ~0.45 — a partial collapse (sudden drops are bad in JEPA training; rising loss is normal). Recovery steps:
-1. Stopped the run
-2. Deleted `latest.pt` (points to collapsed checkpoint) and `e154.pt`
-3. Set `read_checkpoint: e144.pt` and `seed: 571` in config
-4. Cleared `/dev/shm` and relaunched
-5. After successful resume, set `read_checkpoint: null` so future restarts use `latest.pt`
+#### Timeline
+
+| Collapse | Epoch | Seed | Pre-collapse loss | Post-collapse loss | Epochs since restart | Total steps | Data passes |
+|---|---|---|---|---|---|---|---|
+| 1 | 153-154 | 231 | 0.62 | 0.45 | 153 (from init) | 45,900 | 112 |
+| 2 | 176 | 571 | 0.63 | 0.49 | 30 (from e144) | 52,800 | 129 |
+| 3 | 182 | 842 | 0.60 | 0.52 | 13 (from e169) | 54,600 | 133 |
+
+Collapses are accelerating: 153 → 30 → 13 epochs between restarts. Each restart preserves the encoder state, so the model accumulates effective training time. All collapses occur in the 45K-55K step / 110-133 pass range.
+
+#### Collapse signature
+
+All three collapses share the same pattern:
+1. **Context loss collapses first.** The ctx/pred ratio drops from ~0.83-0.87 to ~0.67-0.73 during collapse. The context reconstruction task (predicting visible tokens) becomes trivially easy — the encoder starts producing representations that make visible-token prediction too simple.
+2. **Loss drops suddenly** (within 1-2 epochs), not gradually.
+3. **Loss stays low** after collapse — it doesn't recover on its own.
+4. **Prediction loss also drops** but less dramatically than context loss.
+
+| Phase | Pred loss | Ctx loss | Ctx/Pred ratio |
+|---|---|---|---|
+| Pre-collapse (typical) | 0.43-0.45 | 0.35-0.39 | 0.83-0.87 |
+| Post-collapse (typical) | 0.32-0.37 | 0.22-0.27 | 0.67-0.73 |
+
+#### Why V-JEPA 2.1 collapses but V-JEPA 2.0 doesn't
+
+V-JEPA 2.0 ViT-L trained for 224 epochs (164 data passes, 67K steps) on the same MIMIC data with identical LR/EMA settings and **zero collapses**. Loss was rock-solid: std=0.006 over epochs 100-220. V-JEPA 2.1 ViT-B has 3.4× more volatile loss (std=0.021) even before collapse.
+
+Key differences that explain the instability:
+
+1. **Context loss is the culprit.** V-JEPA 2.0 only predicts masked tokens. V-JEPA 2.1 also predicts visible tokens (context loss). On a small, repetitive dataset (525K clips, many similar views), the visible-token prediction becomes trivially solvable, causing the encoder to produce degenerate representations that collapse context loss first.
+
+2. **22× less data diversity per step.** The V-JEPA 2.1 paper trains on 22M+ diverse samples over 135K steps (~163 samples/step). We train on 525K echos over 72K steps (~7.3 samples/step). Echocardiograms are visually repetitive (same organ, limited viewpoints), making context prediction especially susceptible to memorization.
+
+3. **Constant LR at the stability boundary.** Our LR is 1.75e-4 (constant after warmup), same as V-JEPA 2.0. But the 2.1 context loss adds a destabilizing gradient signal. With limited data diversity, the constant LR eventually pushes the encoder past a stability boundary where context representations collapse.
+
+4. **EMA momentum (0.99925) may be too low.** With the target encoder updating too quickly, small perturbations in the encoder can propagate to the targets and create a positive feedback loop → collapse.
+
+#### Potential fixes (ranked by recommendation)
+
+**Option A: Use the best pre-collapse checkpoint as-is (RECOMMENDED)**
+- Use e169.pt (or e174.pt from run 2) for downstream probes
+- The encoder has seen 124+ data passes and loss plateaued at 0.60-0.64
+- V-JEPA 2.0 plateaued at 0.57 — the 2.1 model is at a comparable learning stage
+- JEPA loss isn't directly comparable across architectures; only downstream probes reveal feature quality
+- **Risk: none.** The features may already be good. Probe evaluation will tell.
+
+**Option B: Run cooldown from e169.pt**
+- Cooldown uses linear LR decay to 1e-6, which naturally stabilizes training
+- 32 frames (vs 16) would expose the model to longer temporal context
+- Avoids the collapse zone entirely by decaying LR below the instability threshold
+- **Risk: low.** Cooldown is short (30 epochs) and uses decaying LR.
+
+**Option C: Lower LR and resume**
+- Halve LR to ~8.75e-5 and resume from e169.pt
+- The collapse threshold appears to be somewhere above the cosine-decay equivalent at epoch 200 (1.27e-5) but below 1.75e-4
+- Would need to find the right LR empirically
+- **Risk: medium.** May still collapse at a different threshold, wasting more compute.
+
+**Option D: Increase EMA momentum and resume**
+- Raise from 0.99925 to 0.9998 or 0.9999 to slow target encoder updates
+- More stable targets = less susceptible to sudden collapse
+- **Risk: medium.** Untested; may need combined LR reduction.
+
+**Option E: Reduce context loss weight**
+- Lower `lambda_value_vid` from 0.5 to 0.1-0.2, reducing the destabilizing context gradient
+- **Risk: medium.** Changes the training objective; untested.
+
+#### Recovery procedure
+
+1. Stop the run
+2. Delete `latest.pt` and any post-collapse `e{N}.pt` checkpoints
+3. Set `read_checkpoint: e{N}.pt` to a clean pre-collapse checkpoint and change `seed`
+4. Clear `/dev/shm` if needed (`rm -rf /dev/shm/*`)
+5. Relaunch
 
 ### Checkpoint outputs
 
