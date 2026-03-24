@@ -237,6 +237,21 @@ for MODEL in $MODELS; do
                 "    {}" \
                 "64")
             ;;
+        echojepa-b)
+            CFG=$(generate_inference_config "echojepa-b" \
+                "evals.video_classification_frozen.modelcustom.vit_encoder_multiclip_v21" \
+                "/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/vjepa2_1_vitb_mimic_p169_c60.pt" \
+                "    encoder:
+      checkpoint_key: target_encoder
+      model_name: vit_base
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true" \
+                "    max_frames: 128
+    use_pos_embed: false" \
+                "256")
+            ;;
         *)
             log "ERROR: Unknown model '$MODEL'"
             continue
