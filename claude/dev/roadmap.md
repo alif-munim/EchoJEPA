@@ -1,6 +1,6 @@
 # Roadmap
 
-Consolidated view of outstanding work for the Nature Medicine data pipeline. Updated 2026-03-23 06:00 UTC (ALL 13 UHN tasks pred avg DONE. **MIMIC outcome chain IN PROGRESS**: G phase complete (10/11), L-K pair 1. CY baselines integrated into manuscript. 7/7 diseases trained. Disease pred avg: **7/7 DONE (4/4 models)**. MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE).
+Consolidated view of outstanding work for the Nature Medicine data pipeline. Updated 2026-03-24 01:00 UTC (ALL 13 UHN tasks pred avg DONE. **MIMIC outcome chain**: G 10/11 done, L-K/EP/Pan needs restart (chain killed for feature extraction). **sklearn reproduction experiments DONE** — CY results not reproduced (2-5pp gap, solver/HP issues). **Attentive train feature extraction DONE** (10/10 tasks). CY baselines integrated. 7/7 diseases PA DONE (4/4 models). MIMIC xfer: 4 diseases × 4 models DONE).
 
 For code-level roadmap (extraction scripts, bug fixes), see `vjepa2/claude/dev/roadmap.md`.
 For UHN label inventories and data quality notes, see `uhn-pipeline.md` (in this directory).
@@ -14,20 +14,21 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 
 **4 manuscript models**: EchoJEPA-G, EchoJEPA-L-K, EchoPrime, PanEcho. EchoJEPA-L is internal testing only.
 
-### Tier 0: Current Status (2026-03-23 06:00 UTC)
-- **GPUs 0-7**: MIMIC outcome chain running (PID 352661). L-K phase, pair 1 (mortality_1yr + mortality_90d), epoch ~11/35.
-- **Standalone requeue**: in_hospital_mortality G (PID 2060121) waiting for chain to finish.
+### Tier 0: Current Status (2026-03-24 01:00 UTC)
+- **GPUs 0-7**: IDLE (feature extraction completed, chain killed)
 - **MIMIC outcome chain G phase COMPLETE** (10/11 tasks trained + pred avg):
   - Mortality: 1yr **0.791**, 90d **0.826**, 30d **0.881** (all pred avg AUROC)
   - discharge_destination **0.677**, los_remaining R²=0.036
   - Biomarkers: troponin_t R²=0.013, NT-proBNP R²=0.076, creatinine R²=0.029, lactate R²=0.008
-  - in_hospital_mortality: FAILED (DDP port collision), standalone requeue waiting
+  - in_hospital_mortality: FAILED (DDP port collision), standalone requeue needed
   - readmission_30d: pred avg ran but study_predictions.csv not saved — needs re-run
-  - **Key finding**: Strategy E attentive probes underperform CY linear probes by 1-6pp on mortality. Under investigation.
+- **sklearn reproduction experiments DONE** (2026-03-24): CY results NOT reproduced (2-5pp gap). Three-way comparison: CY sklearn > our mean-pool sklearn > attentive PA on mortality. See TASK_TRACKER for full table.
+- **Attentive train feature extraction DONE** (10/10 tasks, 6.5h). Key finding: multi-head attentive pooler means features are head-specific — cannot mix features from different heads.
+- **L-K/EP/Pan MIMIC outcome chain needs restart** (was killed for feature extraction GPUs)
 - **CY baselines integrated into manuscript** (40+ `\tbd` cells filled, tbd count 60→44)
 - **Disease pred avg — 7/7 DONE (all 4 manuscript models)**
 - **MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE** (amyloidosis G 0.947, HCM G 0.847, DCM EP 0.721, STEMI G 0.657)
-- **Next**: Chain finishes L-K/EP/Pan phases (~12-18h). Then in_hospital_mortality G runs. Then readmission_30d G pred avg re-run. Then investigate attentive vs linear probe gap.
+- **Next**: Restart MIMIC outcome chain for L-K/EP/Pan. in_hospital_mortality G standalone requeue. readmission_30d G pred avg re-run.
 
 ### P1: Finish UHN Probe Pipeline (Alif, compute-only — blocks §2.2-2.4 tables)
 
@@ -42,9 +43,10 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 
 | # | Task | Effort | Status | Notes |
 |---|------|--------|--------|-------|
-| 5 | **8 outcome tasks × 4 models** (mortality ×4, readmission, discharge, LOS, end-of-life) | ~4 days | **G 10/11 DONE** (PA complete). L-K/EP/Pan IN PROGRESS (chain running). | Strategy E underperforms CY linear by 1-6pp. in_hosp_mort G requeued. |
+| 5 | **8 outcome tasks × 4 models** (mortality ×4, readmission, discharge, LOS, end-of-life) | ~4 days | **G 10/11 DONE** (PA complete). L-K/EP/Pan needs restart (chain killed). | Strategy E underperforms CY linear by 1-6pp. sklearn reproduction failed to close gap. |
 | 6 | **Biomarkers** (troponin, NT-proBNP, creatinine, lactate) × 4 models | ~1 day | **G PA DONE**, L-K/EP/Pan partial | R² very low (0.008-0.076). All models struggle. |
 | 7 | **Cross-institution** — more tasks beyond LVEF | ~hours/task | LVEF + 4 diseases DONE | §2.5 cross-site table. MR/TR severity feasible but 5→4 class mismatch needs post-hoc merge. |
+| 7b | **sklearn CY reproduction** | DONE | **NOT REPRODUCED** (2-5pp gap) | Solver convergence + L1 + HP range. CY's numbers used in manuscript. |
 
 ### P3: Novel/JEPA-Unique Experiments (Alif — blocks §2.5 trajectory + §2.8 ablation ‡ markers)
 
@@ -109,18 +111,26 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 ```
 P1 DONE (all 13 UHN primary pred avg complete)
   → P4 disease panel DONE (7/7 PA complete)
-    → P2 MIMIC Strategy E (G 10/11 done, chain running L-K/EP/Pan ~12-18h remaining)
-      → Investigate attentive vs linear probe gap on MIMIC outcomes
-        → P3 (forward prediction + anomaly detection, ~3-4 days)
-          → P5/CY (combined model + confounding, ~4 days parallel)
-            → P6/CY (fairness, ~2 days, after Chicago demographics)
-              → P7 (methods placeholders, ~1 day)
-                → Paper draft with all ‡ and \tbd resolved
+    → P2 MIMIC Strategy E (G 10/11 done, L-K/EP/Pan chain needs restart)
+      → sklearn gap INVESTIGATED (CY pipeline not reproduced, 2-5pp gap, solver/HP issues)
+        → Decision: use CY's sklearn values for manuscript (marked †), attentive probe values are secondary
+          → P3 (forward prediction + anomaly detection, ~3-4 days)
+            → P5/CY (combined model + confounding, ~4 days parallel)
+              → P6/CY (fairness, ~2 days, after Chicago demographics)
+                → P7 (methods placeholders, ~1 day)
+                  → Paper draft with all ‡ and \tbd resolved
 ```
 
 ---
 
 ## Recent Completed Work
+
+### Done (March 24 — sklearn reproduction + attentive feature extraction)
+- **sklearn reproduction experiments DONE**: Three scripts created. Study-level mean-pool → sklearn: mort_1yr 0.821. Clip-level → PA: mort_1yr 0.808. Both underperform CY (0.846) by 2-5pp. Root cause: solver convergence (LBFGS max_iter=500), no L1, narrower HP grid.
+- **Train-set attentive feature extraction DONE**: All 10 MIMIC tasks extracted (6.5h, 2 parallel pairs on split GPUs). NPZs saved at `evals/vitg-384/nature_medicine/mimic/video_classification_frozen/*-trainfeat-echojepa-g/clip_outputs.npz`.
+- **Head mismatch bug found**: Multi-head attentive pooler means each HP head has its own cross-attention weights. Features from head N and head M are in different spaces. Cannot train sklearn on head N train features and test on head M test features (gives AUROC 0.21). Used `clip_probs_all_heads` instead.
+- **Attentive probe direct PA results confirmed**: Val-selected best head gives same results as earlier pred avg runs. sklearn ensembling of 15 heads' outputs provides marginal regression improvement.
+- **CY code review** (commit 549fb07): Documented full pipeline architecture.
 
 ### Done (March 22-23 — MIMIC outcome chain + CY baselines + disease completion)
 - **MIMIC outcome chain launched** (11 tasks × 4 models): G phase complete (10/11 tasks trained + pred avg). in_hospital_mortality G failed (port collision), requeued. L-K phase in progress.
@@ -287,7 +297,7 @@ All results: d=1 attentive probes, 15 epochs, 12-head HP grid. All values are pr
 | **True forward prediction (Exp 6.1)** | `06_forward_prediction.md` | Alif | **TODO** — Key JEPA differentiator. Write `evals/forward_prediction.py`, run inference. ~2-3 days. | Sec 2.3 |
 | Chicago demographics from Joe | — | Alif | **TODO** (blocking fairness) | Sec 2.4 |
 
-**MVP progress (updated 2026-03-23 06:00):** Infrastructure complete (CSVs, scripts, pred avg pipeline, Bugs 007-014 fixed). **13 UHN tasks × 5 models ALL PRED AVG DONE.** **7/7 diseases PA DONE (4/4 models).** **MIMIC outcomes: G 10/11 PA DONE**, chain running L-K/EP/Pan. CY baselines integrated (40+ cells). **Remaining**: finish MIMIC outcome chain (~12-18h), in_hospital_mortality G requeue, investigate attentive vs linear gap, JEPA-unique experiments (P3), 3 non-disease UHN tasks, fairness (P6), methods placeholders (P7).
+**MVP progress (updated 2026-03-24 01:00):** Infrastructure complete (CSVs, scripts, pred avg pipeline, Bugs 007-014 fixed). **13 UHN tasks × 5 models ALL PRED AVG DONE.** **7/7 diseases PA DONE (4/4 models).** **MIMIC outcomes: G 10/11 PA DONE**, L-K/EP/Pan chain needs restart. CY baselines integrated (40+ cells). **sklearn investigation DONE** — CY pipeline not reproduced (2-5pp gap, solver/HP), CY values are manuscript gold standard. **Remaining**: restart MIMIC chain for L-K/EP/Pan, in_hospital_mortality G requeue, readmission_30d G pred avg re-run, JEPA-unique experiments (P3), 3 non-disease UHN tasks, fairness (P6), methods placeholders (P7).
 
 Spec files at `../planning/tasks/`. Each is self-contained with pipeline steps, output paths, and dependencies.
 

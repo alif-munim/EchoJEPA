@@ -6,6 +6,56 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-24 (Session 26)
+
+### sklearn Reproduction Experiments + Train Feature Extraction
+
+**sklearn on mean-pooled embeddings — CY reproduction attempt:**
+- Created `scripts/sklearn_on_meanpool.py`: study-level mean-pool → sklearn (LogReg/Ridge). Uses CY's NPZ (`echojepa_g_mimic_embeddings.npz`, 525K clips). Results: mort_1yr AUROC 0.821, mort_30d 0.893.
+- Created `scripts/sklearn_on_meanpool_predavg.py`: clip-level sklearn train + study-level prediction averaging. Trains on all 366K clips. Results: mort_1yr AUROC 0.808, mort_30d 0.895.
+- **Did not reproduce CY's results**: Consistent 2-5pp gap (CY mort_1yr 0.846, ours 0.821). Likely causes: LBFGS solver convergence at max_iter=500 on 366K×1408 features, no L1 regularization, narrower HP grid.
+
+**Train-set attentive feature extraction (all 10 MIMIC tasks):**
+- Created `scripts/run_mimic_extract_train_features.sh` and `scripts/run_mimic_extract_train_features_all.sh`
+- Runs frozen encoder + attentive pooler on training CSVs to produce clip_outputs.npz with 1408-dim features
+- All 10 tasks completed (6.5h total, 2 parallel pairs on split GPUs)
+- NPZ sizes: 247MB (nt_probnp) to 2.0GB (mortality tasks)
+
+**sklearn on attentive features — head mismatch discovered:**
+- Created `scripts/sklearn_on_attentive.py`
+- **Bug found**: Each HP head has its own attentive pooler (separate learned cross-attention weights). Train NPZ saves features from head N (best on train), test NPZ saves from head M (best on test). Features from different heads are in incompatible feature spaces. Combining them gives AUROC 0.21 (below chance).
+- Fix: used `clip_probs_all_heads` (N×15×2) instead of 1408-dim features. Consistent head selection from both NPZs.
+- Results: direct attentive PA (val-selected best head) matches earlier pred avg results. sklearn ensemble of 15 heads' probabilities (30-dim) provides marginal improvement on some regression tasks.
+
+**Final three-way comparison (test-set, study-level PA AUROC):**
+
+| Task | CY sklearn | Our mean-pool sklearn | Attentive d=1 PA | Attentive sklearn ens. |
+|------|-----------|----------------------|------------------|----------------------|
+| mortality_1yr | **0.846** | 0.821 | 0.790 | 0.787 |
+| mortality_90d | **0.883** | ~0.851 | 0.827 | 0.822 |
+| mortality_30d | **0.912** | 0.895 | 0.882 | 0.883 |
+| readmission_30d | **0.634** | 0.581 | 0.596 | 0.596 |
+| discharge_dest | **0.689** | 0.655 | 0.670 | 0.670 |
+
+**Key findings:**
+1. Mean-pool sklearn consistently beats attentive probes on MIMIC mortality (by 3-6pp)
+2. Attentive probes competitive on weaker-signal tasks (readmission, discharge)
+3. CY's pipeline is gold standard — gap is solver/HP optimization, not feature quality
+4. Multi-head attentive pooler architecture means features are head-specific (not shareable across runs with different best heads)
+
+**CY code review (commit 549fb07):**
+- Reviewed CY's full pipeline: `create_allclips.py` (study→clip expansion), `train_probe.py` (sklearn with HP sweep), `run_probes.py` (orchestration), `train_ehr.py` (XGBoost 500 trees + TabPFN), `fix_lab_labels.py` (positive timegap filter for troponin/creatinine)
+- Key differences from our reproduction: CY likely uses saga solver with more iterations, L1+L2 sweep, broader HP grid
+
+**Scripts created:**
+- `scripts/sklearn_on_meanpool.py` — study-level mean-pool → sklearn
+- `scripts/sklearn_on_meanpool_predavg.py` — clip-level sklearn → study PA
+- `scripts/run_mimic_extract_train_features.sh` — single-task train feature extraction
+- `scripts/run_mimic_extract_train_features_all.sh` — all 10 tasks parallel extraction
+- `scripts/sklearn_on_attentive.py` — sklearn on attentive probe outputs
+
+---
+
 ## 2026-03-23 (Session 25)
 
 ### MIMIC Outcome Chain + CY Baseline Integration

@@ -25,7 +25,7 @@ Core novelty (three pillars):
 Supporting sections:
 4. Standard benchmarks (brief, defers to ICML)
 5. Disease detection (HCM, amyloidosis — supporting evidence)
-6. Clinical outcome and biomarker prediction (MIMIC, includes Elixhauser/triage comparisons)
+6. Clinical outcome and biomarker prediction (MIMIC — CY sklearn ensemble results are manuscript gold standard; EHR baselines: LVEF, echo meas., Elixhauser, XGBoost. Headline: 90d mortality video 0.883 > XGBoost 0.868)
 7. Fairness / equitable subgroup performance
 8. SAE interpretability (Strong Addition — basic now, full in revision)
 

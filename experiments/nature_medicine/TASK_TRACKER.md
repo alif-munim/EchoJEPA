@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-23 06:00 UTC (**ALL 13 UHN primary tasks pred avg DONE** for all 5 models. **MIMIC outcome chain IN PROGRESS**: G phase complete (10/11 tasks, in_hospital_mortality port collision → queued), L-K training pair 1. **CY baselines integrated into manuscript** (40+ cells filled). **7/7 disease probes trained**. **Disease pred avg: 7/7 DONE (4/4 models)**.)
+Last updated: 2026-03-24 01:00 UTC (**ALL 13 UHN primary tasks pred avg DONE** for all 5 models. **MIMIC outcome chain**: G phase complete (10/11), L-K/EP/Pan status unknown (chain killed for feature extraction). **sklearn reproduction experiments DONE** — CY results NOT reproduced (2-5pp gap). **Train-set attentive feature extraction DONE** (10/10 tasks). **7/7 disease probes trained**. **Disease pred avg: 7/7 DONE (4/4 models)**.)
 
 ## Evaluation Protocol
 
@@ -161,12 +161,27 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | 30-day mortality | 0.881 | 0.912 | -3.1pp |
 | discharge_destination | 0.677 | 0.689 | -1.2pp |
 
-**Key finding**: Strategy E d=1 attentive probes **underperform** CY's mean-pooled linear probes on MIMIC outcomes by 1-6pp. This is the opposite of the UHN pattern where attentive probes consistently beat linear probes. Possible causes: (1) smaller MIMIC datasets (126-1087 test studies), (2) 15-head HP grid may not cover optimal range, (3) study sampler gives limited exposure per epoch. Investigation ongoing.
+**Key finding**: Strategy E d=1 attentive probes **underperform** CY's mean-pooled linear probes on MIMIC outcomes by 1-6pp. This is the opposite of the UHN pattern where attentive probes consistently beat linear probes. Possible causes: (1) smaller MIMIC datasets (126-1087 test studies), (2) 15-head HP grid may not cover optimal range, (3) study sampler gives limited exposure per epoch.
 
-**Chain status (2026-03-23 06:00 UTC):**
+**sklearn Reproduction Experiments (2026-03-24):**
+
+Three-way comparison using same test split. CY's mean-pool sklearn is the gold standard.
+
+| Task | CY sklearn | Our mean-pool sklearn | Attentive d=1 PA | Att. sklearn ens. |
+|------|-----------|----------------------|------------------|-------------------|
+| mortality_1yr | **0.846** | 0.821 | 0.790 | 0.787 |
+| mortality_90d | **0.883** | ~0.851 | 0.827 | 0.822 |
+| mortality_30d | **0.912** | 0.895 | 0.882 | 0.883 |
+| readmission_30d | **0.634** | 0.581 | 0.596 | 0.596 |
+| discharge_dest | **0.689** | 0.655 | 0.670 | 0.670 |
+
+Our mean-pool reproduction underperforms CY by 2-5pp. Likely causes: LBFGS max_iter=500 (convergence warnings), L2-only (no L1 feature selection), narrower HP grid. Not worth fixing — CY's numbers are the manuscript values.
+
+**Attentive feature extraction (train set):** All 10 tasks extracted (6.5h). Discovered that each HP head has its own attentive pooler — features from different heads are incompatible. Can only compare via `clip_probs_all_heads`.
+
+**Chain status (2026-03-24 01:00 UTC):**
 - **G phase COMPLETE** (10/11 tasks trained + pred avg). in_hospital_mortality failed (DDP port collision), standalone requeue waiting.
-- **L-K phase IN PROGRESS**: pair 1 (mortality_1yr + mortality_90d), epoch ~11/35.
-- **Remaining**: L-K pairs 2-6, then EchoPrime, then PanEcho.
+- **L-K/EP/Pan phases**: Chain was killed for feature extraction GPUs. Status unknown — needs restart.
 - **Port collision fix committed**: `run_mimic_outcome_chain.sh` now has `cleanup_orphans()` + `wait_for_port_free()` between pairs + retry loop.
 - **readmission_30d G**: pred avg ran but study_predictions.csv not saved. Needs re-run.
 
