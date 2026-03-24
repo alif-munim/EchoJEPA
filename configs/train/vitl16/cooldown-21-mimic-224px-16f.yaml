@@ -1,27 +1,26 @@
-# configs/train/vitl16/cooldown-21-mimic-224px-32f.yaml
-# V-JEPA 2.1 cooldown on MIMIC-IV-Echo with frame increase (16→32 frames).
-# Increases temporal context: 32 frames at 24fps = 1.3s (1-2 cardiac cycles).
-# All MIMIC videos have ≥32 native frames at 24fps — no padding needed.
+# configs/train/vitl16/cooldown-21-mimic-224px-16f.yaml
+# V-JEPA 2.1 cooldown on MIMIC-IV-Echo, same frame count as pretrain (no frame doubling).
+# Matches original L-K cooldown schedule (60 epochs, 16f, fps=8).
 #
 # Launch:
-#   python -m app.main --fname configs/train/vitl16/cooldown-21-mimic-224px-32f.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+#   python -m app.main --fname configs/train/vitl16/cooldown-21-mimic-224px-16f.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
 app: vjepa_2_1
 nodes: 1
 tasks_per_node: 8
 cpus_per_task: 16
 mem_per_gpu: 220G
-folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/cooldown_21/mimic/vjepa2_1_vitl_224px_32f
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/cooldown_21/mimic/vjepa2_1_vitl_224px_16f
 
 data:
   dataset_type: VideoDataset
   datasets:
     - /home/sagemaker-user/user-default-efs/vjepa2/data/csv/mimic_annotations_s3.csv
   datasets_weights: [1.0]
-  batch_size: 64                  # halved from 128 (2x tokens from 2x frames)
+  batch_size: 128                 # same as pretrain (no frame doubling)
   crop_size: 224
   patch_size: 16
-  dataset_fpcs: [32]             # 2x frames for cooldown (was 16)
-  fps: 24                        # high temporal resolution; all videos have ≥32 native frames
+  dataset_fpcs: [16]             # same as pretrain
+  fps: 8                         # same as pretrain
   tubelet_size: 2
   num_workers: 8
   persistent_workers: true
@@ -113,5 +112,5 @@ optimization:
 
   warmup: 0                      # no warmup for cooldown
 
-  # 30 epochs * 300 ipe = 9K steps (paper uses 12K at 3x batch)
-  epochs: 30
+  # 60 epochs * 300 ipe = 18K steps (matches original L-K cooldown schedule)
+  epochs: 60

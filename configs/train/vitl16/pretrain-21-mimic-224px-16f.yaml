@@ -22,7 +22,7 @@ data:
   dataset_fpcs: [16]
   fps: 8
   tubelet_size: 2
-  num_workers: 8
+  num_workers: 4                  # reduced from 8; 8*8=64 persistent workers exhaust shm
   persistent_workers: true
   pin_mem: true
 
@@ -113,7 +113,7 @@ optimization:
   ipe_scale: 1.25
   warmup: 40                     # 40 * 300 = 12K steps (matches paper)
 
-  # 120 epochs * 300 ipe = 36K steps, ~70 passes through 525K samples
-  # Paper does ~35 passes from scratch; 70 is reasonable for domain adaptation
-  # Monitor val loss — reduce if overfitting. Set force_load_pretrain: false + load_checkpoint: true to resume
-  epochs: 120
+  # 240 epochs * 300 ipe = 72K steps, ~140 passes through 525K samples
+  # Matches original L-K schedule (240 pretrain + 60 cooldown)
+  # Set force_load_pretrain: false + load_checkpoint: true to resume
+  epochs: 240

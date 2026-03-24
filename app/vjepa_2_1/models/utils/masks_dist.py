@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torchvision
 
 
 def _get_frame_pos(ids, H_patches=None, W_patches=None, grid_size=None):
