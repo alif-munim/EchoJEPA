@@ -1,6 +1,6 @@
 # HyperPod Cluster Operations Guide
 
-Operational guide for SageMaker HyperPod GPU clusters used for EchoJEPA training. Covers cluster setup, connectivity, environment deployment, and job submission. Distilled from the echojepa-h100-march setup (2026-03-26). Includes 11 troubleshooting issues with fixes (cuBLAS bf16 bug, CUDA_VISIBLE_DEVICES conflict, GradScaler, /dev/shm, S3 auth, etc.).
+Operational guide for SageMaker HyperPod GPU clusters used for EchoJEPA training. Covers cluster setup, connectivity, environment deployment, and job submission. Distilled from the echojepa-h100-march setup (2026-03-26). Includes 12 troubleshooting issues with fixes (cuBLAS bf16 bug, CUDA_VISIBLE_DEVICES conflict, GradScaler, /dev/shm, S3 auth, etc.).
 
 ## Cluster Inventory
 
@@ -399,10 +399,24 @@ print(\"PASSED\")
 
 **Fix**: Disabled GradScaler when `dtype == torch.bfloat16` in train.py. Changed scaler usage checks from `if mixed_precision:` to `if scaler is not None:`.
 
+#### 12. Activation Checkpointing Required at Batch Size 128
+
+**Symptom**: OOM crash when running with `use_activation_checkpointing: false` on H100 80GB.
+
+**Details**: Tested on ip-10-0-50-83 (job 70, 15-minute test run). Without activation checkpointing, the model uses ~79.1 GB out of 79.2 GB available, crashing with `torch.OutOfMemoryError` in the predictor forward pass (`predictor.py:257`, `torch.stack` over argsort indices). With checkpointing enabled, VRAM usage is ~27.8 GB — a 2.8x reduction.
+
+**Conclusion**: Activation checkpointing is **mandatory** for ViT-L at batch size 128 on 80GB GPUs. To disable it, batch size would need to be reduced significantly (~40-50% of current), which would reduce throughput more than checkpointing's ~30% recompute overhead. The current config (checkpointing ON, batch 128) is optimal for H100 80GB.
+
+**Alternatives not yet tested**:
+- Reducing batch size (e.g., 64) without checkpointing — may not be faster due to lower GPU utilization
+- Gradient accumulation with smaller micro-batch — adds complexity
+- Multi-node training (2 nodes × 8 GPUs) — would allow larger effective batch or lower per-GPU memory
+
 ## V-JEPA 2.1 ViT-L Training Status (2026-03-26)
 
 - **A100 run** (SageMaker notebook, 8x A100 80GB): Epoch 118/240, ~8s/iter
-- **H100 run** (HyperPod echojepa-h100-march): **Active**, resumed from epoch 118 checkpoint, ~3.4s/iter GPU time, ~4.1s wall, 27 GB VRAM per GPU
+- **H100 run** (HyperPod echojepa-h100-march, job 60): **Active**, resumed from epoch 87 checkpoint, currently at **epoch 126**, ~2.9s/iter GPU time, ~3.0s wall, 27.8 GB VRAM per GPU. Loss stable at ~0.500. ETA ~21 hours remaining (126→209)
+- Activation checkpointing: **required** at batch size 128 — without it, OOM at 79.1/79.2 GB (see Issue 12)
 - Checkpoints saved every 5 epochs to S3
 - S3 checkpoint mirror: `s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/vjepa-2.1-l-h100/`
 - Config: `configs/train/vitl16/pretrain-21-mimic-224px-16f-h100.yaml`
