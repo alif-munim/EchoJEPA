@@ -5,10 +5,14 @@
 
 import os
 
-try:
-    os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["SLURM_LOCALID"]
-except Exception:
-    pass
+# NOTE: Disabled — main.py already sets CUDA_VISIBLE_DEVICES per rank via
+# mp.Process. With ntasks-per-node=1, SLURM_LOCALID=0 for all spawned
+# processes, which would override main.py's assignment and force all ranks
+# onto GPU 0. Only re-enable if launching with srun --ntasks-per-node=8.
+# try:
+#     os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["SLURM_LOCALID"]
+# except Exception:
+#     pass
 
 import copy
 import gc
@@ -287,6 +291,11 @@ def main(args, resume_preempt=False):
         eps=eps,
     )
 
+    # BF16 does not need GradScaler (same exponent range as FP32).
+    if dtype == torch.bfloat16:
+        scaler = None
+        logger.info("BF16 detected — disabling GradScaler (not needed for bfloat16)")
+
     def make_momentum_scheduler(start_step=0):
         total = int(ipe * num_epochs * ipe_scale)
         return (ema[0] + i * (ema[1] - ema[0]) / total for i in range(start_step, total + 1))
@@ -414,10 +423,16 @@ def main(args, resume_preempt=False):
             "itr": itr,
         }
 
+        # Atomic write: save to a temp file, then rename. This prevents
+        # corruption if the process is killed mid-write (e.g. NCCL timeout).
+        tmp_path = local_path + ".tmp"
         try:
-            torch.save(save_dict, local_path)
+            torch.save(save_dict, tmp_path)
+            os.replace(tmp_path, local_path)
         except Exception as e:
             logger.error(f"Encountered exception when saving checkpoint: {e}")
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
             return
 
         if s3_uri_base:
@@ -544,7 +559,7 @@ def main(args, resume_preempt=False):
 
                             # Backward for this pair (gradients accumulate)
                             scaled = pair_loss / total_pairs
-                            if mixed_precision:
+                            if scaler is not None:
                                 scaler.scale(scaled).backward()
                             else:
                                 scaled.backward()
@@ -552,7 +567,7 @@ def main(args, resume_preempt=False):
 
                     loss_accum /= total_pairs
 
-                    if mixed_precision:
+                    if scaler is not None:
                         scaler.unscale_(optimizer)
                         scaler.step(optimizer)
                         scaler.update()
@@ -617,7 +632,7 @@ def main(args, resume_preempt=False):
 
             latest_path = os.path.join(folder, "latest.pt")
             if epoch % CHECKPOINT_FREQ == 0 or epoch == (num_epochs - 1):
-                save_checkpoint(epoch + 1, 0, latest_path, None, is_periodic=False)
+                save_checkpoint(epoch + 1, 0, latest_path, s3_checkpoint_uri, is_periodic=False)
 
             if save_every_freq > 0 and epoch % save_every_freq == 0:
                 save_every_file = f"e{epoch}.pt"
