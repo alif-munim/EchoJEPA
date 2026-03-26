@@ -52,8 +52,8 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 
 | # | Task | Effort | Owner | Notes |
 |---|------|--------|-------|-------|
-| 8 | **Forward prediction (Exp 6.1)** | ~2-3 days code + compute | Alif | Key JEPA differentiator. Write `evals/forward_prediction.py`. |
-| 9 | **Anomaly detection (Exp 6.4)** | ~1-2 days | Alif | Zero-shot JEPA-only. Prediction error vs HCM/DCM/amyloidosis. |
+| 8 | ~~**Forward prediction (Exp 6.1)**~~ | DONE | Alif | Implemented in `evals/forward_prediction/`. Tested on MIMIC takotsubo/STEMI/mortality. Forward pred AUROC ~0.52 (chance). See `evals/forward_prediction/RESULTS.md`. |
+| 9 | ~~**Anomaly detection (Exp 6.4)**~~ | DONE | Alif | 4 approaches tested (pred error, repr distance mean/token, forward pred) on UHN + MIMIC. Best: takotsubo 0.711 zero-shot repr distance. Pred error uniformly at chance. See `evals/forward_prediction/RESULTS.md`. |
 | 10 | **Trajectory expansion** — EF change (UHN+MIMIC), multi-param, new HF diagnosis (MIMIC) | ~1 day CSV + 3 days training | Alif | §2.5 trajectory rows all `\tbd`/‡ |
 
 ### P4: Supporting Experiments (blocks §2.6, §2.1 Extended Data)
@@ -294,7 +294,7 @@ All results: d=1 attentive probes, 15 epochs, 12-head HP grid. All values are pr
 | d=1 attentive probe training (UHN: 47×5) | — | Alif | **13 tasks × 5 models ALL PRED AVG DONE.** 7/7 diseases × 4 models PA DONE. 3 non-disease tasks TODO. | Sec 2.1, Extended Data |
 | Core lab reader recruitment (3 minimum) | — | Ali/Wendy | TODO | Sec 2.1, Extended Data |
 | Rare disease label verification | — | Ali/Wendy | TODO | Sec 2.2 |
-| **True forward prediction (Exp 6.1)** | `06_forward_prediction.md` | Alif | **TODO** — Key JEPA differentiator. Write `evals/forward_prediction.py`, run inference. ~2-3 days. | Sec 2.3 |
+| ~~**Forward prediction + anomaly detection (Exp 6.1/6.4)**~~ | `evals/forward_prediction/RESULTS.md` | Alif | **DONE** — 4 approaches × UHN + MIMIC. Best zero-shot: takotsubo 0.711 repr distance. Predictor-based scoring at chance. | Sec 2.3 |
 | Chicago demographics from Joe | — | Alif | **TODO** (blocking fairness) | Sec 2.4 |
 
 **MVP progress (updated 2026-03-24 01:00):** Infrastructure complete (CSVs, scripts, pred avg pipeline, Bugs 007-014 fixed). **13 UHN tasks × 5 models ALL PRED AVG DONE.** **7/7 diseases PA DONE (4/4 models).** **MIMIC outcomes: G 10/11 PA DONE**, L-K/EP/Pan chain needs restart. CY baselines integrated (40+ cells). **sklearn investigation DONE** — CY pipeline not reproduced (2-5pp gap, solver/HP), CY values are manuscript gold standard. **Remaining**: restart MIMIC chain for L-K/EP/Pan, in_hospital_mortality G requeue, readmission_30d G pred avg re-run, JEPA-unique experiments (P3), 3 non-disease UHN tasks, fairness (P6), methods placeholders (P7).

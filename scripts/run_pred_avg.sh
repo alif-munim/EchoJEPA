@@ -227,7 +227,7 @@ for MODEL in $MODELS; do
                 "    echo_prime_root: /home/sagemaker-user/user-default-efs/vjepa2/evals/video_classification_frozen/modelcustom/EchoPrime
     force_fp32: true
     bin_size: 50" \
-                "16")
+                "64")
             ;;
         panecho)
             CFG=$(generate_inference_config "panecho" \
