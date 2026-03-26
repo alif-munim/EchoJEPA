@@ -1,0 +1,73 @@
+# BYOL-Video pretraining on MIMIC-IV-Echo (ViT-L, 224px, 16 frames)
+# Three-way controlled comparison: JEPA vs BYOL-Video vs MAE
+# Matched compute budget with pretrain-mimic-224px-16f.yaml
+app: byol_video
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 220G
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/mimic/byol_vitl_224px_16f_kinetics
+data:
+  dataset_type: VideoDataset
+  datasets:
+  - /home/sagemaker-user/user-default-efs/vjepa2/data/csv/mimic_annotations_s3.csv
+  datasets_weights:
+  - 1.0
+  batch_size: 64                    # halved from 128 (2 clips per sample = ~2x memory)
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs:
+  - 16
+  num_clips: 2                     # rho=2 temporal clips per video
+  fps: 8
+  tubelet_size: 2
+  num_workers: 8
+  persistent_workers: true
+  pin_mem: true
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio:
+  - 0.9
+  - 1.1
+  random_resize_scale:
+  - 0.5
+  - 1.0
+  reprob: 0.0
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  seed: 234
+  use_sdpa: true
+model:
+  model_name: vit_large
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_rope: true
+  # BYOL projector/predictor MLP dimensions
+  proj_hidden_dim: 4096
+  proj_dim: 256
+  pred_hidden_dim: 4096
+optimization:
+  is_anneal: false
+  force_load_pretrain: true
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitl.pt
+
+  # BYOL EMA schedule: cosine 0.996 -> 1.0 (per BYOL paper)
+  ema: [0.996, 1.0]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+
+  ipe: 300
+  ipe_scale: 1.25
+
+  # Same LR as JEPA config for matched comparison
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+
+  warmup: 40
+  epochs: 240
