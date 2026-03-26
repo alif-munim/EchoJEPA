@@ -600,10 +600,16 @@ def main(args, resume_preempt=False):
             "lr": lr,
         }
 
+        # Atomic write: save to a temp file, then rename. This prevents
+        # corruption if the process is killed mid-write (e.g. NCCL timeout).
+        tmp_path = local_path + ".tmp"
         try:
-            torch.save(save_dict, local_path)
+            torch.save(save_dict, tmp_path)
+            os.replace(tmp_path, local_path)
         except Exception as e:
             logger.error(f"Encountered exception when saving local checkpoint: {e}")
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
             return
 
         if s3_uri_base:
@@ -1001,7 +1007,7 @@ def main(args, resume_preempt=False):
             _barrier()
 
             if (epoch + 1) % CHECKPOINT_FREQ == 0 or epoch == (num_epochs - 1):
-                save_checkpoint(epoch + 1, 0, latest_path, None, is_periodic=False)
+                save_checkpoint(epoch + 1, 0, latest_path, s3_checkpoint_uri, is_periodic=False)
 
             if save_every_freq > 0 and (epoch + 1) % save_every_freq == 0:
                 save_every_file = f"e{epoch}.pt"
