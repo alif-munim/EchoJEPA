@@ -20,8 +20,9 @@ configs/train/
 │   └── droid-256px-8f.yaml              #   DROID robotics (action-conditioned)
 ├── vitl16/                              # ViT-Large (300M params)
 │   ├── pretrain-256px-16f.yaml          #   Kinetics pretrain (template)
-│   ├── pretrain-mimic-224px-16f.yaml    #   MIMIC-IV-Echo pretrain (525K videos)
+│   ├── pretrain-mimic-224px-16f.yaml    #   MIMIC-IV-Echo JEPA pretrain (525K videos)
 │   ├── pretrain-mimic-224px-16f-cont120.yaml # MIMIC continued pretrain (from ep 120)
+│   ├── pretrain-byol-mimic-224px-16f.yaml #  MIMIC BYOL-Video pretrain (ICML rebuttal)
 │   ├── cooldown-256px-64f.yaml          #   Kinetics cooldown (template)
 │   └── cooldown-mimic-224px-16f.yaml    #   MIMIC-IV-Echo cooldown
 └── vith16/                              # ViT-Huge (600M params)
@@ -37,6 +38,10 @@ Training follows a two-phase schedule (see `claude/architecture/pretraining-and-
 2. **Cooldown (anneal)** — continued training with higher resolution and/or more frames, lower LR, reduced augmentation
 
 Both phases use the same `app: vjepa` entry point and training loop. The key differences are in the data/optimization sections.
+
+### BYOL-Video (ICML Rebuttal)
+
+A separate `app: byol_video` training loop implements self-distillation with momentum encoder for the three-way controlled comparison (JEPA vs BYOL-Video vs MAE). See `app/byol_video/` for implementation. Uses `num_clips: 2` temporal clips per video, symmetric cosine loss, and no masking.
 
 ## Naming Convention
 
@@ -74,7 +79,7 @@ python -m app.main --fname configs/train/vitl16/cooldown-mimic-224px-16f.yaml \
 ## Key Config Fields
 
 ```yaml
-app: vjepa                    # Training app (vjepa or vjepa_droid)
+app: vjepa                    # Training app (vjepa, vjepa_droid, or byol_video)
 folder: /path/to/checkpoints  # Output directory for checkpoints
 
 data:
@@ -89,6 +94,22 @@ data:
 optimization:
   checkpoint: /path/to/init.pt # Resume from checkpoint (pretrained weights)
 ```
+
+## Checkpoint Initialization Reference
+
+The three-way controlled comparison (ICML rebuttal) uses **ImageNet ViT-L** as the common starting point:
+
+| Model | Init Checkpoint | Config | Notes |
+|-------|----------------|--------|-------|
+| **EchoJEPA-L** | `vitl_in21k.pt` | `pretrain-mimic-224px-16f.yaml` | JEPA (local latent prediction) |
+| **EchoBYOL-L** | `vitl_in21k.pt` | `pretrain-byol-mimic-224px-16f.yaml` | BYOL-Video (global self-distillation) |
+| **EchoMAE-L** | `vitl_in21k.pt` | (external VideoMAE codebase) | MAE (pixel reconstruction) |
+| **EchoJEPA-L-K** | `vitl.pt` | `pretrain-mimic-224px-16f.yaml` | JEPA from Kinetics V-JEPA2 (NOT in controlled comparison) |
+
+**Checkpoint files** (`checkpoints/`):
+- `vitl_in21k.pt` — ImageNet-21K ViT-L, heads stripped, flat state dict (296 keys). 2D patch_embed (inflated to 3D at load time).
+- `vitl_raw.pth` — Raw ImageNet ViT-L with `module.head.*`/`module.fc_norm.*` keys. Source: S3 `vjepa2-bucket/pretrained_imagenet_vitl.pth`.
+- `vitl.pt` — Kinetics V-JEPA2 ViT-L (epoch 40). Has `encoder`/`predictor`/`target_encoder` keys. Used for EchoJEPA-L-K.
 
 ## Related
 

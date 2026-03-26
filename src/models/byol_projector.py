@@ -12,7 +12,7 @@ class BYOLProjector(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(embed_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.Linear(hidden_dim, proj_dim),
         )
 
@@ -31,7 +31,7 @@ class BYOLPredictor(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(proj_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.Linear(hidden_dim, out_dim),
         )
 

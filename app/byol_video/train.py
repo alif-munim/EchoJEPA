@@ -299,28 +299,38 @@ def main(args, resume_preempt=False):
         if anneal_ckpt_path and os.path.exists(anneal_ckpt_path):
             logger.info(f"FORCE-LOADING pretrained model from {anneal_ckpt_path}")
             checkpoint = robust_checkpoint_loader(anneal_ckpt_path, map_location=torch.device("cpu"))
-            epoch_from_ckpt = checkpoint.get("epoch", 0)
 
+            # Handle both formats: V-JEPA dict (has 'encoder' key) or flat state dict (ImageNet)
             if "encoder" in checkpoint:
                 pretrained_dict = checkpoint["encoder"]
-                # Strip DDP 'module.' and MultiSeqWrapper 'backbone.' prefixes
-                pretrained_dict = {
-                    k.replace("module.", "").replace("backbone.", ""): v for k, v in pretrained_dict.items()
-                }
-                msg = encoder.load_state_dict(pretrained_dict, strict=False)
-                logger.info(f"Loaded pretrained encoder from epoch {epoch_from_ckpt} with msg: {msg}")
-
-            if "target_encoder" in checkpoint:
-                pretrained_dict = checkpoint["target_encoder"]
-                pretrained_dict = {
-                    k.replace("module.", "").replace("backbone.", ""): v for k, v in pretrained_dict.items()
-                }
-                msg = target_encoder.load_state_dict(pretrained_dict, strict=False)
-                logger.info(f"Loaded pretrained target encoder from epoch {epoch_from_ckpt} with msg: {msg}")
+                epoch_from_ckpt = checkpoint.get("epoch", 0)
             else:
-                # If no target_encoder in checkpoint, copy from encoder
-                target_encoder.load_state_dict(encoder.state_dict())
-                logger.info("Copied encoder weights to target_encoder (no target_encoder in checkpoint)")
+                # Flat state dict (e.g. ImageNet ViT-L from vitl_raw.pth / vitl_in21k.pt)
+                pretrained_dict = checkpoint.get("model", checkpoint.get("state_dict", checkpoint))
+                epoch_from_ckpt = 0
+
+            # Strip DDP 'module.' and MultiSeqWrapper 'backbone.' prefixes, drop classifier heads
+            pretrained_dict = {
+                k.replace("module.", "").replace("backbone.", ""): v
+                for k, v in pretrained_dict.items()
+                if not k.startswith(("head.", "fc_norm.", "module.head.", "module.fc_norm."))
+            }
+
+            # Inflate 2D patch_embed to 3D if loading from an image checkpoint
+            pe_key = "patch_embed.proj.weight"
+            if pe_key in pretrained_dict and pretrained_dict[pe_key].ndim == 4:
+                pe_2d = pretrained_dict[pe_key]  # [C_out, C_in, H, W]
+                t = tubelet_size
+                pe_3d = pe_2d.unsqueeze(2).repeat(1, 1, t, 1, 1) / float(t)
+                pretrained_dict[pe_key] = pe_3d
+                logger.info(f"Inflated patch_embed.proj.weight: {pe_2d.shape} -> {pe_3d.shape}")
+
+            msg = encoder.load_state_dict(pretrained_dict, strict=False)
+            logger.info(f"Loaded pretrained encoder from epoch {epoch_from_ckpt} with msg: {msg}")
+
+            # Copy encoder weights to target_encoder
+            target_encoder.load_state_dict(encoder.state_dict())
+            logger.info("Copied encoder weights to target_encoder")
 
             # Projector + predictor train from scratch
             target_projector.load_state_dict(online_projector.state_dict())
@@ -369,9 +379,10 @@ def main(args, resume_preempt=False):
                     wd_scheduler.step()
 
     # -- DDP: wrap online branch only (targets have no gradients)
-    encoder = DistributedDataParallel(encoder, static_graph=True)
-    online_projector = DistributedDataParallel(online_projector, static_graph=True)
-    online_predictor = DistributedDataParallel(online_predictor, static_graph=True)
+    if dist.is_available() and dist.is_initialized():
+        encoder = DistributedDataParallel(encoder, static_graph=True)
+        online_projector = DistributedDataParallel(online_projector, static_graph=True)
+        online_predictor = DistributedDataParallel(online_predictor, static_graph=True)
 
     for p in target_encoder.parameters():
         p.requires_grad = False
@@ -501,50 +512,52 @@ def main(args, resume_preempt=False):
                     _new_lr = scheduler.step()
                     _new_wd = wd_scheduler.step()
 
-                    loss = 0.0
-                    n_pairs = 0
+                    # Per-pair gradient accumulation: each pair does forward+backward
+                    # independently, avoiding BN running-stat inplace version conflicts.
+                    optimizer.zero_grad()
+                    total_pairs = num_temporal_clips * (num_temporal_clips - 1)
+                    loss_accum = 0.0
 
                     for i in range(num_temporal_clips):
                         for j in range(num_temporal_clips):
                             if i == j:
                                 continue
 
-                            # Online branch: encoder -> mean pool -> projector -> predictor
+                            # Online branch
                             with torch.amp.autocast("cuda", dtype=dtype, enabled=mixed_precision):
                                 z = encoder(clips[i])       # [B, N, D]
                                 z = z.mean(dim=1)            # [B, D]
                                 z = online_projector(z)      # [B, proj_dim]
                                 z = online_predictor(z)      # [B, proj_dim]
 
-                            # Target branch: encoder -> mean pool -> projector (no grad)
+                            # Target branch (no grad)
                             with torch.no_grad():
                                 h = target_encoder(clips[j])  # [B, N, D]
                                 h = h.mean(dim=1)              # [B, D]
                                 h = target_projector(h)        # [B, proj_dim]
 
-                            # Negative cosine similarity loss
+                            # Cosine loss for this pair
                             with torch.amp.autocast("cuda", dtype=dtype, enabled=mixed_precision):
-                                z = F.normalize(z, dim=-1)
-                                h = F.normalize(h.detach(), dim=-1)
-                                loss += -2.0 * (z * h).sum(dim=-1).mean()
-                                n_pairs += 1
+                                z_norm = F.normalize(z, dim=-1)
+                                h_norm = F.normalize(h.detach(), dim=-1)
+                                pair_loss = -2.0 * (z_norm * h_norm).sum(dim=-1).mean()
 
-                    loss /= n_pairs
+                            # Backward for this pair (gradients accumulate)
+                            scaled = pair_loss / total_pairs
+                            if mixed_precision:
+                                scaler.scale(scaled).backward()
+                            else:
+                                scaled.backward()
+                            loss_accum += pair_loss.item()
 
-                    # Backward + optimize
+                    loss_accum /= total_pairs
+
                     if mixed_precision:
-                        scaler.scale(loss).backward()
                         scaler.unscale_(optimizer)
-                    else:
-                        loss.backward()
-
-                    if mixed_precision:
                         scaler.step(optimizer)
                         scaler.update()
                     else:
                         optimizer.step()
-
-                    optimizer.zero_grad()
 
                     # EMA update: both encoder AND projector
                     m = next(momentum_scheduler)
@@ -556,7 +569,7 @@ def main(args, resume_preempt=False):
                         ):
                             param_k.mul_(m).add_(param_q, alpha=1 - m)
 
-                    return float(loss), _new_lr, _new_wd
+                    return loss_accum, _new_lr, _new_wd
 
                 (loss, _new_lr, _new_wd), gpu_etime_ms = gpu_timer(train_step)
                 iter_elapsed_time_ms = (time.time() - itr_start_time) * 1000.0

@@ -6,6 +6,36 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-26 (Session 29)
+
+### BYOL-Video Training App — Implementation + Bug Fixes
+
+**New training app** (`app: byol_video`) for ICML rebuttal three-way controlled comparison: JEPA vs BYOL-Video vs MAE. All from ImageNet ViT-L init, matched compute on MIMIC-IV-Echo.
+
+**Files created:**
+- `app/byol_video/__init__.py` — empty module for scaffold dispatch
+- `app/byol_video/train.py` (~635 lines) — full training loop: BYOLCollator, force-load (V-JEPA + ImageNet formats), per-pair grad accum, EMA update, DDP guard
+- `app/byol_video/utils.py` (~145 lines) — model init (raw ViT, no MultiSeqWrapper), optimizer (4 param groups), checkpoint load/save
+- `src/models/byol_projector.py` (~40 lines) — BYOLProjector + BYOLPredictor MLPs (Linear→BN→ReLU→Linear)
+- `configs/train/vitl16/pretrain-byol-mimic-224px-16f.yaml` — matched config (batch 64, 240 epochs, ImageNet init)
+
+**Bugs encountered and fixed during smoke test:**
+1. **Autograd inplace modification** — BN running stats updated inplace across multiple clip-pair forward passes before backward. Fix: per-pair gradient accumulation (each pair does forward+backward independently, gradients accumulate, optimizer steps once).
+2. **`ReLU(inplace=True)` conflict** — Changed to `ReLU()` in byol_projector.py to avoid version counter issues with autograd.
+3. **DDP `ValueError: Default process group has not been initialized`** — `init_distributed()` without args falls through to SLURM check in debug mode. Fix: guard DDP wrapping with `if dist.is_available() and dist.is_initialized()`.
+4. **Wrong checkpoint (Kinetics vs ImageNet)** — Controlled comparison requires ImageNet init, not Kinetics V-JEPA2. Downloaded `vitl_raw.pth` from S3, processed to `vitl_in21k.pt` (stripped heads, flat state dict). Added 2D→3D patch_embed inflation in force-load logic.
+5. **Flake8 unused variable** — Removed `proj_pred_params` in utils.py.
+
+**Force-load logic** handles both:
+- V-JEPA format: `{'encoder': sd, 'predictor': sd, 'target_encoder': sd, ...}`
+- Flat ImageNet format: `{'model': sd}` with classification heads stripped, 2D patch_embed inflated to 3D
+
+**Smoke test result**: loss=0.029 on first step (ImageNet init), confirming no collapse and correct initialization.
+
+**Docs updated**: `configs/train/README.md` (BYOL entry + checkpoint reference), `claude/architecture/pretraining-and-cooldown.md` (BYOL section + config table entry).
+
+---
+
 ## 2026-03-26 (Session 28)
 
 ### Trajectory Experiment Restructuring & MR Onset
@@ -63,6 +93,19 @@ Missing checkpoints before relaunch:
 - Plus pred avg gaps for L-K (mortality_1yr, mortality_90d)
 
 Chain running on all 8 GPUs (2 tasks parallel on 4+4 split). ETA ~12-18 hours.
+
+### trajectory_lvef_onset — Strategy E Pred Avg (4 manuscript models)
+
+Ran proper Strategy E prediction averaging for LVEF onset (previously only had old-style single-clip inference). S3 throttling with 8 GPUs (NCCL timeout at batch 17) — fixed by running 4 GPUs per model with 2 models in parallel.
+
+| Model | Pred Avg AUROC | Old single-clip |
+|-------|:-:|:-:|
+| **EchoJEPA-G** | **0.794** | 0.793 |
+| EchoPrime | 0.782 | 0.776 |
+| PanEcho | 0.781 | 0.759 |
+| EchoJEPA-L-K | 0.683 | 0.677 |
+
+MIMIC chain G pred avg re-confirmed after relaunch: mortality_1yr 0.792, 90d 0.827, 30d 0.884.
 
 ## 2026-03-26 (Session 27)
 

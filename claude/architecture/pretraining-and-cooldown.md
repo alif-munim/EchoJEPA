@@ -63,6 +63,7 @@ All configs live in `configs/train/{vitl16,vith16,vitg16}/`.
 | Config | Phase | App | Model | Frames | Crop | Batch | Epochs |
 |--------|-------|-----|-------|--------|------|-------|--------|
 | `vitl16/pretrain-mimic-224px-16f.yaml` | pretrain | vjepa | ViT-L | 16 | 224 | 128 | 240 |
+| `vitl16/pretrain-byol-mimic-224px-16f.yaml` | pretrain | **byol_video** | ViT-L | 16 | 224 | 64 | 240 |
 | `vitl16/pretrain-mimic-224px-16f-cont120.yaml` | pretrain (cont.) | vjepa | ViT-L | 16 | 224 | 128 | 120 |
 | `vitl16/cooldown-mimic-224px-16f.yaml` | cooldown | vjepa | ViT-L | 16 | 224 | 128 | 60 |
 | `vitl16/pretrain-21-mimic-224px-16f.yaml` | pretrain | **vjepa_2_1** | ViT-L | 16 | 224 | 128 | 120 |
@@ -238,6 +239,58 @@ Typical JEPA loss curve: sharp drop in early epochs → gradual rise for the rem
 - **Downstream probe evaluation**: The only reliable way to assess feature quality. The paper evaluates every 60K steps.
 
 V-JEPA 2.0 ViT-L on MIMIC showed this exact pattern: 0.53 → 0.47 (epoch 9) → 0.57 (epoch 224). This is healthy training, not overfitting.
+
+## BYOL-Video Pretraining (ICML Rebuttal)
+
+The BYOL-Video training loop lives in `app/byol_video/train.py` (set `app: byol_video` in config). Implements self-distillation with momentum encoder for the three-way controlled comparison: JEPA (local latent) vs BYOL-Video (global self-distillation) vs MAE (pixel reconstruction).
+
+### Architecture
+
+Unlike JEPA, BYOL-Video uses **no masking and no patch-level prediction**:
+- **Online branch**: encoder → global mean pool → projector MLP → predictor MLP
+- **Target branch** (EMA): encoder → global mean pool → projector MLP (no predictor)
+- **Loss**: negative cosine similarity between online predictions and target projections
+
+The projector and predictor are 2-layer MLPs (`Linear → BN → ReLU → Linear`) in `src/models/byol_projector.py`.
+
+### Key Differences from JEPA
+
+| Aspect | JEPA (`app/vjepa/`) | BYOL-Video (`app/byol_video/`) |
+|--------|---------------------|-------------------------------|
+| Encoder wrapper | `MultiSeqWrapper` (processes masked sequences) | Raw ViT (full unmasked clips) |
+| Prediction target | Patch-level latent (masked regions) | Global clip-level embedding |
+| Loss | L1 on patch tokens | Negative cosine similarity |
+| Masking | Yes (8@15% + 2@70%) | None |
+| Predictor | ViT predictor (12 blocks) | 2-layer MLP |
+| Clips per sample | 1 (multiple masks) | ρ≥2 temporal clips (default 2) |
+| Batch size | 128 | 64 (halved: 2 clips × full encoder forwards) |
+| EMA schedule | Constant 0.99925 | Cosine 0.996→1.0 (BYOL paper) |
+
+### Force-Load Logic
+
+Handles both V-JEPA checkpoint format (`{'encoder': sd, ...}`) and flat ImageNet state dicts. For ImageNet checkpoints, automatically:
+1. Strips `module.`/`backbone.` prefixes and classifier heads (`head.*`, `fc_norm.*`)
+2. Inflates 2D `patch_embed.proj.weight` `[C_out, C_in, H, W]` to 3D `[C_out, C_in, T, H, W]` via `unsqueeze(2).repeat(1,1,t,1,1)/t`
+3. Copies encoder weights to target_encoder; projector/predictor train from scratch
+
+### Training Step
+
+Uses **per-pair gradient accumulation** to avoid BatchNorm inplace modification conflicts. With ρ=2 clips, there are 2 asymmetric pairs (i→j, j→i). Each pair does its own forward+backward independently, gradients accumulate, then optimizer steps once.
+
+### Config
+
+```yaml
+app: byol_video
+data:
+  num_clips: 2           # ρ=2 temporal clips per video
+  batch_size: 64          # halved vs JEPA (2 full encoder forwards per sample)
+model:
+  proj_hidden_dim: 4096
+  proj_dim: 256
+  pred_hidden_dim: 4096
+optimization:
+  ema: [0.996, 1.0]      # cosine EMA schedule (BYOL paper)
+```
 
 ## V-JEPA 2.1 Pretraining
 
