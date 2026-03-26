@@ -58,7 +58,10 @@ python -m app.main_distributed --fname configs/train/vitl16/pretrain-mimic-224px
 # Connect to controller via SSM (see claude/dev/hyperpod-ops.md for full details)
 aws ssm start-session --region us-west-2 \
   --target "sagemaker-cluster:yyepvbne5vzr_echojepa-h100-controller-i-0c6d410f979fabfe7"
-# Submit via sbatch from controller
+
+# On the controller — deploy latest code and launch training:
+cd ~/EchoJEPA-repo && git pull   # get latest changes
+~/deploy.sh                      # push code to compute node (ip-10-0-50-184)
 sbatch ~/vjepa2_pretrain_h100.sbatch
 ```
 

@@ -1,6 +1,6 @@
 # HyperPod Cluster Operations Guide
 
-Operational guide for SageMaker HyperPod GPU clusters used for EchoJEPA training. Covers cluster setup, connectivity, environment deployment, and job submission. Distilled from the echojepa-h100-march setup (2026-03-26).
+Operational guide for SageMaker HyperPod GPU clusters used for EchoJEPA training. Covers cluster setup, connectivity, environment deployment, and job submission. Distilled from the echojepa-h100-march setup (2026-03-26). Includes 11 troubleshooting issues with fixes (cuBLAS bf16 bug, CUDA_VISIBLE_DEVICES conflict, GradScaler, /dev/shm, S3 auth, etc.).
 
 ## Cluster Inventory
 
@@ -83,16 +83,38 @@ srun -N1 -w ip-10-0-50-184 --ntasks=1 bash -c "hostname && nvidia-smi"  # one-of
 
 ## Environment Deployment
 
-### The conda-pack Approach
+### Code Deployment (Default Workflow)
 
-Since compute nodes have no shared filesystem with the notebook instance, we deploy a portable conda environment via S3:
+The git repo is cloned on the **controller** at `~/EchoJEPA-repo`. Use `scripts/deploy.sh` to push code to compute nodes:
+
+```bash
+# On the controller:
+cd ~/EchoJEPA-repo
+git pull                        # get latest from GitHub
+~/deploy.sh                     # deploy to ip-10-0-50-184
+~/deploy.sh ip-10-0-50-83      # deploy to other node (optional)
+sbatch ~/vjepa2_pretrain_h100.sbatch
+```
+
+The deploy script tars the repo (excluding .git, checkpoints, large data) and unpacks it on the compute node via srun. This is the standard workflow because:
+- Controller and compute nodes have **no shared filesystem**
+- Compute nodes are in a private subnet with **no GitHub access**
+- The controller has SSH access to GitHub for git pull/push
+
+After editing code on the controller (e.g. via Claude Code), always run `~/deploy.sh` before launching training.
+
+### The conda-pack Approach (One-Time Setup)
+
+The conda environment (`/opt/vjepa2-312`) is deployed separately since it rarely changes:
 
 1. **Create conda env** on source machine (A100 notebook instance)
 2. **Pack with conda-pack**: `conda pack -n vjepa2-312 -o vjepa2-312.tar.gz` (~4.5 GB)
 3. **Upload to S3**: `aws s3 cp vjepa2-312.tar.gz s3://<bucket>/setup/`
 4. **Unpack on compute node**: `tar xzf vjepa2-312.tar.gz -C /opt/vjepa2-312 && source /opt/vjepa2-312/bin/activate && conda-unpack`
 
-### Source Code Deployment
+### Legacy: Source Code via S3
+
+Before the git+deploy workflow was set up, code was deployed via S3 tarball. This is still used by the lifecycle script for initial node provisioning:
 
 ```bash
 # On notebook instance: create tarball excluding large files
