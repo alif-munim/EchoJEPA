@@ -2,16 +2,17 @@
 
 ## Overview
 
-These experiments test two JEPA-unique capabilities that exploit the **predictor network** — a component absent from competing foundation models (EchoPrime, PanEcho, MAE). The predictor was trained to predict masked token representations from visible context, making it a latent "world model" of cardiac dynamics.
+These experiments test zero-shot anomaly detection from frozen cardiac video encoder representations — no training, no labels, no probes. We evaluated whether the representation space learned during self-supervised pretraining naturally separates pathological from normal echocardiograms.
 
-Four zero-shot approaches were tested across UHN (hard-negative controls) and MIMIC (population negatives):
-
-1. **Prediction error** — JEPA prediction error as anomaly score (higher error = model is "surprised")
+**Four approaches tested:**
+1. **Prediction error** — JEPA prediction error as anomaly score (JEPA-specific: requires predictor network)
 2. **Representation distance (mean-pooled)** — Mahalanobis/cosine distance from normal reference distribution
 3. **Representation distance (token-level)** — Per-token distances preserving spatial structure
-4. **Temporal forward prediction** — Predict future frame representations from past frames
+4. **Temporal forward prediction** — Predict future frame representations from past frames (JEPA-specific)
 
-All experiments use the frozen ViT-G encoder (`vitg-384.pt`, 1012M params, embed_dim=1408) with no training or labels — pure zero-shot evaluation.
+**Scope**: 40 experiments total — 28 single-model (EchoJEPA-G) across 25 tasks on 2 datasets (UHN + MIMIC), plus 12 multi-model comparisons (EchoJEPA-G vs VideoMAE-L vs PanEcho vs EchoPrime on 3 tasks).
+
+**Key finding**: Zero-shot anomaly detection works for visually dramatic pathologies on out-of-distribution data, and is a **general property of self-supervised cardiac video encoders** — not JEPA-specific. All 4 models tested show above-chance signal.
 
 ### Summary of all results
 
@@ -356,6 +357,40 @@ For subtle distinctions (HCM vs concentric LVH) or non-imaging phenotypes (morta
 
 ---
 
+## Multi-Model Comparison
+
+To test whether zero-shot anomaly detection is JEPA-specific or a general property of self-supervised representations, we ran the same protocol across 4 models on the top 3 MIMIC tasks.
+
+**Models tested:**
+- **EchoJEPA-G**: ViT-G, 1012M params, JEPA predictive training, pretrained on 18M UHN echos
+- **VideoMAE-L**: ViT-L, 305M params, masked pixel reconstruction, pretrained on UHN echos (ep163)
+- **PanEcho**: 42M params, contrastive + supervised, pretrained on diverse echo data
+- **EchoPrime**: MViT, 35M params, contrastive, pretrained on diverse echo data
+
+| Task | EchoJEPA-G | VideoMAE-L | PanEcho | EchoPrime |
+|------|:----------:|:----------:|:-------:|:---------:|
+| **Takotsubo** | 0.711 | **0.871** | 0.617 | 0.663 |
+| **Amyloidosis** | 0.698 | **0.726** | 0.670 | 0.667 |
+| **Tamponade** | 0.605 | 0.575 | **0.660** | 0.630 |
+
+### Interpretation
+
+1. **Zero-shot anomaly detection is NOT JEPA-specific.** All 4 models show above-chance signal on the top tasks. VideoMAE-L actually leads on takotsubo (0.871) and amyloidosis (0.726).
+
+2. **UHN-pretrained models (EchoJEPA, VideoMAE) perform comparably** — both were trained on the same 18M UHN echos and are out-of-distribution on MIMIC. The training objective (JEPA latent prediction vs MAE pixel reconstruction) does not clearly favor one approach.
+
+3. **Externally-pretrained models (PanEcho, EchoPrime) are competitive** despite being trained on different data distributions. PanEcho leads on tamponade (0.660), suggesting contrastive pretraining also produces anomaly-sensitive representations.
+
+4. **Scale matters less than expected.** EchoJEPA-G (1012M) doesn't dominate smaller models. PanEcho (42M) beats EchoJEPA on tamponade.
+
+5. **The key finding**: Zero-shot anomaly detection from representation distance is a **general property of self-supervised cardiac video encoders**, not a JEPA-specific capability. Any encoder that has learned structured representations of cardiac dynamics — whether through predictive, reconstructive, or contrastive objectives — can separate dramatic pathologies from normal in embedding space.
+
+### What IS JEPA-specific
+
+The predictor-based experiments (prediction error, forward prediction) remain JEPA-unique — no other model has a predictor network. However, these approaches uniformly failed (AUROC ~0.50), so JEPA-uniqueness doesn't confer an advantage for anomaly detection. The predictor is a universal reconstruction model, not a normality model.
+
+---
+
 ## Commands
 
 ```bash
@@ -414,6 +449,30 @@ $PYTHON -m evals.forward_prediction.forward_predict \
     --csv $MIMIC_CSV/disease_takotsubo_v4.1/test.csv \
     --output results/mimic_forward_pred/takotsubo.csv \
     --device cuda:0 --batch_size 4
+```
+
+```bash
+# --- Multi-model comparison ---
+# EchoPrime (no checkpoint needed — built-in weights)
+$PYTHON -m evals.forward_prediction.anomaly_repr \
+    --model echoprime \
+    --csv $MIMIC_CSV/disease_takotsubo_v4.1/test.csv \
+    --output results/mimic_anomaly_repr/echoprime/takotsubo.csv \
+    --device cuda:0 --batch_size 16
+
+# PanEcho (no checkpoint needed — downloads from hub)
+$PYTHON -m evals.forward_prediction.anomaly_repr \
+    --model panecho \
+    --csv $MIMIC_CSV/disease_takotsubo_v4.1/test.csv \
+    --output results/mimic_anomaly_repr/panecho/takotsubo.csv \
+    --device cuda:0 --batch_size 16
+
+# VideoMAE (UHN-pretrained)
+$PYTHON -m evals.forward_prediction.anomaly_repr \
+    --model videomae --checkpoint checkpoints/videomae-ep163.pth \
+    --csv $MIMIC_CSV/disease_takotsubo_v4.1/test.csv \
+    --output results/mimic_anomaly_repr/videomae/takotsubo.csv \
+    --device cuda:0 --batch_size 16
 ```
 
 ## Environment Notes

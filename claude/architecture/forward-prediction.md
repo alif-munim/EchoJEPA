@@ -66,6 +66,18 @@ Head-to-head: Takotsubo MIMIC 0.711 > UHN 0.640 | Amyloidosis MIMIC 0.698 >> UHN
 - Representation distance works when there's a **large distributional gap** (takotsubo apical ballooning vs general population). Fails on matched controls or non-imaging phenotypes.
 - Supervised d=1 attentive probes get >0.90 AUROC on the same tasks where zero-shot gets ~0.50. The information IS in the representations — extracting it requires learned discrimination.
 
+## Multi-Model Comparison
+
+Zero-shot anomaly detection is NOT JEPA-specific. Tested 4 models on top 3 MIMIC tasks:
+
+| Task | EchoJEPA-G (1012M) | VideoMAE-L (305M) | PanEcho (42M) | EchoPrime (35M) |
+|------|:------------------:|:-----------------:|:-------------:|:---------------:|
+| Takotsubo | 0.711 | **0.871** | 0.617 | 0.663 |
+| Amyloidosis | 0.698 | **0.726** | 0.670 | 0.667 |
+| Tamponade | 0.605 | 0.575 | **0.660** | 0.630 |
+
+All models show signal. VideoMAE-L leads on takotsubo/amyloidosis. General property of self-supervised cardiac video encoders, not JEPA-specific. Multi-model support via `--model` flag in `anomaly_repr.py`.
+
 ## Environment
 
 - **Conda**: Must use `vjepa2-312` (base has torch/torchvision conflict)
