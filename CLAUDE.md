@@ -17,8 +17,9 @@ The `claude/` directory contains persistent reference docs organized by topic. S
 - **`claude/architecture/`** — codebase internals: pretraining pipeline, probe system (attentive/linear/MLP), classifier pipeline
 - **`claude/data/`** — datasets and manuscript: `data/` directory layout, Nature Medicine scope, UHN database schemas, MIMIC-IV linkage
 - **`claude/dev/`** — development log: bug tracker (6 issues), changelog, code review findings, UHN extraction ops guide. See `dev/README.md` for the bug index and planned fixes
-- **`claude/preprint/`** — ICML preprint analysis: encoder fairness confounds, probe architecture mismatch (attentive vs linear inversion), claim validity assessment, hindsight recommendations for camera-ready
-- **`claude/rebuttals/`** — ICML rebuttal preparation: TIER 1-4 vulnerability inventory, response templates, worst-case scenarios, competitive positioning, camera-ready action items
+- **`claude/preprint/`** — ICML preprint analysis: encoder fairness confounds, probe architecture mismatch (attentive vs linear inversion), claim validity assessment, hindsight recommendations for camera-ready. Full preprint LaTeX at `user-default-efs/vjepa2/claude/preprint/icml_preprint.tex`
+- **`claude/rebuttals/`** — ICML rebuttal: **`08-rebuttal-v2.md` is the active plan** based on actual reviews (scores 2/3/3/4). Actual reviewer concerns (novelty, segmentation, speckle validation, contrastive comparison) were orthogonal to pre-review preparations (`01`-`07`). Key updates: UHN approved EchoJEPA-G gated release upon acceptance; DINO controlled baseline, CKA speckle invariance, and frame shuffling are the Tier 1 experiments
+- **`claude/goodfire/`** — Goodfire interpretability report (`goodfire_mar20.pdf`): 31-page analysis of EchoJEPA-L-K vs EchoJEPA-L vs EchoMAE-L representation geometry, attribution, and SAE concept discovery. Key rebuttal-relevant findings: frame shuffling (Fig 25-26), temporal Fourier power (Fig 29), spatial intrinsic dimension (Fig 9). SAE results (single feature rho=0.50 for LVEF) reserved for Nature Medicine.
 
 Additional source references: `uhn_echo/nature_medicine/CLAUDE.md`, `uhn_echo/nature_medicine/data_exploration/CLAUDE.md`, `uhn_echo/nature_medicine/data_exploration/mimic/CLAUDE.md`
 
