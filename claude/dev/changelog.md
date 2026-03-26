@@ -6,6 +6,125 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-26 (Session 28)
+
+### Trajectory Experiment Restructuring & MR Onset
+
+**Analysis**: Identified fundamental confound in delta prediction tasks — model succeeds by encoding current measurement value (regression to mean), not by detecting subclinical trajectory signals. Onset paradigm (filter to normal baselines) avoids this because current value is uninformative.
+
+**Code change — `experiments/nature_medicine/uhn/build_trajectory_csvs.py`:**
+- Added `--direction {decline,worsen}` parameter to `build_onset_csvs_for_task()`
+- Added `--baseline_max` and `--future_above` params for worsening onset (MR-style: baseline ≤ mild, future ≥ moderate+)
+- Existing `--baseline_min` and `--future_below` remain for decline onset (LVEF-style)
+- Generalized metadata field names from `baseline_ef`/`followup_ef` to `baseline_value`/`followup_value`
+
+**New task — trajectory_mr_severity_onset:**
+- Built: 19,967 train studies (10% worsened), 3,959 val, 5,932 test
+- Definition: baseline MR ≤ mild (0-2), predict who develops moderate+ (≥3) within 30-365 days
+- Views: A4C, A2C, A3C, PLAX (standard for MR assessment)
+
+**Results — trajectory_mr_severity_onset (pred avg AUROC):**
+
+| Model | AUROC |
+|-------|-------|
+| **EchoJEPA-G** | **0.7325** |
+| PanEcho | 0.6880 |
+| EchoPrime | 0.6657 |
+| EchoJEPA-L-K | 0.6054 |
+
+Validates onset paradigm generalizes beyond LVEF. G leads by 4.5pp over PanEcho.
+
+**Results — trajectory_lvef 3-class (pred avg AUROC, completed EP + Pan):**
+
+| Model | AUROC |
+|-------|-------|
+| PanEcho | 0.6327 |
+| EchoPrime | 0.6281 |
+| EchoJEPA-G | 0.6134 |
+| EchoJEPA-L | 0.5360 |
+| EchoJEPA-L-K | 0.5315 |
+
+3-class (declined/stable/improved) weaker than onset, as expected. Non-JEPA models outperform on delta task — consistent with it measuring current-state encoding rather than true trajectory prediction.
+
+**Bug fix — `scripts/run_mimic_outcome_chain.sh`:**
+- `set -euo pipefail` + `grep` returning exit code 1 (no matches) in `wait_for_training()` silently killed the script
+- Fix: added `|| true` to the grep pipeline
+- Relaunched chain with correct conda env (vjepa2-312)
+
+### MIMIC Outcome Chain — Relaunched
+
+Missing checkpoints before relaunch:
+- in_hospital_mortality: all 4 models
+- mortality_1yr: EP, Pan
+- mortality_30d: L-K, EP, Pan
+- readmission_30d: L-K, EP, Pan
+- discharge_destination: L-K, EP, Pan
+- los_remaining: L-K, EP, Pan
+- Plus pred avg gaps for L-K (mortality_1yr, mortality_90d)
+
+Chain running on all 8 GPUs (2 tasks parallel on 4+4 split). ETA ~12-18 hours.
+
+## 2026-03-26 (Session 27)
+
+### Zero-Shot Anomaly Detection — Complete (40 Experiments)
+
+**Multi-model representation distance (`evals/forward_prediction/anomaly_repr.py`):**
+
+Added multi-model support to `anomaly_repr.py`:
+- `MODEL_REGISTRY` dict with configs for echojepa, echoprime, panecho, videomae, echofm
+- `load_model()` dispatches to JEPA loader or `init_module()` (from `evals/video_classification_frozen/models.py`)
+- `--model` CLI argument, `--checkpoint` now optional (EchoPrime/PanEcho don't need one)
+- Custom normalization passthrough via `make_transforms(normalize=...)`
+
+**Binarized AUROC fix:**
+- Multi-class ordinal labels (e.g., pericardial effusion 0-4) caused AUROC to be skipped entirely
+- Fixed: `binary_study = (study_labels > 0).astype(int)` before AUROC computation (study-level and clip-level)
+
+**28 single-model experiments (EchoJEPA-G):**
+
+MIMIC (15 tasks, population negatives):
+| Task | AUROC | Method |
+|------|-------|--------|
+| Takotsubo | 0.711 | Mahalanobis (inv) |
+| Amyloidosis | 0.698 | Cosine |
+| Tamponade | 0.605 | Mahalanobis / Cosine |
+| STEMI | 0.592 | Cosine |
+| HCM | 0.586 | Mahalanobis (inv) |
+| In-hosp mortality | 0.557 | Mahalanobis |
+| Mortality 1yr | 0.543 | Mahalanobis |
+| DCM/HF/Mort 30d/AFib/MR/TR/LV wall | 0.51-0.53 | — |
+
+UHN (13 tasks, hard negatives — model pretrained on UHN):
+- Takotsubo 0.640 (only UHN task with signal — extreme visual phenotype partially survives in-distribution)
+- All other UHN tasks 0.51-0.55 including LVEF extremes (0.542), AS severity (0.546), pericardial effusion (0.514)
+
+**12 multi-model experiments (top 3 MIMIC tasks × 4 models):**
+
+| Task | EchoJEPA-G (1012M) | VideoMAE-L (305M) | PanEcho (42M) | EchoPrime (35M) |
+|------|:------------------:|:-----------------:|:-------------:|:---------------:|
+| Takotsubo | 0.711 | **0.871** | 0.617 | 0.663 |
+| Amyloidosis | 0.698 | **0.726** | 0.670 | 0.667 |
+| Tamponade | 0.605 | 0.575 | **0.660** | 0.630 |
+
+**Key findings:**
+1. Zero-shot detection is NOT JEPA-specific — all self-supervised cardiac encoders show signal
+2. VideoMAE-L leads on takotsubo/amyloidosis (0.871/0.726 vs EchoJEPA-G's 0.711/0.698)
+3. Performance scales with visual distinctiveness of the phenotype
+4. Two factors: (1) visually dramatic B-mode phenotype (primary), (2) out-of-distribution data (amplifier)
+5. JEPA predictor-based scoring (prediction error, forward prediction) uniformly at chance — predictor is a universal reconstruction model
+
+**Files modified:**
+- `evals/forward_prediction/anomaly_repr.py` — multi-model support + binarized AUROC fix
+- `evals/forward_prediction/RESULTS.md` — comprehensive 40-experiment log
+- `claude/architecture/forward-prediction.md` — updated reference doc with all results + multi-model table
+
+**Results stored:**
+- `results/mimic_anomaly_repr/` — 15 EchoJEPA-G MIMIC tasks
+- `results/uhn_anomaly_repr/` — 13 EchoJEPA-G UHN tasks
+- `results/mimic_anomaly_repr/{echoprime,panecho,videomae}/` — 3 tasks × 3 models
+
+---
+
 ## 2026-03-24 (Session 26)
 
 ### sklearn Reproduction Experiments + Train Feature Extraction

@@ -1,6 +1,6 @@
 # Roadmap
 
-Consolidated view of outstanding work for the Nature Medicine data pipeline. Updated 2026-03-24 01:00 UTC (ALL 13 UHN tasks pred avg DONE. **MIMIC outcome chain**: G 10/11 done, L-K/EP/Pan needs restart (chain killed for feature extraction). **sklearn reproduction experiments DONE** — CY results not reproduced (2-5pp gap, solver/HP issues). **Attentive train feature extraction DONE** (10/10 tasks). CY baselines integrated. 7/7 diseases PA DONE (4/4 models). MIMIC xfer: 4 diseases × 4 models DONE).
+Consolidated view of outstanding work for the Nature Medicine data pipeline. Updated 2026-03-26 18:00 UTC (**17 UHN tasks pred avg DONE** — 13 × all 5 + 4 new × 4 manuscript models. RV function in progress. Trajectory expansion: MR onset + LVEF 3-class DONE. 7/7 diseases PA DONE (4/4 models). MIMIC outcome chain running. CY sklearn = manuscript gold standard. MIMIC xfer: 4 diseases × 4 models DONE).
 
 For code-level roadmap (extraction scripts, bug fixes), see `vjepa2/claude/dev/roadmap.md`.
 For UHN label inventories and data quality notes, see `uhn-pipeline.md` (in this directory).
@@ -14,21 +14,25 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 
 **4 manuscript models**: EchoJEPA-G, EchoJEPA-L-K, EchoPrime, PanEcho. EchoJEPA-L is internal testing only.
 
-### Tier 0: Current Status (2026-03-24 01:00 UTC)
-- **GPUs 0-7**: IDLE (feature extraction completed, chain killed)
-- **MIMIC outcome chain G phase COMPLETE** (10/11 tasks trained + pred avg):
-  - Mortality: 1yr **0.791**, 90d **0.826**, 30d **0.881** (all pred avg AUROC)
-  - discharge_destination **0.677**, los_remaining R²=0.036
-  - Biomarkers: troponin_t R²=0.013, NT-proBNP R²=0.076, creatinine R²=0.029, lactate R²=0.008
-  - in_hospital_mortality: FAILED (DDP port collision), standalone requeue needed
-  - readmission_30d: pred avg ran but study_predictions.csv not saved — needs re-run
-- **sklearn reproduction experiments DONE** (2026-03-24): CY results NOT reproduced (2-5pp gap). Three-way comparison: CY sklearn > our mean-pool sklearn > attentive PA on mortality. See TASK_TRACKER for full table.
-- **Attentive train feature extraction DONE** (10/10 tasks, 6.5h). Key finding: multi-head attentive pooler means features are head-specific — cannot mix features from different heads.
-- **L-K/EP/Pan MIMIC outcome chain needs restart** (was killed for feature extraction GPUs)
-- **CY baselines integrated into manuscript** (40+ `\tbd` cells filled, tbd count 60→44)
+### Tier 0: Current Status (2026-03-26 18:00 UTC / 2:00 PM ET)
+- **GPUs 0-7**: RV function EP+Pan training (ETA ~3:30 PM ET). MIMIC outcome chain RUNNING (L-K/EP/Pan phase).
+- **NEW UHN tasks DONE (4 × 4 manuscript models)**:
+  - EDV: G **R²=0.774**/r=0.890, L-K 0.560/0.790, EP 0.425/0.719, Pan 0.554/0.815
+  - ESV: G **R²=0.853**/r=0.931, L-K 0.721/0.882, EP 0.589/0.843, Pan 0.675/0.878
+  - Diastolic function: G **AUROC=0.903**/bal_acc=74.7%, L-K 0.855/64.8%, EP 0.846/63.1%, Pan 0.830/61.2%
+  - Cardiac output: G **R²=0.335**/r=0.615, L-K 0.185/0.499, EP 0.143/0.425, Pan 0.179/0.452
+- **RV function in progress**: G val **0.845**, L-K val 0.746, EP+Pan training
+- **Trajectory experiments:**
+  - **trajectory_lvef_onset**: G **0.793** (flagship, done earlier)
+  - **trajectory_mr_severity_onset**: G **0.733**, Pan 0.688, EP 0.666, L-K 0.605 — validates onset paradigm generalizes
+  - **trajectory_lvef 3-class**: Pan 0.633, EP 0.628, G 0.613, L 0.536, L-K 0.532 — DONE (5 models)
+  - Skipped: TAPSE (2K pairs too small), LV mass (56 positives), RV pressure (noisy)
+- **MIMIC outcome chain**: G 10/11 done, L-K/EP/Pan chain running
+- **sklearn reproduction**: CY results NOT reproduced (2-5pp gap). CY values = manuscript gold standard.
 - **Disease pred avg — 7/7 DONE (all 4 manuscript models)**
-- **MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE** (amyloidosis G 0.947, HCM G 0.847, DCM EP 0.721, STEMI G 0.657)
-- **Next**: Restart MIMIC outcome chain for L-K/EP/Pan. in_hospital_mortality G standalone requeue. readmission_30d G pred avg re-run.
+- **MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE**
+- **Physiological coherence analysis now unblocked**: EDV+ESV+LVEF all done → can compute derived EF correlation
+- **Next**: RV function PA (after EP+Pan). Monitor MIMIC chain. Bland-Altman analysis.
 
 ### P1: Finish UHN Probe Pipeline (Alif, compute-only — blocks §2.2-2.4 tables)
 
@@ -54,14 +58,14 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 |---|------|--------|-------|-------|
 | 8 | ~~**Forward prediction (Exp 6.1)**~~ | DONE | Alif | Implemented in `evals/forward_prediction/`. Tested on MIMIC takotsubo/STEMI/mortality. Forward pred AUROC ~0.52 (chance). See `evals/forward_prediction/RESULTS.md`. |
 | 9 | ~~**Anomaly detection (Exp 6.4)**~~ | DONE | Alif | 4 approaches tested (pred error, repr distance mean/token, forward pred) on UHN + MIMIC. Best: takotsubo 0.711 zero-shot repr distance. Pred error uniformly at chance. See `evals/forward_prediction/RESULTS.md`. |
-| 10 | **Trajectory expansion** — EF change (UHN+MIMIC), multi-param, new HF diagnosis (MIMIC) | ~1 day CSV + 3 days training | Alif | §2.5 trajectory rows all `\tbd`/‡ |
+| 10 | **Trajectory expansion** | ~1 day CSV + 3 days training | Alif | **MR onset DONE** (G 0.733, Pan 0.688, EP 0.666, L-K 0.605). **LVEF 3-class PA DONE** (5 models). Remaining: MIMIC trajectory (no infrastructure). |
 
 ### P4: Supporting Experiments (blocks §2.6, §2.1 Extended Data)
 
 | # | Task | Effort | Owner | Notes |
 |---|------|--------|-------|-------|
 | 11 | **Disease panel** (7 diseases × 4 models) | ~1-2 days | Alif/Reza | **7/7 training DONE** (takotsubo dropped). **Pred avg: 7/7 DONE (4/4 models)**. MIMIC xfer: 4 diseases × 4 models DONE. |
-| 12 | **Diastolic function, PA pressure, cardiac output** | ~1-2 days | Alif | CSVs need B-mode filter build. §2.2 Extended Data. |
+| 12 | ~~**Diastolic function, cardiac output**~~ + **RV function** | ~hours | Alif | **Diastolic fn DONE** (G 0.903). **Cardiac output DONE** (G R²=0.335). **RV function: G+L-K trained, EP+Pan training.** |
 
 ### P5: Delegated Work (blocked on other people)
 
@@ -124,6 +128,16 @@ P1 DONE (all 13 UHN primary pred avg complete)
 ---
 
 ## Recent Completed Work
+
+### Done (March 25-26 — new UHN tasks + trajectory expansion)
+- **EDV**: 4 manuscript models trained + pred avg DONE (G R²=0.774)
+- **ESV**: 4 manuscript models trained + pred avg DONE (G R²=0.853)
+- **Diastolic function** (4-class): 4 manuscript models trained + pred avg DONE (G AUROC=0.903)
+- **Cardiac output**: 4 manuscript models trained + pred avg DONE (G R²=0.335)
+- **RV function** (5-class): G+L-K trained (G val 0.845), EP+Pan training
+- **Trajectory MR severity onset**: G 0.733, Pan 0.688, EP 0.666, L-K 0.605
+- **Trajectory LVEF 3-class**: Pan 0.633, EP 0.628, G 0.613, L 0.536, L-K 0.532
+- **Physiological coherence unblocked**: EDV+ESV+LVEF → can compute derived EF correlation
 
 ### Done (March 24 — sklearn reproduction + attentive feature extraction)
 - **sklearn reproduction experiments DONE**: Three scripts created. Study-level mean-pool → sklearn: mort_1yr 0.821. Clip-level → PA: mort_1yr 0.808. Both underperform CY (0.846) by 2-5pp. Root cause: solver convergence (LBFGS max_iter=500), no L1, narrower HP grid.
@@ -327,8 +341,8 @@ Now integrated into the P1-P7 priority structure above. See priority tiers for c
 
 | Task | Owner | Status | Priority |
 |------|-------|--------|----------|
-| Forward prediction (Exp 6.1) | Alif | TODO | P3 #8 |
-| Anomaly detection (Exp 6.4) | Alif | TODO | P3 #9 |
+| Forward prediction (Exp 6.1) | Alif | **DONE** | P3 #8 |
+| Anomaly detection (Exp 6.4) | Alif | **DONE** — 40 experiments (28 single-model + 12 multi-model). Best zero-shot: takotsubo 0.711. Multi-model comparison: VideoMAE-L leads (0.871). | P3 #9 |
 | Disease panel (7 diseases × 4 models) | Alif/Reza | **7/7 PA DONE (4/4 models)** | P4 #11 |
 | MIMIC Strategy E outcomes (11 × 4) | Alif | **G 10/11 PA DONE**, chain running L-K/EP/Pan | P2 #5 |
 | Combined echo+EHR model | CY | TODO | P5 #13 |
