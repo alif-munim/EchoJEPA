@@ -43,7 +43,7 @@ ALL_MODELS=(echojepa-g echojepa-l-k echoprime panecho)
 # --- Wait for currently running training jobs ---
 wait_for_training() {
     local pids
-    pids=$(ps -eo pid,args 2>/dev/null | grep 'python -m evals.main.*nm_mimic' | grep -v grep | awk '{print $1}')
+    pids=$(ps -eo pid,args 2>/dev/null | grep 'python -m evals.main.*nm_mimic' | grep -v grep | awk '{print $1}' || true)
     if [ -n "$pids" ]; then
         log "Waiting for running MIMIC training jobs to finish (PIDs: $(echo $pids | tr '\n' ' '))..."
         for pid in $pids; do

@@ -1,6 +1,6 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-24 01:00 UTC (**ALL 13 UHN primary tasks pred avg DONE** for all 5 models. **MIMIC outcome chain**: G phase complete (10/11), L-K/EP/Pan status unknown (chain killed for feature extraction). **sklearn reproduction experiments DONE** — CY results NOT reproduced (2-5pp gap). **Train-set attentive feature extraction DONE** (10/10 tasks). **7/7 disease probes trained**. **Disease pred avg: 7/7 DONE (4/4 models)**.)
+Last updated: 2026-03-26 18:00 UTC (**17 UHN primary tasks pred avg DONE** — 13 × all 5 models + 4 new × 4 manuscript models. **RV function in progress** (G+L-K trained, EP+Pan training). **Trajectory expansion**: MR onset (G 0.733) + LVEF 3-class (Pan 0.633) DONE. **7/7 disease probes PA DONE (4/4 models)**. **MIMIC outcome chain**: G 10/11, L-K/EP/Pan running. **CY sklearn = manuscript gold standard**.)
 
 ## Evaluation Protocol
 

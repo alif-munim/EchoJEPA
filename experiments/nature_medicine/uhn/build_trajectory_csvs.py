@@ -418,11 +418,16 @@ def build_classification_csvs_for_task(task, study_to_clips, view_lookup=None, s
 
 def build_onset_csvs_for_task(task, study_to_clips, view_lookup=None, seed=42,
                               phys_ranges=None, baseline_min=50, future_below=50,
-                              min_days=None, max_days=None, output_suffix="_onset"):
+                              min_days=None, max_days=None, output_suffix="_onset",
+                              direction="decline", baseline_max=None, future_above=None):
     """Build binary onset-prediction CSVs for a trajectory task.
 
-    Filters to patients with baseline measurement >= baseline_min, then labels
-    binary: 0 = future value >= future_below (stable), 1 = future value < future_below (decline).
+    Two directions:
+      - decline (default): baseline >= baseline_min, bad = future < future_below
+        Example: LVEF onset (baseline EF >= 50, future EF < 50)
+      - worsen: baseline <= baseline_max, bad = future >= future_above
+        Example: MR onset (baseline severity <= 2, future severity >= 3)
+
     Writes ALL clips per study_1 (for study_sampling).
     """
     label_path = os.path.join(LABELS_DIR, f"{task}.npz")
@@ -439,8 +444,13 @@ def build_onset_csvs_for_task(task, study_to_clips, view_lookup=None, seed=42,
     days_between = d["days_between"]
     splits = d["splits"]
 
-    # Filter to baseline >= baseline_min
-    baseline_mask = label_1 >= baseline_min
+    # Filter baseline by direction
+    if direction == "worsen":
+        baseline_mask = label_1 <= baseline_max
+        filter_desc = f"<= {baseline_max}"
+    else:
+        baseline_mask = label_1 >= baseline_min
+        filter_desc = f">= {baseline_min}"
     n_excluded = int((~baseline_mask).sum())
     study_id_1 = study_id_1[baseline_mask]
     study_id_2 = study_id_2[baseline_mask]
@@ -450,7 +460,7 @@ def build_onset_csvs_for_task(task, study_to_clips, view_lookup=None, seed=42,
     label_2 = label_2[baseline_mask]
     days_between = days_between[baseline_mask]
     splits = splits[baseline_mask]
-    print(f"  Baseline filter (>= {baseline_min}): kept {len(delta)}, excluded {n_excluded}")
+    print(f"  Baseline filter ({filter_desc}): kept {len(delta)}, excluded {n_excluded}")
 
     # Filter by physiological range
     if phys_ranges and task in phys_ranges:
@@ -500,7 +510,10 @@ def build_onset_csvs_for_task(task, study_to_clips, view_lookup=None, seed=42,
     rng = random.Random(seed)
     stats = {}
     all_pairs_meta = []
-    class_names = {0: "stable", 1: "decline"}
+    if direction == "worsen":
+        class_names = {0: "stable", 1: "worsened"}
+    else:
+        class_names = {0: "stable", 1: "decline"}
 
     for split_name in ["train", "val", "test"]:
         mask = splits == split_name
@@ -535,7 +548,10 @@ def build_onset_csvs_for_task(task, study_to_clips, view_lookup=None, seed=42,
             else:
                 clip_list = clips
 
-            cls = 1 if l2[i] < future_below else 0
+            if direction == "worsen":
+                cls = 1 if l2[i] >= future_above else 0
+            else:
+                cls = 1 if l2[i] < future_below else 0
             class_counts[cls] += 1
 
             # Write ALL clips for this study (study_sampling picks 1 per epoch)
@@ -547,8 +563,8 @@ def build_onset_csvs_for_task(task, study_to_clips, view_lookup=None, seed=42,
                 "study_id_1": sid1,
                 "study_id_2": str(s2[i]),
                 "patient_id": str(pids[i]),
-                "baseline_ef": float(l1[i]),
-                "followup_ef": float(l2[i]),
+                "baseline_value": float(l1[i]),
+                "followup_value": float(l2[i]),
                 "delta": float(raw_delta[i]),
                 "days_between": int(db[i]),
                 "class": cls,
@@ -586,14 +602,19 @@ def build_onset_csvs_for_task(task, study_to_clips, view_lookup=None, seed=42,
         "task": task,
         "output_task": task + output_suffix,
         "mode": "onset_binary",
-        "baseline_min": baseline_min,
-        "future_below": future_below,
+        "direction": direction,
         "classes": {str(k): v for k, v in class_names.items()},
         "allowed_views": allowed_views,
         "bmode_only": False,
         "min_days": min_days,
         "max_days": max_days,
     }
+    if direction == "worsen":
+        filter_meta["baseline_max"] = baseline_max
+        filter_meta["future_above"] = future_above
+    else:
+        filter_meta["baseline_min"] = baseline_min
+        filter_meta["future_below"] = future_below
     filter_path = os.path.join(task_dir, "viewfilter_meta.json")
     with open(filter_path, "w") as f:
         json.dump(filter_meta, f, indent=2)
@@ -611,11 +632,18 @@ def main():
     parser.add_argument("--threshold", type=float, default=10,
                         help="Delta threshold for classification (default: 10)")
     parser.add_argument("--onset", action="store_true",
-                        help="Build as binary onset prediction (baseline >= min, future < threshold)")
+                        help="Build as binary onset prediction")
+    parser.add_argument("--direction", type=str, default="decline", choices=["decline", "worsen"],
+                        help="Onset direction: decline (value drops below threshold, e.g. LVEF) "
+                             "or worsen (value rises above threshold, e.g. MR severity)")
     parser.add_argument("--baseline_min", type=float, default=50,
-                        help="Minimum baseline value for onset mode (default: 50)")
+                        help="Minimum baseline value for decline onset (default: 50)")
     parser.add_argument("--future_below", type=float, default=50,
-                        help="Future value threshold for onset mode (default: 50)")
+                        help="Future value threshold for decline onset (default: 50)")
+    parser.add_argument("--baseline_max", type=float, default=None,
+                        help="Maximum baseline value for worsen onset (e.g. 2 for MR <=mild)")
+    parser.add_argument("--future_above", type=float, default=None,
+                        help="Future value threshold for worsen onset (e.g. 3 for MR >=moderate)")
     parser.add_argument("--output_suffix", type=str, default="_onset",
                         help="Suffix for output directory in onset mode (default: _onset)")
     parser.add_argument("--min_days", type=int, default=None,
@@ -651,6 +679,9 @@ def main():
 
     if args.onset:
         mode = "onset"
+        if args.direction == "worsen":
+            if args.baseline_max is None or args.future_above is None:
+                parser.error("--direction worsen requires --baseline_max and --future_above")
     elif args.classification:
         mode = "classification"
     else:
@@ -659,7 +690,10 @@ def main():
     if args.classification:
         print(f"  Threshold: ±{args.threshold} (0=declined, 1=stable, 2=improved)")
     if args.onset:
-        print(f"  Onset mode: baseline >= {args.baseline_min}, future < {args.future_below}")
+        if args.direction == "worsen":
+            print(f"  Onset mode (worsen): baseline <= {args.baseline_max}, future >= {args.future_above}")
+        else:
+            print(f"  Onset mode (decline): baseline >= {args.baseline_min}, future < {args.future_below}")
         print(f"  Output suffix: {args.output_suffix}")
     if args.min_days or args.max_days:
         print(f"  Time window: {args.min_days or 'any'}-{args.max_days or 'any'} days")
@@ -674,7 +708,9 @@ def main():
                     phys_ranges=phys_ranges, baseline_min=args.baseline_min,
                     future_below=args.future_below,
                     min_days=args.min_days, max_days=args.max_days,
-                    output_suffix=args.output_suffix)
+                    output_suffix=args.output_suffix,
+                    direction=args.direction, baseline_max=args.baseline_max,
+                    future_above=args.future_above)
             elif args.classification:
                 stats = build_classification_csvs_for_task(
                     task, study_to_clips, view_lookup, seed=args.seed,
