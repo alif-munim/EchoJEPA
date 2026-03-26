@@ -7,10 +7,14 @@
 import os
 
 # -- FOR DISTRIBUTED TRAINING ENSURE ONLY 1 DEVICE VISIBLE PER PROCESS
-try:
-    os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["SLURM_LOCALID"]
-except Exception:
-    pass
+# NOTE: Disabled — main.py already sets CUDA_VISIBLE_DEVICES per rank via
+# mp.Process. With ntasks-per-node=1, SLURM_LOCALID=0 for all spawned
+# processes, which would override main.py's assignment and force all ranks
+# onto GPU 0. Only re-enable if launching with srun --ntasks-per-node=8.
+# try:
+#     os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["SLURM_LOCALID"]
+# except Exception:
+#     pass
 
 import copy
 import gc
@@ -480,6 +484,14 @@ def main(args, resume_preempt=False):
         betas=betas,
         eps=eps,
     )
+
+    # -- BF16 does not need GradScaler (same exponent range as FP32).
+    # Checkpoint scaler state from prior runs may carry extreme scale factors
+    # (e.g. 2^33) that cause CUBLAS_STATUS_INVALID_VALUE on H100.
+    if dtype == torch.bfloat16:
+        scaler = None
+        logger.info("BF16 detected — disabling GradScaler (not needed for bfloat16)")
+
     encoder = DistributedDataParallel(encoder, static_graph=True)
     predictor = DistributedDataParallel(
         predictor, static_graph=False, find_unused_parameters=True
@@ -872,12 +884,12 @@ def main(args, resume_preempt=False):
                             )
 
                     if run_step:
-                        if mixed_precision:
+                        if scaler is not None:
                             scaler.scale(loss).backward()
                             scaler.unscale_(optimizer)
                         else:
                             loss.backward()
-                        if mixed_precision:
+                        if scaler is not None:
                             scaler.step(optimizer)
                             scaler.update()
                         else:

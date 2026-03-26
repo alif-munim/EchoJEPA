@@ -173,6 +173,10 @@ sacct -j "$JOBID" --format=JobID,JobName,State,Elapsed,NodeList%30,AllocTRES%40
 
 ### Example sbatch Script (V-JEPA 2.1 Pretrain on H100)
 
+See `scripts/vjepa2_pretrain_h100.sbatch` for the canonical version. Key points:
+- The `LD_LIBRARY_PATH` override is **required** to avoid the cuBLAS 12.9 bf16 bug (see Issue 9 below)
+- `/dev/shm` cleanup prevents shared memory exhaustion from prior crashes
+
 ```bash
 #!/bin/bash
 #SBATCH --job-name=vjepa21-pretrain
@@ -189,6 +193,10 @@ sacct -j "$JOBID" --format=JobID,JobName,State,Elapsed,NodeList%30,AllocTRES%40
 export PATH="/opt/vjepa2-312/bin:$PATH"
 source /opt/vjepa2-312/bin/activate
 cd /opt/vjepa2
+
+# Force PyTorch's bundled CUDA 12.8 libs instead of system CUDA 12.9
+# (cuBLAS 12.9.1.4 has a bf16 gemm bug on H100)
+export LD_LIBRARY_PATH="/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cuda_runtime/lib:/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cudnn/lib:/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/nccl/lib:$LD_LIBRARY_PATH"
 
 rm -rf /dev/shm/* 2>/dev/null || true
 
@@ -312,11 +320,78 @@ aws ec2 authorize-security-group-ingress --group-id sg-0c1b3b9f78325dc0c \
 
 **Fix**: Remove stale credentials: `rm -rf ~/.aws/credentials`
 
+#### 9. CUBLAS_STATUS_INVALID_VALUE with bf16 on H100
+
+**Symptom**: Training crashes on the first backward pass with:
+```
+RuntimeError: CUDA error: CUBLAS_STATUS_INVALID_VALUE when calling `cublasGemmEx(..., CUDA_R_16BF, ...)`
+```
+Even a trivial 64×1024 bf16 matmul backward reproduces it.
+
+**Root cause**: The HyperPod AMI ships CUDA 12.6/12.8/12.9/13.0. `LD_LIBRARY_PATH` puts `/usr/local/cuda-12.9/lib` first, so PyTorch (compiled with CUDA 12.8) loads the system's cuBLAS 12.9.1.4 instead of its bundled cuBLAS. This specific cuBLAS version has a bf16 GemmEx bug on H100 (sm_90).
+
+**Diagnosis**:
+```bash
+# Check which cuBLAS PyTorch actually loads (should show the conda env path, NOT /usr/local/cuda-12.9/)
+srun -w <node> --gpus-per-node=1 bash -c '
+  source /opt/vjepa2-312/bin/activate
+  python -c "
+import torch, os; torch.randn(2,2).cuda()
+for line in open(f\"/proc/{os.getpid()}/maps\").read().split(chr(10)):
+    if \"cublas\" in line and \".so\" in line: print(line.split(\"/\",1)[-1]); break
+"'
+```
+
+**Fix**: Prepend PyTorch's bundled NVIDIA libraries to `LD_LIBRARY_PATH` in the sbatch script (see `scripts/vjepa2_pretrain_h100.sbatch`):
+```bash
+export LD_LIBRARY_PATH="/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cublas/lib:...:$LD_LIBRARY_PATH"
+```
+
+**Verification** (should print "PASSED"):
+```bash
+srun -w <node> --gpus-per-node=1 bash -c '
+  source /opt/vjepa2-312/bin/activate
+  export LD_LIBRARY_PATH="/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cublas/lib:$LD_LIBRARY_PATH"
+  python -c "
+import torch
+a = torch.randn(200704, 1024, device=\"cuda\", dtype=torch.bfloat16, requires_grad=True)
+b = torch.randn(1024, 4096, device=\"cuda\", dtype=torch.bfloat16)
+torch.matmul(a, b).sum().backward()
+print(\"PASSED\")
+"'
+```
+
+#### 10. CUDA_VISIBLE_DEVICES Override in train.py
+
+**Symptom**: All 8 ranks initialize but crash during first backward pass. Only 1 GPU is actually used.
+
+**Root cause**: `app/vjepa_2_1/train.py` top-level: `os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["SLURM_LOCALID"]`. With `--ntasks-per-node=1`, `SLURM_LOCALID=0` for all spawned processes, overriding `main.py`'s per-rank GPU assignment and forcing all 8 ranks onto GPU 0.
+
+**Fix**: Commented out in train.py. `main.py` handles per-rank `CUDA_VISIBLE_DEVICES` correctly.
+
+#### 11. GradScaler with bfloat16
+
+**Symptom**: Not a direct crash cause, but the A100 checkpoint carries a GradScaler scale factor of 2^33 (~8.6 billion), which amplifies gradients unnecessarily during backward.
+
+**Root cause**: The training code enables GradScaler for all mixed-precision modes including bf16. Unlike fp16 (5-bit exponent), bf16 has the same 8-bit exponent as fp32, so loss scaling is unnecessary.
+
+**Fix**: Disabled GradScaler when `dtype == torch.bfloat16` in train.py. Changed scaler usage checks from `if mixed_precision:` to `if scaler is not None:`.
+
 ## V-JEPA 2.1 ViT-L Training Status (2026-03-26)
 
-- **A100 run** (SageMaker notebook, 8x A100 80GB): Epoch 118/240, ~8s/iter, active
-- **H100 run** (HyperPod echojepa-h100-march): Being set up, resuming from epoch 118 checkpoint
-- Checkpoints saved every 5 epochs
+- **A100 run** (SageMaker notebook, 8x A100 80GB): Epoch 118/240, ~8s/iter
+- **H100 run** (HyperPod echojepa-h100-march): **Active**, resumed from epoch 118 checkpoint, ~3.4s/iter GPU time, ~4.1s wall, 27 GB VRAM per GPU
+- Checkpoints saved every 5 epochs to S3
 - S3 checkpoint mirror: `s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/vjepa-2.1-l-h100/`
 - Config: `configs/train/vitl16/pretrain-21-mimic-224px-16f-h100.yaml`
-- Known collapse risk: V-JEPA 2.1 context loss collapses on small repetitive datasets (observed at epochs 153/176/182 on ViT-B). Monitor for sudden loss drops.
+- Known collapse risk: V-JEPA 2.1 context loss collapses on small repetitive datasets (observed at epochs 153/176/182 on ViT-B). Monitor for sudden loss drops
+
+### H100 Environment (March 2026)
+
+| Component | Version |
+|-----------|---------|
+| NVIDIA Driver | 580.126.09 |
+| System CUDA | 13.0, 12.9, 12.8, 12.6 |
+| PyTorch | 2.10.0+cu128 |
+| Python | 3.12 (conda env at /opt/vjepa2-312) |
+| Instance | ml.p5.48xlarge (8x H100 80GB HBM3, sm_90) |
