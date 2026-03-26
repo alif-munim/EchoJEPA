@@ -129,6 +129,12 @@ P1 DONE (all 13 UHN primary pred avg complete)
 
 ## Recent Completed Work
 
+### Done (March 26 — zero-shot anomaly detection experiments)
+- **Forward prediction + anomaly detection: 40 experiments DONE** (`evals/forward_prediction/RESULTS.md`). 4 approaches (prediction error, repr distance mean/token, forward prediction) × 2 datasets (UHN + MIMIC) × 25 tasks.
+- **Key result**: Repr distance detects visually dramatic conditions zero-shot (takotsubo 0.711, amyloidosis 0.698, tamponade 0.605 on MIMIC).
+- **Critical finding**: NOT JEPA-specific. VideoMAE-L leads takotsubo (0.871) and amyloidosis (0.726). JEPA-unique prediction error at chance (~0.50).
+- **Decision: NOT added to manuscript** — undermines JEPA narrative; supervised probes already make the point better (HCM 0.960 vs 0.52 zero-shot).
+
 ### Done (March 25-26 — new UHN tasks + trajectory expansion)
 - **EDV**: 4 manuscript models trained + pred avg DONE (G R²=0.774)
 - **ESV**: 4 manuscript models trained + pred avg DONE (G R²=0.853)
