@@ -22,7 +22,7 @@ data:
   dataset_fpcs: [16]
   fps: 8
   tubelet_size: 2
-  num_workers: 4                  # reduced from 8; 8*8=64 persistent workers exhaust shm
+  num_workers: 4                  # file_system sharing strategy in app/main.py bypasses broken torch_shm_manager
   persistent_workers: true
   pin_mem: true
 

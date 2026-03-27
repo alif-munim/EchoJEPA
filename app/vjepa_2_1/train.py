@@ -29,7 +29,7 @@ import torch
 import torch.multiprocessing as mp
 
 try:
-    mp.set_sharing_strategy("file_system")
+    mp.set_sharing_strategy("file_descriptor")  # file_system requires broken torch_shm_manager on this node
 except Exception:
     pass
 
