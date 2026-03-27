@@ -41,6 +41,39 @@ from src.utils.distributed import init_distributed
 from src.utils.logging import AverageMeter, CSVLogger, get_logger, gpu_timer
 
 
+def _unwrap_state_dict(model):
+    """Get state dict from a model, unwrapping DDP and torch.compile wrappers.
+
+    torch.compile wraps in OptimizedModule whose state_dict can have shared
+    tensor storage that breaks PyTorch's zipfile serializer
+    (inline_container.cc unexpected pos error).
+    """
+    m = model
+    if hasattr(m, "module"):      # unwrap DDP
+        m = m.module
+    if hasattr(m, "_orig_mod"):   # unwrap torch.compile
+        m = m._orig_mod
+    return m.state_dict()
+
+
+def _clone_for_save(obj):
+    """Recursively clone all tensors to break shared storage for serialization.
+
+    copy.deepcopy preserves internal shared storage (two tensors sharing the
+    same underlying storage both map to the same NEW storage under deepcopy).
+    Explicit .clone() always creates a new tensor with its own storage,
+    which prevents the inline_container.cc "unexpected pos" error in
+    PyTorch's zipfile serializer.
+    """
+    if isinstance(obj, torch.Tensor):
+        return obj.detach().clone()
+    elif isinstance(obj, dict):
+        return {k: _clone_for_save(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return type(obj)(_clone_for_save(x) for x in obj)
+    return obj
+
+
 def _barrier():
     if dist.is_available() and dist.is_initialized():
         dist.barrier()
@@ -387,6 +420,11 @@ def main(args, resume_preempt=False):
                     scheduler.step()
                     wd_scheduler.step()
 
+    # -- torch.compile: fuse ops and reduce kernel launch overhead
+    logger.info("Compiling encoder and target_encoder with torch.compile...")
+    encoder = torch.compile(encoder)
+    target_encoder = torch.compile(target_encoder)
+
     # -- DDP: wrap online branch only (targets have no gradients)
     if dist.is_available() and dist.is_initialized():
         encoder = DistributedDataParallel(encoder, static_graph=True)
@@ -408,11 +446,11 @@ def main(args, resume_preempt=False):
             return
 
         save_dict = {
-            "encoder": encoder.state_dict(),
-            "online_projector": online_projector.state_dict(),
-            "online_predictor": online_predictor.state_dict(),
-            "target_encoder": target_encoder.state_dict(),
-            "target_projector": target_projector.state_dict(),
+            "encoder": _unwrap_state_dict(encoder),
+            "online_projector": _unwrap_state_dict(online_projector),
+            "online_predictor": _unwrap_state_dict(online_predictor),
+            "target_encoder": _unwrap_state_dict(target_encoder),
+            "target_projector": _unwrap_state_dict(target_projector),
             "opt": optimizer.state_dict(),
             "scaler": None if scaler is None else scaler.state_dict(),
             "epoch": epoch,
@@ -423,32 +461,49 @@ def main(args, resume_preempt=False):
             "itr": itr,
         }
 
-        # Atomic write: save to a temp file, then rename. This prevents
-        # corruption if the process is killed mid-write (e.g. NCCL timeout).
+        # Clone all tensors to break shared storage from torch.compile/DDP.
+        save_dict = _clone_for_save(save_dict)
+
+        # Split into model + optimizer to keep each file under 4 GB.
+        # PyTorch's zipfile serializer has a bug with files >4 GB
+        # (inline_container.cc "unexpected pos" error near the 32-bit
+        # ZIP offset boundary).
+        model_dict = {k: v for k, v in save_dict.items() if k != "opt"}
+        opt_dict = {"opt": save_dict["opt"]}
+
+        # Atomic write: save to .tmp then rename.
         tmp_path = local_path + ".tmp"
+        opt_path = local_path.replace(".pt", "_opt.pt")
+        opt_tmp_path = opt_path + ".tmp"
         try:
-            torch.save(save_dict, tmp_path)
+            torch.save(model_dict, tmp_path)
             os.replace(tmp_path, local_path)
+            torch.save(opt_dict, opt_tmp_path)
+            os.replace(opt_tmp_path, opt_path)
         except Exception as e:
             logger.error(f"Encountered exception when saving checkpoint: {e}")
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
+            for p in [tmp_path, opt_tmp_path]:
+                if os.path.exists(p):
+                    os.remove(p)
             return
 
         if s3_uri_base:
             try:
                 s3_client = boto3.client("s3")
                 bucket, key_prefix = s3_uri_base.replace("s3://", "").split("/", 1)
-                filename = os.path.basename(local_path)
-                s3_key = os.path.join(key_prefix, filename)
-                file_size = os.path.getsize(local_path)
-                logger.info(f"Checkpoint size: {file_size / (1024**3):.2f} GB")
-                if file_size > 5 * 1024**3:
-                    s3_client.upload_file(local_path, bucket, s3_key)
-                else:
-                    with open(local_path, "rb") as f:
-                        s3_client.put_object(Bucket=bucket, Key=s3_key, Body=f.read())
-                logger.info(f"Uploaded checkpoint to s3://{bucket}/{s3_key}")
+                # Upload both model and optimizer checkpoint files
+                for path in [local_path, opt_path]:
+                    if os.path.exists(path):
+                        filename = os.path.basename(path)
+                        s3_key = os.path.join(key_prefix, filename)
+                        file_size = os.path.getsize(path)
+                        logger.info(f"Uploading {filename} ({file_size / (1024**3):.2f} GB) to s3://{bucket}/{s3_key}")
+                        if file_size > 5 * 1024**3:
+                            s3_client.upload_file(path, bucket, s3_key)
+                        else:
+                            with open(path, "rb") as f:
+                                s3_client.put_object(Bucket=bucket, Key=s3_key, Body=f.read())
+                        logger.info(f"Uploaded checkpoint to s3://{bucket}/{s3_key}")
             except Exception as e:
                 logger.error(f"Failed to upload checkpoint to S3: {e}")
 

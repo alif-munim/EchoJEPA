@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import sys
 
@@ -180,7 +181,18 @@ def load_checkpoint(
     msg = target_projector.load_state_dict(pretrained_dict)
     logger.info(f"loaded target_projector from epoch {epoch} with msg: {msg}")
 
-    opt.load_state_dict(checkpoint["opt"])
+    # Optimizer may be in the main checkpoint or a separate _opt.pt file
+    # (split to keep each file under 4 GB for PyTorch's zipfile serializer)
+    if "opt" in checkpoint:
+        opt.load_state_dict(checkpoint["opt"])
+    else:
+        opt_path = r_path.replace(".pt", "_opt.pt")
+        if os.path.exists(opt_path):
+            opt_ckpt = robust_checkpoint_loader(opt_path, map_location=torch.device("cpu"))
+            opt.load_state_dict(opt_ckpt["opt"])
+            del opt_ckpt
+        else:
+            logger.warning(f"No optimizer state found in checkpoint or {opt_path}")
     if scaler is not None and checkpoint.get("scaler") is not None:
         scaler.load_state_dict(checkpoint["scaler"])
     logger.info(f"loaded optimizers from epoch {epoch}")

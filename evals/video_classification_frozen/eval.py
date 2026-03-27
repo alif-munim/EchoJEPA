@@ -540,9 +540,10 @@ def main(args_eval, resume_preempt=False):
             _latest_path = os.path.join(folder, "latest.pt")
             torch.save(save_dict, _latest_path)
 
-            # 2. Save per-epoch snapshot
-            epoch_path = os.path.join(folder, f"epoch_{epoch:03d}.pt")
-            torch.save(save_dict, epoch_path)
+            # 2. Per-epoch snapshots disabled — 2.6 GB each, infeasible for
+            #    35-epoch runs on 97 GB disks.  best.pt + latest.pt suffice.
+            # epoch_path = os.path.join(folder, f"epoch_{epoch:03d}.pt")
+            # torch.save(save_dict, epoch_path)
 
             # 3. Archive log_r0.csv to safe backup every epoch
             _archive_path = os.environ.get("CHECKPOINT_ARCHIVE_PATH")

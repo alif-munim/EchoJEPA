@@ -38,7 +38,7 @@ meta:
   s3_checkpoint_uri: "s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet/"
   dtype: bfloat16
   eval_freq: 100
-  load_checkpoint: false
+  load_checkpoint: true
   read_checkpoint: null
   save_every_freq: 5
   seed: 234
@@ -56,7 +56,7 @@ model:
 
 optimization:
   is_anneal: false
-  force_load_pretrain: true
+  force_load_pretrain: false
   anneal_ckpt: /opt/vjepa2/checkpoints/vitl_in21k.pt
 
   # BYOL EMA schedule: cosine 0.996 -> 1.0 (per BYOL paper)

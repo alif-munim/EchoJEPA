@@ -29,7 +29,7 @@ import torch
 import torch.multiprocessing as mp
 
 try:
-    mp.set_sharing_strategy("file_descriptor")  # file_system requires broken torch_shm_manager on this node
+    mp.set_sharing_strategy("file_descriptor")  # file_system requires torch_shm_manager which is broken on some nodes
 except Exception:
     pass
 
@@ -50,6 +50,24 @@ from src.masks.utils import apply_masks
 from src.utils.distributed import init_distributed
 from src.utils.logging import AverageMeter, CSVLogger, get_logger, gpu_timer
 from torch.nn.parallel import DistributedDataParallel
+
+
+def _clone_for_save(obj):
+    """Recursively clone all tensors to break shared storage for serialization.
+
+    copy.deepcopy preserves internal shared storage (two tensors sharing the
+    same underlying storage both map to the same NEW storage under deepcopy).
+    Explicit .clone() always creates a new tensor with its own storage,
+    which prevents the inline_container.cc "unexpected pos" error in
+    PyTorch's zipfile serializer.
+    """
+    if isinstance(obj, torch.Tensor):
+        return obj.detach().clone()
+    elif isinstance(obj, dict):
+        return {k: _clone_for_save(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return type(obj)(_clone_for_save(x) for x in obj)
+    return obj
 
 
 def _barrier():
@@ -599,6 +617,11 @@ def main(args, resume_preempt=False):
             "world_size": world_size,
             "lr": lr,
         }
+
+        # Clone all tensors to break shared storage from DDP that triggers
+        # "unexpected pos" errors in PyTorch's zipfile serializer.
+        # copy.deepcopy preserves internal shared storage; explicit .clone() does not.
+        save_dict = _clone_for_save(save_dict)
 
         # Atomic write: save to a temp file, then rename. This prevents
         # corruption if the process is killed mid-write (e.g. NCCL timeout).

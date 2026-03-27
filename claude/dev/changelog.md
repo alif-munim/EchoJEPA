@@ -6,6 +6,49 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-27 (Session 30)
+
+### Bug 014: PyTorch Checkpoint >4 GB Serialization Failure — FIXED
+
+**Root cause:** PyTorch's zipfile serializer (`inline_container.cc`) uses 32-bit offsets internally. BYOL-Video ViT-L checkpoints (~4.8 GB) exceed this boundary, causing "unexpected pos" errors.
+
+**Misdiagnosis path:** Initially thought to be shared tensor storage from DDP/`torch.compile`. Applied `_unwrap_state_dict()` and `_clone_for_save()` (recursive tensor cloning). Both failed because the issue was file size, not storage sharing.
+
+**Fix — split checkpoint into two files:**
+- `latest.pt` — model weights, schedulers, epoch (~2.4 GB)
+- `latest_opt.pt` — optimizer state (~2.4 GB)
+- Both use atomic writes (`.tmp` → `os.replace`)
+- `load_checkpoint()` updated to load optimizer from separate file
+- S3 upload updated to push both files
+- Added missing `import os` to `utils.py` (caused `NameError` on first deploy)
+
+**Files changed:**
+- `app/byol_video/train.py` — split save, `_clone_for_save()`, `_unwrap_state_dict()`, `torch.compile` for encoder
+- `app/byol_video/utils.py` — split load, `import os`
+- `app/vjepa_2_1/train.py` — `_clone_for_save()`, `file_descriptor` sharing strategy
+- `evals/video_classification_frozen/eval.py` — disabled per-epoch checkpoint saves (2.6 GB each filled 97 GB disk)
+
+**Validated:** mini-epoch test (ipe=5) saved 2.4 GB + 2.4 GB successfully. Full training resumed from split checkpoint.
+
+### ICML Rebuttal LVEF Probe — Protocol Correction
+
+**Problem:** H100 probe config was using Nature Medicine protocol (d=1, 20 heads, 35 epochs, MIMIC data, study_sampling) instead of ICML preprint protocol.
+
+**Fix:** Created `configs/eval/vitl/icml/echojepa_l_k_lvef_d4_h100.yaml` matching ICML preprint exactly:
+- d=4 (3 SA + 1 CA), 6-head HP grid (2 LR x 3 WD), 20 epochs, no warmup
+- UHN A4C/B-mode LVEF data with raw values (z-score normalized at runtime)
+
+**CSV fix:** Replaced pre-z-scored CSVs with canonical raw-value CSVs (inverse-transformed with mean=57.057, std=11.325). Eval code computes z-score params from train CSV at runtime.
+
+### HyperPod Operations
+
+- Freed 9.3 GB disk on node 83 (stale S3 setup cache: old checkpoint + conda env tarball)
+- Fixed deploy script issue: `/tmp` not shared between controller and compute nodes; piped tarball via srun stdin
+- BYOL training (job 169) running on node 83 (8x H100, ipe=300)
+- LVEF probe (job 146) running on node 184 (correct ICML protocol)
+
+---
+
 ## 2026-03-26 (Session 29)
 
 ### BYOL-Video Training App — Implementation + Bug Fixes
