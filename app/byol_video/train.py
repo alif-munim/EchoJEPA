@@ -97,9 +97,9 @@ def prune_local_checkpoints(folder, max_to_keep=4):
 
         # Match periodic checkpoints like e10.pt, e15.pt (exclude e10_opt.pt etc.)
         all_checkpoints = [f for f in os.listdir(folder) if re.match(r"^e\d+\.pt$", f)]
-        if len(all_checkpoints) > max_to_keep:
+        if len(all_checkpoints) >= max_to_keep:
             all_checkpoints.sort(key=lambda x: int(x[1:-3]))
-            checkpoints_to_delete = all_checkpoints[:-max_to_keep]
+            checkpoints_to_delete = all_checkpoints if max_to_keep == 0 else all_checkpoints[:-max_to_keep]
             logger.info(f"Pruning checkpoints. Keeping {max_to_keep}, deleting {len(checkpoints_to_delete)}.")
             for ckpt_name in checkpoints_to_delete:
                 # Delete both model and optimizer checkpoint files
@@ -711,7 +711,8 @@ def main(args, resume_preempt=False):
 
             if save_every_freq > 0 and epoch % save_every_freq == 0:
                 # Prune old periodic checkpoints, then save new one
-                prune_local_checkpoints(folder, max_to_keep=max_epoch_checkpoints)
+                # Keep max-1 so there's disk space for the upcoming save
+                prune_local_checkpoints(folder, max_to_keep=max(max_epoch_checkpoints - 1, 0))
                 save_every_file = f"e{epoch}.pt"
                 save_every_path = os.path.join(folder, save_every_file)
                 save_checkpoint(epoch + 1, 0, save_every_path, s3_checkpoint_uri, is_periodic=False)

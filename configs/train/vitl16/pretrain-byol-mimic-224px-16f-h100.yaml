@@ -41,7 +41,7 @@ meta:
   load_checkpoint: true
   read_checkpoint: null
   save_every_freq: 2
-  checkpoints_to_keep: 2
+  checkpoints_to_keep: 1
   seed: 234
   use_sdpa: true
 
@@ -57,7 +57,7 @@ model:
 
 optimization:
   is_anneal: false
-  force_load_pretrain: true           # fresh start from ImageNet init (previous run had stalled EMA)
+  force_load_pretrain: false
   anneal_ckpt: /opt/vjepa2/checkpoints/vitl_in21k.pt
 
   # Constant EMA matched to V-JEPA (was [0.996, 1.0] per BYOL paper — caused target
