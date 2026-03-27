@@ -412,6 +412,104 @@ print(\"PASSED\")
 - Gradient accumulation with smaller micro-batch — adds complexity
 - Multi-node training (2 nodes × 8 GPUs) — would allow larger effective batch or lower per-GPU memory
 
+## Monitoring Running Jobs
+
+### Claude Code Context
+
+Claude Code runs on the **controller node** (ip-10-0-50-52). It can run `squeue`, `sinfo`, `sacct`, and `srun` directly — no SSM or SSH tunneling needed. However, SSH from controller to compute nodes fails (`Permission denied (publickey)`), so all compute-node commands must go through `srun`.
+
+### Checking Training Progress
+
+Use `srun --overlap` to run commands on compute nodes without interfering with the running job:
+
+```bash
+JOBID=183
+NODE=ip-10-0-50-83
+
+# Check latest training iteration (CSV log)
+srun --jobid=$JOBID --nodes=1 --nodelist=$NODE --ntasks=1 --overlap \
+  bash -c "tail -5 /opt/vjepa2/checkpoints/pretrain/mimic/byol_vitl_224px_16f_imagenet/log_r0.csv"
+
+# Check checkpoint file timestamps and sizes
+srun --jobid=$JOBID --nodes=1 --nodelist=$NODE --ntasks=1 --overlap \
+  bash -c "ls -lht /opt/vjepa2/checkpoints/pretrain/mimic/byol_vitl_224px_16f_imagenet/*.pt | head -10"
+
+# Check GPU utilization
+srun --jobid=$JOBID --nodes=1 --nodelist=$NODE --ntasks=1 --overlap \
+  bash -c "nvidia-smi --query-gpu=index,utilization.gpu,memory.used,memory.total --format=csv,noheader"
+
+# Check S3 checkpoint archive
+aws s3 ls s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet/
+
+# Check disk space (critical — checkpoint saves need ~5GB headroom)
+srun --jobid=$JOBID --nodes=1 --nodelist=$NODE --ntasks=1 --overlap \
+  bash -c "df -h /opt/vjepa2"
+```
+
+### Key Nuances
+
+1. **`slurmstepd: error: couldn't chdir` warnings are harmless** — they appear because the controller's CWD doesn't exist on compute nodes. The command still runs from /tmp.
+
+2. **stdout is fully buffered under srun** — `grep` on the sbatch stdout file (e.g., `/tmp/byol_2node-183.out`) may show nothing even while training is active. Python stdout is not line-buffered when piped through srun. Use the CSV log files (`log_r0.csv`) or checkpoint timestamps for reliable progress monitoring.
+
+3. **CSV log format**: `epoch,iter,loss,total_ms,gpu_ms,unstable_flag` — the last column is 0 for normal, 1 if loss was unstable.
+
+4. **Checkpoint saves happen at epoch boundaries** — if a job just started and you see stale checkpoint timestamps, it may just mean the first epoch hasn't completed yet. Check `log_r0.csv` to see current epoch/iter and estimate when the next save will occur (`ipe` iterations per epoch × time per iter).
+
+5. **Disk space on /opt**: Compute nodes start with ~15GB free on /opt. The S3 setup cache (`latest.pt` ~4.8GB, `vjepa2-312.tar.gz` ~4.5GB) in /tmp can fill the disk. If space is tight: `sudo rm -f /tmp/latest.pt /tmp/vjepa2-312.tar.gz`.
+
+## Multi-Node Distributed Training
+
+### Architecture
+
+- **Single-node**: `app.main` spawns `mp.Process` per GPU, sets `CUDA_VISIBLE_DEVICES` itself
+- **Multi-node**: `app.main_srun` is called once per srun task; SLURM manages processes. Each task = 1 GPU = 1 DDP rank. GPU assignment via `SLURM_LOCALID`, rank via `SLURM_PROCID`/`SLURM_NTASKS`
+
+### No Shared Filesystem
+
+The biggest HyperPod constraint for multi-node training. Key implications:
+
+1. **Code must be deployed to ALL nodes** before launching. The sbatch script runs from the first node's `/opt/vjepa2`, but srun spawns tasks on all nodes. Each node must have identical code at `/opt/vjepa2/`.
+   ```bash
+   ~/deploy.sh ip-10-0-50-83    # deploy to node 1
+   ~/deploy.sh ip-10-0-50-184   # deploy to node 2
+   ```
+
+2. **Checkpoints must be synced** before resuming. Only rank 0 (on the first node) saves checkpoints. When restarting, other nodes won't have the latest checkpoint unless explicitly copied. The sbatch script handles this:
+   ```bash
+   CKPT_DIR=/opt/vjepa2/checkpoints/pretrain/mimic/byol_vitl_224px_16f_imagenet
+   for node in $OTHER_NODES; do
+       srun --nodes=1 --nodelist=$node --ntasks=1 bash -c "cat > $CKPT_DIR/$f" < "$CKPT_DIR/$f"
+   done
+   ```
+
+3. **Checkpoint saves only happen on the first node** — rank 0 saves locally and uploads to S3. Other nodes never write checkpoints. This means S3 is the durable copy.
+
+### MASTER_ADDR Bug (Fixed 2026-03-27)
+
+`src/utils/distributed.py` previously always overwrote `MASTER_ADDR` with `localhost` or `HOSTNAME`, which breaks multi-node NCCL since each node would set its own hostname as master. Fix: only set `MASTER_ADDR` if not already configured by the sbatch script.
+
+### Batch Size Scaling
+
+When going from 1 node (8 GPUs) to 2 nodes (16 GPUs), halve per-GPU `batch_size` to keep effective batch constant. Example: `batch_size: 64` (single-node, effective=512) → `batch_size: 32` (2-node, effective=512). This preserves training dynamics and allows controlled speedup comparison.
+
+**Note**: The repo config (`pretrain-byol-mimic-224px-16f-h100.yaml`) keeps `batch_size: 64` as the single-node reference. For 2-node runs, edit on the compute node after deploying, or maintain a separate 2-node config.
+
+### Performance
+
+- Single-node (8x H100): ~7.0s/iter
+- 2-node (16x H100): ~3.6s/iter (1.94× speedup)
+- Scaling efficiency: 97% (near-linear)
+
+### 2-Node sbatch Script
+
+See `~/byol_pretrain_2node.sbatch` on the controller. Key differences from single-node:
+- `--nodes=2`, `--ntasks-per-node=8`, `--nodelist=ip-10-0-50-83,ip-10-0-50-184`
+- Sets `MASTER_ADDR` from SLURM node list
+- Syncs checkpoints from first node to other nodes before launch
+- Cleans `/dev/shm` on all nodes via `srun --ntasks-per-node=1`
+- Launches via `srun python -m app.main_srun` (not `app.main`)
+
 ## V-JEPA 2.1 ViT-L Training Status (2026-03-26)
 
 - **A100 run** (SageMaker notebook, 8x A100 80GB): Epoch 118/240, ~8s/iter
