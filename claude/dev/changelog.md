@@ -66,6 +66,35 @@ Set up 2-node distributed BYOL training across both H100 compute nodes (16 GPUs 
 - Fixed deploy script issue: `/tmp` not shared between controller and compute nodes; piped tarball via srun stdin
 - Fixed permissions on node 184: `/opt/vjepa2/` dirs owned by `nobody:nogroup` from initial setup, required `sudo chown`
 
+### MIMIC Outcome Chain — Progress Update & Retry Fix
+
+**Bug fix — `scripts/run_mimic_outcome_chain.sh`:**
+- Retry logic only checked for missing `best.pt`, not missing pred avg (`study_predictions.csv`). Added `has_pred_avg()` function and split retry into `RETRY_TRAIN` (missing checkpoint) and `RETRY_PREDAVG` (checkpoint exists but pred avg missing).
+- Created `scripts/run_mimic_predavg_retry.sh` — standalone cleanup script to mop up all missing pred avgs after chain completes.
+
+**Chain progress (as of 03:40 UTC):**
+- **G**: 11/11 complete (all pred avg done)
+- **L-K**: 9/11 complete. mortality_1yr + mortality_90d pred avg failed (port collision on model transition). Will be caught by retry script.
+- **EP**: mortality_1yr (0.750) + mortality_90d (0.772) pred avg done. Training mortality_30d + in_hospital_mortality.
+- **Pan**: Queued (mortality_90d has best.pt but no pred avg — same port collision pattern).
+
+**Multi-model results so far:**
+
+| Task | G | L-K | EP | Pan |
+|------|---|-----|-----|-----|
+| mortality_1yr | **0.792** | — | 0.750 | — |
+| mortality_90d | **0.827** | — | 0.772 | — |
+| mortality_30d | **0.884** | 0.878 | — | — |
+| in_hospital_mortality | **0.861** | 0.821 | — | — |
+| readmission_30d | 0.608 | **0.626** | — | — |
+| discharge_destination | **0.674** | 0.591 | — | — |
+
+Biomarker pred avg (all 4 models complete): G leads on troponin_t, nt_probnp, creatinine. L-K leads on lactate (R²=0.032 vs G 0.004). All R²s very low (0.00-0.12).
+
+Notable: L-K beats G on readmission_30d (0.626 vs 0.608), los_remaining (R²=0.052 vs 0.038), and lactate. G does not universally dominate on MIMIC outcomes.
+
+**Docs updated**: TASK_TRACKER.md multi-model results table, chain history, CY comparison table (added in_hospital_mortality, readmission_30d rows).
+
 ---
 
 ## 2026-03-26 (Session 29)
