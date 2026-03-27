@@ -1,0 +1,545 @@
+\begin{thebibliography}{10}\itemsep=-1pt
+
+\bibitem{Agrawal15}
+Pulkit Agrawal, Jo{\~{a}}o Carreira, and Jitendra Malik.
+\newblock Learning to see by moving.
+\newblock In {\em Proc. ICCV}, pages 37--45. IEEE, 2015.
+
+\bibitem{alayrac2020self}
+Jean-Baptiste Alayrac, Adri{\`a} Recasens, Rosalia Schneider, Relja
+  Arandjelovi{\'c}, Jason Ramapuram, Jeffrey De~Fauw, Lucas Smaira, Sander
+  Dieleman, and Andrew Zisserman.
+\newblock Self-supervised multimodal versatile networks.
+\newblock In {\em Proc. NeurIPS}, 2020.
+
+\bibitem{Alwassel19}
+Humam Alwassel, Dhruv Mahajan, Lorenzo Torresani, Bernard Ghanem, and Du Tran.
+\newblock Self-supervised learning by cross-modal audio-video clustering.
+\newblock In {\em Proc. NeurIPS}, 2020.
+
+\bibitem{Arandjelovic17}
+Relja Arandjelovi\'c and Andrew Zisserman.
+\newblock Look, listen and learn.
+\newblock In {\em Proc. ICCV}, 2017.
+
+\bibitem{Arandjelovic18}
+Relja Arandjelovi\'c and Andrew Zisserman.
+\newblock Objects that sound.
+\newblock In {\em Proc. ECCV}, 2018.
+
+\bibitem{Becker97}
+Suzanna Becker.
+\newblock Learning temporally persistent hierarchical representations.
+\newblock In {\em Proc. NeurIPS}, 1997.
+
+\bibitem{Benaim20}
+Sagie Benaim, Ariel Ephrat, Oran Lang, Inbar Mosseri, William~T. Freeman,
+  Michael Rubinstein, Michal Irani, and Tali Dekel.
+\newblock {SpeedNet: Learning the Speediness in Videos}.
+\newblock In {\em Proc. CVPR}, 2020.
+
+\bibitem{Caron18}
+Mathilde Caron, Piotr Bojanowski, Armand Joulin, and Matthijs Douze.
+\newblock Deep clustering for unsupervised learning of visual features.
+\newblock In {\em Proc. ECCV}, 2018.
+
+\bibitem{Caron20}
+Mathilde Caron, Ishan Misra, Julien Mairal, Priya Goyal, Piotr Bojanowski, and
+  Armand Joulin.
+\newblock Unsupervised learning of visual features by contrasting cluster
+  assignments.
+\newblock {\em arXiv preprint arXiv:2006.09882}, 2020.
+
+\bibitem{carreira2018short}
+Joao Carreira, Eric Noland, Andras Banki-Horvath, Chloe Hillier, and Andrew
+  Zisserman.
+\newblock A short note about kinetics-600.
+\newblock {\em arXiv preprint arXiv:1808.01340}, 2018.
+
+\bibitem{Carreira19}
+Jo{\~{a}}o Carreira, Eric Noland, Chloe Hillier, and Andrew Zisserman.
+\newblock A short note on the kinetics-700 human action dataset.
+\newblock {\em arXiv preprint arXiv:1907.06987}, 2019.
+
+\bibitem{Chen20}
+Ting Chen, Simon Kornblith, Mohammad Norouzi, and Geoffrey Hinton.
+\newblock A simple framework for contrastive learning of visual
+  representations.
+\newblock {\em arXiv preprint arXiv:2002.05709}, 2020.
+
+\bibitem{chen2020big}
+Ting Chen, Simon Kornblith, Kevin Swersky, Mohammad Norouzi, and Geoffrey~E
+  Hinton.
+\newblock Big self-supervised models are strong semi-supervised learners.
+\newblock In {\em Proc. NeurIPS}, 2020.
+
+\bibitem{Chen20moco}
+Xinlei Chen, Haoqi Fan, Ross Girshick, and Kaiming He.
+\newblock Improved baselines with momentum contrastive learning.
+\newblock {\em arXiv preprint arXiv:2003.04297}, 2020.
+
+\bibitem{cuturi2013sinkhorn}
+Marco Cuturi.
+\newblock Sinkhorn distances: Lightspeed computation of optimal transport.
+\newblock In {\em Proc. NeurIPS}, 2013.
+
+\bibitem{Diba19}
+Ali Diba, Vivek Sharma, Luc~Van Gool, and Rainer Stiefelhagen.
+\newblock {DynamoNet: Dynamic Action and Motion Network}.
+\newblock In {\em Proc. ICCV}, 2019.
+
+\bibitem{Doersch15}
+Carl Doersch, Abhinav Gupta, and Alexei Efros.
+\newblock Unsupervised visual representation learning by context prediction.
+\newblock In {\em Proc. ICCV}, 2015.
+
+\bibitem{Dosovitskiy16a}
+A. Dosovitskiy, P. Fischer, J.~T. Springenberg, M. Riedmiller, and T. Brox.
+\newblock Discriminative unsupervised feature learning with exemplar
+  convolutional neural networks.
+\newblock {\em IEEE PAMI}, 38(9):1734--1747, Sept 2016.
+
+\bibitem{fan2020pyslowfast}
+Haoqi Fan, Yanghao Li, Bo Xiong, Wan-Yen Lo, and Christoph Feichtenhofer.
+\newblock {PySlowFast}.
+\newblock \url{https://github.com/facebookresearch/slowfast}, 2020.
+
+\bibitem{Feichtenhofer19}
+Christoph Feichtenhofer, Haoqi Fan, Jitendra Malik, and Kaiming He.
+\newblock {SlowFast Networks for Video Recognition}.
+\newblock In {\em Proc. ICCV}, 2019.
+
+\bibitem{Fernando17}
+Basura Fernando, Hakan Bilen, Efstratios Gavves, and Stephen Gould.
+\newblock Self-supervised video representation learning with odd-one-out
+  networks.
+\newblock In {\em Proc. ICCV}, 2017.
+
+\bibitem{Gan18}
+Chuang Gan, Boqing Gong, Kun Liu, Hao Su, and Leonidas~J Guibas.
+\newblock Geometry guided convolutional neural networks for self-supervised
+  video representation learning.
+\newblock In {\em Proc. CVPR}, 2018.
+
+\bibitem{gemmeke2017audio}
+Jort~F Gemmeke, Daniel~PW Ellis, Dylan Freedman, Aren Jansen, Wade Lawrence,
+  R~Channing Moore, Manoj Plakal, and Marvin Ritter.
+\newblock Audio set: An ontology and human-labeled dataset for audio events.
+\newblock In {\em IEEE International Conference on Acoustics, Speech and Signal
+  Processing (ICASSP)}, 2017.
+
+\bibitem{Ghadiyaram2019}
+Deepti Ghadiyaram, Matt Feiszli, Du Tran, Xueting Yan, Heng Wang, and Dhruv
+  Mahajan.
+\newblock Large-scale weakly-supervised pre-training for video action
+  recognition.
+\newblock In {\em Proc. CVPR}, 2019.
+
+\bibitem{Detectron2018}
+Ross Girshick, Ilija Radosavovic, Georgia Gkioxari, Piotr Doll\'{a}r, and
+  Kaiming He.
+\newblock Detectron.
+\newblock \url{https://github.com/facebookresearch/detectron}, 2018.
+
+\bibitem{Girshick15}
+R.~B. Girshick.
+\newblock Fast {R-CNN}.
+\newblock In {\em Proc. ICCV}, 2015.
+
+\bibitem{Glorot11}
+Xavier Glorot, Antoine Bordes, and Yoshua Bengio.
+\newblock Deep sparse rectifier neural networks.
+\newblock In {\em Proceedings of the Fourteenth International Conference on
+  Artificial Intelligence and Statistics}, pages 315--323, 2011.
+
+\bibitem{Gordon20}
+Daniel Gordon, Kiana Ehsani, Dieter Fox, and Ali Farhadi.
+\newblock Watching the world go by: Representation learning from unlabeled
+  videos.
+\newblock {\em arXiv preprint arXiv:2003.07990}, 2020.
+
+\bibitem{goroshin2015unsupervised}
+Ross Goroshin, Joan Bruna, Jonathan Tompson, David Eigen, and Yann LeCun.
+\newblock Unsupervised learning of spatiotemporally coherent metrics.
+\newblock In {\em Proc. ICCV}, 2015.
+
+\bibitem{Goyal17}
+Priya Goyal, Piotr Doll{\'a}r, Ross Girshick, Pieter Noordhuis, Lukasz
+  Wesolowski, Aapo Kyrola, Andrew Tulloch, Yangqing Jia, and Kaiming He.
+\newblock {Accurate, large minibatch SGD: training ImageNet in 1 hour}.
+\newblock {\em arXiv:1706.02677}, 2017.
+
+\bibitem{ssv2}
+Raghav Goyal, Samira~Ebrahimi Kahou, Vincent Michalski, Joanna Materzynska,
+  Susanne Westphal, Heuna Kim, Valentin Haenel, Ingo Fruend, Peter Yianilos,
+  Moritz Mueller-Freitag, et~al.
+\newblock The {``Something Something"} video database for learning and
+  evaluating visual common sense.
+\newblock In {\em ICCV}, 2017.
+
+\bibitem{Grill2020}
+Jean-Bastien Grill, Florian Strub, Florent Altché, Corentin Tallec, Pierre~H.
+  Richemond, Elena Buchatskaya, Carl Doersch, Bernardo~Avila Pires,
+  Zhaohan~Daniel Guo, Mohammad~Gheshlaghi Azar, Bilal Piot, Koray Kavukcuoglu,
+  Rémi Munos, and Michal Valko.
+\newblock Bootstrap your own latent: A new approach to self-supervised
+  learning.
+\newblock In {\em NeurIPS}, 2020.
+
+\bibitem{Gu2018}
+Chunhui Gu, Chen Sun, David~A. Ross, Carl Vondrick, Caroline Pantofaru, Yeqing
+  Li, Sudheendra Vijayanarasimhan, George Toderici, Susanna Ricco, Rahul
+  Sukthankar, Cordelia Schmid, and Jitendra Malik.
+\newblock {AVA}: A video dataset of spatio-temporally localized atomic visual
+  actions.
+\newblock In {\em Proc. CVPR}, 2018.
+
+\bibitem{Han19}
+Tengda Han, Weidi Xie, and Andrew Zisserman.
+\newblock Video representation learning by dense predictive coding.
+\newblock In {\em Workshop on Large Scale Holistic Video Understanding, ICCV},
+  2019.
+
+\bibitem{Han20}
+Tengda Han, Weidi Xie, and Andrew Zisserman.
+\newblock Self-supervised co-training for video representation learning.
+\newblock In {\em Proc. NeurIPS}, 2020.
+
+\bibitem{He20}
+Kaiming He, Haoqi Fan, Yuxin Wu, Saining Xie, and Ross Girshick.
+\newblock Momentum contrast for unsupervised visual representation learning.
+\newblock In {\em Proc. CVPR}, 2020.
+
+\bibitem{He17}
+Kaiming He, Georgia Gkioxari, Piotr Doll{\'a}r, and Ross Girshick.
+\newblock Mask {R-CNN}.
+\newblock In {\em Proc. ICCV}, 2017.
+
+\bibitem{he2015delving}
+Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun.
+\newblock Delving deep into rectifiers: Surpassing human-level performance on
+  imagenet classification.
+\newblock In {\em Proc. ICCV}, 2015.
+
+\bibitem{He16}
+Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun.
+\newblock Deep residual learning for image recognition.
+\newblock In {\em Proc. CVPR}, 2016.
+
+\bibitem{Henaff19}
+Olivier~J. H{\'{e}}naff, Ali Razavi, Carl Doersch, S.~M.~Ali Eslami, and
+  A{\"{a}}ron van~den Oord.
+\newblock Data-efficient image recognition with contrastive predictive coding.
+\newblock {\em arXiv preprint arXiv:1905.09272}, 2019.
+
+\bibitem{Hjelm19}
+R~Devon Hjelm, Alex Fedorov, Samuel Lavoie-Marchildon, Karan Grewal, Phil
+  Bachman, Adam Trischler, and Yoshua Bengio.
+\newblock Learning deep representations by mutual information estimation and
+  maximization.
+\newblock In {\em Proc. ICLR}, 2019.
+
+\bibitem{Ioffe15}
+S. Ioffe and C. Szegedy.
+\newblock Batch normalization: Accelerating deep network training by reducing
+  internal covariate shift.
+\newblock In {\em Proc. ICML}, 2015.
+
+\bibitem{Isola15}
+Phillip Isola, Daniel Zoran, Dilip Krishnan, and Edward~H Adelson.
+\newblock Learning visual groups from co-occurrences in space and time.
+\newblock In {\em Proc. ICLR}, 2015.
+
+\bibitem{Jayaraman15}
+Dinesh Jayaraman and Kristen Grauman.
+\newblock Learning image representations tied to ego-motion.
+\newblock In {\em Proc. ICCV}, 2015.
+
+\bibitem{jenni2020video}
+Simon Jenni, Givi Meishvili, and Paolo Favaro.
+\newblock Video representation learning by recognizing temporal
+  transformations.
+\newblock {\em arXiv preprint arXiv:2007.10730}, 2020.
+
+\bibitem{Ji19}
+Xu Ji, Jo{\~{a}}o~F. Henriques, and Andrea Vedaldi.
+\newblock Invariant information clustering for unsupervised image
+  classification and segmentation.
+\newblock In {\em Proc. ICCV}, pages 9865--9874, 2019.
+
+\bibitem{Kay17}
+Will Kay, Jo{\~{a}}o Carreira, Karen Simonyan, Brian Zhang, Chloe Hillier,
+  Sudheendra Vijayanarasimhan, Fabio Viola, Tim Green, Trevor Back, Paul
+  Natsev, Mustafa Suleyman, and Andrew Zisserman.
+\newblock The kinetics human action video dataset.
+\newblock {\em arXiv preprint arXiv:1705.06950}, 2017.
+
+\bibitem{Kim19}
+Dahun Kim, Donghyeon Cho, and In~So Kweon.
+\newblock Self-supervised video representation learning with space-time cubic
+  puzzles.
+\newblock In {\em AAAI}, 2019.
+
+\bibitem{Korbar18}
+Bruno Korbar, Du Tran, and Lorenzo Torresani.
+\newblock Cooperative learning of audio and video models from self-supervised
+  synchronization.
+\newblock In {\em Proc. NeurIPS}, 2018.
+
+\bibitem{Kuehne11}
+H. Kuehne, H. Jhuang, E. Garrote, T. Poggio, and T. Serre.
+\newblock {HMDB}: A large video database for human motion recognition.
+\newblock In {\em Proc. ICCV}, pages 2556--2563, 2011.
+
+\bibitem{Lee17}
+Hsin{-}Ying Lee, Jia{-}Bin Huang, Maneesh Singh, and Ming{-}Hsuan Yang.
+\newblock Unsupervised representation learning by sorting sequence.
+\newblock In {\em Proc. ICCV}, 2017.
+
+\bibitem{Li20}
+Ang Li, Meghana Thotakuri, David~A Ross, Jo{\~a}o Carreira, Alexander
+  Vostrikov, and Andrew Zisserman.
+\newblock The ava-kinetics localized human actions video dataset.
+\newblock {\em arXiv preprint arXiv:2005.00214}, 2020.
+
+\bibitem{Li20a}
+Tianhao Li and Limin Wang.
+\newblock Learning spatiotemporal features via video and text pair
+  discrimination.
+\newblock {\em arXiv preprint arXiv:2001.05691}, 2020.
+
+\bibitem{lin2018temporal}
+Ji Lin, Chuang Gan, and Song Han.
+\newblock Temporal shift module for efficient video understanding.
+\newblock In {\em ICCV}, 2019.
+
+\bibitem{Lin2014}
+Tsung-Yi Lin, Michael Maire, Serge Belongie, James Hays, Pietro Perona, Deva
+  Ramanan, Piotr Doll{\'a}r, and C~Lawrence Zitnick.
+\newblock Microsoft {COCO}: Common objects in context.
+\newblock In {\em Proc. ECCV}, 2014.
+
+\bibitem{Loshchilov2016}
+Ilya Loshchilov and Frank Hutter.
+\newblock {SGDR}: Stochastic gradient descent with warm restarts.
+\newblock {\em arXiv:1608.03983}, 2016.
+
+\bibitem{Lotter17}
+William Lotter, Gabriel Kreiman, and David Cox.
+\newblock Deep predictive coding networks for video prediction and unsupervised
+  learning.
+\newblock In {\em Proc. ICLR}, 2017.
+
+\bibitem{Mathieu16}
+Michael Mathieu, Camille Couprie, and Yann LeCun.
+\newblock Deep multi-scale video prediction beyond mean square error.
+\newblock In {\em ICLR}, 2016.
+
+\bibitem{miech2019howto100m}
+Antoine Miech, Dimitri Zhukov, Jean-Baptiste Alayrac, Makarand Tapaswi, Ivan
+  Laptev, and Josef Sivic.
+\newblock Howto100m: Learning a text-video embedding by watching hundred
+  million narrated video clips.
+\newblock In {\em Proc. CVPR}, 2019.
+
+\bibitem{Misra16}
+Ishan Misra, C.~Lawrence Zitnick, and Martial Hebert.
+\newblock Shuffle and learn: Unsupervised learning using temporal order
+  verification.
+\newblock In {\em Proc. ECCV}, 2016.
+
+\bibitem{Mobahi09}
+Hossein Mobahi, Ronan Collobert, and Jason Weston.
+\newblock Deep learning from temporal coherence in video.
+\newblock In {\em Proc. ICML}, pages 737--744, 2009.
+
+\bibitem{morgado2020audio}
+Pedro Morgado, Nuno Vasconcelos, and Ishan Misra.
+\newblock Audio-visual instance discrimination with cross-modal agreement.
+\newblock {\em arXiv preprint arXiv:2004.12943}, 2020.
+
+\bibitem{Nair10}
+V. Nair and G.~E. Hinton.
+\newblock Rectified linear units improve restricted boltzmann machines.
+\newblock In {\em Proc. ICML}, 2010.
+
+\bibitem{Noroozi16}
+Mehdi Noroozi and Paolo Favaro.
+\newblock Unsupervised learning of visual representations by solving jigsaw
+  puzzles.
+\newblock In {\em Proc. ECCV}, pages 69--84. Springer, 2016.
+
+\bibitem{Owens16}
+Andrew Owens, Phillip Isola, Josh~H. McDermott, Antonio Torralba, Edward~H.
+  Adelson, and William~T. Freeman.
+\newblock Visually indicated sounds.
+\newblock In {\em Proc. CVPR}, pages 2405--2413, 2016.
+
+\bibitem{Pathak17}
+Deepak Pathak, Ross Girshick, Piotr Doll{\'a}r, Trevor Darrell, and Bharath
+  Hariharan.
+\newblock Learning features by watching objects move.
+\newblock In {\em Proc. CVPR}, 2017.
+
+\bibitem{Pathak16}
+Deepak Pathak, Philipp Kr{\"{a}}henb{\"{u}}hl, Jeff Donahue, Trevor Darrell,
+  and Alexei~A. Efros.
+\newblock Context encoders: Feature learning by inpainting.
+\newblock In {\em Proc. CVPR}, 2016.
+
+\bibitem{Patrick20}
+Mandela Patrick, Yuki~M. Asano, Ruth Fong, Jo{\~{a}}o~F. Henriques, Geoffrey
+  Zweig, and Andrea Vedaldi.
+\newblock Multi-modal self-supervision from generalized data transformations.
+\newblock {\em arXiv preprint arXiv:2003.04298}, 2020.
+
+\bibitem{Piergiovanni20}
+AJ Piergiovanni, Anelia Angelova, and Michael~S. Ryoo.
+\newblock Evolving losses for unsupervised video representation learning.
+\newblock In {\em Proc. CVPR}, 2020.
+
+\bibitem{purushwalkam2020demystifying}
+Senthil Purushwalkam and Abhinav Gupta.
+\newblock Demystifying contrastive self-supervised learning: Invariances,
+  augmentations and dataset biases.
+\newblock {\em arXiv preprint arXiv:2007.13916}, 2020.
+
+\bibitem{Qian20}
+Rui Qian, Tianjian Meng, Boqing Gong, Ming-Hsuan Yang, Huisheng Wang, Serge
+  Belongie, and Yin Cui.
+\newblock Spatiotemporal contrastive video representation learning.
+\newblock {\em arXiv preprint arXiv:2008.03800}, 2020.
+
+\bibitem{Ren16}
+S. Ren, K. He, R. Girshick, and J. Sun.
+\newblock Faster {R-CNN}: Towards real-time object detection with region
+  proposal networks.
+\newblock In {\em Proc. NeurIPS}, 2016.
+
+\bibitem{richemond2020byol}
+Pierre~H Richemond, Jean-Bastien Grill, Florent Altch{\'e}, Corentin Tallec,
+  Florian Strub, Andrew Brock, Samuel Smith, Soham De, Razvan Pascanu, Bilal
+  Piot, et~al.
+\newblock Byol works even without batch statistics.
+\newblock {\em arXiv preprint arXiv:2010.10241}, 2020.
+
+\bibitem{Sermanet18}
+Pierre Sermanet et~al.
+\newblock Time-contrastive networks: Self-supervised learning from video.
+\newblock In {\em Proc. Intl. Conf. on Robotics and Automation}, 2018.
+
+\bibitem{Sigurdsson2016}
+Gunnar~A Sigurdsson, G{\"u}l Varol, Xiaolong Wang, Ali Farhadi, Ivan Laptev,
+  and Abhinav Gupta.
+\newblock Hollywood in homes: Crowdsourcing data collection for activity
+  understanding.
+\newblock In {\em ECCV}, 2016.
+
+\bibitem{Simonyan15}
+Karen Simonyan and Andrew Zisserman.
+\newblock Very deep convolutional networks for large-scale image recognition.
+\newblock In {\em Proc. ICLR}, 2015.
+
+\bibitem{Soomro12}
+Khurram Soomro, Amir~Roshan Zamir, and Mubarak Shah.
+\newblock {UCF101}: A dataset of 101 human actions classes from videos in the
+  wild.
+\newblock {\em arXiv preprint arXiv:1212.0402}, 2012.
+
+\bibitem{Srivastava15}
+N. Srivastava, E. Mansimov, and R. Salakhudinov.
+\newblock Unsupervised learning of video representations using lstms.
+\newblock In {\em Proc. ICML}, 2015.
+
+\bibitem{Sun19}
+Chen Sun, Fabien Baradel, Kevin Murphy, and Cordelia Schmid.
+\newblock Contrastive bidirectional transformer for temporal representation
+  learning.
+\newblock {\em arXiv preprint arXiv:1906.05743}, 2019.
+
+\bibitem{Szegedy15}
+Christian Szegedy, Wei Liu, Yangqing Jia, Pierre Sermanet, Scott Reed, Dragomir
+  Anguelov, Dumitru Erhan, Vincent Vanhoucke, and Andrew Rabinovich.
+\newblock Going deeper with convolutions.
+\newblock In {\em Proc. CVPR}, 2015.
+
+\bibitem{Tian20}
+Yonglong Tian, Dilip Krishnan, and Phillip Isola.
+\newblock Contrastive multiview coding.
+\newblock In {\em Proc. ECCV}, 2020.
+
+\bibitem{Tran18}
+Du Tran, Heng Wang, Lorenzo Torresani, Jamie Ray, Yann LeCun, and Manohar
+  Paluri.
+\newblock A closer look at spatiotemporal convolutions for action recognition.
+\newblock In {\em Proc. CVPR}, 2018.
+
+\bibitem{Oord18}
+A{\"{a}}ron van~den Oord, Yazhe Li, and Oriol Vinyals.
+\newblock Representation learning with contrastive predictive coding.
+\newblock {\em arXiv preprint arXiv:1807.03748}, 2018.
+
+\bibitem{Vondrick16b}
+Carl Vondrick, Hamed Pirsiavash, and Antonio Torralba.
+\newblock Anticipating visual representations from unlabelled video.
+\newblock In {\em Proc. CVPR}, 2016.
+
+\bibitem{Wang15}
+Xiaolong Wang and Abhinav Gupta.
+\newblock Unsupervised learning of visual representations using videos.
+\newblock In {\em Proc. ICCV}, 2015.
+
+\bibitem{Wang17}
+Xiaolong Wang, Kaiming He, and Abhinav Gupta.
+\newblock Transitive invariance for self-supervised visual representation
+  learning.
+\newblock In {\em Proc. ICCV}, 2017.
+
+\bibitem{Wang19}
+Xiaolong Wang, Allan Jabri, and Alexei~A. Efros.
+\newblock Learning correspondence from the cycle-consistency of time.
+\newblock In {\em Proc. CVPR}, 2019.
+
+\bibitem{Wiskott02}
+Laurenz Wiskott and Terrence Sejnowski.
+\newblock Slow feature analysis: Unsupervised learning of invariances.
+\newblock In {\em Neural Computation}, 2002.
+
+\bibitem{Wu18}
+Zhirong Wu, Yuanjun Xiong, Stella Yu, and Dahua Lin.
+\newblock Unsupervised feature learning via non-parametric instance-level
+  discrimination.
+\newblock In {\em Proc. CVPR}, volume abs/1805.01978, 2018.
+
+\bibitem{Xie18s3d}
+Saining Xie, Chen Sun, Jonathan Huang, Zhuowen Tu, and Kevin Murphy.
+\newblock Rethinking spatiotemporal feature learning for video understanding.
+\newblock In {\em Proc. ECCV}, 2018.
+
+\bibitem{Xu19vcop}
+Dejing Xu, Jun Xiao, Zhou Zhao, Jian Shao, Di Xie, and Yueting Zhuang.
+\newblock Self-supervised spatiotemporal learning via video clip order
+  prediction.
+\newblock In {\em Proc. CVPR}, 2019.
+
+\bibitem{yang2020video}
+Ceyuan Yang, Yinghao Xu, Bo Dai, and Bolei Zhou.
+\newblock Video representation learning with visual tempo consistency.
+\newblock {\em arXiv preprint arXiv:2006.15489}, 2020.
+
+\bibitem{you2017large}
+Yang You, Igor Gitman, and Boris Ginsburg.
+\newblock Large batch training of convolutional networks.
+\newblock {\em arXiv preprint arXiv:1708.03888}, 2017.
+
+\bibitem{Zhang16color}
+Richard Zhang, Phillip Isola, and Alexei~A. Efros.
+\newblock Colorful image colorization.
+\newblock In {\em Proc. ECCV}, 2016.
+
+\bibitem{Zhuang19}
+Chengxu Zhuang, Alex~Lin Zhai, and Daniel Yamins.
+\newblock Local aggregation for unsupervised learning of visual embeddings.
+\newblock In {\em Proc. ICCV}, 2019.
+
+\end{thebibliography}
