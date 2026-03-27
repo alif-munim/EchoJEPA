@@ -126,10 +126,44 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | Readmission 30d | 0.634 |
 | ICU transfer | 0.570 |
 
-**EHR-only baselines (XGBoost + TabPFN, 54 features):**
-- Mortality 1yr: 0.856 (XGBoost), echo ≈ EHR
-- Readmission 30d: 0.624 (XGBoost), echo > EHR
-- Prediction averaging validated: +0.08-0.09 AUC over single mean-pool embedding
+**EHR Baseline Comparison (CY, 2026-03-24):**
+
+Clinical baselines from CY's `train_baselines.py` and `train_ehr.py`. Same patient-level split. XGBoost: 500 trees, depth 5, lr 0.05, early stopping, 54 EHR features + missingness indicators. Leakage prevention: biomarker tasks drop target lab feature. Source: `uhn_echo/nature_medicine/context_files/dev/probe-results.md`.
+
+Mortality & Outcomes (AUROC):
+
+| Task | LVEF only | LVEF+demo+CCI | Elixhauser (31) | Echo meas. (30) | XGBoost (54 EHR) | EchoJEPA-G (CY sklearn) | EchoJEPA-G (Strategy E) |
+|------|-----------|---------------|-----------------|-----------------|-------------------|------------------------|------------------------|
+| 30d mortality | 0.519 | 0.841 | 0.888 | 0.715 | 0.921 | **0.912** | 0.884 |
+| 90d mortality | 0.541 | 0.840 | 0.861 | 0.724 | 0.868 | **0.883** | 0.827 |
+| 1yr mortality | 0.591 | 0.827 | 0.818 | 0.752 | 0.856 | 0.846 | 0.792 |
+| In-hosp mortality | 0.475 | 0.607 | 0.759 | 0.690 | 0.925 | 0.875 | 0.861 |
+| End-of-life | 0.494 | 0.672 | 0.758 | 0.703 | 0.918 | 0.862 | — |
+| Readmit 30d | 0.497 | 0.573 | 0.581 | 0.522 | 0.624 | **0.634** | 0.608 |
+| Discharge dest. | 0.544 | 0.655 | 0.693 | 0.586 | 0.796 | 0.689 | 0.674 |
+| LOS remaining (MAE↓) | 6.192 | 5.969 | 5.672 | 6.219 | 4.605 | 5.841 | — |
+
+Biomarkers (Pearson r, except lactate/troponin = AUROC):
+
+| Task | LVEF only | LVEF+demo+CCI | Elixhauser | Echo meas. | XGBoost | EchoJEPA-G (CY) | EchoJEPA-G (Strat E) |
+|------|-----------|---------------|------------|------------|---------|-----------------|---------------------|
+| NT-proBNP (r) | 0.431 | 0.625 | 0.564 | 0.354 | 0.567 | 0.446 | 0.355 |
+| Creatinine (r) | 0.155 | 0.314 | 0.451 | 0.270 | 0.680 | 0.332 | 0.240 |
+| Lactate elev. | 0.555 | 0.501 | 0.578 | 0.572 | 0.701 | 0.660 | — |
+| Troponin T elev. | 0.624 | 0.512 | 0.404 | 0.593 | 0.709 | 0.491 | 0.264 (r) |
+
+**Key findings:**
+1. **90d mortality: frozen video (0.883) EXCEEDS XGBoost with 54 EHR variables (0.868)** — headline for cross-system pillar
+2. **Video >> structured echo measurements** on all mortality tasks (+15-20pp). Frozen representations extract more from video than 30 conventional quantitative measurements
+3. **Video matches or beats Elixhauser** (31 comorbidity flags) on 30d mort (0.912 vs 0.888), 90d mort (0.883 vs 0.861), end-of-life (0.862 vs 0.758)
+4. **NT-proBNP is mostly EF-mediated**: LVEF-only (r=0.431) nearly matches video (r=0.446) — gap only +0.015
+5. **Creatinine has genuinely novel signal**: LVEF-only (r=0.155) vs video (r=0.332) — video doubles the signal, captures renal-cardiac coupling beyond EF
+6. **Full EHR still wins** for in-hospital mortality (XGBoost 0.925 vs video 0.875) and LOS — expected, represents information only available from labs/vitals/meds
+7. **CY sklearn (manuscript gold standard) outperforms Strategy E** by 1-6pp on outcomes — mean-pooled embeddings + sklearn ensemble beats d=1 attentive probes on MIMIC
+
+**Note**: CY sklearn = mean-pooled embeddings → sklearn ensemble with prediction averaging. Strategy E = d=1 attentive probe from video + prediction averaging. CY numbers are the manuscript values. End-of-life and lactate elevated not in Strategy E 11-task chain.
+
+Prediction averaging validated: +0.08-0.09 AUC over single mean-pool embedding.
 
 **Pending**: Combined echo+EHR model, acuity conditioning (H_confound).
 
