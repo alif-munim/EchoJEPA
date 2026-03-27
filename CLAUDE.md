@@ -147,7 +147,7 @@ Config: `configs/eval/vitg-384/nature_medicine/`. CSV builder: `experiments/natu
 
 - **Pretraining**: `path/to/video.mp4 0` (space-delimited, dummy label)
 - **Classification**: `path/to/video.mp4 <int_label>` (space-delimited)
-- **Regression**: `path/to/video.mp4 <z_score_float>` (space-delimited, Z-score normalized)
+- **Regression**: `path/to/video.mp4 <raw_float>` (space-delimited, raw values; Z-score normalized at runtime)
 - **Multi-view**: `path/to/view1.mp4 path/to/view2.mp4 <float_label>` (space-delimited)
 
 ### Distributed Training

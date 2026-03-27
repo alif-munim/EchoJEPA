@@ -8,7 +8,7 @@ Data assets for EchoJEPA training, evaluation, and analysis. This directory cont
 
 Formats (all space-separated):
 - Classification: `<s3_uri> <int_label>`
-- Regression: `<s3_uri> <z_score_float>` (Z-score normalized via scalers)
+- Regression: `<s3_uri> <raw_float>` (raw values; Z-score normalization happens at runtime)
 - Multi-view: `<view1_uri> <view2_uri> ... <float_label>`
 
 Tasks covered: lvef, rvsp, tapse, view classification, color, quality, zoom, pacemaker, mvr, tvr, rvfx, la_dilation, pediatric EF, and more.

@@ -173,7 +173,7 @@ Linear probes are simpler so the search space differs from attentive probes:
 | Config | `num_classes: N` | `num_targets: 1`, `target_mean`, `target_std` |
 | Saved predictions | class, confidence | un-normalized real value, abs_error |
 
-Regression labels are Z-score normalized in the CSV. The config provides `target_mean` and `target_std` for denormalization at inference time (e.g., LVEF: mean=57.06, std=11.33).
+Regression labels are stored as **raw values** in the CSV (e.g., LVEF in %, RVSP in mmHg). The eval code Z-score normalizes at runtime, computing mean/std from the training CSV (saved to `zscore_params.json` for inference reproducibility). The config can override with explicit `target_mean` and `target_std` (e.g., LVEF: mean=57.06, std=11.33).
 
 ## Multi-Head Hyperparameter Grid Search
 

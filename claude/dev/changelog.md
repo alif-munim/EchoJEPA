@@ -488,7 +488,7 @@ Systematic edit to `sn-article.tex` clarifying which tasks use B-mode-only input
 - Fixed `NUM_TARGETS=0` → `NUM_CLASSES` for classification tasks
 - Fixed EchoPrime batch size 64 → 256
 - Added `cd $REPO`, `LD_LIBRARY_PATH`, `MASTER_PORT` export
-- Auto-detects task type (regression/classification), view filtering, z-score params
+- Auto-detects task type (regression/classification), view filtering, regression mean/std
 - Usage: `bash scripts/run_pred_avg.sh <task>` (same interface as `run_uhn_probe.sh`)
 
 ### AV Mean Gradient Pred Avg — Invalid Results Discovered
@@ -545,7 +545,7 @@ See `claude/dev/bugs/007-checkpoint-loss.md` for full details.
 - `experiments/nature_medicine/uhn/build_probe_csvs.py --all` — builds train/val/test CSVs for every label NPZ
 - Loads `study_to_clips_index.pkl` (cached study → clips mapping from 18.1M S3 paths)
 - ALL clips per study emitted. DistributedStudySampler handles 1-per-study selection at training time
-- Regression targets Z-scored using training-set mean/std; `zscore_params.json` saved per task
+- Regression targets stored as raw values; Z-score normalization happens at runtime (mean/std computed from train CSV, saved to `zscore_params.json`)
 - 47 tasks × 3 splits = 141 CSVs at `experiments/nature_medicine/uhn/probe_csvs/{task}/`
 
 **UHN view-filtered CSVs built (41 tasks):**
@@ -563,12 +563,12 @@ See `claude/dev/bugs/007-checkpoint-loss.md` for full details.
 
 **MIMIC probe CSV regression bug fix:**
 - `experiments/nature_medicine/mimic/build_probe_csvs.py` — `int(lbl)` was destroying float regression labels (creatinine 0.7→0, troponin 0.01→0)
-- Fixed: auto-detect regression vs classification, Z-score normalize regression labels, save `zscore_params.json`
+- Fixed: auto-detect regression vs classification, store raw regression labels (Z-score normalization at runtime)
 - All 23 MIMIC CSVs rebuilt with correct labels
 
 **Phase 1 run scripts built:**
 - `scripts/run_uhn_probe.sh` — Generic single-task probe runner for any UHN task
-  - Auto-detects: task_type (regression/classification), num_classes, target_mean/std, view filtering (train_vf.csv vs train.csv), study_sampling (false for trajectory_* tasks)
+  - Auto-detects: task_type (regression/classification), num_classes, view filtering (train_vf.csv vs train.csv), study_sampling (false for trajectory_* tasks). Regression mean/std computed at runtime from raw CSV labels
   - Runs 5 models sequentially: echojepa-g, echojepa-l, echomae, echoprime, panecho
   - HP grid: 5 LRs × 4 WDs = 20 heads, 20 epochs, d=1 attentive probe
   - Supports `--models` and `--epochs` overrides
