@@ -38,3 +38,5 @@ Supporting sections:
 ## Evaluation Protocol (Strategy E, adopted 2026-03-11)
 
 All downstream tasks use **frozen d=1 attentive probes** trained from video through frozen encoders (no fine-tuning, no NPZ extraction). Training: `DistributedStudySampler` selects 1 random clip per study per epoch from view-filtered CSVs. Evaluation: probe predicts independently on all clips per study; predictions averaged for study-level result (prediction averaging). View-specific tasks (TAPSE, LVEF, hemodynamics) use pre-filtered CSVs containing only task-relevant views. The old NPZ-based mean-pool + sklearn pipeline is fully superseded.
+
+**Key differences from ICML preprint protocol:** d=1 (vs d=4), 12-head HP grid (vs 6-head), 2-epoch warmup (vs none), BS2 (vs BS1), 15 epochs (vs 20), view-filtered training, study-level sampling, prediction averaging. Resolution (224px) and temporal sampling (16f/step2/2seg) unchanged. See `claude/architecture/evaluation-protocols.md` for the full comparison table and config archaeology.

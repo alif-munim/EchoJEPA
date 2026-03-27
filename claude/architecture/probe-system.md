@@ -66,7 +66,7 @@ Mean-pool → LayerNorm → Linear → GELU → Dropout → Linear. Two-layer al
 | **Expressiveness** | High — learns which spatial/temporal tokens matter | Minimal — tests raw representation quality |
 | **Trainable params** | ~1-10M (varies with depth/embed_dim) | ~1-2K (single linear layer) |
 | **Multi-view slots** | Supports slot embeddings (view/clip identity) | No slot embeddings (tokens are anonymous) |
-| **Use case** | ICML paper (depth=4, 16 heads); Nature Medicine primary (depth=1, 16 heads) | Nature Medicine sensitivity analysis (Extended Data) |
+| **Use case** | ICML preprint (d=4, 16 heads, 6-head HP grid); ICML rebuttal (same); Nature Medicine (d=1, 16 heads, 6-head HP grid) | Nature Medicine sensitivity analysis (Extended Data) |
 | **Interpretation** | d=1: lightweight cross-attention readout (contains linear as special case) | Shows what is linearly accessible in the representation |
 | **Config** | `probe_type: attentive`, `num_heads: 16`, `num_probe_blocks: 1` | `probe_type: linear`, `use_layernorm: true`, `dropout: 0.0` |
 
@@ -177,7 +177,14 @@ Regression labels are Z-score normalized in the CSV. The config provides `target
 
 ## Multi-Head Hyperparameter Grid Search
 
-Multiple probe heads are trained **in parallel** with different hyperparameter combinations. Each head has its own optimizer. Typically 6-16 heads (e.g., 2 learning rates × 3 weight decays). The best-performing head on validation is selected.
+Multiple probe heads are trained **in parallel** with different hyperparameter combinations. Each head has its own optimizer. The best-performing head on validation is selected.
+
+**Grid sizes vary by protocol:**
+- **ICML preprint:** 6 heads — LR {1e-4, 5e-5} × WD {0.01, 0.1, 0.4}, no warmup
+- **Nature Medicine (`run_uhn_probe.sh`):** 12 heads — LR {5e-4, 1e-4, 5e-5, 1e-5} × WD {0.001, 0.01, 0.1}, warmup 2 epochs
+- **ICML rebuttal:** 6 heads (match preprint)
+
+All pruned from Meta's 20-head V-JEPA 2 reference grid (5 LR × 4 WD). See `evaluation-protocols.md` for the full comparison and config archaeology.
 
 ```yaml
 multihead_kwargs:

@@ -12,6 +12,7 @@ Technical documentation for the codebase internals.
 | `vjepa2-paper-recipes.md` | Official V-JEPA 2 and 2.1 training recipes extracted from the papers: hyperparameters, progressive resolution, data, masking, scaling rules, ablation results |
 | `vjepa21-code-diff.md` | V-JEPA 2.1 vs 2.0 code differences, EchoJEPA ports, checkpoint compatibility (distilled vs full, shape mismatches, ema_encoder). MIMIC configs for ViT-B and ViT-L. Operational notes from first training run: 7 issues fixed, verified perf (3.4s/iter on 8×A100), monitoring commands |
 | `probe-system.md` | Frozen probe evaluation: attentive/linear/MLP heads, classification vs regression, view-filtered training pipeline, DistributedStudySampler, multi-view fusion, hyperparameter grid search, inference mode, prediction output |
+| `evaluation-protocols.md` | **Protocol comparison: ICML preprint vs Nature Medicine vs ICML Rebuttal.** What changed (d=4->d=1, view filtering, study sampling, prediction averaging) and what didn't (6-head HP grid, resolution, temporal sampling). Config archaeology tracing the HP grid evolution from 20-head Meta reference to 6-head pruned production. |
 | `classifier-pipeline.md` | ConvNeXt/Swin classifier pipeline: training, cooldown, 18M inference, data prep stages, label mappings, experiment history |
 | `forward-prediction.md` | Zero-shot anomaly detection & forward prediction experiments exploiting the JEPA predictor network. Results across 4 approaches (prediction error, repr distance mean-pooled/token-level, forward prediction) on UHN (hard negatives) and MIMIC (population negatives). Key finding: takotsubo 0.711 AUROC zero-shot; predictor-based scoring uniformly at chance. Full results in `evals/forward_prediction/RESULTS.md` |
 
@@ -64,7 +65,7 @@ Development log: bug tracker, changelog, operational guides, and code review fin
 
 ## rebuttals/
 
-ICML rebuttal — actual reviews received 2026-03-25 (scores 2/3/3/4). **`08-rebuttal-v2.md` is the active rebuttal plan.** Pre-review docs (`01`-`07`) anticipated different concerns than reviewers raised. See `rebuttals/README.md` for the full index and status of each file.
+ICML rebuttal — actual reviews received 2026-03-25 (scores 2/3/3/4), updated 2026-03-26. **`08-rebuttal-v2.md` is the active rebuttal plan.** Pre-review docs (`01`-`07`) anticipated different concerns than reviewers raised. See `rebuttals/README.md` for the full index and status of each file.
 
 | File | Contents | Status |
 |------|----------|--------|
