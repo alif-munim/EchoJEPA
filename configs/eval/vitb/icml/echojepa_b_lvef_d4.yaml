@@ -82,6 +82,7 @@ model_kwargs:
       model_name: vit_base
       patch_size: 16
       tubelet_size: 2
+      use_rope: true
   wrapper_kwargs:
     max_frames: 128
     use_pos_embed: false

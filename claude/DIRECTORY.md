@@ -62,6 +62,7 @@ Development log: bug tracker, changelog, operational guides, and code review fin
 | `bugs/004-video-load-substitution.md` | **HIGH**: Failed video loads return random replacement, silent index misalignment. Fixed (tracking added) |
 | `bugs/005-drop-last-not-forwarded.md` | **MEDIUM**: `drop_last` param ignored by DataLoader. Up to 248 clips silently dropped. Fixed |
 | `bugs/006-labels-trainval-mode.md` | **MEDIUM**: `--labels` with `--train`/`--val` applies wrong indices. Latent, not triggered by documented workflows |
+| `bugs/015-torch-shm-manager-broken.md` | **HIGH**: `torch_shm_manager` binary broken on SageMaker A100 node. Fix: change sharing strategy to `file_descriptor`, set `TMPDIR=/tmp`, enable `num_workers: 4`. Full debugging history and launch template |
 
 ## rebuttals/
 

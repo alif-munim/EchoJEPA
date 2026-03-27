@@ -20,6 +20,7 @@ Development log for the EchoJEPA project: bug tracker, changelog, operational gu
 | 012 | [Resume logic skips inference on stale output dir](bugs/012-resume-skips-inference-on-stale-output.md) | **HIGH** | **FIXED** | `scripts/run_lvef_pred_avg.sh`, `scripts/run_pred_avg.sh` |
 | 013 | [Local `import os` shadows module scope, breaks study_predictions save](bugs/013-os-import-shadows-module-scope.md) | **MEDIUM** | **FIXED** | `evals/video_classification_frozen/eval.py` |
 | 014 | [PyTorch zipfile serializer fails on checkpoints >4 GB](bugs/014-checkpoint-4gb-zipfile-bug.md) | **CRITICAL** | **FIXED** | `app/byol_video/train.py`, `app/byol_video/utils.py` |
+| 015 | [`torch_shm_manager` broken on SageMaker A100 — DataLoader workers crash](bugs/015-torch-shm-manager-broken.md) | **HIGH** | **FIXED** (workaround) | `app/vjepa_2_1/train.py`, launch env |
 
 ## Planned Fixes
 

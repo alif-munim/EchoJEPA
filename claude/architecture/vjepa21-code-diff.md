@@ -381,6 +381,20 @@ Key differences that explain the instability:
 4. Clear `/dev/shm` if needed (`rm -rf /dev/shm/*`)
 5. Relaunch
 
+### Bug 015: `torch_shm_manager` broken on SageMaker A100
+
+The `torch_shm_manager` binary is broken on the SageMaker A100 node (PyTorch 2.10.0+cu128) — always returns "Invalid argument". This prevents DataLoader `num_workers > 0` under the Meta upstream `file_system` sharing strategy. Three-part fix:
+
+1. **Change sharing strategy**: `app/vjepa_2_1/train.py:32` — `mp.set_sharing_strategy("file_descriptor")` instead of `"file_system"`. The `file_descriptor` strategy uses Unix domain sockets (works) instead of `torch_shm_manager` (broken).
+2. **Set `TMPDIR=/tmp`**: The EFS TMPDIR path (77 chars) plus socket suffix exceeds the 108-byte Unix socket path limit.
+3. **`LD_LIBRARY_PATH=/opt/conda/lib`**: System libstdc++ lacks GLIBCXX_3.4.31.
+
+See `claude/dev/bugs/014-torch-shm-manager-broken.md` for full debugging history. Launch template:
+
+```bash
+TMPDIR=/tmp LD_LIBRARY_PATH=/opt/conda/lib:$LD_LIBRARY_PATH python -m app.main --fname <config> --devices cuda:0 ...
+```
+
 ### Checkpoint outputs
 
 - `latest.pt` — overwritten every epoch
