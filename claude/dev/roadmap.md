@@ -1,6 +1,6 @@
 # Roadmap
 
-Consolidated view of outstanding work for the Nature Medicine data pipeline. Updated 2026-03-26 18:00 UTC (**17 UHN tasks pred avg DONE** — 13 × all 5 + 4 new × 4 manuscript models. RV function in progress. Trajectory expansion: MR onset + LVEF 3-class DONE. 7/7 diseases PA DONE (4/4 models). MIMIC outcome chain running. CY sklearn = manuscript gold standard. MIMIC xfer: 4 diseases × 4 models DONE).
+Consolidated view of outstanding work for the Nature Medicine data pipeline. Updated 2026-03-27 04:45 UTC (**17 UHN tasks pred avg DONE** — 13 × all 5 + 4 new × 4 manuscript models. **RV function ALL 4 TRAINED** (pred avg: G+L-K CRASHED NCCL, EP running, Pan queued — need re-run). Trajectory expansion DONE. **Disease pred avg: 7/7 DONE (4/4 models)**. **G Strategy E MIMIC ALL 11/11 PA DONE.** L-K 6/11 PA done, LOS restarted ep 19. EP/Pan mort_90d trained, rest NOT STARTED. P3 DONE (not in manuscript). CY sklearn = manuscript gold standard. MIMIC xfer DONE).
 
 For code-level roadmap (extraction scripts, bug fixes), see `vjepa2/claude/dev/roadmap.md`.
 For UHN label inventories and data quality notes, see `uhn-pipeline.md` (in this directory).
@@ -14,25 +14,18 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 
 **4 manuscript models**: EchoJEPA-G, EchoJEPA-L-K, EchoPrime, PanEcho. EchoJEPA-L is internal testing only.
 
-### Tier 0: Current Status (2026-03-26 18:00 UTC / 2:00 PM ET)
-- **GPUs 0-7**: RV function EP+Pan training (ETA ~3:30 PM ET). MIMIC outcome chain RUNNING (L-K/EP/Pan phase).
-- **NEW UHN tasks DONE (4 × 4 manuscript models)**:
-  - EDV: G **R²=0.774**/r=0.890, L-K 0.560/0.790, EP 0.425/0.719, Pan 0.554/0.815
-  - ESV: G **R²=0.853**/r=0.931, L-K 0.721/0.882, EP 0.589/0.843, Pan 0.675/0.878
-  - Diastolic function: G **AUROC=0.903**/bal_acc=74.7%, L-K 0.855/64.8%, EP 0.846/63.1%, Pan 0.830/61.2%
-  - Cardiac output: G **R²=0.335**/r=0.615, L-K 0.185/0.499, EP 0.143/0.425, Pan 0.179/0.452
-- **RV function in progress**: G val **0.845**, L-K val 0.746, EP+Pan training
-- **Trajectory experiments:**
-  - **trajectory_lvef_onset**: G **0.793** (flagship, done earlier)
-  - **trajectory_mr_severity_onset**: G **0.733**, Pan 0.688, EP 0.666, L-K 0.605 — validates onset paradigm generalizes
-  - **trajectory_lvef 3-class**: Pan 0.633, EP 0.628, G 0.613, L 0.536, L-K 0.532 — DONE (5 models)
-  - Skipped: TAPSE (2K pairs too small), LV mass (56 positives), RV pressure (noisy)
-- **MIMIC outcome chain**: G 10/11 done, L-K/EP/Pan chain running
-- **sklearn reproduction**: CY results NOT reproduced (2-5pp gap). CY values = manuscript gold standard.
+### Tier 0: Current Status (2026-03-27 04:45 UTC / 12:45 AM ET)
+- **GPUs 0-7**: Two concurrent jobs: (1) RV function pred avg EP RUNNING (G+L-K CRASHED NCCL, Pan queued); (2) MIMIC L-K LOS training ep 19/35.
+- **RV function ALL 4 TRAINED**: G **0.845**, L-K **0.769**, EP **0.709**, Pan **0.702**. **Pred avg: G+L-K CRASHED** (NCCL DistBackendError). EP running, Pan queued. G+L-K need re-run.
+- **G Strategy E MIMIC: ALL 11/11 PA DONE** (in_hosp 0.861, readmit 0.608 now filled).
+- **MIMIC L-K**: 6/11 PA done, 90d/1yr stalled (ep 24/23, pred avg FAILED), LOS restarted ep 19/35.
+- **MIMIC EP/Pan**: mortality_90d training DONE (EP 0.748, Pan 0.682). Other 6 outcomes NOT STARTED.
+- **P3 forward prediction + anomaly detection: DONE** (40 experiments). Not in manuscript — repr distance not JEPA-specific.
+- **MIMIC xfer EXPANDED**: 4 diseases + MR severity + TR severity + EF note-extracted × 4-5 models DONE.
+- **B 2.1 now 13/13 complete** (AR severity DONE: 0.671). B 2.1 disease PA also complete.
 - **Disease pred avg — 7/7 DONE (all 4 manuscript models)**
-- **MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE**
 - **Physiological coherence analysis now unblocked**: EDV+ESV+LVEF all done → can compute derived EF correlation
-- **Next**: RV function PA (after EP+Pan). Monitor MIMIC chain. Bland-Altman analysis.
+- **Next**: Finish EP+Pan RV function PA → re-run G+L-K PA → restart L-K 90d/1yr → start EP/Pan remaining outcomes → Bland-Altman analysis.
 
 ### P1: Finish UHN Probe Pipeline (Alif, compute-only — blocks §2.2-2.4 tables)
 
@@ -65,7 +58,7 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 | # | Task | Effort | Owner | Notes |
 |---|------|--------|-------|-------|
 | 11 | **Disease panel** (7 diseases × 4 models) | ~1-2 days | Alif/Reza | **7/7 training DONE** (takotsubo dropped). **Pred avg: 7/7 DONE (4/4 models)**. MIMIC xfer: 4 diseases × 4 models DONE. |
-| 12 | ~~**Diastolic function, cardiac output**~~ + **RV function** | ~hours | Alif | **Diastolic fn DONE** (G 0.903). **Cardiac output DONE** (G R²=0.335). **RV function: G+L-K trained, EP+Pan training.** |
+| 12 | ~~**Diastolic function, cardiac output**~~ + **RV function** | ~hours | Alif | **Diastolic fn DONE** (G 0.903). **Cardiac output DONE** (G R²=0.335). **RV function: ALL 4 TRAINED** (G 0.845, L-K 0.769, EP 0.709, Pan 0.702). Pred avg in progress. |
 
 ### P5: Delegated Work (blocked on other people)
 
