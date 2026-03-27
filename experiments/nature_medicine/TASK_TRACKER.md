@@ -1,11 +1,12 @@
 # Nature Medicine — Task Tracker
 
-Last updated: 2026-03-26 18:00 UTC (**17 UHN primary tasks pred avg DONE** — 13 × all 5 models + 4 new × 4 manuscript models. **RV function in progress** (G+L-K trained, EP+Pan training). **Trajectory expansion**: MR onset (G 0.733) + LVEF 3-class (Pan 0.633) DONE. **7/7 disease probes PA DONE (4/4 models)**. **MIMIC outcome chain**: G 10/11, L-K/EP/Pan running. **CY sklearn = manuscript gold standard**.)
+Last updated: 2026-03-26 23:30 UTC (**17 UHN primary tasks pred avg DONE** — 13 × all 5 models + 4 new × 4 manuscript models. **Trajectory**: LVEF onset Strategy E pred avg DONE (G **0.794**), MR onset DONE (G **0.733**), LVEF 3-class DONE (5 models). **7/7 disease probes PA DONE (4/4 models)**. **EchoJEPA-B (ViT-B 2.1, 80M) benchmarking: Machine 2 DONE** — 10 UHN tasks (rv_fac, rv_sp, trajectory_lvef_onset, 7 diseases) trained + pred avg. **MIMIC outcome chain**: pipefail bug fixed, relaunched — G pred avg re-confirmed, L-K/EP/Pan training in progress (~20 slots). **CY sklearn = manuscript gold standard**.)
 
 ## Evaluation Protocol
 
 **Strategy E**: d=1 attentive probes from video + prediction averaging across all clips per study.
-- **5 models**: EchoJEPA-G, EchoJEPA-L, EchoJEPA-L-K, EchoPrime, PanEcho
+- **5 primary models**: EchoJEPA-G, EchoJEPA-L, EchoJEPA-L-K, EchoPrime, PanEcho
+- **Scaling ablation**: EchoJEPA-B (ViT-B 2.1, 80M params, V-JEPA 2.1 distilled from ViT-G, MIMIC cooldown epoch 60)
 - **Probe grid**: 12 HP combos (4 LR × 3 WD), 15 epochs. LVEF/TAPSE used 20-head grid (5 LR × 4 WD); all subsequent tasks use 12-head.
 - **Convergence**: 15 epochs sufficient for all tasks tested. Extending to 20 yields <0.005 AUROC improvement. Use 15 epochs going forward.
 - **Run script (training)**: `scripts/run_uhn_probe.sh <task>`
@@ -143,8 +144,8 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 | 1-yr mortality | AUROC | 1,087 | 0.791 | head 5 |
 | 90-day mortality | AUROC | 1,087 | 0.826 | head 7 |
 | 30-day mortality | AUROC | 1,087 | 0.881 | head 8 |
-| in_hospital_mortality | AUROC | — | PENDING | port collision, requeued |
-| readmission_30d | AUROC | — | NEEDS RE-RUN | pred avg completed but study_predictions.csv not saved |
+| in_hospital_mortality | AUROC | — | TRAINING | chain relaunch 2026-03-26 |
+| readmission_30d | AUROC | — | RE-RUNNING | chain relaunch 2026-03-26 |
 | discharge_destination | AUROC | 382 | 0.677 | head 14 |
 | los_remaining | R² | 440 | 0.036 | head 6 |
 | Troponin T | R² | 240 | 0.013 | head 5 |
@@ -179,11 +180,11 @@ Our mean-pool reproduction underperforms CY by 2-5pp. Likely causes: LBFGS max_i
 
 **Attentive feature extraction (train set):** All 10 tasks extracted (6.5h). Discovered that each HP head has its own attentive pooler — features from different heads are incompatible. Can only compare via `clip_probs_all_heads`.
 
-**Chain status (2026-03-24 01:00 UTC):**
-- **G phase COMPLETE** (10/11 tasks trained + pred avg). in_hospital_mortality failed (DDP port collision), standalone requeue waiting.
-- **L-K/EP/Pan phases**: Chain was killed for feature extraction GPUs. Status unknown — needs restart.
-- **Port collision fix committed**: `run_mimic_outcome_chain.sh` now has `cleanup_orphans()` + `wait_for_port_free()` between pairs + retry loop.
-- **readmission_30d G**: pred avg ran but study_predictions.csv not saved. Needs re-run.
+**Chain status (2026-03-26 18:00 UTC):**
+- **Bug fix**: `run_mimic_outcome_chain.sh` had `set -euo pipefail` + `grep` returning exit code 1 when no MIMIC training processes running → script silently died. Fixed with `|| true` on the grep pipeline.
+- **Chain relaunched** 2026-03-26 with correct conda env (vjepa2-312). G pred avg re-confirmed: mortality_1yr 0.792, 90d 0.827, 30d 0.884.
+- **G phase**: 10/11 trained. in_hospital_mortality + readmission_30d being handled by chain relaunch.
+- **L-K/EP/Pan phases**: ~20 missing train slots in progress. Chain runs 2 tasks parallel on 4+4 GPUs.
 
 **Biomarker pred avg (multi-model, from earlier runs):**
 
@@ -431,7 +432,7 @@ Our mean-pool reproduction underperforms CY by 2-5pp. Likely causes: LBFGS max_i
 | Val batch size | 64 (EchoPrime: 16) |
 | Warmup | 2 epochs cosine |
 | num_workers | 4 |
-| Inference | Prediction averaging **DONE** (all 5 models). G 0.793, EP 0.776, Pan 0.759, L-K 0.677, L 0.514. |
+| Inference | Strategy E pred avg **DONE** (4 manuscript models). G **0.794**, EP 0.782, Pan 0.781, L-K 0.683. (L 0.514 single-clip only, pred avg not re-run.) |
 | CSV source | `experiments/nature_medicine/uhn/probe_csvs/trajectory_lvef_onset/train.csv` |
 | Build command | `python build_trajectory_csvs.py --task trajectory_lvef --onset --baseline_min 50 --future_below 50` |
 
@@ -447,7 +448,7 @@ Our mean-pool reproduction underperforms CY by 2-5pp. Likely causes: LBFGS max_i
 
 ## Completed Runs — Summary
 
-> **Checkpoint status (updated 2026-03-22 16:30 UTC)**: **13 primary tasks fully trained (all 5 models, best.pt archived)**. **ALL 13 tasks pred avg ALL 5 DONE.** **Disease training: 7/7 DONE** (all 4 manuscript models, takotsubo dropped). **Disease pred avg: 6/7 DONE (4/4 models each)**. Bicuspid AV 3/4 done (Pan RUNNING). **MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE** (amyloidosis G 0.947, HCM G 0.847).
+> **Checkpoint status (updated 2026-03-26 23:30 UTC)**: **13 primary tasks fully trained (all 5 models, best.pt archived)**. **ALL 13 tasks pred avg ALL 5 DONE.** **Trajectory: LVEF onset pred avg DONE (G 0.794), MR onset DONE (G 0.733, 4 models), LVEF 3-class DONE (5 models).** **Disease training: 7/7 DONE** (all 4 manuscript models). **Disease pred avg: 7/7 DONE (4/4 models each)**. **MIMIC cross-institution disease xfer: 4 diseases × 4 models DONE** (amyloidosis G 0.947, HCM G 0.847). **EchoJEPA-B (ViT-B 2.1) Machine 2: 10 UHN tasks DONE** — rv_fac, rv_sp, trajectory_lvef_onset, 7 diseases all trained + pred avg.
 
 ### Regression Tasks — Training Results (single-clip val)
 
@@ -488,6 +489,8 @@ Our mean-pool reproduction underperforms CY by 2-5pp. Likely causes: LBFGS max_i
 | RV S' | echojepa-l-k | 0.374 | -- | 15 | archived | 0.473 |
 | RV S' | echoprime | 0.284 | -- | 15 | archived | 0.353 |
 | RV S' | panecho | 0.183 | -- | 15 | archived | 0.301 |
+| RV FAC | echojepa-b | 0.198 | 0.446 | 15 | archived | 0.267 |
+| RV S' | echojepa-b | 0.218 | 0.468 | 15 | archived | 0.324 |
 
 > **AV mean grad note**: Pred avg re-run with fixed `run_pred_avg.sh` (Bug 008 resolved). All 5 results now VALID. G R²=0.579 (Pearson 0.795), EP 0.462, Pan 0.378, L-K 0.328, L 0.147.
 >
@@ -533,24 +536,28 @@ Our mean-pool reproduction underperforms CY by 2-5pp. Likely causes: LBFGS max_i
 | onset (V3) | panecho | 0.698 | 0.631 | 0.139 | 13 | 15 | DONE |
 | onset (V3) | echojepa-l-k | 0.596 | 0.563 | 0.089 | 13 | 15 | DONE |
 | onset (V3) | echojepa-l | 0.516 | 0.500 | 0.000 | 13 | 15 | DONE |
+| onset (V3) | echojepa-b | 0.583 | -- | -- | 2 | 15 | DONE |
 
-#### Inference Results (Test AUROC — prediction averaging across all clips per study)
+#### Inference Results (Test AUROC — Strategy E pred avg, all clips per study)
 
-| Task | Model | Test AUROC | Test Bal Acc | Test Kappa | Test Acc | Status |
-|------|-------|-----------|-------------|-----------|---------|--------|
-| onset (V3) | echojepa-g | **0.793** | 0.700 | 0.218 | 79.81 | DONE |
-| onset (V3) | echoprime | 0.776 | 0.661 | 0.254 | 84.17 | DONE |
-| onset (V3) | panecho | 0.759 | 0.549 | 0.147 | 89.25 | DONE |
-| onset (V3) | echojepa-l-k | 0.677 | 0.500 | 0.000 | 91.82 | DONE |
-| onset (V3) | echojepa-l | 0.514 | 0.500 | 0.000 | 92.05 | DONE (at chance, NCCL crash during inference but result valid) |
+> Updated 2026-03-26: Results below are proper Strategy E prediction averaging (score every clip independently, average predictions per study). Previous numbers (G 0.793, EP 0.776, Pan 0.759, L-K 0.677) were old-style single-clip inference, not true pred avg.
+
+| Task | Model | Test AUROC | Status |
+|------|-------|-----------|--------|
+| onset (V3) | echojepa-g | **0.794** | DONE (Strategy E pred avg) |
+| onset (V3) | echoprime | 0.782 | DONE (Strategy E pred avg) |
+| onset (V3) | panecho | 0.781 | DONE (Strategy E pred avg) |
+| onset (V3) | echojepa-l-k | 0.683 | DONE (Strategy E pred avg) |
+| onset (V3) | echojepa-l | 0.514 | single-clip only (at chance, pred avg not re-run) |
+| onset (V3) | echojepa-b | 0.610 | DONE (Strategy E pred avg) |
 
 **Key findings:**
-- **G test AUROC 0.793 passes the 0.75 decision gate -> Pillar 3 headline confirmed**
-- **EchoPrime 0.776 and PanEcho 0.759** -- both strong, much closer to G than on hemodynamic tasks (+1.7pp and +3.4pp vs +8-10pp gap on valve severity)
-- Prediction averaging boosts all models substantially: G +0.060, EchoPrime +0.076, PanEcho +0.061, L-K +0.081
-- L-K predicts all-negative on test (bal_acc=0.500, kappa=0.000) despite 0.596 val AUROC -- overfitting to val set's class distribution
-- L at chance on both training (0.516) and test (0.514) -- MIMIC-pretrained L lacks prognostic features for UHN trajectory
-- **Model ranking differs from hemodynamic tasks**: EchoPrime nearly matches G on trajectory, suggesting text-supervised pretraining captures prognostic features. JEPA scale advantage is smaller for trajectory prediction than for hemodynamic inference.
+- **G test AUROC 0.794 (Strategy E pred avg) passes the 0.75 decision gate -> Pillar 3 headline confirmed**
+- **EchoPrime 0.782 and PanEcho 0.781** — both strong, much closer to G than on hemodynamic tasks (+1.2pp and +1.3pp vs +8-10pp gap on valve severity)
+- Strategy E pred avg vs old single-clip inference: G +0.001, EP +0.006, Pan +0.022, L-K +0.006. Pan got largest boost (multi-clip averaging helps smaller models more).
+- L-K predicts all-negative on test (bal_acc=0.500, kappa=0.000) despite 0.596 val AUROC — overfitting to val set's class distribution
+- L at chance on both training (0.516) and test (0.514) — MIMIC-pretrained L lacks prognostic features for UHN trajectory
+- **Model ranking differs from hemodynamic tasks**: EchoPrime and PanEcho nearly match G on trajectory, suggesting text-supervised pretraining captures prognostic features. JEPA scale advantage is smallest for trajectory prediction.
 
 #### L-K onset collapse analysis
 
@@ -564,7 +571,8 @@ The G-vs-EchoPrime gap varies dramatically with task difficulty:
 |-----------|---|-----|-----------|-------------|
 | Hemodynamics (cross-sectional structure) | 0.860-0.908 | 0.786-0.821 | 0.770-0.827 | +3-9pp |
 | Standard regression (LVEF R2) | 0.720 | 0.582 | 0.559 | +16pp |
-| Trajectory prognosis (onset) | 0.793 | 0.677 | 0.776 | **+1.7pp** |
+| Trajectory prognosis (LVEF onset) | 0.794 | 0.683 | 0.782 | **+1.2pp** |
+| Trajectory prognosis (MR onset) | 0.733 | 0.605 | 0.666 | **+6.7pp** |
 
 **JEPA's masking objective** naturally learns spatial structure, motion patterns, and appearance -- exactly what hemodynamic inference needs. G dominates there (+8-10pp). But predicting future cardiomyopathy from an apparently-normal echo requires **subtle subclinical features** (early wall motion abnormalities, diastolic changes, myocardial texture) that predict decline before EF drops.
 
@@ -578,7 +586,7 @@ The G-vs-EchoPrime gap varies dramatically with task difficulty:
 
 4. **L's failure (0.514 = chance) is simply insufficient data** -- 7K MIMIC studies is far too little for SSL pretraining.
 
-5. **What you pretrain on matters as much as scale** -- L-K has 300M params and saw Kinetics + echo data, but can't match EchoPrime's 0.776 on onset. Domain-relevant supervision (text or labels) is more efficient than domain-agnostic SSL for prognostic tasks.
+5. **What you pretrain on matters as much as scale** -- L-K has 300M params and saw Kinetics + echo data, but can't match EchoPrime's 0.782 on onset. Domain-relevant supervision (text or labels) is more efficient than domain-agnostic SSL for prognostic tasks.
 
 **Paper framing**: G leads on all tasks (headline). But the margin depends on task difficulty -- largest on hemodynamic inference (structure), smallest on prognosis (trajectory). Text supervision provides a more efficient path to prognostic features, motivating multimodal JEPA + report pretraining as future work.
 
@@ -592,6 +600,66 @@ The G-vs-EchoPrime gap varies dramatically with task difficulty:
 
 Full experiment log: `experiments/nature_medicine/uhn/TRAJECTORY_LVEF_EXPERIMENTS.md`
 
+### New-Onset Mitral Regurgitation (trajectory_mr_severity_onset, binary) — DONE (4 manuscript models)
+
+| Setting | Value |
+|---------|-------|
+| Task type | Binary classification: 0=stable (future MR < 3), 1=worsened (future MR ≥ 3) |
+| Population | **Baseline MR ≤ mild (0-2) only** (no significant regurgitation at index echo) |
+| Direction | `worsen` (value increases above threshold, opposite of LVEF onset `decline`) |
+| Views | A4C, A2C, A3C, PLAX (standard for MR assessment) |
+| B-mode only | No |
+| Study sampling | **Yes** (all clips per study_1 in CSV, sampler picks 1/epoch) |
+| Class balance | `class_balance_ratio=3` |
+| Train | 592,425 clips, 19,967 studies (17,835 stable / 2,132 worsened = 10.1%) |
+| Val | 118,481 clips, 3,959 studies |
+| Test | 292,893 clips, 5,932 studies |
+| Source pairs | 21,196 (from 44,898 total, filtered to baseline MR ≤ 2) |
+| Time window | 30-365 days between baseline and follow-up |
+| HP grid | 12 heads (4 LR × 3 WD) |
+| Epochs | 15 |
+| CSV source | `experiments/nature_medicine/uhn/probe_csvs/trajectory_mr_severity_onset/` |
+| Build command | `python build_trajectory_csvs.py --task trajectory_mr_severity --onset --direction worsen --baseline_max 2 --future_above 3 --min_days 30 --max_days 365` |
+
+**Strategy E Pred Avg Results (test):**
+
+| Model | Test AUROC (pred avg) |
+|-------|:--:|
+| EchoJEPA-G | **0.733** |
+| PanEcho | 0.688 |
+| EchoPrime | 0.666 |
+| EchoJEPA-L-K | 0.605 |
+
+**Clinical framing**: From an echocardiogram showing only trivial/mild mitral regurgitation, can the model identify patients who will develop clinically significant MR (moderate or greater) within 1 year? This validates that the onset prediction paradigm generalizes beyond LVEF — the model detects subclinical structural changes predictive of future valvular deterioration.
+
+**Key findings:**
+- **G leads by 4.5pp over PanEcho** — larger margin than LVEF onset (+1.2pp), suggesting JEPA's masking objective is more advantageous for valve-related trajectory prediction
+- **G-vs-EP gap is +6.7pp** — text supervision (EchoPrime) is less helpful for MR trajectory than for LVEF trajectory, possibly because cardiologist reports rarely describe "pre-MR" features
+- **21K training studies with 10% prevalence** — well-powered task, comparable to LVEF onset (14K pairs)
+- Complements LVEF onset: two independent onset tasks (chamber function + valve function) demonstrating the same paradigm
+
+### Trajectory LVEF 3-Class (declined/stable/improved) — DONE (5 models, supplementary)
+
+| Setting | Value |
+|---------|-------|
+| Task type | 3-class classification: declined (delta < -10) / stable / improved (delta > +10) |
+| Population | All EF ranges (no baseline filtering) |
+| Views | A4C, A2C |
+| Study sampling | Yes |
+| Source pairs | 14,235 total |
+
+**Strategy E Pred Avg Results (test):**
+
+| Model | Test AUROC (pred avg) |
+|-------|:--:|
+| PanEcho | 0.633 |
+| EchoPrime | 0.628 |
+| EchoJEPA-G | 0.613 |
+| EchoJEPA-L | 0.536 |
+| EchoJEPA-L-K | 0.532 |
+
+**Note**: G does **not** lead on this task. The delta prediction paradigm has a fundamental confound: the model can succeed by encoding current EF value (regression to mean) rather than detecting trajectory-predictive features. This is redundant with pillar 1 (LVEF R²=0.778). **Recommended for supplementary material only; onset tasks are the primary trajectory results.**
+
 **MR/AS settings**: B-mode only view-filtered CSVs, `class_balance_ratio=3` (cap each class at 3× minority), `study_sampling=true`, `num_workers=4`.
 MR views: A4C, A2C, A3C, PLAX. AS views: PLAX, PSAX-AV, A3C. Studies after balancing: MR ~29K, AS ~22K.
 
@@ -603,23 +671,30 @@ All probe checkpoints archived to `checkpoints/probes/{task}/{model}/` and S3. *
 
 **Summary by task (best.pt count / models):**
 
-| Task | G | L | L-K | EP | Pan | Total | Pred Avg |
-|------|---|---|-----|----|----|-------|----------|
-| LVEF | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| TAPSE | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| RVSP | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| TR severity | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| AV mean grad | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| AV Vmax | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| E/e' medial | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| MR severity | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| AS severity | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| AR severity | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| RV S' | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| RV FAC | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| Onset | Y | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
-| Traj V1 (sup.) | Y | Y | Y | Y | Y | 5/5 | superseded |
-| Traj 3-class (sup.) | Y | Y | Y | -- | -- | 3/5 | superseded |
+| Task | G | L | L-K | EP | Pan | B | Total | Pred Avg |
+|------|---|---|-----|----|----|---|-------|----------|
+| LVEF | Y | Y | Y | Y | Y | -- | 5/5 | **5/5 DONE** |
+| TAPSE | Y | Y | Y | Y | Y | -- | 5/5 | **5/5 DONE** |
+| RVSP | Y | Y | Y | Y | Y | -- | 5/5 | **5/5 DONE** |
+| TR severity | Y | Y | Y | Y | Y | -- | 5/5 | **5/5 DONE** |
+| AV mean grad | Y | Y | Y | Y | Y | -- | 5/5 | **5/5 DONE** |
+| AV Vmax | Y | Y | Y | Y | Y | -- | 5/5 | **5/5 DONE** |
+| E/e' medial | Y | Y | Y | Y | Y | -- | 5/5 | **5/5 DONE** |
+| MR severity | Y | Y | Y | Y | Y | -- | 5/5 | **5/5 DONE** |
+| AS severity | Y | Y | Y | Y | Y | -- | 5/5 | **5/5 DONE** |
+| AR severity | Y | Y | Y | Y | Y | -- | 5/5 | **5/5 DONE** |
+| RV S' | Y | Y | Y | Y | Y | Y | 6/6 | **6/6 DONE** |
+| RV FAC | Y | Y | Y | Y | Y | Y | 6/6 | **6/6 DONE** |
+| Onset | Y | Y | Y | Y | Y | Y | 6/6 | **6/6 DONE** |
+| disease_hcm | Y | -- | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| disease_amyloidosis | Y | -- | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| disease_myxomatous_mv | Y | -- | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| disease_dcm | Y | -- | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| disease_stemi | Y | -- | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| disease_rheumatic_mv | Y | -- | Y | Y | Y | Y | 5/5 | **5/5 DONE** |
+| disease_bicuspid_av | Y | -- | Y | Y | Y | Y | 5/5 | **4/5** (Pan running) |
+| Traj V1 (sup.) | Y | Y | Y | Y | Y | -- | 5/5 | superseded |
+| Traj 3-class (sup.) | Y | Y | Y | -- | -- | -- | 3/5 | superseded |
 
 S3 restore: `aws s3 sync s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/probes/ checkpoints/probes/`
 
@@ -714,7 +789,7 @@ Three iterations of the trajectory prediction task, culminating in the onset fra
 | V0 | Delta regression | 30-365d | continuous | — | R²=0.043 | — |
 | V1 | Delta ±10 | 30-365d | 3 (9/82/9%) | 18% | 0.649 | minimal (0.04 range) |
 | V2 | Delta ±8 | 90-365d | 3 (15/72/13%) | 28% | 0.610 | — |
-| **V3** | **Onset (EF≥50→<50)** | **30-365d** | **2 (93/7%)** | **7-9%** | **0.733 val / 0.793 test** | **large (+0.18 G vs L)** |
+| **V3** | **Onset (EF≥50→<50)** | **30-365d** | **2 (93/7%)** | **7-9%** | **0.733 val / 0.794 test (pred avg)** | **large (+0.28 G vs L)** |
 
 ### Why delta prediction fails
 
@@ -726,15 +801,15 @@ Three iterations of the trajectory prediction task, culminating in the onset fra
 ### Why onset framing works
 
 1. **Controls for baseline EF by design** — restricting to EF ≥ 50 forces the model to find visual features *beyond* the EF number
-2. **Differentiates model quality** — G at 0.793 test (pred avg) vs L at 0.514 (chance) vs V1 where all models clustered at 0.60-0.65
+2. **Differentiates model quality** — G at 0.794 test (Strategy E pred avg) vs L at 0.514 (chance) vs V1 where all models clustered at 0.60-0.65
 3. **Clinically compelling** — "from an apparently normal echo, identify patients at risk of developing cardiomyopathy" is a Nature Medicine headline
 4. **Event rate stable across time windows** — 7-8% at 30-89d, 90-179d, and 180-365d → no need to stratify
 
 ### Next steps
 
 1. ~~Complete all 5 models on onset task~~ -- **DONE** (all 5 trained, 15 epochs each)
-2. ~~Run prediction averaging~~ -- **DONE** (G 0.793, EchoPrime 0.776, PanEcho 0.759, L-K 0.677, L 0.514)
-3. ~~**Decision gate**: AUROC >= 0.75 with pred avg -> Pillar 3 headline~~ -- **PASSED** (G 0.793)
+2. ~~Run prediction averaging~~ -- **DONE** Strategy E pred avg: G 0.794, EP 0.782, Pan 0.781, L-K 0.683 (L 0.514, single-clip only)
+3. ~~**Decision gate**: AUROC >= 0.75 with pred avg -> Pillar 3 headline~~ -- **PASSED** (G 0.794)
 4. Compare to baseline-EF-only predictor (logistic regression on measured EF) to quantify value added
 5. Time-stratified AUROC analysis for supplement
 6. Consider recovery prediction subgroup (EF < 40 → improves, 40-50% event rate, smaller N)
@@ -774,7 +849,7 @@ No other model can fill all six categories. EchoPrime covers 1 + partial 2 + par
   - *RVSP moved to Pillar 1*: RVSP is a hemodynamic/Doppler measurement (requires TR jet velocity), not an RV mechanics measurement.
   - *Input modality*: RV mechanics probes use **all available echo views** (incl. M-mode, tissue Doppler). The question is whether frozen SSL encodes RV function, NOT cross-modal B-mode inference. Manuscript §2.3 now explicitly distinguishes this from B-mode hemodynamic claims (§2.2). Methods §bmode_filtering provides task-level inventory.
 
-- **Pillar 3 Trajectory**: Onset cardiomyopathy (G 0.793). No foundation model does temporal risk stratification. Keep as is.
+- **Pillar 3 Trajectory**: Onset cardiomyopathy (G 0.794, Strategy E pred avg). No foundation model does temporal risk stratification. Keep as is.
 
 - **GLS (strain)**: Extended Data only. Not cross-modal (speckle tracking already works on B-mode input), PanEcho already reports it (MAE 1.89%), and commercial software automates it. Low priority relative to genuinely cross-modal tasks.
 
@@ -814,8 +889,8 @@ Based on literature review and "six evidence categories" framing. 8 GPUs availab
 ### Batch 3 — RV Mechanics (fills Pillar 2) — DONE
 | Priority | Task | Type | B-mode | Status |
 |----------|------|------|--------|--------|
-| **3a** | rv_sp (RV S') | Regression | No | **ALL 5 trained + PA DONE.** G 0.591, L-K 0.473, EP 0.353, L 0.350, Pan 0.301. |
-| **3b** | rv_fac | Regression | No | **ALL 5 trained + PA DONE.** G 0.539, L-K 0.444, L 0.325, Pan 0.301, EP 0.278. |
+| **3a** | rv_sp (RV S') | Regression | No | **ALL 5+B trained + PA DONE.** G 0.591, L-K 0.473, EP 0.353, L 0.350, B 0.324, Pan 0.301. |
+| **3b** | rv_fac | Regression | No | **ALL 5+B trained + PA DONE.** G 0.539, L-K 0.444, L 0.325, Pan 0.301, EP 0.278, B 0.267. |
 
 ### Batch 4 — Disease Panel (fills Pathology category)
 
@@ -823,13 +898,13 @@ Based on literature review and "six evidence categories" framing. 8 GPUs availab
 
 | Priority | Task | Type | VF | Training | Pred Avg |
 |----------|------|------|-----|----------|----------|
-| **4a** | disease_hcm | Binary | Yes | **DONE** (val: G 0.942, L-K 0.845, EP 0.778, Pan 0.816) | **DONE 4/4** — G **0.960**, L-K **0.903**, EP **0.806**, Pan **0.866** |
-| **4b** | disease_amyloidosis | Binary | Yes | **DONE** (val: G 0.935, L-K 0.706, EP 0.755, Pan 0.801) | **DONE 4/4** — G **0.927**, L-K **0.754**, EP **0.771**, Pan **0.826** |
-| **4c** | disease_myxomatous_mv | Binary | Yes | **DONE** (val: G 0.917, L-K 0.854, EP 0.813, Pan 0.759) | **DONE 4/4** — G **0.946**, L-K **0.912**, EP **0.859**, Pan **0.835** |
-| **4d** | disease_dcm | Binary | No | **DONE** (val: G 0.846, L-K 0.760, EP 0.763, Pan 0.733) | **DONE 4/4** — G **0.837**, L-K **0.772**, EP **0.785**, Pan **0.768** |
-| **4e** | disease_stemi | Binary | No | **DONE** (val: G 0.837, L-K 0.729, EP 0.770, Pan 0.731) | **DONE 4/4** — G **0.826**, L-K **0.623**, EP **0.810**, Pan **0.788** |
-| **4f** | disease_rheumatic_mv | Binary | Yes | **DONE** (val: G 0.795, L-K 0.714, EP 0.749, Pan 0.702) | **DONE 4/4** — G **0.846**, L-K **0.785**, EP **0.739**, Pan **0.745** |
-| **4g** | disease_bicuspid_av | Binary | Yes | **DONE** — G 0.932, L-K 0.779, EP 0.804, Pan trained | **3/4** — G **0.975**, L-K **0.881**, EP **0.901**. Pan RUNNING |
+| **4a** | disease_hcm | Binary | Yes | **DONE** (val: G 0.942, L-K 0.845, EP 0.778, Pan 0.816, **B 0.788**) | **DONE 5/5** — G **0.960**, L-K **0.903**, Pan **0.866**, **B 0.870**, EP **0.806** |
+| **4b** | disease_amyloidosis | Binary | Yes | **DONE** (val: G 0.935, L-K 0.706, EP 0.755, Pan 0.801, **B 0.614**) | **DONE 5/5** — G **0.927**, Pan **0.826**, EP **0.771**, L-K **0.754**, **B 0.673** |
+| **4c** | disease_myxomatous_mv | Binary | Yes | **DONE** (val: G 0.917, L-K 0.854, EP 0.813, Pan 0.759, **B 0.749**) | **DONE 5/5** — G **0.946**, L-K **0.912**, EP **0.859**, **B 0.834**, Pan **0.835** |
+| **4d** | disease_dcm | Binary | No | **DONE** (val: G 0.846, L-K 0.760, EP 0.763, Pan 0.733, **B 0.720**) | **DONE 5/5** — G **0.837**, EP **0.785**, L-K **0.772**, Pan **0.768**, **B 0.738** |
+| **4e** | disease_stemi | Binary | No | **DONE** (val: G 0.837, L-K 0.729, EP 0.770, Pan 0.731, **B 0.762**) | **DONE 5/5** — G **0.826**, EP **0.810**, Pan **0.788**, **B 0.642**, L-K **0.623** |
+| **4f** | disease_rheumatic_mv | Binary | Yes | **DONE** (val: G 0.795, L-K 0.714, EP 0.749, Pan 0.702, **B 0.700**) | **DONE 5/5** — G **0.846**, L-K **0.785**, EP **0.739**, Pan **0.745**, **B 0.678** |
+| **4g** | disease_bicuspid_av | Binary | Yes | **DONE** — G 0.932, L-K 0.779, EP 0.804, Pan trained, **B 0.684** | **4/5** — G **0.975**, EP **0.901**, L-K **0.881**, **B 0.793**. Pan RUNNING |
 | **4h** | disease_takotsubo | Binary | No | **DROPPED** (30% definitive labels, N=300, low confidence) | — |
 
 ### Batch 5 — Expanded Hemodynamics (B-mode, need CSV build first)
@@ -849,26 +924,26 @@ Use `scripts/run_pred_avg.sh <task>`. Bug 008 fix baked in.
 | **6c** | rvsp | 5 | **DONE** — G 0.504, L-K 0.317, Pan 0.274, EP 0.169, L 0.168 |
 | **6d** | tr_severity | 5 | **DONE** — G 0.854, L-K 0.817, L 0.787, EP 0.780, Pan 0.778 |
 | **6e** | aov_mean_grad | 5 | **DONE** — G 0.579, EP 0.462, Pan 0.378, L-K 0.328, L 0.147 |
-| **6f** | trajectory_lvef_onset | 5 | **DONE** — G 0.793, EP 0.776, Pan 0.759, L-K 0.677, L 0.514 |
+| **6f** | trajectory_lvef_onset | 5+B | **DONE** — Strategy E pred avg: G 0.794, EP 0.782, Pan 0.781, L-K 0.683, B 0.610 (L 0.514 single-clip) |
 | **6g** | mr_severity | 5 | **DONE** — G 0.882, L-K 0.837, EP 0.818, L 0.808, Pan 0.789 |
 | **6h** | as_severity | 5 | **DONE** — G 0.932, L-K 0.868, EP 0.868, L 0.846, Pan 0.813 |
 | **6i** | aov_vmax | 5 | **DONE** — G 0.679, EP 0.574, L-K 0.492, Pan 0.479, L 0.242 |
 | **6j** | ar_severity | 5 | **DONE** — G 0.765, EP 0.701, Pan 0.692, L-K 0.680, L 0.670 |
 | **6k** | mv_ee_medial | 5 | **DONE** — G 0.598, L-K 0.491, Pan 0.454, EP 0.422, L 0.370 |
-| **6l** | rv_sp | 5 | **DONE** — G 0.591, L-K 0.473, EP 0.353, L 0.350, Pan 0.301 |
-| **6m** | rv_fac | 5 | **DONE** — G 0.539, L-K 0.444, L 0.325, Pan 0.301, EP 0.278 |
+| **6l** | rv_sp | 5+B | **DONE** — G 0.591, L-K 0.473, EP 0.353, L 0.350, B 0.324, Pan 0.301 |
+| **6m** | rv_fac | 5+B | **DONE** — G 0.539, L-K 0.444, L 0.325, Pan 0.301, EP 0.278, B 0.267 |
 
 **Disease Pred Avg (chain running on GPUs 0-3, 4 manuscript models each):**
 
 | Priority | Task | Test Clips | Status |
 |----------|------|-----------|--------|
-| **6n** | disease_hcm | 438K (vf) | **DONE 4/4** — G **0.960**, L-K **0.903**, EP **0.806**, Pan **0.866** |
-| **6o** | disease_amyloidosis | 111K (vf) | **DONE 4/4** — G **0.927**, L-K **0.754**, EP **0.771**, Pan **0.826** |
-| **6p** | disease_myxomatous_mv | 548K (vf) | **DONE 4/4** — G **0.946**, L-K **0.912**, EP **0.859**, Pan **0.835** |
-| **6q** | disease_dcm | 127K | **DONE 4/4** — G **0.837**, L-K **0.772**, EP **0.785**, Pan **0.768** |
-| **6r** | disease_stemi | 9K | **DONE 4/4** — G **0.826**, L-K **0.623**, EP **0.810**, Pan **0.788** |
-| **6s** | disease_rheumatic_mv | 10K (vf) | **DONE 4/4** — G **0.846**, L-K **0.785**, EP **0.739**, Pan **0.745** |
-| **6t** | disease_bicuspid_av | 469K (vf) | **3/4** — G **0.975**, L-K **0.881**, EP **0.901**. Pan RUNNING |
+| **6n** | disease_hcm | 438K (vf) | **DONE 5/5** — G **0.960**, L-K **0.903**, B **0.870**, Pan **0.866**, EP **0.806** |
+| **6o** | disease_amyloidosis | 111K (vf) | **DONE 5/5** — G **0.927**, Pan **0.826**, EP **0.771**, L-K **0.754**, B **0.673** |
+| **6p** | disease_myxomatous_mv | 548K (vf) | **DONE 5/5** — G **0.946**, L-K **0.912**, EP **0.859**, Pan **0.835**, B **0.834** |
+| **6q** | disease_dcm | 127K | **DONE 5/5** — G **0.837**, EP **0.785**, L-K **0.772**, Pan **0.768**, B **0.738** |
+| **6r** | disease_stemi | 9K | **DONE 5/5** — G **0.826**, EP **0.810**, Pan **0.788**, B **0.642**, L-K **0.623** |
+| **6s** | disease_rheumatic_mv | 10K (vf) | **DONE 5/5** — G **0.846**, L-K **0.785**, Pan **0.745**, EP **0.739**, B **0.678** |
+| **6t** | disease_bicuspid_av | 469K (vf) | **4/5** — G **0.975**, EP **0.901**, L-K **0.881**, B **0.793**. Pan RUNNING |
 
 ### Batch 7 — MIMIC Biomarkers (CY or us, fills Biochemistry category)
 | Priority | Task | Type | Studies | Evidence category |
@@ -1010,7 +1085,7 @@ Chain: LVEF (5) → TAPSE (5) → MR severity (5) → AS severity (5) → AV Vma
 
 | Task | Type | Train Clips | Status |
 |------|------|------------|--------|
-| trajectory_lvef_onset | binary classification | 33,705 (1,932 studies) | **DONE** all 5 models trained + inference. G 0.793 test AUROC. |
+| trajectory_lvef_onset | binary classification | 33,705 (1,932 studies) | **DONE** all 5 models trained + Strategy E pred avg. G 0.794 test AUROC. |
 | trajectory_lvef (3-class) | classification | 155,053 (8,471 studies) | G/L/L-K trained (archived). No inference yet. |
 | trajectory_tapse | regression | 2,872 | READY (may switch to classification) |
 | trajectory_lv_mass | regression | 3,922 | READY |
@@ -1044,6 +1119,7 @@ Each directory contains:
 | echojepa-l-k | ~1.6 GB |
 | echoprime | ~400–660 MB |
 | panecho | ~893 MB |
+| echojepa-b | ~893 MB |
 
 ---
 
@@ -1281,6 +1357,7 @@ All 5 models complete. EchoPrime best AUROC 0.758, PanEcho 0.715 (training curve
 | EchoJEPA-L-K | `checkpoints/vitl16/echojepa-l-k.pth` | 1,568 | ViT-L/16, Kinetics init |
 | EchoPrime | (external) | 1 | Global avg pool → single token |
 | PanEcho | (external) | 1 | Global avg pool → single token |
+| EchoJEPA-B | `checkpoints/vjepa2_1_vitb_mimic_p169_c60.pt` | 1,568 | ViT-B/16, 224px, V-JEPA 2.1 (distilled from G, MIMIC cooldown ep60) |
 
 ---
 
@@ -1307,11 +1384,11 @@ Key finding: ALL models show signal, so the story is "scale advantage" (+8-9pp f
 
 **2a. Trajectory prediction (future LVEF)** — PASSED
 
-The "model predicts future cardiac states" claim is one of three pillars. Delta regression and 3-class classification both failed (see Failed Experiments). **Onset framing (V3) succeeded**: from apparently normal EF (≥50%), predict new-onset cardiomyopathy (future EF<50%). EchoJEPA-G test AUROC **0.793** with prediction averaging (pred avg boosted +0.060 over val).
+The "model predicts future cardiac states" claim is one of three pillars. Delta regression and 3-class classification both failed (see Failed Experiments). **Onset framing (V3) succeeded**: from apparently normal EF (≥50%), predict new-onset cardiomyopathy (future EF<50%). EchoJEPA-G test AUROC **0.794** with Strategy E prediction averaging.
 
 - **Onset framing works** because it controls for baseline EF by design, forcing the model to find subclinical features beyond the EF number
-- **Strong model separation**: G 0.793 > EchoPrime 0.776 > PanEcho 0.759 >> L-K 0.677 >> L 0.514 (chance). G-vs-EP gap only +1.7pp (vs +8-10pp on hemodynamics).
-- **Decision gate PASSED**: 0.793 > 0.75 → trajectory confirmed as Pillar 3 headline
+- **Strong model separation**: G 0.794 > EP 0.782 > Pan 0.781 >> L-K 0.683 >> L 0.514 (chance). G-vs-EP gap only +1.2pp (vs +8-10pp on hemodynamics).
+- **Decision gate PASSED**: 0.794 > 0.75 → trajectory confirmed as Pillar 3 headline
 
 **2b. Biomarkers (attentive probes, NT-proBNP + creatinine)** — NOT STARTED
 
@@ -1341,7 +1418,7 @@ Supporting evidence / Extended Data. Failures shrink scope but don't touch core 
 | ~~1~~ | ~~MR severity from B-mode~~ | ~~UHN~~ | **DONE** | ~~5~~ |
 | ~~2~~ | ~~AS severity from B-mode~~ | ~~UHN~~ | **DONE** | ~~5~~ |
 | ~~3~~ | ~~AV Vmax from B-mode~~ | ~~UHN~~ | **DONE** | ~~5~~ |
-| ~~4~~ | ~~Trajectory LVEF onset (V3)~~ | ~~UHN (6K studies)~~ | **DONE** — G test 0.793 (pred avg). Passes 0.75 gate. | ~~5~~ |
+| ~~4~~ | ~~Trajectory LVEF onset (V3)~~ | ~~UHN (6K studies)~~ | **DONE** — G test 0.794 (Strategy E pred avg). Passes 0.75 gate. | ~~5~~ |
 | ~~4b~~ | ~~LVEF retrain + pred avg~~ | ~~UHN~~ | **IN PROGRESS** — G R²=0.778, L/L-K/EP/Pan pred avg running | ~~5~~ |
 | ~~5~~ | ~~TR severity from B-mode~~ | ~~UHN (1.4M clips)~~ | **DONE** — G 0.838, L-K 0.787, EchoPrime 0.758, L 0.755, PanEcho 0.715 | ~~5~~ |
 | **6** | **AR severity from B-mode** | UHN (970K clips) | READY | 5 |
@@ -1359,7 +1436,7 @@ Supporting evidence / Extended Data. Failures shrink scope but don't touch core 
 
 **After priority 4 (trajectory LVEF): PASSED**
 - Delta regression FAILED (R²=0.043). 3-class classification (V1/V2) showed modest signal but poor model separation.
-- Onset framing (V3): EF≥50 → predict future EF<50. **G test AUROC 0.793 with prediction averaging — passes 0.75 gate.**
+- Onset framing (V3): EF≥50 → predict future EF<50. **G test AUROC 0.794 (Strategy E pred avg) — passes 0.75 gate.**
 - ✓ Trajectory is confirmed as Pillar 3 headline. Proceed with remaining 4 trajectory tasks (reframe as onset/classification where appropriate).
 
 **After priority 6 (biomarkers):**

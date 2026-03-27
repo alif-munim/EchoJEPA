@@ -59,7 +59,7 @@ mask:
 meta:
   dtype: bfloat16
   eval_freq: 100
-  load_checkpoint: false
+  load_checkpoint: true
   read_checkpoint: null
   save_every_freq: 5
   seed: 234
@@ -95,7 +95,7 @@ model:
 
 optimization:
   # Force-load V-JEPA 2.1 distilled ViT-L checkpoint
-  force_load_pretrain: true
+  force_load_pretrain: false
   anneal_ckpt: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/vjepa2_1_vitl.pt
   is_anneal: false
 

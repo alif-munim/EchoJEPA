@@ -115,20 +115,22 @@ Iterative experiment log for predicting future LVEF trajectory from a single bas
 | EchoJEPA-L-K | 15/15 | 0.596 |
 | EchoJEPA-L | 15/15 | 0.516 |
 
-**Test Results with Prediction Averaging** (FINAL):
+**Test Results — Strategy E Pred Avg** (FINAL, updated 2026-03-26):
 
-| Model | Test AUROC (pred avg) |
-|-------|:--:|
-| EchoJEPA-G | **0.793** |
-| EchoPrime | 0.776 |
-| PanEcho | 0.759 |
-| EchoJEPA-L-K | 0.677 |
-| EchoJEPA-L | 0.514 |
+> These are proper Strategy E prediction averaging results: every clip scored independently through the full encoder+probe pipeline, predictions averaged per study. Previous numbers (G 0.793, EP 0.776, Pan 0.759, L-K 0.677) were old-style single-clip inference.
+
+| Model | Test AUROC (Strategy E pred avg) | Old single-clip |
+|-------|:--:|:--:|
+| EchoJEPA-G | **0.794** | 0.793 |
+| EchoPrime | 0.782 | 0.776 |
+| PanEcho | 0.781 | 0.759 |
+| EchoJEPA-L-K | 0.683 | 0.677 |
+| EchoJEPA-L | 0.514 | 0.514 (single-clip only, pred avg not re-run) |
 
 **Observations**:
-- **0.793 passes the 0.75 decision gate** → Pillar 3 headline
-- **Prediction averaging added +0.06** for G (0.733 val → 0.793 test)
-- **G-vs-EchoPrime gap only +1.7pp** — dramatically smaller than hemodynamic tasks (+8-10pp). Text-supervised pretraining provides an efficient path to prognostic features.
+- **0.794 passes the 0.75 decision gate** → Pillar 3 headline
+- **Strategy E pred avg vs single-clip**: Pan got largest boost (+2.2pp), others +0.1-0.6pp. Multi-clip averaging helps smaller models disproportionately.
+- **G-vs-EchoPrime gap only +1.2pp** — dramatically smaller than hemodynamic tasks (+8-10pp). Text-supervised pretraining provides an efficient path to prognostic features.
 - **L at chance (0.514)** — 7K MIMIC studies is insufficient for SSL pretraining to learn prognostic signal
 
 **Remaining**:
@@ -144,6 +146,6 @@ Iterative experiment log for predicting future LVEF trajectory from a single bas
 | V0 | Delta regression | 30-365d | continuous | — | R²=0.043 | — |
 | V1 | Delta ±10 | 30-365d | 3 (9/82/9%) | 18% | 0.649 | minimal (0.04 range) |
 | V2 | Delta ±8 | 90-365d | 3 (15/72/13%) | 28% | 0.610 | — |
-| V3 | Onset (EF>=50 → <50) | 30-365d | 2 (93/7%) | 7-9% | **0.793 test (pred avg)** | large (+0.28 G vs L) |
+| V3 | Onset (EF>=50 → <50) | 30-365d | 2 (93/7%) | 7-9% | **0.794 test (Strategy E pred avg)** | large (+0.28 G vs L) |
 
 **Lesson**: Predicting change from a single timepoint is fundamentally limited when change is driven by external factors. Reframing as risk stratification (who will cross a clinical threshold?) yields better results because the model can leverage both current state assessment and subclinical risk features.

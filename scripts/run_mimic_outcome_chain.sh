@@ -62,6 +62,13 @@ has_checkpoint() {
     [ -f "${PROBE_DIR}/${task}/${model}/best.pt" ]
 }
 
+# --- Check if model×task has completed pred avg (study_predictions.csv exists) ---
+has_pred_avg() {
+    local task="$1" model="$2"
+    local OUT_DIR="${REPO}/evals/vitg-384/nature_medicine/mimic"
+    [ -f "${OUT_DIR}/video_classification_frozen/${task}-predavg-${model}/study_predictions.csv" ]
+}
+
 # --- Kill orphaned DDP workers (ppid=1 only — safe for concurrent jobs) ---
 cleanup_orphans() {
     ps -eo pid,ppid,args 2>/dev/null | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
@@ -186,28 +193,65 @@ for MODEL in "${ALL_MODELS[@]}"; do
         run_pair "$task_a" "$task_b" "$MODEL"
     done
 
-    # --- Retry any tasks that failed (e.g. port collision) ---
-    RETRY_TASKS=()
+    # --- Retry any tasks that failed (missing checkpoint OR missing pred avg) ---
+    RETRY_TRAIN=()
+    RETRY_PREDAVG=()
     for task in "${ALL_TASKS[@]}"; do
         if ! has_checkpoint "$task" "$MODEL"; then
-            RETRY_TASKS+=("$task")
+            RETRY_TRAIN+=("$task")
+        elif ! has_pred_avg "$task" "$MODEL"; then
+            RETRY_PREDAVG+=("$task")
         fi
     done
-    if [ ${#RETRY_TASKS[@]} -gt 0 ]; then
+
+    # Retry failed training (full process_one: train + pred avg)
+    if [ ${#RETRY_TRAIN[@]} -gt 0 ]; then
         log ""
-        log "--- RETRY: ${#RETRY_TASKS[@]} failed tasks for ${MODEL}: ${RETRY_TASKS[*]} ---"
+        log "--- RETRY TRAIN: ${#RETRY_TRAIN[@]} tasks for ${MODEL}: ${RETRY_TRAIN[*]} ---"
         cleanup_orphans
         wait_for_port_free 29500 600
         wait_for_port_free 29501 600
-        # Retry in pairs
-        for (( r=0; r<${#RETRY_TASKS[@]}; r+=2 )); do
-            rt_a="${RETRY_TASKS[$r]}"
+        for (( r=0; r<${#RETRY_TRAIN[@]}; r+=2 )); do
+            rt_a="${RETRY_TRAIN[$r]}"
             rt_b=""
-            if (( r+1 < ${#RETRY_TASKS[@]} )); then
-                rt_b="${RETRY_TASKS[$((r+1))]}"
+            if (( r+1 < ${#RETRY_TRAIN[@]} )); then
+                rt_b="${RETRY_TRAIN[$((r+1))]}"
             fi
-            log "--- Retry pair: ${rt_a} + ${rt_b:-[none]} ---"
+            log "--- Retry train pair: ${rt_a} + ${rt_b:-[none]} ---"
             run_pair "$rt_a" "$rt_b" "$MODEL"
+        done
+    fi
+
+    # Retry failed pred avg only (checkpoint exists but pred avg missing)
+    if [ ${#RETRY_PREDAVG[@]} -gt 0 ]; then
+        log ""
+        log "--- RETRY PRED AVG: ${#RETRY_PREDAVG[@]} tasks for ${MODEL}: ${RETRY_PREDAVG[*]} ---"
+        cleanup_orphans
+        wait_for_port_free 29500 600
+        wait_for_port_free 29501 600
+        for (( r=0; r<${#RETRY_PREDAVG[@]}; r+=2 )); do
+            rt_a="${RETRY_PREDAVG[$r]}"
+            rt_b=""
+            if (( r+1 < ${#RETRY_PREDAVG[@]} )); then
+                rt_b="${RETRY_PREDAVG[$((r+1))]}"
+            fi
+            log "--- Retry pred avg pair: ${rt_a} + ${rt_b:-[none]} ---"
+            pid_a="" pid_b=""
+            if [ -n "$rt_a" ]; then
+                pred_avg_one "$rt_a" "$MODEL" "cuda:0 cuda:1 cuda:2 cuda:3" 29500 &
+                pid_a=$!
+            fi
+            if [ -n "$rt_b" ]; then
+                pred_avg_one "$rt_b" "$MODEL" "cuda:4 cuda:5 cuda:6 cuda:7" 29501 &
+                pid_b=$!
+            fi
+            [ -n "$pid_a" ] && wait "$pid_a" || log "WARNING: retry pred avg ${rt_a} / ${MODEL} failed"
+            [ -n "$pid_b" ] && [ -n "$rt_b" ] && wait "$pid_b" || log "WARNING: retry pred avg ${rt_b:-} / ${MODEL} failed"
+            cleanup_orphans
+            sleep 5
+            wait_for_port_free 29500 600
+            wait_for_port_free 29501 600
+            sleep 10
         done
     fi
 

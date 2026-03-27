@@ -1,0 +1,21 @@
+{
+  "task": "trajectory_mr_severity",
+  "output_task": "trajectory_mr_severity_onset",
+  "mode": "onset_binary",
+  "direction": "worsen",
+  "classes": {
+    "0": "stable",
+    "1": "worsened"
+  },
+  "allowed_views": [
+    "A4C",
+    "A2C",
+    "A3C",
+    "PLAX"
+  ],
+  "bmode_only": false,
+  "min_days": 30,
+  "max_days": 365,
+  "baseline_max": 2.0,
+  "future_above": 3.0
+}
