@@ -137,20 +137,18 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 
 11 outcome/biomarker tasks × 4 manuscript models. d=1 attentive probe, 15-head HP grid (5 LR × 3 WD), 35 epochs, BS2, study sampling. Training: `scripts/run_mimic_probe.sh`. Pred avg: `scripts/run_mimic_pred_avg.sh`. Chain: `scripts/run_mimic_outcome_chain.sh`.
 
-**Multi-Model Pred Avg Results (study-level test metrics, updated 2026-03-27 14:00 UTC):**
+**Multi-Model Pred Avg Results (study-level test metrics, updated 2026-03-27 15:00 UTC):**
 
 Classification (AUROC):
 
 | Task | N (test) | G | L-K | EP | Pan |
 |------|----------|---|-----|-----|-----|
-| 1-yr mortality | 1,087 | **0.792** | pending† | 0.750 | 0.740 |
-| 90-day mortality | 1,087 | **0.827** | pending† | 0.772 | 0.745 |
+| 1-yr mortality | 1,087 | **0.792** | 0.779 | 0.750 | 0.740 |
+| 90-day mortality | 1,087 | **0.827** | 0.808 | 0.772 | 0.745 |
 | 30-day mortality | 1,087 | **0.884** | 0.878 | 0.817 | 0.807 |
 | in_hospital_mortality | 469 | **0.861** | 0.821 | 0.789 | 0.737 |
 | readmission_30d | 436 | 0.608 | **0.626** | 0.623 | 0.594 |
 | discharge_destination | 382 | 0.674 | 0.591 | **0.679** | 0.637 |
-
-† L-K mortality_1yr + mortality_90d pred avg running — `latest.pt` was missing (only `best.pt` from Mar 23 run), fixed with symlink.
 
 Regression (R² / Pearson):
 
@@ -162,7 +160,7 @@ Regression (R² / Pearson):
 | creatinine | 535 | **0.014 / 0.240** | 0.000 / 0.189 | -0.008 / 0.163 | -0.018 / 0.144 |
 | lactate | 154 | 0.004 / 0.211 | **0.032 / 0.293** | 0.011 / 0.225 | 0.000 / 0.161 |
 
-**Chain status**: COMPLETE (2026-03-27 14:14 UTC). All 4 models × 11 tasks trained + pred avg done, except L-K mortality_1yr + mortality_90d pred avg (running, fix: `latest.pt` symlink to `best.pt`).
+**Chain status**: COMPLETE (2026-03-27 15:01 UTC). All 4 models × 11 tasks trained + pred avg done. L-K mortality_1yr (0.779) + mortality_90d (0.808) pred avg completed after `latest.pt` symlink fix.
 
 **Comparison with CY linear probes (mean-pooled sklearn, same split):**
 
@@ -179,7 +177,7 @@ Regression (R² / Pearson):
 
 **Notable observations (2026-03-27, chain complete):**
 - **G dominates mortality** by +4-12pp over EP/Pan. Strongest: in_hospital_mortality (G 0.861 vs Pan 0.737, +12.4pp)
-- **L-K is surprisingly competitive**: beats G on readmission_30d (0.626 vs 0.608), los_remaining (R²=0.052 vs 0.038), lactate (R²=0.032 vs 0.004). L-K nearly matches G on mortality_30d (0.878 vs 0.884)
+- **L-K is surprisingly competitive**: beats G on readmission_30d (0.626 vs 0.608), los_remaining (R²=0.052 vs 0.038), lactate (R²=0.032 vs 0.004). L-K nearly matches G on mortality_30d (0.878 vs 0.884). On 1yr/90d mortality, L-K (0.779/0.808) is second-best after G (0.792/0.827)
 - **EchoPrime beats G on discharge_destination** (0.679 vs 0.674) — text-supervised pretraining helps for some non-mortality outcomes
 - **G does not universally dominate** on MIMIC outcomes. Scale advantage is clearest on mortality tasks; on other outcomes the models are much closer
 - **Biomarker R²s are uniformly low** (0.00-0.12). NT-proBNP is best (G R²=0.119, r=0.355) but test sets are tiny (n=126-535). All models show some signal but not enough for clinical utility
@@ -205,7 +203,8 @@ Our mean-pool reproduction underperforms CY by 2-5pp. Likely causes: LBFGS max_i
 - **2026-03-22**: Initial chain launched (trained G + some L-K/EP/Pan biomarkers).
 - **2026-03-26 Bug fix**: `run_mimic_outcome_chain.sh` had `set -euo pipefail` + `grep` returning exit code 1 when no MIMIC training processes running → script silently died. Fixed with `|| true` on the grep pipeline. Chain relaunched.
 - **2026-03-27 Bug fix**: Retry logic only checked for missing `best.pt`, not missing pred avg. Added `has_pred_avg()` check and separate `RETRY_PREDAVG` phase. Also created `scripts/run_mimic_predavg_retry.sh` standalone cleanup script.
-- **2026-03-27 14:14 UTC**: Chain COMPLETE — all 4 models × 11 tasks. L-K mortality_1yr + mortality_90d pred avg failed because `latest.pt` missing (Mar 23 training only saved `best.pt`). Fixed with symlink `latest.pt → best.pt`, pred avg re-running.
+- **2026-03-27 14:14 UTC**: Chain COMPLETE — all 4 models × 11 tasks. L-K mortality_1yr + mortality_90d pred avg failed because `latest.pt` missing (Mar 23 training only saved `best.pt`). Fixed with symlink `latest.pt → best.pt`.
+- **2026-03-27 15:01 UTC**: L-K mortality pred avg COMPLETE — mortality_1yr 0.779, mortality_90d 0.808. Full 4-model × 11-task matrix now done.
 
 ---
 
