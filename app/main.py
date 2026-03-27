@@ -8,6 +8,7 @@ import multiprocessing as mp
 import pprint
 from pathlib import Path
 
+import torch
 import yaml
 
 from app.scaffold import main as app_main
@@ -80,5 +81,6 @@ if __name__ == "__main__":
     else:
         num_gpus = len(args.devices)
         mp.set_start_method("spawn")
+        torch.multiprocessing.set_sharing_strategy("file_system")
         for rank in range(num_gpus):
             mp.Process(target=process_main, args=(rank, args.fname, num_gpus, args.devices)).start()
