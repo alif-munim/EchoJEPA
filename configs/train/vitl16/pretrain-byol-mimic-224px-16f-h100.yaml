@@ -16,7 +16,7 @@ data:
   datasets:
     - /opt/vjepa2/data/csv/mimic_annotations_s3.csv
   datasets_weights: [1.0]
-  batch_size: 64                    # halved from 128 (2 clips per sample = ~2x memory)
+  batch_size: 32                    # 32 for 2-node (effective 512 = 32×16 GPUs), use 64 for single-node
   crop_size: 224
   patch_size: 16
   dataset_fpcs: [16]
@@ -40,7 +40,8 @@ meta:
   eval_freq: 100
   load_checkpoint: true
   read_checkpoint: null
-  save_every_freq: 5
+  save_every_freq: 2
+  checkpoints_to_keep: 2
   seed: 234
   use_sdpa: true
 

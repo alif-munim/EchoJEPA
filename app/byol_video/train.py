@@ -93,19 +93,39 @@ logger = get_logger(__name__, force=True)
 
 def prune_local_checkpoints(folder, max_to_keep=4):
     try:
-        all_checkpoints = [f for f in os.listdir(folder) if f.startswith("e") and f.endswith(".pt")]
+        import re
+
+        # Match periodic checkpoints like e10.pt, e15.pt (exclude e10_opt.pt etc.)
+        all_checkpoints = [f for f in os.listdir(folder) if re.match(r"^e\d+\.pt$", f)]
         if len(all_checkpoints) > max_to_keep:
             all_checkpoints.sort(key=lambda x: int(x[1:-3]))
             checkpoints_to_delete = all_checkpoints[:-max_to_keep]
             logger.info(f"Pruning checkpoints. Keeping {max_to_keep}, deleting {len(checkpoints_to_delete)}.")
             for ckpt_name in checkpoints_to_delete:
-                full_path = os.path.join(folder, ckpt_name)
-                try:
-                    os.remove(full_path)
-                except Exception as e:
-                    logger.error(f"Failed to delete old checkpoint {full_path}: {e}")
+                # Delete both model and optimizer checkpoint files
+                for suffix in ["", "_opt"]:
+                    fname = ckpt_name.replace(".pt", f"{suffix}.pt")
+                    full_path = os.path.join(folder, fname)
+                    try:
+                        if os.path.exists(full_path):
+                            os.remove(full_path)
+                    except Exception as e:
+                        logger.error(f"Failed to delete old checkpoint {full_path}: {e}")
     except Exception as e:
         logger.error(f"Failed to prune checkpoints in folder {folder}: {e}")
+
+
+def _check_disk_space_gb(path, required_gb=6.0):
+    """Return True if at least required_gb are free on the filesystem containing path."""
+    try:
+        st = os.statvfs(path)
+        free_gb = (st.f_bavail * st.f_frsize) / (1024**3)
+        if free_gb < required_gb:
+            logger.warning(f"Low disk space: {free_gb:.1f} GB free, need {required_gb:.1f} GB for periodic save")
+            return False
+        return True
+    except Exception:
+        return True  # proceed if check fails
 
 
 class BYOLCollator:
@@ -690,9 +710,11 @@ def main(args, resume_preempt=False):
                 save_checkpoint(epoch + 1, 0, latest_path, s3_checkpoint_uri, is_periodic=False)
 
             if save_every_freq > 0 and epoch % save_every_freq == 0:
+                # Prune old periodic checkpoints, then save new one
+                prune_local_checkpoints(folder, max_to_keep=max_epoch_checkpoints)
                 save_every_file = f"e{epoch}.pt"
                 save_every_path = os.path.join(folder, save_every_file)
-                save_checkpoint(epoch + 1, 0, save_every_path, s3_checkpoint_uri, is_periodic=True)
+                save_checkpoint(epoch + 1, 0, save_every_path, s3_checkpoint_uri, is_periodic=False)
 
             _barrier()
     finally:
