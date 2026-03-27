@@ -167,7 +167,9 @@ s3://sagemaker-echojepa-h100-march-0d224785-bucket/
     setup_done_<hostname>.txt           # completion markers
     training_started_<hostname>.txt     # training launch markers
   checkpoints/
-    vjepa-2.1-l-h100/                   # S3 checkpoint uploads (every 5 epochs)
+    vjepa-2.1-l-h100/                   # V-JEPA 2.1 ViT-L checkpoints
+    byol-vitl-imagenet/                 # BYOL v1 (stopped — EMA plateau)
+    byol-vitl-imagenet-v2/              # BYOL v2 (active — constant EMA)
 ```
 
 ## Job Submission
@@ -439,7 +441,7 @@ srun --jobid=$JOBID --nodes=1 --nodelist=$NODE --ntasks=1 --overlap \
   bash -c "nvidia-smi --query-gpu=index,utilization.gpu,memory.used,memory.total --format=csv,noheader"
 
 # Check S3 checkpoint archive
-aws s3 ls s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet/
+aws s3 ls s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet-v2/
 
 # Check disk space (critical — checkpoint saves need ~5GB headroom)
 srun --jobid=$JOBID --nodes=1 --nodelist=$NODE --ntasks=1 --overlap \
@@ -493,7 +495,7 @@ The biggest HyperPod constraint for multi-node training. Key implications:
 
 When going from 1 node (8 GPUs) to 2 nodes (16 GPUs), halve per-GPU `batch_size` to keep effective batch constant. Example: `batch_size: 64` (single-node, effective=512) → `batch_size: 32` (2-node, effective=512). This preserves training dynamics and allows controlled speedup comparison.
 
-**Note**: The repo config (`pretrain-byol-mimic-224px-16f-h100.yaml`) keeps `batch_size: 64` as the single-node reference. For 2-node runs, edit on the compute node after deploying, or maintain a separate 2-node config.
+**Note**: The repo config (`pretrain-byol-mimic-224px-16f-h100.yaml`) uses `batch_size: 64` for the 2-node run (64 × 16 = 1024 effective, matching V-JEPA). For single-node, use `batch_size: 128` to maintain the same effective batch.
 
 ### Performance
 
@@ -510,15 +512,40 @@ See `~/byol_pretrain_2node.sbatch` on the controller. Key differences from singl
 - Cleans `/dev/shm` on all nodes via `srun --ntasks-per-node=1`
 - Launches via `srun python -m app.main_srun` (not `app.main`)
 
-## V-JEPA 2.1 ViT-L Training Status (2026-03-26)
+## BYOL-Video ViT-L Training Status
+
+### V2 Run (2026-03-27, Active)
+
+Fresh start with matched V-JEPA config. Constant EMA, full batch size, ImageNet-21k init.
+
+- **Job**: 241 (2-node, 16x H100), resumed from epoch 10
+- **Config**: `configs/train/vitl16/pretrain-byol-mimic-224px-16f-h100.yaml`
+- **Key settings**: EMA [0.99925, 0.99925] constant, batch 64×16=1024, 240 epochs, warmup 40
+- **S3**: `s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet-v2/`
+- **Periodic saves**: every 2 epochs, 1 kept locally (all archived to S3)
+- **Iter time**: ~7.2s, ~18 min/epoch, ETA ~3 days for full 240 epochs
+- **Loss trajectory** (improving monotonically, no plateau):
+
+| Epoch | Avg Loss |
+|-------|----------|
+| 1 | -1.659 |
+| 2 | -1.826 |
+| 5 | -1.930 |
+| 10 | -1.967 |
+
+### V1 Run (2026-03-27, Stopped — representation degradation)
+
+- **Problem**: Cosine EMA [0.996, 1.0] froze target encoder by epoch ~12, causing representation degradation
+- **Evidence**: LVEF probe Pearson r dropped from 0.151 (e10) to 0.089 (e40) — online encoder got WORSE
+- **Loss**: plateaued at -1.987 (epoch 12), drifted to -1.955 by epoch 44
+- **S3**: `s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet/` (e10, e15, e42, latest)
+
+### V-JEPA 2.1 ViT-L (2026-03-26, Completed)
 
 - **A100 run** (SageMaker notebook, 8x A100 80GB): Epoch 118/240, ~8s/iter
-- **H100 run** (HyperPod echojepa-h100-march, job 60): **Active**, resumed from epoch 87 checkpoint, currently at **epoch 126**, ~2.9s/iter GPU time, ~3.0s wall, 27.8 GB VRAM per GPU. Loss stable at ~0.500. ETA ~21 hours remaining (126→209)
-- Activation checkpointing: **required** at batch size 128 — without it, OOM at 79.1/79.2 GB (see Issue 12)
-- Checkpoints saved every 5 epochs to S3
-- S3 checkpoint mirror: `s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/vjepa-2.1-l-h100/`
+- **H100 run** (HyperPod echojepa-h100-march): Completed, ~2.9s/iter GPU time
 - Config: `configs/train/vitl16/pretrain-21-mimic-224px-16f-h100.yaml`
-- Known collapse risk: V-JEPA 2.1 context loss collapses on small repetitive datasets (observed at epochs 153/176/182 on ViT-B). Monitor for sudden loss drops
+- S3: `s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/vjepa-2.1-l-h100/`
 
 ### H100 Environment (March 2026)
 

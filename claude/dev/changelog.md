@@ -6,6 +6,44 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-27 (Session 31)
+
+### BYOL-Video V2 Run — Fresh Start with Matched Config
+
+Stopped v1 BYOL run (job 202, epoch ~44) due to representation degradation caused by cosine EMA [0.996, 1.0] freezing the target encoder. Started fresh v2 run with config matched to V-JEPA:
+
+- EMA: [0.99925, 0.99925] constant (was [0.996, 1.0] cosine)
+- Batch size: 64 × 16 GPUs = 1024 effective (was 32 × 16 = 512)
+- S3 path: `byol-vitl-imagenet-v2/` (fresh)
+- `force_load_pretrain: true` for epoch 1, flipped to `false` for subsequent restarts
+
+**Loss trajectory (v2, healthy — no plateau):** -1.659 (e1) → -1.826 (e2) → -1.930 (e5) → -1.967 (e10)
+
+**V1 vs V2 comparison at epoch 8-10:** V1 had slightly better absolute loss (-1.986 vs -1.967 at e10) because it started from an already-trained checkpoint, but V1 plateaued at e12 and degraded to -1.955 by e44. V2 is still improving monotonically.
+
+### Bug 015: Checkpoint Pruning Disk Space — FIXED
+
+**Symptom:** Periodic checkpoint saves (e4.pt, e6.pt, e8.pt) silently failed due to insufficient disk space. 97 GB disk with ~42 GB consumed by 4 CUDA versions left only ~8.7 GB for checkpoints after latest.pt.
+
+**Root cause (three issues):**
+1. `prune_local_checkpoints` ran with `max_to_keep=N` but the upcoming save would add 1 more — net result exceeded disk capacity
+2. Python `list[:-0]` returns `[]` (empty), so `max_to_keep=0` silently skipped all deletions
+3. `checkpoints_to_keep: 2` meant 2 periodic (9.6 GB) + latest (4.8 GB) = 14.4 GB — only 4 GB headroom, not enough for a 4.8 GB save
+
+**Fix:**
+- Call site: `prune_local_checkpoints(folder, max_to_keep=max(max_epoch_checkpoints - 1, 0))` — prune to N-1 before saving
+- Prune function: `checkpoints_to_delete = all_checkpoints if max_to_keep == 0 else all_checkpoints[:-max_to_keep]`
+- Condition: `>=` instead of `>` for defensive pruning
+- Config: `checkpoints_to_keep: 1` — exactly 1 periodic + latest on disk, all archived to S3
+
+**Files changed:**
+- `app/byol_video/train.py` — prune logic fix
+- `configs/train/vitl16/pretrain-byol-mimic-224px-16f-h100.yaml` — `checkpoints_to_keep: 1`, `force_load_pretrain: false`
+
+**Validated:** e8.pt saved and archived to S3 after fix deployed (job 241).
+
+---
+
 ## 2026-03-27 (Session 30)
 
 ### Bug 014: PyTorch Checkpoint >4 GB Serialization Failure — FIXED
