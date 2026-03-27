@@ -72,28 +72,37 @@ Set up 2-node distributed BYOL training across both H100 compute nodes (16 GPUs 
 - Retry logic only checked for missing `best.pt`, not missing pred avg (`study_predictions.csv`). Added `has_pred_avg()` function and split retry into `RETRY_TRAIN` (missing checkpoint) and `RETRY_PREDAVG` (checkpoint exists but pred avg missing).
 - Created `scripts/run_mimic_predavg_retry.sh` — standalone cleanup script to mop up all missing pred avgs after chain completes.
 
-**Chain progress (as of 03:40 UTC):**
-- **G**: 11/11 complete (all pred avg done)
-- **L-K**: 9/11 complete. mortality_1yr + mortality_90d pred avg failed (port collision on model transition). Will be caught by retry script.
-- **EP**: mortality_1yr (0.750) + mortality_90d (0.772) pred avg done. Training mortality_30d + in_hospital_mortality.
-- **Pan**: Queued (mortality_90d has best.pt but no pred avg — same port collision pattern).
+**Chain COMPLETE (14:14 UTC).** All 4 models × 11 tasks trained + pred avg. L-K mortality_1yr + mortality_90d pred avg initially failed — root cause was missing `latest.pt` (Mar 23 training only saved `best.pt`), not port collision. Fixed with symlink `latest.pt → best.pt`.
 
-**Multi-model results so far:**
+**Final multi-model results (classification AUROC):**
 
 | Task | G | L-K | EP | Pan |
 |------|---|-----|-----|-----|
-| mortality_1yr | **0.792** | — | 0.750 | — |
-| mortality_90d | **0.827** | — | 0.772 | — |
-| mortality_30d | **0.884** | 0.878 | — | — |
-| in_hospital_mortality | **0.861** | 0.821 | — | — |
-| readmission_30d | 0.608 | **0.626** | — | — |
-| discharge_destination | **0.674** | 0.591 | — | — |
+| mortality_1yr | **0.792** | pending† | 0.750 | 0.740 |
+| mortality_90d | **0.827** | pending† | 0.772 | 0.745 |
+| mortality_30d | **0.884** | 0.878 | 0.817 | 0.807 |
+| in_hospital_mortality | **0.861** | 0.821 | 0.789 | 0.737 |
+| readmission_30d | 0.608 | **0.626** | 0.623 | 0.594 |
+| discharge_destination | 0.674 | 0.591 | **0.679** | 0.637 |
 
-Biomarker pred avg (all 4 models complete): G leads on troponin_t, nt_probnp, creatinine. L-K leads on lactate (R²=0.032 vs G 0.004). All R²s very low (0.00-0.12).
+† L-K mortality_1yr + mortality_90d pred avg re-running after symlink fix.
 
-Notable: L-K beats G on readmission_30d (0.626 vs 0.608), los_remaining (R²=0.052 vs 0.038), and lactate. G does not universally dominate on MIMIC outcomes.
+**Regression (R² / Pearson):**
 
-**Docs updated**: TASK_TRACKER.md multi-model results table, chain history, CY comparison table (added in_hospital_mortality, readmission_30d rows).
+| Task | G | L-K | EP | Pan |
+|------|---|-----|-----|-----|
+| los_remaining | 0.038 / 0.319 | **0.052 / 0.298** | 0.009 / 0.286 | -0.008 / 0.193 |
+| troponin_t | **0.036 / 0.264** | 0.020 / 0.171 | 0.018 / 0.210 | 0.009 / 0.154 |
+| nt_probnp | **0.119 / 0.355** | 0.061 / 0.261 | 0.096 / 0.337 | 0.055 / 0.322 |
+| creatinine | **0.014 / 0.240** | 0.000 / 0.189 | -0.008 / 0.163 | -0.018 / 0.144 |
+| lactate | 0.004 / 0.211 | **0.032 / 0.293** | 0.011 / 0.225 | 0.000 / 0.161 |
+
+**Key findings:**
+- G dominates mortality (+4-12pp over EP/Pan), strongest on in_hospital_mortality (+12.4pp over Pan)
+- L-K competitive: beats G on readmission (0.626 vs 0.608), los_remaining, lactate
+- EchoPrime beats G on discharge_destination (0.679 vs 0.674)
+- Biomarker R²s uniformly low (0.00-0.12), tiny test sets (n=126-535)
+- Model ranking varies by task type — no single model dominates all outcomes
 
 ---
 

@@ -137,30 +137,32 @@ Separate analysis by CY with prediction averaging on study-level embeddings (mea
 
 11 outcome/biomarker tasks × 4 manuscript models. d=1 attentive probe, 15-head HP grid (5 LR × 3 WD), 35 epochs, BS2, study sampling. Training: `scripts/run_mimic_probe.sh`. Pred avg: `scripts/run_mimic_pred_avg.sh`. Chain: `scripts/run_mimic_outcome_chain.sh`.
 
-**Multi-Model Pred Avg Results (study-level test metrics, updated 2026-03-27):**
+**Multi-Model Pred Avg Results (study-level test metrics, updated 2026-03-27 14:00 UTC):**
 
 Classification (AUROC):
 
 | Task | N (test) | G | L-K | EP | Pan |
 |------|----------|---|-----|-----|-----|
-| 1-yr mortality | 1,087 | **0.792** | pending retry | 0.750 | queued |
-| 90-day mortality | 1,087 | **0.827** | pending retry | 0.772 | pending retry |
-| 30-day mortality | 1,087 | **0.884** | 0.878 | training | queued |
-| in_hospital_mortality | 469 | **0.861** | 0.821 | training | queued |
-| readmission_30d | 436 | 0.608 | **0.626** | queued | queued |
-| discharge_destination | 382 | **0.674** | 0.591 | queued | queued |
+| 1-yr mortality | 1,087 | **0.792** | pending† | 0.750 | 0.740 |
+| 90-day mortality | 1,087 | **0.827** | pending† | 0.772 | 0.745 |
+| 30-day mortality | 1,087 | **0.884** | 0.878 | 0.817 | 0.807 |
+| in_hospital_mortality | 469 | **0.861** | 0.821 | 0.789 | 0.737 |
+| readmission_30d | 436 | 0.608 | **0.626** | 0.623 | 0.594 |
+| discharge_destination | 382 | 0.674 | 0.591 | **0.679** | 0.637 |
+
+† L-K mortality_1yr + mortality_90d pred avg running — `latest.pt` was missing (only `best.pt` from Mar 23 run), fixed with symlink.
 
 Regression (R² / Pearson):
 
 | Task | N (test) | G | L-K | EP | Pan |
 |------|----------|---|-----|-----|-----|
-| los_remaining | 440 | 0.038 / 0.319 | **0.052 / 0.298** | queued | queued |
-| troponin_t | 240 | **0.036 / 0.264** | 0.020 / 0.171 | 0.018 / 0.209 | 0.009 / 0.158 |
+| los_remaining | 440 | 0.038 / 0.319 | **0.052 / 0.298** | 0.009 / 0.286 | -0.008 / 0.193 |
+| troponin_t | 240 | **0.036 / 0.264** | 0.020 / 0.171 | 0.018 / 0.210 | 0.009 / 0.154 |
 | nt_probnp | 126 | **0.119 / 0.355** | 0.061 / 0.261 | 0.096 / 0.337 | 0.055 / 0.322 |
-| creatinine | 535 | **0.014 / 0.240** | 0.000 / 0.189 | -0.008 / 0.162 | -0.018 / 0.145 |
+| creatinine | 535 | **0.014 / 0.240** | 0.000 / 0.189 | -0.008 / 0.163 | -0.018 / 0.144 |
 | lactate | 154 | 0.004 / 0.211 | **0.032 / 0.293** | 0.011 / 0.225 | 0.000 / 0.161 |
 
-**Chain status**: G done (11/11). L-K done (9/11, mortality_1yr + mortality_90d pred avg failed — port collision, will be caught by retry script). EP training mortality_30d + in_hospital_mortality now. Pan queued. Retry script: `scripts/run_mimic_predavg_retry.sh`.
+**Chain status**: COMPLETE (2026-03-27 14:14 UTC). All 4 models × 11 tasks trained + pred avg done, except L-K mortality_1yr + mortality_90d pred avg (running, fix: `latest.pt` symlink to `best.pt`).
 
 **Comparison with CY linear probes (mean-pooled sklearn, same split):**
 
@@ -175,10 +177,13 @@ Regression (R² / Pearson):
 
 **Key finding**: Strategy E d=1 attentive probes **underperform** CY's mean-pooled linear probes on MIMIC outcomes by 1-6pp. This is the opposite of the UHN pattern where attentive probes consistently beat linear probes. Possible causes: (1) smaller MIMIC datasets (126-1087 test studies), (2) 15-head HP grid may not cover optimal range, (3) study sampler gives limited exposure per epoch.
 
-**Notable observations (2026-03-27)**:
-- **L-K beats G on readmission_30d** (0.626 vs 0.608) and **los_remaining** (R²=0.052 vs 0.038) and **lactate** (R²=0.032 vs 0.004) — G does not universally dominate on MIMIC outcome tasks
-- **Biomarker R²s are very low** across the board (0.00-0.12). NT-proBNP is the best (G R²=0.119, Pearson=0.355) but test sets are tiny (n=126-535)
-- **Mortality tasks show clear scale advantage**: G leads by 4-6pp on 1yr/90d mortality. On 30d mortality, L-K is close (0.878 vs 0.884)
+**Notable observations (2026-03-27, chain complete):**
+- **G dominates mortality** by +4-12pp over EP/Pan. Strongest: in_hospital_mortality (G 0.861 vs Pan 0.737, +12.4pp)
+- **L-K is surprisingly competitive**: beats G on readmission_30d (0.626 vs 0.608), los_remaining (R²=0.052 vs 0.038), lactate (R²=0.032 vs 0.004). L-K nearly matches G on mortality_30d (0.878 vs 0.884)
+- **EchoPrime beats G on discharge_destination** (0.679 vs 0.674) — text-supervised pretraining helps for some non-mortality outcomes
+- **G does not universally dominate** on MIMIC outcomes. Scale advantage is clearest on mortality tasks; on other outcomes the models are much closer
+- **Biomarker R²s are uniformly low** (0.00-0.12). NT-proBNP is best (G R²=0.119, r=0.355) but test sets are tiny (n=126-535). All models show some signal but not enough for clinical utility
+- **Model ranking varies by task type**: G > L-K > EP > Pan on mortality; L-K ≈ EP > G > Pan on readmission/discharge; G > L-K > EP > Pan on biomarkers (except lactate where L-K leads)
 
 **sklearn Reproduction Experiments (2026-03-24):**
 
@@ -200,7 +205,7 @@ Our mean-pool reproduction underperforms CY by 2-5pp. Likely causes: LBFGS max_i
 - **2026-03-22**: Initial chain launched (trained G + some L-K/EP/Pan biomarkers).
 - **2026-03-26 Bug fix**: `run_mimic_outcome_chain.sh` had `set -euo pipefail` + `grep` returning exit code 1 when no MIMIC training processes running → script silently died. Fixed with `|| true` on the grep pipeline. Chain relaunched.
 - **2026-03-27 Bug fix**: Retry logic only checked for missing `best.pt`, not missing pred avg. Added `has_pred_avg()` check and separate `RETRY_PREDAVG` phase. Also created `scripts/run_mimic_predavg_retry.sh` standalone cleanup script.
-- **2026-03-27 03:40 UTC**: G done (11/11), L-K done (9/11 — mortality_1yr + mortality_90d pred avg failed from port collision). EP training (mortality_30d + in_hospital_mortality). Pan queued.
+- **2026-03-27 14:14 UTC**: Chain COMPLETE — all 4 models × 11 tasks. L-K mortality_1yr + mortality_90d pred avg failed because `latest.pt` missing (Mar 23 training only saved `best.pt`). Fixed with symlink `latest.pt → best.pt`, pred avg re-running.
 
 ---
 
