@@ -600,9 +600,21 @@ BYOL's performance is genuinely uncertain.
 
 **Run v1 (epochs 1-40) — misconfigured, results invalid.** The BYOL config used cosine EMA ramp
 (0.996 → 1.0) per the original BYOL paper, while V-JEPA uses constant EMA (0.99925). Combined with
-constant LR (no decay), the ramping EMA caused the target encoder to freeze by epoch ~12. Probe
-evaluation showed identical view classification at epoch 10 vs 40 (24.61% val acc) and degrading LVEF
-regression (Pearson r: 0.075 → 0.010). Effective batch size was also mismatched (512 vs V-JEPA's 1024).
+constant LR (no decay), the ramping EMA caused the target encoder to freeze by epoch ~12. Effective
+batch size was also mismatched (512 vs V-JEPA's 1024).
+
+Collapse detection probes (d=1 attentive, UHN data):
+- *View classification (13-class, 22K):* Identical at epoch 10 vs 40 (24.61% val acc, 0.696 AUROC) — too coarse to detect degradation.
+- *LVEF regression (5K train / 2K val subset):* Clear collapse in Pearson r:
+
+| Encoder | Epoch 10 | Epoch 40 | Drop |
+|---------|----------|----------|------|
+| Online | r=0.151 | r=0.089 | -41% |
+| Target (EMA) | r=0.156 | r=0.068 | -56% |
+
+Online vs target nearly identical within each checkpoint. Target encoder degraded *more* than online
+(56% vs 41% drop), suggesting EMA accumulated rather than stabilized the degradation. MAE ~8.06 across
+all conditions (barely above mean-prediction baseline), so Pearson r was the sensitive metric.
 **This run does not constitute a valid controlled comparison.**
 
 **Run v2 config (fixed, ready to deploy):** Both configs updated:

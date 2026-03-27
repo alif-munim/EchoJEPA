@@ -62,7 +62,19 @@ Set up 2-node distributed BYOL training across both H100 compute nodes (16 GPUs 
 
 ### BYOL-Video Training Plateau — Root Cause & Config Fix
 
-**Finding:** BYOL-Video ViT-L training plateaued by epoch ~12. Probe evaluation at epoch 10 vs epoch 40 showed identical view classification results (24.61% val acc, 0.696 AUROC) and LVEF regression degraded (Pearson r: 0.075 → 0.010). Target encoder weight divergence was only 0.005 over 30 epochs — the target encoder effectively froze.
+**Finding:** BYOL-Video ViT-L training plateaued by epoch ~12. Two-stage collapse detection:
+
+1. **View classification (d=1, 13-class, UHN 22K):** e10 vs latest target encoder gave identical results (24.61% val acc, 0.696 AUROC) — too coarse to detect degradation.
+2. **LVEF regression (d=1, 5K train / 2K val subset):** Revealed clear collapse via Pearson r.
+
+| Encoder | Checkpoint | Best Val MAE | Best Pearson r |
+|---------|-----------|-------------|---------------|
+| e10 online | epoch 10 | 8.060 | **0.151** |
+| e10 target | epoch 10 | 8.057 | **0.156** |
+| latest online | epoch 40 | 8.068 | 0.089 |
+| latest target | epoch 40 | 8.069 | 0.068 |
+
+Online encoder Pearson r dropped 41% (0.151→0.089), target encoder dropped 56% (0.156→0.068). Online vs target nearly identical within each checkpoint. Target encoder weight divergence was only 0.005 over 30 epochs — the target encoder effectively froze while accumulating degraded representations.
 
 **Root cause:** EMA schedule mismatch. V-JEPA uses **constant** EMA (0.99925) — the target encoder continuously tracks the online encoder, providing fresh learning signal throughout training. BYOL config used **cosine ramp** (0.996 → 1.0) per the original BYOL paper, which progressively freezes the target encoder. Combined with constant high LR (no decay after warmup), the online encoder diverges from a frozen target without improving representations.
 
@@ -104,20 +116,20 @@ These are the intended differences that isolate the prediction objective.
 - Retry logic only checked for missing `best.pt`, not missing pred avg (`study_predictions.csv`). Added `has_pred_avg()` function and split retry into `RETRY_TRAIN` (missing checkpoint) and `RETRY_PREDAVG` (checkpoint exists but pred avg missing).
 - Created `scripts/run_mimic_predavg_retry.sh` — standalone cleanup script to mop up all missing pred avgs after chain completes.
 
-**Chain COMPLETE (14:14 UTC).** All 4 models × 11 tasks trained + pred avg. L-K mortality_1yr + mortality_90d pred avg initially failed — root cause was missing `latest.pt` (Mar 23 training only saved `best.pt`), not port collision. Fixed with symlink `latest.pt → best.pt`.
+**Chain COMPLETE (15:01 UTC).** All 4 models × 11 tasks trained + pred avg done. L-K mortality_1yr (0.779) + mortality_90d (0.808) initially failed — root cause was missing `latest.pt` (Mar 23 training only saved `best.pt`), not port collision. Fixed with symlink `latest.pt → best.pt`, completed 15:01 UTC.
 
 **Final multi-model results (classification AUROC):**
 
 | Task | G | L-K | EP | Pan |
 |------|---|-----|-----|-----|
-| mortality_1yr | **0.792** | pending† | 0.750 | 0.740 |
-| mortality_90d | **0.827** | pending† | 0.772 | 0.745 |
+| mortality_1yr | **0.792** | 0.779 | 0.750 | 0.740 |
+| mortality_90d | **0.827** | 0.808 | 0.772 | 0.745 |
 | mortality_30d | **0.884** | 0.878 | 0.817 | 0.807 |
 | in_hospital_mortality | **0.861** | 0.821 | 0.789 | 0.737 |
 | readmission_30d | 0.608 | **0.626** | 0.623 | 0.594 |
 | discharge_destination | 0.674 | 0.591 | **0.679** | 0.637 |
 
-† L-K mortality_1yr + mortality_90d pred avg re-running after symlink fix.
+L-K mortality_1yr (0.779) + mortality_90d (0.808) completed after symlink fix.
 
 **Regression (R² / Pearson):**
 
