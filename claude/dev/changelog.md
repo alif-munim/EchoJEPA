@@ -40,12 +40,31 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 **CSV fix:** Replaced pre-z-scored CSVs with canonical raw-value CSVs (inverse-transformed with mean=57.057, std=11.325). Eval code computes z-score params from train CSV at runtime.
 
+### Multi-Node Distributed Training — 2-Node BYOL
+
+Set up 2-node distributed BYOL training across both H100 compute nodes (16 GPUs total).
+
+**New files:**
+- `app/main_srun.py` — srun-compatible launcher for multi-node training. Each srun task = 1 GPU. Sets `CUDA_VISIBLE_DEVICES` from `SLURM_LOCALID`, reads rank/world_size from SLURM env vars.
+
+**Files changed:**
+- `src/utils/distributed.py` — fixed `MASTER_ADDR` for multi-node: no longer blindly overwrites with `"localhost"` or `os.environ["HOSTNAME"]`. Respects pre-set `MASTER_ADDR` from sbatch script, only falls back to hostname for single-node.
+
+**Sbatch script** (`~/byol_pretrain_2node.sbatch`):
+- `--nodes=2 --ntasks-per-node=8 --gpus-per-node=8`
+- Sets `MASTER_ADDR` to first allocated node via `scontrol show hostnames`
+- Syncs checkpoint files from first node to other nodes before training starts
+- Launches `srun python -m app.main_srun --fname config.yaml`
+
+**Config change (deployed, not in repo):** `batch_size: 64 → 32` per GPU to keep effective batch at 512 (32 × 16 GPUs = 512, same as single-node 64 × 8).
+
+**Results:** 3.6s/iter (was 7.0s single-node) — 1.94x speedup. ~18 min/epoch (was ~35 min). ETA ~2.9 days (was ~5.6 days). Checkpoint save + S3 upload verified working.
+
 ### HyperPod Operations
 
-- Freed 9.3 GB disk on node 83 (stale S3 setup cache: old checkpoint + conda env tarball)
+- Freed 9.3 GB disk on both nodes (stale S3 setup cache: old checkpoint + conda env tarball)
 - Fixed deploy script issue: `/tmp` not shared between controller and compute nodes; piped tarball via srun stdin
-- BYOL training (job 169) running on node 83 (8x H100, ipe=300)
-- LVEF probe (job 146) running on node 184 (correct ICML protocol)
+- Fixed permissions on node 184: `/opt/vjepa2/` dirs owned by `nobody:nogroup` from initial setup, required `sudo chown`
 
 ---
 
