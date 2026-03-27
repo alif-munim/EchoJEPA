@@ -60,6 +60,38 @@ Set up 2-node distributed BYOL training across both H100 compute nodes (16 GPUs 
 
 **Results:** 3.6s/iter (was 7.0s single-node) — 1.94x speedup. ~18 min/epoch (was ~35 min). ETA ~2.9 days (was ~5.6 days). Checkpoint save + S3 upload verified working.
 
+### BYOL-Video Training Plateau — Root Cause & Config Fix
+
+**Finding:** BYOL-Video ViT-L training plateaued by epoch ~12. Probe evaluation at epoch 10 vs epoch 40 showed identical view classification results (24.61% val acc, 0.696 AUROC) and LVEF regression degraded (Pearson r: 0.075 → 0.010). Target encoder weight divergence was only 0.005 over 30 epochs — the target encoder effectively froze.
+
+**Root cause:** EMA schedule mismatch. V-JEPA uses **constant** EMA (0.99925) — the target encoder continuously tracks the online encoder, providing fresh learning signal throughout training. BYOL config used **cosine ramp** (0.996 → 1.0) per the original BYOL paper, which progressively freezes the target encoder. Combined with constant high LR (no decay after warmup), the online encoder diverges from a frozen target without improving representations.
+
+**Why constant LR works for V-JEPA but not BYOL (with ramping EMA):**
+- V-JEPA's constant EMA keeps the target moving → prediction objective stays non-trivial → constant LR drives continued learning
+- BYOL's EMA → 1.0 freezes the target → self-distillation objective becomes trivially satisfiable → constant LR pushes online encoder away from useful representations
+
+**Additional confound:** Effective batch size was 512 (64 × 8 GPUs) vs V-JEPA's 1024 (128 × 8 GPUs).
+
+**Config fix (both A100 and H100 configs):**
+- `ema: [0.996, 1.0]` → `[0.99925, 0.99925]` (match V-JEPA constant EMA)
+- `batch_size: 64` → `128` (match V-JEPA effective batch 1024)
+- H100 config: `force_load_pretrain: true`, new S3 checkpoint URI for fresh run
+
+**Files changed:**
+- `configs/train/vitl16/pretrain-byol-mimic-224px-16f.yaml`
+- `configs/train/vitl16/pretrain-byol-mimic-224px-16f-h100.yaml`
+
+**Remaining legitimate differences (by design):**
+
+| Parameter | V-JEPA | BYOL |
+|-----------|--------|------|
+| Masking | Spatio-temporal blocks | None |
+| Prediction target | Local masked tokens (L1) | Global mean-pooled (cosine) |
+| Predictor | 12-layer transformer | 2-layer MLP |
+| Additional heads | None | Projector (online + target) |
+
+These are the intended differences that isolate the prediction objective.
+
 ### HyperPod Operations
 
 - Freed 9.3 GB disk on both nodes (stale S3 setup cache: old checkpoint + conda env tarball)

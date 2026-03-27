@@ -598,6 +598,18 @@ V-JEPA 2.1 ViT-L pretraining occupies 8xH100 (H100 node) until ~epoch 240/240 co
 BYOL-Video is the highest-stakes experiment. Unlike CKA/frame shuffling (where we can predict outcomes),
 BYOL's performance is genuinely uncertain.
 
+**Run v1 (epochs 1-40) — misconfigured, results invalid.** The BYOL config used cosine EMA ramp
+(0.996 → 1.0) per the original BYOL paper, while V-JEPA uses constant EMA (0.99925). Combined with
+constant LR (no decay), the ramping EMA caused the target encoder to freeze by epoch ~12. Probe
+evaluation showed identical view classification at epoch 10 vs 40 (24.61% val acc) and degrading LVEF
+regression (Pearson r: 0.075 → 0.010). Effective batch size was also mismatched (512 vs V-JEPA's 1024).
+**This run does not constitute a valid controlled comparison.**
+
+**Run v2 config (fixed, ready to deploy):** Both configs updated:
+- `ema: [0.99925, 0.99925]` — constant, matching V-JEPA
+- `batch_size: 128` — matching V-JEPA effective batch (1024 on 8 GPUs)
+- Fresh start from ImageNet-21k init, new S3 checkpoint path
+
 **Risk**: If BYOL achieves ~80%+ view accuracy, the "only latent prediction works" narrative weakens.
 This is non-trivial — BYOL shares the EMA teacher mechanism with JEPA, which may be the actual
 noise-filtering ingredient rather than local prediction specifically.

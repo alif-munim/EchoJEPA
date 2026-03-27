@@ -13,7 +13,7 @@ data:
   - /home/sagemaker-user/user-default-efs/vjepa2/data/csv/mimic_annotations_s3.csv
   datasets_weights:
   - 1.0
-  batch_size: 64                    # halved from 128 (2 clips per sample = ~2x memory)
+  batch_size: 128                   # matched to V-JEPA (128 × 8 GPUs = 1024 effective)
   crop_size: 224
   patch_size: 16
   dataset_fpcs:
@@ -56,8 +56,10 @@ optimization:
   force_load_pretrain: true
   anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitl_in21k.pt
 
-  # BYOL EMA schedule: cosine 0.996 -> 1.0 (per BYOL paper)
-  ema: [0.996, 1.0]
+  # Constant EMA matched to V-JEPA (was [0.996, 1.0] per BYOL paper — caused target
+  # encoder to freeze, stalling learning after epoch ~12. Constant EMA keeps target
+  # tracking online encoder throughout training, matching V-JEPA dynamics.)
+  ema: [0.99925, 0.99925]
   weight_decay: 0.04
   final_weight_decay: 0.04
 

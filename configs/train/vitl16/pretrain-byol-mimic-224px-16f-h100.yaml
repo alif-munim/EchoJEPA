@@ -16,7 +16,7 @@ data:
   datasets:
     - /opt/vjepa2/data/csv/mimic_annotations_s3.csv
   datasets_weights: [1.0]
-  batch_size: 32                    # 32 for 2-node (effective 512 = 32×16 GPUs), use 64 for single-node
+  batch_size: 64                    # 64 × 16 GPUs (2-node) = 1024 effective, matching V-JEPA
   crop_size: 224
   patch_size: 16
   dataset_fpcs: [16]
@@ -35,7 +35,7 @@ data_aug:
   reprob: 0.0
 
 meta:
-  s3_checkpoint_uri: "s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet/"
+  s3_checkpoint_uri: "s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet-v2/"
   dtype: bfloat16
   eval_freq: 100
   load_checkpoint: true
@@ -57,11 +57,13 @@ model:
 
 optimization:
   is_anneal: false
-  force_load_pretrain: false
+  force_load_pretrain: true           # fresh start from ImageNet init (previous run had stalled EMA)
   anneal_ckpt: /opt/vjepa2/checkpoints/vitl_in21k.pt
 
-  # BYOL EMA schedule: cosine 0.996 -> 1.0 (per BYOL paper)
-  ema: [0.996, 1.0]
+  # Constant EMA matched to V-JEPA (was [0.996, 1.0] per BYOL paper — caused target
+  # encoder to freeze, stalling learning after epoch ~12. Constant EMA keeps target
+  # tracking online encoder throughout training, matching V-JEPA dynamics.)
+  ema: [0.99925, 0.99925]
   weight_decay: 0.04
   final_weight_decay: 0.04
 
