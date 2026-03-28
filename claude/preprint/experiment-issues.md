@@ -127,6 +127,53 @@ Roughly ~1 failure per epoch regardless of batch size. The substitution doesn't 
 
 ---
 
+## 7. Multi-View RVSP: Missing Z-Score Normalization (discovered Mar 2026)
+
+### Issue
+
+The multi-view eval module (`video_classification_frozen_multi`) never z-score normalized regression labels at runtime, unlike the single-view module. See `claude/dev/bugs/017-multiview-rvsp-no-zscore.md` for full details.
+
+### How the Preprint Worked Despite the Bug
+
+The ICML preprint CSVs were **pre-z-scored** using `sklearn.StandardScaler` (saved as `data/scalers/rvsp_scaler.pkl`, mean=34.465, std=14.013). With pre-normalized labels:
+- `VideoGroupDataset` read z-scored floats but cast to `int()`, quantizing to ~5-6 bins (-2 through 3)
+- Model learned to output z-scored values (confirmed: regressor biases ~0.02-0.04 in saved checkpoint)
+- `F.l1_loss(z_pred, z_label)` gave z-MAE, then `* target_std` converted to mmHg
+- **Reported 4.54 MAE mmHg for EchoJEPA-G is valid** (on 41K UHN multi-view studies)
+
+The `int()` truncation of z-scores was a secondary issue — coarse (3 bins for 20-50 mmHg range) but didn't prevent learning.
+
+### What Broke Later
+
+Post-preprint, the RVSP CSVs were rebuilt with raw mmHg values (19, 31, 30...) for the NatMed pipeline, which uses the single-view module with proper runtime z-scoring. The multi-view module was never updated. ICML rebuttal runs on raw CSVs produced catastrophic MAE (~145-176 logged scale) because:
+1. Labels were raw (~34 mmHg mean)
+2. Model outputs started near zero (no z-score target to learn toward efficiently)
+3. `SmoothL1Loss` on the raw offset dominated all gradients
+
+### Fix (Bug 017a — missing z-score normalization)
+
+Added runtime z-scoring to the multi-view eval module (`y = (y - t_mean) / t_std`) before loss computation, matching the single-view module. Fixed run shows epoch 1 val MAE ~10.6 mmHg (correct scale, baseline ~11.2).
+
+### Secondary Bug (Bug 017b — shared `zscore_params.json` poisoning)
+
+Even after the z-score fix, the EchoMAE RVSP ep163 rebuttal run still failed. Root cause: the auto-detection code loaded z-score params from a **stale `zscore_params.json`** in the shared `data/csv/` directory. This file had been created by a prior LVEF run and contained LVEF parameters (mean=57.06, std=11.33) — wrong for RVSP (mean=34.47, std=14.01).
+
+RVSP labels (~34 mmHg) were z-scored as `(34 - 57.06) / 11.33 = -2.03`, producing deeply negative targets. The model could never converge because the z-scored label distribution was centered around -2.0 instead of 0.0, and the un-normalization used the wrong std (11.33 instead of 14.01).
+
+**Fix**: Added explicit `target_mean: 34.4650` / `target_std: 14.0130` to all 9 RVSP ICML configs. Deleted the stale `zscore_params.json`. **Lesson**: never rely on auto-detection when multiple tasks share a CSV directory — always specify z-score params in the YAML.
+
+### Impact
+
+| Context | Affected? | Notes |
+|---------|-----------|-------|
+| ICML preprint RVSP (Table 4) | **No** | Pre-z-scored CSVs made Bug 017a dormant; no auto-detection used |
+| ICML rebuttal EchoJEPA-L RVSP (41K UHN) | **No** | Config had explicit `target_mean`/`target_std` from creation |
+| ICML rebuttal EchoMAE-L RVSP (all runs) | **Yes** | Bug 017a (pre-fix runs on 5K) + Bug 017b (post-fix ep163 run on 41K). All invalid. |
+| ICML rebuttal EchoJEPA-B/L-K/BYOL RVSP | **Fixed** | Configs now have explicit params. Not yet run. |
+| Nature Medicine RVSP | **No** | Uses single-view module with correct z-scoring |
+
+---
+
 ## Summary: What Survived vs What Didn't
 
 | Finding | Survived to Nature Medicine? | Notes |
@@ -137,6 +184,7 @@ Roughly ~1 failure per epoch regardless of batch size. The substitution doesn't 
 | Batch size scaling | No | Specific to tiny dev dataset. NM uses BS1 on large datasets |
 | Sample efficiency (1% labels) | Yes | Controlled comparison, probe mismatch constant across fractions |
 | Pediatric transfer | Yes | Tests representation directly, not probe design |
+| Multi-view RVSP (4.54 MAE) | Yes | Pre-z-scored CSVs made missing runtime norm a no-op. Bug dormant. |
 
 ## Related Documents
 

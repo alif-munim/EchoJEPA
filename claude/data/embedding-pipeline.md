@@ -24,9 +24,9 @@ Source CSV (525K S3 paths)
 
 | Model | Architecture | Pretraining | Params | Embed dim | File |
 |-------|-------------|-------------|--------|-----------|------|
-| EchoJEPA-G | ViT-g/16 384px | JEPA on 18M echo clips | 1,012M | 1408 | `echojepa_g_mimic_embeddings.npz` |
-| EchoJEPA-L | ViT-L/16 224px | JEPA on 18M echo clips | 304M | 1024 | `echojepa_l_mimic_embeddings.npz` |
-| EchoJEPA-L Kinetics | ViT-L/16 224px | JEPA on Kinetics-400 | 304M | 1024 | `echojepa_l_kinetics_mimic_embeddings.npz` |
+| EchoJEPA-G | ViT-g/16 384px | JEPA on 18M UHN echo clips | 1,012M | 1408 | `echojepa_g_mimic_embeddings.npz` |
+| EchoJEPA-L | ViT-L/16 224px | JEPA on MIMIC-IV echo clips | 304M | 1024 | `echojepa_l_mimic_embeddings.npz` |
+| EchoJEPA-L-K | ViT-L/16 224px | JEPA on Kinetics-400 → MIMIC anneal | 304M | 1024 | `echojepa_l_kinetics_mimic_embeddings.npz` |
 | EchoMAE | ViT-L/16 (VideoMAE) | MAE on 1.5M echo clips | 304M | 1024 | `echomae_mimic_embeddings.npz` |
 | EchoFM | ViT-L/16 (MAE+triplet) | MAE on 290K echo clips | 304M | 1024 | `echofm_mimic_embeddings.npz` |
 | PanEcho | ConvNeXt-T + 4L Transformer | Multi-task supervised on 1.2M echo clips | 43M | 768 | `panecho_mimic_embeddings.npz` |
@@ -279,7 +279,7 @@ python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echo
 python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echojepa_large_224px.yaml \
     --data $DATA --output $OUT/echojepa_l_mimic_embeddings.npz --devices $DEVICES
 
-# EchoJEPA-L Kinetics (ViT-L, 224px, 1024-d, Kinetics pretrained)
+# EchoJEPA-L-K (ViT-L, 224px, 1024-d, Kinetics→MIMIC)
 python -m evals.extract_embeddings --config configs/inference/vitg-384/view/echojepa_large_kinetics_224px.yaml \
     --data $DATA --output $OUT/echojepa_l_kinetics_mimic_embeddings.npz --devices $DEVICES
 

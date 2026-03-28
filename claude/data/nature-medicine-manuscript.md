@@ -31,9 +31,9 @@ Supporting sections:
 
 ## Models
 
-**UHN probes (5 models):** EchoJEPA-G (ViT-G, 18M UHN, JEPA), EchoJEPA-L (ViT-L, UHN, JEPA), EchoMAE (ViT-L, VideoMAE on echo), EchoPrime (MViT-v2-S, CLIP on echo+text), PanEcho (ConvNeXt-T, multi-task supervised).
+**UHN probes (5 models):** EchoJEPA-G (ViT-G, 18M UHN, JEPA), EchoJEPA-L (ViT-L, MIMIC, JEPA), EchoMAE (ViT-L, VideoMAE on echo), EchoPrime (MViT-v2-S, CLIP on echo+text), PanEcho (ConvNeXt-T, multi-task supervised).
 
-**MIMIC probes (7 models):** Above 5 + EchoJEPA-L-K (Kinetics-pretrained JEPA), EchoFM (MAE+triplet on echo).
+**MIMIC probes (7 models):** Above 5 + EchoJEPA-L-K (Kinetics→MIMIC JEPA), EchoFM (MAE+triplet on echo).
 
 ## Evaluation Protocol (Strategy E, adopted 2026-03-11)
 

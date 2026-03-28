@@ -57,7 +57,7 @@ The following changes were made between the ICML preprint protocol and the Natur
 ### 4. Additional models
 
 **ICML:** 5 models (G, L, MAE, EchoPrime, PanEcho)
-**Nature Medicine:** 7 models (adds L-K Kinetics-pretrained, EchoFM)
+**Nature Medicine:** 7 models (adds L-K Kinetics→MIMIC, EchoFM)
 
 ### 5. Task expansion
 
@@ -88,7 +88,7 @@ The `run_uhn_probe.sh` defaults to 15 epochs for UHN tasks. MIMIC configs use 35
 The rebuttal adds new models (L-K, ViT-B, BYOL-L) and mechanistic experiments to the ICML evaluation framework. The probe protocol matches the ICML preprint exactly (d=4, 6-head grid, 20 epochs) to ensure results are directly comparable to preprint tables.
 
 ### New models for rebuttal
-- **EchoJEPA-L-K** (ViT-L, Kinetics pretrained) — fills scaling table gap
+- **EchoJEPA-L-K** (ViT-L, Kinetics→MIMIC) — fills scaling table gap
 - **EchoJEPA-B** (ViT-B, V-JEPA 2.1 on MIMIC) — scaling analysis B -> L -> G
 - **EchoBYOL-L** (ViT-L, BYOL-Video on MIMIC) — contrastive/self-distillation comparison
 

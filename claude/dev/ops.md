@@ -194,7 +194,7 @@ All configs live in `configs/inference/`:
 |--------|-------|-----------|
 | `vitg-384/extract_uhn.yaml` | EchoJEPA-G (ViT-G) | `pt-280-an81.pt` |
 | `vitl/extract_uhn.yaml` | EchoJEPA-L (ViT-L) | `vitl-pt-210-an25.pt` |
-| `vitl/extract_uhn_kinetics.yaml` | EchoJEPA-L-K (ViT-L, Kinetics init) | `vitl-kinetics-pt220-an55.pt` |
+| `vitl/extract_uhn_kinetics.yaml` | EchoJEPA-L-K (ViT-L, Kinetics→MIMIC) | `vitl-kinetics-pt220-an55.pt` |
 
 Config anatomy (all share the same structure):
 ```yaml

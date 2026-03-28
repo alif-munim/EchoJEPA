@@ -22,6 +22,7 @@ Development log for the EchoJEPA project: bug tracker, changelog, operational gu
 | 014 | [PyTorch zipfile serializer fails on checkpoints >4 GB](bugs/014-checkpoint-4gb-zipfile-bug.md) | **CRITICAL** | **FIXED** | `app/byol_video/train.py`, `app/byol_video/utils.py` |
 | 015 | [`torch_shm_manager` broken on SageMaker A100 — DataLoader workers crash](bugs/015-torch-shm-manager-broken.md) | **HIGH** | **FIXED** (workaround) | `app/vjepa_2_1/train.py`, launch env |
 | 016 | [`vit_giant` vs `vit_giant_xformers` num_heads mismatch silently corrupts G](bugs/016-vit-giant-num-heads-mismatch.md) | **CRITICAL** | **FIXED** | `evals/segmentation_frozen/eval.py` |
+| 017 | [Multi-view eval missing z-score normalization for regression](bugs/017-multiview-rvsp-no-zscore.md) | **CRITICAL** | **FIXED** | `evals/video_classification_frozen_multi/eval.py` |
 
 ## Planned Fixes
 
