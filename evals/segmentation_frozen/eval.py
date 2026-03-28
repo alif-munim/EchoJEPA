@@ -118,7 +118,7 @@ class SmallConvSegDecoder(nn.Module):
 # ---------------------------------------------------------------------------
 
 
-def load_vjepa_encoder(checkpoint_path, model_name=None, device="cpu"):
+def load_vjepa_encoder(checkpoint_path, model_name=None, device="cpu", resolution=224):
     """Load a V-JEPA / EchoJEPA encoder from checkpoint.
 
     Auto-detects model size from checkpoint filename if model_name is None:
@@ -129,14 +129,14 @@ def load_vjepa_encoder(checkpoint_path, model_name=None, device="cpu"):
     if model_name is None:
         basename = os.path.basename(checkpoint_path).lower()
         if "vitg" in basename or "giant" in basename:
-            model_name = "vit_giant"
+            model_name = "vit_giant_xformers"
         else:
             model_name = "vit_large"
 
     # Create model
     model_fn = vit.__dict__[model_name]
     encoder = model_fn(
-        img_size=224,
+        img_size=resolution,
         num_frames=16,
         patch_size=16,
         tubelet_size=2,
@@ -362,10 +362,10 @@ def load_panecho_encoder(checkpoint_path, device="cpu"):
     return wrapper, wrapper.embed_dim
 
 
-def load_encoder(model_type, checkpoint_path, device="cpu", model_name=None):
+def load_encoder(model_type, checkpoint_path, device="cpu", model_name=None, resolution=224):
     """Load frozen encoder. Returns (encoder, embed_dim)."""
     if model_type == "vjepa":
-        return load_vjepa_encoder(checkpoint_path, model_name=model_name, device=device)
+        return load_vjepa_encoder(checkpoint_path, model_name=model_name, device=device, resolution=resolution)
     elif model_type == "videomae":
         return load_videomae_encoder(checkpoint_path, device=device)
     elif model_type == "echoprime":
@@ -593,6 +593,7 @@ def main():
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--lr", type=float, default=None, help="Single LR (skip grid search)")
     parser.add_argument("--weight_decay", type=float, default=None, help="Single WD (skip grid search)")
+    parser.add_argument("--resolution", type=int, default=224, help="Input resolution (default 224, use 384 for G)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--model_name", default=None, help="Override vjepa model name (e.g. vit_giant)")
     args = parser.parse_args()
@@ -618,9 +619,9 @@ def main():
 
     # --- Create datasets ---
     views = tuple(args.views)
-    train_ds = CAMUSSegDataset(train_ids, args.camus_root, views=views, augment=True)
-    val_ds = CAMUSSegDataset(val_ids, args.camus_root, views=views, augment=False)
-    test_ds = CAMUSSegDataset(test_ids, args.camus_root, views=views, augment=False)
+    train_ds = CAMUSSegDataset(train_ids, args.camus_root, views=views, resolution=args.resolution, augment=True)
+    val_ds = CAMUSSegDataset(val_ids, args.camus_root, views=views, resolution=args.resolution, augment=False)
+    test_ds = CAMUSSegDataset(test_ids, args.camus_root, views=views, resolution=args.resolution, augment=False)
     logger.info(f"Samples: {len(train_ds)} train, {len(val_ds)} val, {len(test_ds)} test")
 
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
@@ -629,7 +630,7 @@ def main():
 
     # --- Load frozen encoder ---
     logger.info(f"Loading {args.model_type} encoder from {args.checkpoint}")
-    encoder, embed_dim = load_encoder(args.model_type, args.checkpoint, device=device, model_name=args.model_name)
+    encoder, embed_dim = load_encoder(args.model_type, args.checkpoint, device=device, model_name=args.model_name, resolution=args.resolution)
     logger.info(f"Encoder embed_dim: {embed_dim}")
 
     # --- Build hyperparameter grid ---
@@ -647,7 +648,7 @@ def main():
         os.makedirs(run_dir, exist_ok=True)
 
         if args.decoder_type == "linear":
-            decoder = LinearSegDecoder(embed_dim, NUM_CLASSES, target_size=224)
+            decoder = LinearSegDecoder(embed_dim, NUM_CLASSES, target_size=args.resolution)
         else:
             decoder = SmallConvSegDecoder(embed_dim, NUM_CLASSES)
         decoder = decoder.to(device)

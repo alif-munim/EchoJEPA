@@ -21,6 +21,7 @@ Development log for the EchoJEPA project: bug tracker, changelog, operational gu
 | 013 | [Local `import os` shadows module scope, breaks study_predictions save](bugs/013-os-import-shadows-module-scope.md) | **MEDIUM** | **FIXED** | `evals/video_classification_frozen/eval.py` |
 | 014 | [PyTorch zipfile serializer fails on checkpoints >4 GB](bugs/014-checkpoint-4gb-zipfile-bug.md) | **CRITICAL** | **FIXED** | `app/byol_video/train.py`, `app/byol_video/utils.py` |
 | 015 | [`torch_shm_manager` broken on SageMaker A100 — DataLoader workers crash](bugs/015-torch-shm-manager-broken.md) | **HIGH** | **FIXED** (workaround) | `app/vjepa_2_1/train.py`, launch env |
+| 016 | [`vit_giant` vs `vit_giant_xformers` num_heads mismatch silently corrupts G](bugs/016-vit-giant-num-heads-mismatch.md) | **CRITICAL** | **FIXED** | `evals/segmentation_frozen/eval.py` |
 
 ## Planned Fixes
 
