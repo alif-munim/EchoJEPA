@@ -222,38 +222,9 @@ def main(args_eval, resume_preempt=False):
     class_balance_ratio = args_data.get("class_balance_ratio", None)
     prediction_averaging = args_data.get("prediction_averaging", False)
 
-    # -- REGRESSION NORMALIZATION: auto-load from zscore_params.json, or compute from train CSV
+    # -- REGRESSION NORMALIZATION: read YAML overrides (full resolution after checkpoint load)
     target_mean = args_data.get("target_mean", None)
     target_std = args_data.get("target_std", None)
-    if task_type == "regression" and target_mean is None and target_std is None:
-        import json as _json
-        zscore_path = os.path.join(os.path.dirname(train_data_path[0]), "zscore_params.json")
-        if os.path.exists(zscore_path):
-            with open(zscore_path) as _f:
-                _params = _json.load(_f)
-            target_mean = _params["target_mean"]
-            target_std = _params["target_std"]
-            logger.info("Loaded zscore params from %s: mean=%.4f, std=%.4f", zscore_path, target_mean, target_std)
-        elif val_only:
-            raise RuntimeError(
-                f"Regression inference requires zscore params but zscore_params.json not found at {zscore_path} "
-                f"and target_mean/target_std not set in config. "
-                f"Either place zscore_params.json alongside the train CSV or set target_mean/target_std in the YAML."
-            )
-        else:
-            import pandas as _pd
-            _train_df = _pd.read_csv(train_data_path[0], sep=" ", header=None)
-            _labels = _train_df.iloc[:, -1].astype(float)
-            target_mean = float(_labels.mean())
-            target_std = float(_labels.std())
-            logger.info(
-                "Computed zscore params from train CSV: mean=%.4f, std=%.4f (n=%d)",
-                target_mean, target_std, len(_labels),
-            )
-            # Save for reproducibility and future inference
-            with open(zscore_path, "w") as _f:
-                _json.dump({"target_mean": target_mean, "target_std": target_std}, _f)
-            logger.info("Saved zscore params to %s", zscore_path)
 
     # -- OPTIMIZATION
     args_opt = args_exp.get("optimization")
@@ -491,8 +462,9 @@ def main(args_eval, resume_preempt=False):
 
     # -- load training checkpoint
     start_epoch = 0
+    ckpt_meta = {"target_mean": None, "target_std": None, "task_type": None}
     if resume_checkpoint and os.path.exists(latest_path):
-        classifiers, optimizer, scaler, start_epoch = load_checkpoint(
+        classifiers, optimizer, scaler, start_epoch, ckpt_meta = load_checkpoint(
             device=device,
             r_path=latest_path,
             classifiers=classifiers,
@@ -503,6 +475,68 @@ def main(args_eval, resume_preempt=False):
         for _ in range(start_epoch * ipe):
             [s.step() for s in scheduler]
             [wds.step() for wds in wd_scheduler]
+
+    # -- REGRESSION NORMALIZATION: resolve z-score params with precedence chain
+    # 1. YAML config → 2. Checkpoint → 3. zscore_params.json → 4. Compute from CSV → 5. Error
+    if task_type == "regression":
+        import json as _json
+
+        if target_mean is not None and target_std is not None:
+            logger.info("Z-score params from YAML: mean=%.4f, std=%.4f", target_mean, target_std)
+            if ckpt_meta.get("target_mean") is not None and abs(target_mean - ckpt_meta["target_mean"]) > 0.01:
+                logger.warning(
+                    "YAML z-score differs from checkpoint (ckpt: mean=%.4f, std=%.4f). Using YAML.",
+                    ckpt_meta["target_mean"], ckpt_meta["target_std"],
+                )
+        elif ckpt_meta.get("target_mean") is not None and ckpt_meta.get("target_std") is not None:
+            target_mean = ckpt_meta["target_mean"]
+            target_std = ckpt_meta["target_std"]
+            logger.info("Z-score params from checkpoint: mean=%.4f, std=%.4f", target_mean, target_std)
+        else:
+            zscore_path = os.path.join(os.path.dirname(train_data_path[0]), "zscore_params.json")
+            if os.path.exists(zscore_path):
+                with open(zscore_path) as _f:
+                    _params = _json.load(_f)
+                target_mean = _params["target_mean"]
+                target_std = _params["target_std"]
+                logger.info("Z-score params from %s: mean=%.4f, std=%.4f", zscore_path, target_mean, target_std)
+            elif val_only:
+                raise RuntimeError(
+                    f"Regression inference requires zscore params but no source found. Checked: "
+                    f"YAML config, checkpoint metadata, {zscore_path}. "
+                    f"Set target_mean/target_std in YAML or use a checkpoint that embeds them."
+                )
+            else:
+                import pandas as _pd
+
+                _train_df = _pd.read_csv(train_data_path[0], sep=" ", header=None)
+                _labels = _train_df.iloc[:, -1].astype(float)
+                target_mean = float(_labels.mean())
+                target_std = float(_labels.std())
+                logger.info(
+                    "Computed zscore params from train CSV: mean=%.4f, std=%.4f (n=%d)",
+                    target_mean, target_std, len(_labels),
+                )
+                # Auto-save safety: refuse to overwrite if existing params differ
+                if os.path.exists(zscore_path):
+                    with open(zscore_path) as _f:
+                        _existing = _json.load(_f)
+                    _mean_diff = abs(_existing["target_mean"] - target_mean) > 0.01
+                    _std_diff = abs(_existing["target_std"] - target_std) > 0.01
+                    if _mean_diff or _std_diff:
+                        logger.error(
+                            "REFUSING to overwrite %s: existing (mean=%.4f, std=%.4f) differs from "
+                            "computed (mean=%.4f, std=%.4f). Multiple tasks likely share this "
+                            "directory. Set target_mean/target_std in YAML.",
+                            zscore_path, _existing["target_mean"], _existing["target_std"],
+                            target_mean, target_std,
+                        )
+                    else:
+                        logger.info("zscore_params.json exists with matching values — no overwrite needed")
+                else:
+                    with open(zscore_path, "w") as _f:
+                        _json.dump({"target_mean": target_mean, "target_std": target_std}, _f)
+                    logger.info("Saved zscore params to %s", zscore_path)
 
     # ---- per-head running stats ----
     best_per_head = None
@@ -533,6 +567,9 @@ def main(args_eval, resume_preempt=False):
             "min_val_acc_per_head": np.asarray(min_per_head, dtype=float).tolist(),
             "best_epoch_per_head": np.asarray(best_epoch_per_head, dtype=int).tolist(),
             "opt_grid": opt_kwargs,
+            "task_type": task_type,
+            "target_mean": target_mean,
+            "target_std": target_std,
         }
         
         if rank == 0:
@@ -964,8 +1001,8 @@ def run_one_epoch(
             metric_name = "Acc"
             metric_symbol = "%"
             
-        # Only log to text log periodically (keep tqdm clean)
-        if itr % 10 == 0:
+        # Only log to text log periodically, rank 0 only (keep tqdm clean)
+        if itr % 10 == 0 and rank == 0:
             if val_only:
                 # Update description dynamically with metrics
                 if task_type == "regression":
@@ -1352,6 +1389,13 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
     checkpoint = robust_checkpoint_loader(r_path, map_location=torch.device("cpu"))
     logger.info(f"read-path: {r_path}")
 
+    # -- extract z-score metadata (new checkpoints embed these; old ones return None)
+    metadata = {
+        "target_mean": checkpoint.get("target_mean", None),
+        "target_std": checkpoint.get("target_std", None),
+        "task_type": checkpoint.get("task_type", None),
+    }
+
     # -- loading classifier(s)
     pretrained_dict = checkpoint["classifiers"]
     # Align 'module.' prefix between checkpoint and model (handles both directions)
@@ -1367,7 +1411,7 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
     msg = [c.load_state_dict(pd) for c, pd in zip(classifiers, cleaned_dicts)]
 
     if val_only:
-        # Log metrics if present (no change to return signature)
+        # Log metrics if present
         if "best_val_acc" in checkpoint or "mean_val_acc" in checkpoint:
             logger.info(
                 "loaded metrics: best_val_acc=%s mean_val_acc=%s",
@@ -1375,7 +1419,7 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
                 checkpoint.get("mean_val_acc", "NA"),
             )
         logger.info(f"loaded pretrained classifier (val_only) with msg: {msg}")
-        return classifiers, opt, scaler, 0
+        return classifiers, opt, scaler, 0, metadata
 
     epoch = int(checkpoint["epoch"])
     logger.info(f"loaded pretrained classifier from epoch {epoch} with msg: {msg}")
@@ -1390,7 +1434,7 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
                 continue
             s.load_state_dict(sd)
 
-    # Log metrics if present (keeps return arity identical)
+    # Log metrics if present
     if "best_val_acc" in checkpoint or "mean_val_acc" in checkpoint:
         logger.info(
             "loaded metrics: best_val_acc=%s mean_val_acc=%s",
@@ -1399,7 +1443,7 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
         )
 
     logger.info(f"loaded optimizers from epoch {epoch}")
-    return classifiers, opt, scaler, epoch
+    return classifiers, opt, scaler, epoch, metadata
 
 
 def load_pretrained(encoder, pretrained, checkpoint_key="target_encoder"):

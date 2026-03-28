@@ -6,13 +6,148 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-28 (Session 35)
+
+### Z-score params embedded in probe checkpoints (self-contained inference)
+
+**Problem:** Z-score normalization params (`target_mean`, `target_std`) were stored in separate `zscore_params.json` files, causing two bugs:
+- **Bug 017b**: A stale `data/csv/zscore_params.json` from an LVEF run (mean=57) was auto-loaded for RVSP tasks (mean=34), producing garbage predictions.
+- Fragile inference: requires checkpoint + correct JSON file in the right directory.
+
+**Solution:** Checkpoints are now self-contained — `target_mean`, `target_std`, and `task_type` are saved alongside model weights.
+
+**Files modified:**
+- `evals/video_classification_frozen/eval.py` — save/load z-score metadata in checkpoints; new 5-step precedence chain
+- `evals/video_classification_frozen_multi/eval.py` — same changes mirrored; also added R²/Pearson logging per head, Bug 017 z-score fix
+- `scripts/patch_zscore_into_checkpoints.py` (NEW) — one-time migration for 445 existing checkpoints (406 probes + 39 eval_probes)
+
+**Z-score resolution precedence (both eval modules):**
+1. YAML config (`target_mean`/`target_std`) — explicit override, with cross-check warning if checkpoint disagrees
+2. Checkpoint metadata — the model's training contract (NEW)
+3. `zscore_params.json` — legacy fallback (unchanged)
+4. Compute from train CSV — training only, with **auto-save safety** (refuses to overwrite if existing JSON differs)
+5. `RuntimeError` — inference with nothing found
+
+**`load_checkpoint()` change:** Returns 5-tuple (was 4-tuple) with metadata dict. Old checkpoints return `None` for all metadata keys — safe fallback via `.get()`.
+
+**Migration results:** `scripts/patch_zscore_into_checkpoints.py` patched all existing checkpoints:
+- `checkpoints/probes/`: 166 regression + 240 classification = 406 checkpoints
+- `checkpoints/eval_probes/`: 39 checkpoints (ICML preprint, used `data/scalers/*.pkl` for raw-unit params)
+- Cross-validated 46 `zscore_params.json` files against train CSV statistics — 36 benign drifts (<5%), 0 cross-task poisoning
+
+**Additional changes in eval modules:**
+- Rank-0-only periodic logging (`if itr % 10 == 0 and rank == 0`) — reduces noise on multi-GPU runs
+- Multi-view: R²/Pearson per head logged to CSV and epoch summary, `run_one_epoch` returns 3-tuple (scalar, agg, reg_metrics)
+
+**Backward compatibility:** Old code ignores unknown checkpoint keys. New code uses `.get(key, None)` for old checkpoints. Classification checkpoints store `target_mean=None`.
+
+---
+
+## 2026-03-28 (Session 34)
+
+### CAMUS frozen segmentation: all results complete
+
+**Pipeline:** `evals/segmentation_frozen/eval.py` — frozen encoder + linear decoder (1×1 conv + bilinear upsample, ~4K params) on CAMUS (400/50/50 train/val/test, 4CH+2CH views). 7-config HP grid trained in parallel per model, 50 epochs each. Best config selected by val Dice, test Dice reported.
+
+**Final results (test mean Dice):**
+
+| Model | Test Dice | Best LR | Notes |
+|-------|-----------|---------|-------|
+| EchoJEPA-L | **0.818** | 5e-2 | Best overall |
+| EchoMAE-L | 0.790 | 5e-2 | Same ViT-L, same data — objective comparison |
+| EchoJEPA-L-K | 0.746 | 1e-2 | Kinetics detour vs continuous MIMIC pretraining |
+| PanEcho | 0.734 | 2e-2 | 7×7 grid limits spatial resolution |
+| EchoJEPA-G (384px) | 0.729 | 1e-2 | Native resolution, correct architecture |
+| EchoJEPA-G (224px) | 0.718 | 5e-3 | Below native res |
+| EchoPrime | 0.669 | 5e-2 | 7×7 grid, weakest spatial features |
+
+### Bug 016 FIXED: `vit_giant` vs `vit_giant_xformers` num_heads mismatch (CRITICAL)
+
+**File:** `evals/segmentation_frozen/eval.py`
+
+EchoJEPA-G checkpoint (trained with `vit_giant_xformers`, 22 heads, head_dim=64) was loaded into `vit_giant` architecture (16 heads, head_dim=88). QKV weight shapes `[4224, 1408]` are identical regardless of `num_heads`, so `load_state_dict` succeeds silently — even with `strict=True`. But attention computation is completely wrong: each head reads wrong feature dimensions, and RoPE rotation dimensions mismatch (28 vs 20 per axis). Result: 0.600 test Dice instead of 0.718+.
+
+**Debugging timeline:** 6 steps over ~3 hours. Failed hypotheses: resolution mismatch (384px identical to 224px — both broken), deeper ViTs lose locality (contradicted by DINOv2 ViT-g), echo fan geometry artifact. User identified the architecture mismatch class of bugs early; final diagnosis required comparing `vit_giant` (num_heads=16) vs `vit_giant_xformers` (num_heads=22) factory functions.
+
+**Fix:** Changed auto-detection default from `vit_giant` → `vit_giant_xformers`. Added `--model_name` and `--resolution` CLI args. Verified RoPE is correctly enabled via `use_rope=True` kwarg (produces `RoPEAttention` blocks, no `pos_embed`).
+
+**Commit:** `636469a`
+
+See `claude/dev/bugs/016-vit-giant-num-heads-mismatch.md` for full details.
+
+### Segmentation eval enhancements
+
+- Expanded HP grid from 6 → 7 configs (added lr=5e-2 which won for 3/5 models)
+- Added `--resolution` arg for running G at native 384px
+- Added `--model_name` arg for explicit architecture override
+- Resolution threaded through model creation, dataset, and decoder
+
+---
+
+## 2026-03-28 (Session 33)
+
+### Bug 017b: Shared `zscore_params.json` poisoning RVSP runs
+
+Even after the Bug 017 z-score fix, the EchoMAE RVSP ep163 rebuttal run showed no learning (train MAE ~10.6 in distorted units ≈ 120+ mmHg effective). Root cause: a stale `data/csv/zscore_params.json` created by a prior LVEF run contained LVEF params (mean=57.06, std=11.33). The auto-detection code loaded these for RVSP tasks (which need mean=34.47, std=14.01), causing RVSP labels to be z-scored with the wrong statistics. A typical RVSP of 34 mmHg was z-scored as (34-57.06)/11.33 = -2.03, producing deeply negative targets.
+
+**Fix:**
+1. Added explicit `target_mean: 34.4650` / `target_std: 14.0130` to all 9 RVSP ICML configs
+2. Deleted stale `data/csv/zscore_params.json` (and EFS copy)
+3. Documented in `claude/dev/bugs/017-multiview-rvsp-no-zscore.md` (017b section)
+
+**Affected:** EchoMAE-L RVSP ep163 full 41K run (invalid, needs restart). All other RVSP configs now have explicit params.
+
+---
+
+## 2026-03-28 (Session 32)
+
+### Bug 017 FIXED: Multi-view eval missing z-score normalization (CRITICAL)
+
+**File:** `evals/video_classification_frozen_multi/eval.py`
+
+The multi-view eval module never z-score normalized regression labels at runtime. The single-view module does this at line 899 (`labels = (labels - t_mean) / t_std`). This bug was dormant during the ICML preprint because the RVSP CSVs were pre-z-scored using `sklearn.StandardScaler`. When the CSVs were later rebuilt with raw mmHg values for the NatMed pipeline, the multi-view module was never updated, causing rebuttal RVSP runs to fail catastrophically (MAE ~145-176 logged scale).
+
+**Fix:** Added `y = (y - t_mean) / t_std` before loss computation in multi-view eval, matching single-view.
+
+**Impact:** ICML preprint RVSP valid (pre-z-scored CSVs). NatMed RVSP valid (uses single-view). All rebuttal multi-view RVSP runs before this fix are invalid.
+
+**Key forensic findings:**
+- `data/scalers/rvsp_scaler.pkl` confirms preprint used pre-z-scored CSVs (mean=34.465, std=14.013)
+- Preprint checkpoint regressor biases ~0.02-0.04 (z-scored output range, not raw ~34)
+- `VideoGroupDataset` uses `int()` cast on labels, which quantized z-scored floats to ~5-6 bins
+- Git history: `a6a520e` (2026-01-23) parameterized `target_std`, `1a5dcf5` (2026-01-26) ran preprint RVSP
+
+See `claude/dev/bugs/017-multiview-rvsp-no-zscore.md` for full details.
+
+### Multi-view eval: Added R²/Pearson tracking for regression
+
+Added per-head R² and Pearson correlation computation to the multi-view eval module's validation loop, matching the single-view module. Requires distributed gathering via `all_gather`. CSV logger updated to 5 columns: `epoch, train_mae, val_mae, val_r2, val_pearson`.
+
+### Checkpoint registry and encoder symlinks
+
+Created `checkpoints/encoders/` directory with 13 descriptive symlinks pointing to actual checkpoint files. Written `claude/architecture/checkpoint-registry.md` documenting all encoder checkpoints (pretraining lineage, epoch conventions, S3 sources) and probe checkpoints (ICML eval_probes, NatMed UHN probes, NatMed MIMIC probes).
+
+### Model lineage corrections across docs
+
+Corrected EchoJEPA-L documentation across 7 files: L is pretrained on **MIMIC-only** (not UHN). L-K is **Kinetics→MIMIC** (not Kinetics→UHN). Only G uses UHN data.
+
+### RVSP rebuttal run launched (EchoJEPA-L full, 5K MIMIC)
+
+**Config:** `configs/eval/vitl/icml/echojepa_l_mimic_full_rvsp_d4.yaml`
+**Checkpoint:** `vitl-pt-210-an25.pt` (ViT-L, MIMIC pt210 + an25)
+**Data:** 5K train / 1K val multi-view MIMIC RVSP subset
+**Protocol:** ICML (d=4, 6-head, 20 epochs, BS=1)
+**Status:** Running. Epoch 1 val MAE = 10.59 mmHg, R² = -0.071, Pearson = 0.085 (correct scale).
+
+---
+
 ## 2026-03-28 (Session 31, continued)
 
 ### ICML Rebuttal: EchoJEPA-L-K LVEF d=4 Probe — PAUSED at Epoch 12/20
 
 **Config:** `configs/eval/vitl/icml/echojepa_l_k_lvef_d4.yaml`
 **Protocol:** ICML preprint (d=4 attentive, 6-head HP grid, 20 epochs, BS=1, 224px, 16f)
-**Checkpoint:** `checkpoints/anneal/keep/vitl-kinetics-pt220-an55.pt` (ViT-L Kinetics→UHN)
+**Checkpoint:** `checkpoints/anneal/keep/vitl-kinetics-pt220-an55.pt` (ViT-L Kinetics→MIMIC)
 **Data:** UHN LVEF, 176K train / 26K val (A4C + B-mode view-filtered, S3 224px)
 **Output:** `evals/vitl/icml/lvef/video_classification_frozen/icml-echojepa-l-k-lvef-d4/`
 

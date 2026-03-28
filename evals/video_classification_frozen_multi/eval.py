@@ -202,38 +202,9 @@ def main(args_eval, resume_preempt=False):
     clips_per_view = args_classifier.get("clips_per_view", args_data.get("num_clips_per_video", 1))
 
     
-    # -- REGRESSION NORMALIZATION: auto-load from zscore_params.json, or compute from train CSV
+    # -- REGRESSION NORMALIZATION: read YAML overrides (full resolution after checkpoint load)
     target_mean = args_data.get("target_mean", None)
     target_std = args_data.get("target_std", None)
-    if task_type == "regression" and target_mean is None and target_std is None:
-        import json as _json
-        zscore_path = os.path.join(os.path.dirname(train_data_path[0]), "zscore_params.json")
-        if os.path.exists(zscore_path):
-            with open(zscore_path) as _f:
-                _params = _json.load(_f)
-            target_mean = _params["target_mean"]
-            target_std = _params["target_std"]
-            logger.info("Loaded zscore params from %s: mean=%.4f, std=%.4f", zscore_path, target_mean, target_std)
-        elif val_only:
-            raise RuntimeError(
-                f"Regression inference requires zscore params but zscore_params.json not found at {zscore_path} "
-                f"and target_mean/target_std not set in config. "
-                f"Either place zscore_params.json alongside the train CSV or set target_mean/target_std in the YAML."
-            )
-        else:
-            import pandas as _pd
-            _train_df = _pd.read_csv(train_data_path[0], sep=" ", header=None)
-            _labels = _train_df.iloc[:, -1].astype(float)
-            target_mean = float(_labels.mean())
-            target_std = float(_labels.std())
-            logger.info(
-                "Computed zscore params from train CSV: mean=%.4f, std=%.4f (n=%d)",
-                target_mean, target_std, len(_labels),
-            )
-            # Save for reproducibility and future inference
-            with open(zscore_path, "w") as _f:
-                _json.dump({"target_mean": target_mean, "target_std": target_std}, _f)
-            logger.info("Saved zscore params to %s", zscore_path)
 
     # -- OPTIMIZATION
     args_opt = args_exp.get("optimization")
@@ -286,7 +257,10 @@ def main(args_eval, resume_preempt=False):
     # -- make csv_logger
     if rank == 0:
         if task_type == "regression":
-            csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "train_mae"), ("%.5f", "val_mae"))
+            csv_logger = CSVLogger(
+                log_file, ("%d", "epoch"), ("%.5f", "train_mae"), ("%.5f", "val_mae"),
+                ("%.5f", "val_r2"), ("%.5f", "val_pearson"),
+            )
         else:
             csv_logger = CSVLogger(log_file, ("%d", "epoch"), ("%.5f", "train_acc"), ("%.5f", "val_acc"))
 
@@ -434,8 +408,9 @@ def main(args_eval, resume_preempt=False):
 
     # -- load training checkpoint
     start_epoch = 0
+    ckpt_meta = {"target_mean": None, "target_std": None, "task_type": None}
     if resume_checkpoint and os.path.exists(latest_path):
-        classifiers, optimizer, scaler, start_epoch = load_checkpoint(
+        classifiers, optimizer, scaler, start_epoch, ckpt_meta = load_checkpoint(
             device=device,
             r_path=latest_path,
             classifiers=classifiers,
@@ -446,6 +421,68 @@ def main(args_eval, resume_preempt=False):
         for _ in range(start_epoch * ipe):
             [s.step() for s in scheduler]
             [wds.step() for wds in wd_scheduler]
+
+    # -- REGRESSION NORMALIZATION: resolve z-score params with precedence chain
+    # 1. YAML config → 2. Checkpoint → 3. zscore_params.json → 4. Compute from CSV → 5. Error
+    if task_type == "regression":
+        import json as _json
+
+        if target_mean is not None and target_std is not None:
+            logger.info("Z-score params from YAML: mean=%.4f, std=%.4f", target_mean, target_std)
+            if ckpt_meta.get("target_mean") is not None and abs(target_mean - ckpt_meta["target_mean"]) > 0.01:
+                logger.warning(
+                    "YAML z-score differs from checkpoint (ckpt: mean=%.4f, std=%.4f). Using YAML.",
+                    ckpt_meta["target_mean"], ckpt_meta["target_std"],
+                )
+        elif ckpt_meta.get("target_mean") is not None and ckpt_meta.get("target_std") is not None:
+            target_mean = ckpt_meta["target_mean"]
+            target_std = ckpt_meta["target_std"]
+            logger.info("Z-score params from checkpoint: mean=%.4f, std=%.4f", target_mean, target_std)
+        else:
+            zscore_path = os.path.join(os.path.dirname(train_data_path[0]), "zscore_params.json")
+            if os.path.exists(zscore_path):
+                with open(zscore_path) as _f:
+                    _params = _json.load(_f)
+                target_mean = _params["target_mean"]
+                target_std = _params["target_std"]
+                logger.info("Z-score params from %s: mean=%.4f, std=%.4f", zscore_path, target_mean, target_std)
+            elif val_only:
+                raise RuntimeError(
+                    f"Regression inference requires zscore params but no source found. Checked: "
+                    f"YAML config, checkpoint metadata, {zscore_path}. "
+                    f"Set target_mean/target_std in YAML or use a checkpoint that embeds them."
+                )
+            else:
+                import pandas as _pd
+
+                _train_df = _pd.read_csv(train_data_path[0], sep=" ", header=None)
+                _labels = _train_df.iloc[:, -1].astype(float)
+                target_mean = float(_labels.mean())
+                target_std = float(_labels.std())
+                logger.info(
+                    "Computed zscore params from train CSV: mean=%.4f, std=%.4f (n=%d)",
+                    target_mean, target_std, len(_labels),
+                )
+                # Auto-save safety: refuse to overwrite if existing params differ
+                if os.path.exists(zscore_path):
+                    with open(zscore_path) as _f:
+                        _existing = _json.load(_f)
+                    _mean_diff = abs(_existing["target_mean"] - target_mean) > 0.01
+                    _std_diff = abs(_existing["target_std"] - target_std) > 0.01
+                    if _mean_diff or _std_diff:
+                        logger.error(
+                            "REFUSING to overwrite %s: existing (mean=%.4f, std=%.4f) differs from "
+                            "computed (mean=%.4f, std=%.4f). Multiple tasks likely share this "
+                            "directory. Set target_mean/target_std in YAML.",
+                            zscore_path, _existing["target_mean"], _existing["target_std"],
+                            target_mean, target_std,
+                        )
+                    else:
+                        logger.info("zscore_params.json exists with matching values — no overwrite needed")
+                else:
+                    with open(zscore_path, "w") as _f:
+                        _json.dump({"target_mean": target_mean, "target_std": target_std}, _f)
+                    logger.info("Saved zscore params to %s", zscore_path)
 
     # ---- per-head running stats ----
     best_per_head = None
@@ -484,6 +521,8 @@ def main(args_eval, resume_preempt=False):
             "best_epoch_per_head": np.asarray(best_epoch_per_head, dtype=int).tolist(),
             "opt_grid": opt_kwargs,
             "task_type": task_type,
+            "target_mean": target_mean,
+            "target_std": target_std,
         }
 
         if rank == 0:
@@ -522,7 +561,7 @@ def main(args_eval, resume_preempt=False):
         if val_only:
             train_scalar, _ = -1.0, None
         else:
-            train_scalar, _ = run_one_epoch(
+            train_scalar, _, _ = run_one_epoch(
                 device=device,
                 training=True,
                 encoder=encoder,
@@ -546,7 +585,7 @@ def main(args_eval, resume_preempt=False):
                 use_late_fusion=use_late_fusion,
             )
 
-        val_scalar, val_heads = run_one_epoch(
+        val_scalar, val_heads, val_reg_metrics = run_one_epoch(
             device=device,
             training=False,
             encoder=encoder,
@@ -611,13 +650,26 @@ def main(args_eval, resume_preempt=False):
         symbol = "" if task_type == "regression" else "%"
         val_label = "val(min-head)" if task_type == "regression" else "val(max-head)"
 
-        logger.info(
-            "[%5d] train: %.3f%s  %s: %.3f%s (Best: %.3f%s)"
-            % (epoch + 1, train_scalar, symbol, val_label, val_scalar, symbol, best_val_acc_scalar, symbol)
-        )
+        # Extract best R²/Pearson for this epoch
+        best_r2 = float(np.nanmax(val_reg_metrics["r2"])) if val_reg_metrics is not None and "r2" in val_reg_metrics else float("nan")
+        best_pearson = float(np.nanmax(val_reg_metrics["pearson"])) if val_reg_metrics is not None and "pearson" in val_reg_metrics else float("nan")
+
+        if task_type == "regression" and val_reg_metrics is not None:
+            logger.info(
+                "[%5d] train: %.3f  %s: %.3f (Best: %.3f)  R²: %.4f  Pearson: %.4f"
+                % (epoch + 1, train_scalar, val_label, val_scalar, best_val_acc_scalar, best_r2, best_pearson)
+            )
+        else:
+            logger.info(
+                "[%5d] train: %.3f%s  %s: %.3f%s (Best: %.3f%s)"
+                % (epoch + 1, train_scalar, symbol, val_label, val_scalar, symbol, best_val_acc_scalar, symbol)
+            )
 
         if rank == 0:
-            csv_logger.log(epoch + 1, train_scalar, val_scalar)
+            if task_type == "regression":
+                csv_logger.log(epoch + 1, train_scalar, val_scalar, best_r2, best_pearson)
+            else:
+                csv_logger.log(epoch + 1, train_scalar, val_scalar)
 
         if val_only:
             return
@@ -693,6 +745,11 @@ def run_one_epoch(
         top1_meters = [AverageMeter() for _ in classifiers]
 
     all_predictions, all_video_paths, all_labels = [], [], []
+
+    # Per-head collection for R²/Pearson (regression validation only)
+    collect_for_r2 = not training and task_type == "regression"
+    all_head_preds = [[] for _ in classifiers] if collect_for_r2 else None
+    all_reg_labels = [] if collect_for_r2 else None
 
     iterator = data_loader
     if val_only and tqdm is not None:
@@ -869,6 +926,10 @@ def run_one_epoch(
                     y = labels.float()
                     if y.dim() == 1:
                         y = y.unsqueeze(-1)
+                    # Z-score normalize labels at runtime (CSVs store raw values)
+                    t_mean = target_mean if target_mean is not None else 0.0
+                    t_std = target_std if target_std is not None else 1.0
+                    y = (y - t_mean) / t_std
                     losses = [criterion(o.float(), y) for o in outs]
                 else:
                     y = labels.long()
@@ -883,6 +944,12 @@ def run_one_epoch(
                 mae_vals = [m * t_std for m in mae_vals]  # scale ONCE
                 for meter, m in zip(metric_meters, mae_vals):
                     meter.update(m)
+
+                # Collect per-head predictions for R²/Pearson
+                if collect_for_r2:
+                    for h, head_pred in enumerate(outs):
+                        all_head_preds[h].append(head_pred.squeeze(-1).float().detach().cpu())
+                    all_reg_labels.append(y.squeeze(-1).float().detach().cpu())
 
                 if val_only and predictions_save_path is not None:
                     p0 = outs[0].detach().cpu().float().numpy()
@@ -917,8 +984,8 @@ def run_one_epoch(
                 opt.step()
                 opt.zero_grad()
 
-        # ---- periodic logging ----
-        if itr % 10 == 0:
+        # ---- periodic logging (rank 0 only) ----
+        if itr % 10 == 0 and rank == 0:
             if task_type == "regression":
                 best_scalar = float(_agg.min())
                 if val_only and hasattr(iterator, "set_description"):
@@ -1005,35 +1072,93 @@ def run_one_epoch(
         df.to_csv(predictions_save_path, index=False)
         logger.info(f"Saved {len(all_predictions)} predictions to {predictions_save_path}")
 
+    # Compute R²/Pearson per head (regression validation only)
+    reg_metrics = None
+    if collect_for_r2 and len(all_reg_labels) > 0:
+        try:
+            import torch.distributed as dist
+            from scipy.stats import pearsonr
+
+            local_labels = torch.cat(all_reg_labels, dim=0)
+            local_preds = [torch.cat(all_head_preds[h], dim=0) for h in range(len(classifiers))]
+
+            # Gather across ranks (NCCL requires CUDA tensors)
+            if dist.is_initialized() and dist.get_world_size() > 1:
+                local_labels_gpu = local_labels.to(device)
+                gathered_labels = [torch.zeros_like(local_labels_gpu) for _ in range(dist.get_world_size())]
+                dist.all_gather(gathered_labels, local_labels_gpu)
+                all_labels_t = torch.cat(gathered_labels, dim=0).cpu()
+                gathered_preds = []
+                for h in range(len(classifiers)):
+                    local_h_gpu = local_preds[h].to(device)
+                    gathered_h = [torch.zeros_like(local_h_gpu) for _ in range(dist.get_world_size())]
+                    dist.all_gather(gathered_h, local_h_gpu)
+                    gathered_preds.append(torch.cat(gathered_h, dim=0).cpu())
+            else:
+                all_labels_t = local_labels
+                gathered_preds = local_preds
+
+            labels_np = all_labels_t.numpy()
+
+            r2_arr = np.full(len(classifiers), np.nan)
+            pearson_arr = np.full(len(classifiers), np.nan)
+
+            ss_tot = np.sum((labels_np - labels_np.mean()) ** 2)
+            for h in range(len(classifiers)):
+                preds_np = gathered_preds[h].numpy()
+                ss_res = np.sum((labels_np - preds_np) ** 2)
+                r2_arr[h] = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
+                pearson_arr[h] = pearsonr(labels_np, preds_np)[0] if len(labels_np) > 2 else 0.0
+
+            reg_metrics = {"r2": r2_arr, "pearson": pearson_arr}
+
+            if rank == 0:
+                best_r2_idx = int(np.nanargmax(r2_arr))
+                best_pearson_idx = int(np.nanargmax(pearson_arr))
+                logger.info(
+                    "  R²: best=%.4f (head %d)  Pearson: best=%.4f (head %d)",
+                    r2_arr[best_r2_idx], best_r2_idx,
+                    pearson_arr[best_pearson_idx], best_pearson_idx,
+                )
+        except Exception as e:
+            logger.warning(f"R²/Pearson computation failed: {e}")
+
     scalar = float(_agg.min()) if task_type == "regression" else float(_agg.max())
-    return scalar, _agg
+    return scalar, _agg, reg_metrics
 
 
 def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
     checkpoint = robust_checkpoint_loader(r_path, map_location=torch.device("cpu"))
     logger.info(f"read-path: {r_path}")
 
+    # -- extract z-score metadata (new checkpoints embed these; old ones return None)
+    metadata = {
+        "target_mean": checkpoint.get("target_mean", None),
+        "target_std": checkpoint.get("target_std", None),
+        "task_type": checkpoint.get("task_type", None),
+    }
+
     # -- loading classifier(s)
     pretrained_dict = checkpoint["classifiers"]
-    
+
     # FIX: Handle DDP module prefix mismatch
     def fix_state_dict(state_dict, model):
         """Add or remove 'module.' prefix to match model structure."""
         model_keys = set(model.state_dict().keys())
         ckpt_keys = set(state_dict.keys())
-        
+
         # Check if model expects module. prefix but checkpoint doesn't have it
         if any(k.startswith("module.") for k in model_keys) and not any(k.startswith("module.") for k in ckpt_keys):
             logger.info("Adding 'module.' prefix to checkpoint keys for DDP compatibility")
             return {"module." + k: v for k, v in state_dict.items()}
-        
+
         # Check if checkpoint has module. prefix but model doesn't expect it
         if any(k.startswith("module.") for k in ckpt_keys) and not any(k.startswith("module.") for k in model_keys):
             logger.info("Removing 'module.' prefix from checkpoint keys")
             return {k.replace("module.", ""): v for k, v in state_dict.items()}
-        
+
         return state_dict
-    
+
     pretrained_dict = [fix_state_dict(pd, c) for pd, c in zip(pretrained_dict, classifiers)]
     msg = [c.load_state_dict(pd) for c, pd in zip(classifiers, pretrained_dict)]
 
@@ -1045,7 +1170,7 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
                 checkpoint.get("mean_val_acc", "NA"),
             )
         logger.info(f"loaded pretrained classifier (val_only) with msg: {msg}")
-        return classifiers, opt, scaler, 0
+        return classifiers, opt, scaler, 0, metadata
 
     epoch = int(checkpoint["epoch"])
     logger.info(f"loaded pretrained classifier from epoch {epoch} with msg: {msg}")
@@ -1068,7 +1193,7 @@ def load_checkpoint(device, r_path, classifiers, opt, scaler, val_only=False):
         )
 
     logger.info(f"loaded optimizers from epoch {epoch}")
-    return classifiers, opt, scaler, epoch
+    return classifiers, opt, scaler, epoch, metadata
 
 
 def load_pretrained(encoder, pretrained, checkpoint_key="target_encoder"):
