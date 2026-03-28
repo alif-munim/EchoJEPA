@@ -1,5 +1,6 @@
-# EchoJEPA-L-K RVSP multi-view regression, d=4 attentive probe (ICML rebuttal protocol)
-# Matches ICML preprint: d=4, 6-head HP grid, 20 epochs, 224px, no warmup
+# EchoJEPA-L (V-JEPA 2, MIMIC pt210+an25) RVSP multi-view regression, d=4 attentive probe
+# Full UHN RVSP dataset: 41K train / 5K val
+# ICML preprint protocol: d=4, 6-head HP grid, 20 epochs, 224px, no warmup
 app: vjepa
 cpus_per_task: 32
 folder: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitl/icml/rvsp
@@ -10,13 +11,13 @@ num_workers: 8
 
 eval_name: video_classification_frozen_multi
 resume_checkpoint: false
-tag: icml-echojepa-l-k-rvsp-d4
+tag: icml-echojepa-l-full-rvsp-d4-uhn41k
 
 experiment:
   classifier:
     task_type: regression
     num_heads: 16
-    num_probe_blocks: 4  # ICML protocol: 3 SA + 1 CA
+    num_probe_blocks: 4
     use_slot_embeddings: true
     num_views: 2
     clips_per_view: 2
@@ -85,7 +86,7 @@ experiment:
       weight_decay: 0.4
 
 model_kwargs:
-  checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/anneal/keep/vitl-kinetics-pt220-an55.pt
+  checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/anneal/keep/vitl-pt-210-an25.pt
   module_name: evals.video_classification_frozen_multi.modelcustom.vit_encoder_multiclip
   pretrain_kwargs:
     encoder:

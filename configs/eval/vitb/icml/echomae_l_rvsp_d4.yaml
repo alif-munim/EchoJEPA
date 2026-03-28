@@ -36,6 +36,8 @@ experiment:
     num_views_per_segment: 1
     miss_augment_prob: 0.10
     min_present: 1
+    target_mean: 34.4650
+    target_std: 14.0130
 
   optimization:
     batch_size: 1

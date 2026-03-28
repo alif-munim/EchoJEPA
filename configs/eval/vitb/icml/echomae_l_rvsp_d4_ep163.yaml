@@ -1,8 +1,8 @@
-# EchoJEPA-L-K RVSP multi-view regression, d=4 attentive probe (ICML rebuttal protocol)
-# Matches ICML preprint: d=4, 6-head HP grid, 20 epochs, 224px, no warmup
+# EchoMAE-L (VideoMAE ViT-L, ep163) RVSP multi-view regression, d=4 attentive probe (ICML rebuttal)
+# Using the fully-trained checkpoint (ep163) that performed well on preprint RVSP
 app: vjepa
 cpus_per_task: 32
-folder: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitl/icml/rvsp
+folder: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitb/icml/echomae_rvsp_ep163
 mem_per_gpu: 80G
 nodes: 1
 tasks_per_node: 8
@@ -10,13 +10,13 @@ num_workers: 8
 
 eval_name: video_classification_frozen_multi
 resume_checkpoint: false
-tag: icml-echojepa-l-k-rvsp-d4
+tag: icml-echomae-l-rvsp-d4-ep163-full
 
 experiment:
   classifier:
     task_type: regression
     num_heads: 16
-    num_probe_blocks: 4  # ICML protocol: 3 SA + 1 CA
+    num_probe_blocks: 4
     use_slot_embeddings: true
     num_views: 2
     clips_per_view: 2
@@ -25,8 +25,8 @@ experiment:
 
   data:
     dataset_type: VideoGroupDataset
-    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/rvsp_train.csv
-    dataset_val: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/rvsp_val.csv
+    dataset_train: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/data/csv/rvsp_train.csv
+    dataset_val: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/data/csv/rvsp_val.csv
     num_classes: 1
     resolution: 224
     frames_per_clip: 16
@@ -85,18 +85,11 @@ experiment:
       weight_decay: 0.4
 
 model_kwargs:
-  checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/anneal/keep/vitl-kinetics-pt220-an55.pt
-  module_name: evals.video_classification_frozen_multi.modelcustom.vit_encoder_multiclip
+  checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/videomae-ep163.pth
+  module_name: evals.video_classification_frozen_multi.modelcustom.videomae_encoder
   pretrain_kwargs:
     encoder:
-      checkpoint_key: target_encoder
-      img_temporal_dim_size: null
-      model_name: vit_large
-      patch_size: 16
+      model_name: vit_large_patch16_224
       tubelet_size: 2
-      uniform_power: true
-      use_rope: true
   wrapper_kwargs:
-    max_frames: 128
-    use_pos_embed: false
     return_per_clip: true
