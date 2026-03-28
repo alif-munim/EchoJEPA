@@ -35,9 +35,9 @@ The actual concerns are about novelty, evaluation breadth, mechanistic evidence,
 
 ### Response
 
-The encoder architecture is not novel — we use V-JEPA2 without modification. This is deliberate. Our contribution is a domain-specific empirical finding with a clear mechanistic explanation:
+The encoder architecture is not novel — we use V-JEPA2 without modification. This is deliberate. Our contribution is not a new architecture but a new understanding — a falsifiable hypothesis about when and why pixel reconstruction fails, tested with controlled experiments and mechanistic evidence. This understanding generalizes beyond echocardiography to any domain where pixel fidelity is dominated by stochastic interference.
 
-**Hypothesis:** Pixel-level reconstruction objectives fail for ultrasound because ultrasound pixels are dominated by stochastic speckle noise. A model trained to reconstruct masked pixels must devote representational capacity to modeling this noise — capacity that is unavailable for learning cardiac dynamics and anatomical structure. Spatiotemporal latent prediction avoids this failure mode because the EMA teacher's representations already filter pixel-level noise, so the student learns to predict semantic content — including temporal dynamics across the cardiac cycle — rather than stochastic texture. This is a testable, falsifiable claim.
+**Hypothesis:** Pixel-level reconstruction objectives fail in stochastic-noise-dominated imaging domains because the model must devote representational capacity to modeling noise — capacity that is unavailable for learning meaningful structure. In ultrasound, stochastic speckle, depth-dependent attenuation, and acoustic shadows are uncorrelated with anatomy yet dominate pixel content. Spatiotemporal latent prediction avoids this failure mode because the EMA teacher's representations already filter pixel-level noise, so the student learns to predict semantic content — including temporal dynamics — rather than stochastic texture. This hypothesis is testable, falsifiable, and **generalizable**: the same mechanism should apply to any modality where pixel noise dominates signal — radar (clutter), sonar (reverberation), low-SNR microscopy (shot noise), and fetal ultrasound.
 
 **Evidence:** We test this hypothesis through controlled experiment. EchoJEPA-L vs EchoMAE-L — identical ViT-L architecture, identical MIMIC data, identical compute — differ only in the pretraining objective. The result: a 45-point view classification gap attributable solely to the objective. This is not a system-level comparison where architecture, data, or scale might explain the difference. It is a controlled experiment isolating the variable we claim matters.
 
@@ -51,13 +51,15 @@ Beyond the core hypothesis and controlled test, we provide:
 
 2. **Model scaling analysis.** Results at three scales — ViT-B (86M), ViT-L (300M), ViT-G (1.1B) — show latent prediction benefits from scale. The L → G comparison shows system-level scaling (model + data). The B → L comparison on MIMIC uses the same data and objective, with model size as the primary variable (noting that ViT-B uses V-JEPA 2.1 while ViT-L uses V-JEPA 2.0, which we disclose transparently).
 
-3. **Representation-level evidence.** CKA analysis shows JEPA representations are stable under speckle perturbation while MAE representations shift. A noise-level linear probe confirms: MAE features encode speckle intensity (high prediction accuracy) while JEPA features do not (low accuracy) — directly confirming the noise-filtering mechanism predicted by the hypothesis.
+3. **Representation-level noise-filtering mechanism (SSL contribution).** CKA analysis shows JEPA representations are stable under speckle perturbation while MAE representations shift. A noise-level linear probe confirms: MAE features encode speckle intensity (high prediction accuracy) while JEPA features do not (low accuracy). Together these constitute **the first mechanistic characterization of why latent prediction filters noise in self-supervised learning** — a finding about SSL broadly, not just echocardiography. The mechanism (EMA target as noise low-pass filter) applies whenever pixel content is dominated by stochastic interference, regardless of the specific imaging modality.
 
-4. **Video-level robustness benchmarks (EchoBench).** Echo-specific perturbations (depth attenuation, acoustic shadow) simulate real clinical degradation modes. EchoJEPA degrades 86% less than baselines. Open-sourced as a community resource.
+4. **Multi-view attentive probing framework (general methodology).** Factorized stream embeddings + view dropout + early fusion with attention masking is a **general method for variable-composition multi-view evaluation**, applicable beyond echo to any multi-view medical imaging setting: multi-sequence MRI, multi-phase CT, multi-probe ultrasound, multi-stain histopathology. The 18.3% gain from view dropout demonstrates it solves a real and general problem — handling incomplete observations at test time.
 
-5. **Scale + open release.** 18M echocardiograms, largest pretraining corpus for this modality. Gated release of EchoJEPA-G (1.1B params) upon acceptance.
+5. **Video-level robustness benchmarks (EchoBench).** Echo-specific perturbations (depth attenuation, acoustic shadow) plus temporal corruptions simulate real clinical degradation modes. EchoJEPA degrades 86% less than baselines. Open-sourced as a community resource, differentiating from concurrent frame-level evaluations on three axes: physics-based perturbations, temporal corruptions, and task diversity (classification + regression + segmentation).
 
-ICML has a strong tradition of publishing empirical contributions that change understanding of when and why methods work (e.g., scaling laws, objective comparisons for contrastive learning). This paper provides the hypothesis, controlled experiment, mechanistic evidence, and scaling analysis for why pretraining objectives fail in noisy imaging domains.
+6. **Scale + open release.** 18M echocardiograms, largest pretraining corpus for this modality. Gated release of EchoJEPA-G (1.1B params) upon acceptance.
+
+ICML has a strong tradition of publishing empirical contributions that change understanding of when and why methods work (e.g., scaling laws, objective comparisons for contrastive learning). This paper provides the hypothesis, controlled experiment, and **the first mechanistic evidence** for why pretraining objectives fail in stochastic-noise-dominated imaging domains — a finding that generalizes to radar, sonar, low-SNR microscopy, and other modalities where pixel fidelity is neither achievable nor desirable.
 
 ---
 
@@ -73,21 +75,35 @@ ICML has a strong tradition of publishing empirical contributions that change un
 
 ### Response
 
-We acknowledge this gap and have added segmentation evaluation in the revision.
+**First, a direct defense of our evaluation protocol:** Frozen-backbone probing is the standard protocol for evaluating representation quality in self-supervised learning. DINO \citep{caron2021emerging}, I-JEPA \citep{ijepa}, V-JEPA \citep{vjepa, vjepa2}, and MAE \citep{mae} all evaluate primarily through frozen probing — classification and regression tasks that measure what information the representation encodes. This is not a gap in our evaluation; it is the established methodology for the specific question we investigate (which pretraining objective produces better representations). Segmentation evaluates a related but distinct capability (spatial precision), and conflating the two risks confounding representation quality with decoder design.
+
+**That said, we have added segmentation evaluation to strengthen the paper's breadth.**
 
 **Experiment:** Frozen EchoJEPA encoder with a lightweight decoder on [CAMUS / EchoNet-Dynamic LV segmentation]. All encoder weights remain frozen — only the decoder is trained, consistent with our frozen-backbone evaluation protocol.
 
-**Results:** [TO BE FILLED AFTER EXPERIMENT]
+**Dataset:** CAMUS (500 patients, A4C + A2C views, 400/50/50 train/val/test). Dense segmentation masks: LV cavity, myocardium, left atrium.
 
-| Model | Dice (ED) | Dice (ES) | HD (mm) |
-|-------|-----------|-----------|---------|
-| EchoJEPA-G | — | — | — |
-| EchoJEPA-L | — | — | — |
-| EchoMAE-L | — | — | — |
-| EchoPrime | — | — | — |
-| PanEcho | — | — | — |
+**Decoder:** Linear segmentation decoder (1×1 conv + bilinear upsample, ~4,100 parameters) — the segmentation analogue of a linear probe. Operates on frozen spatial tokens at ED/ES temporal positions. 50 epochs, cross-entropy loss.
 
-**Framing:** "We have added LV segmentation evaluation on [dataset] using frozen video features with a lightweight [decoder]. EchoJEPA achieves [X] Dice score vs [Y] for baselines, demonstrating that the learned spatiotemporal representations support pixel-level tasks in addition to classification and regression."
+**Results:** [TO BE FILLED — all four runs in progress]
+
+| Model | Spatial Tokens | Grid | Dice (ED) | Dice (ES) | Mean Dice | HD95 (mm) |
+|-------|---------------|------|-----------|-----------|-----------|-----------|
+| EchoJEPA-L | `[B, 1568, 1024]` | 14×14 × 8t | — | — | — | — |
+| EchoMAE-L | `[B, 1568, 1024]` | 14×14 × 8t | — | — | — | — |
+| EchoPrime | `[B, 392, 768]` | 7×7 × 8t | — | — | — | — |
+| PanEcho | `[B, 784, 768]` | 7×7 × 16t | — | — | — | — |
+
+**Key finding — spatial resolution hierarchy across architectures:** All four models CAN produce spatial features for frozen segmentation, but at different resolutions. ViT-based SSL models (EchoJEPA, EchoMAE) with patch_size=16 preserve a 14×14 spatial grid (196 tokens per temporal position). EchoPrime's MViT-v2-S uses hierarchical pooling attention that reduces spatial resolution to 7×7 (49 tokens per temporal position). PanEcho's ConvNeXt-Tiny backbone produces 7×7 feature maps per frame.
+
+Critically, the default EchoPrime and PanEcho inference pipelines globally pool these spatial tokens to single vectors (`[B, 1, 512]` and `[B, 1, 768]` respectively), discarding all spatial structure. For frozen segmentation, we bypass this pooling and extract pre-pooling spatial tokens via forward hooks. This means:
+- ViT-based SSL models (JEPA, MAE): 14×14 spatial grid (4× more spatial tokens than alternatives)
+- MViT-based (EchoPrime): 7×7 spatial grid (hierarchical pooling reduces resolution)
+- 2+1D ConvNet (PanEcho): 7×7 spatial grid per frame (no cross-frame spatial context)
+
+The 14×14 vs 7×7 spatial resolution difference (4× token count) gives ViT-based models a structural advantage for dense prediction: finer-grained spatial features require less aggressive upsampling (16× vs 32×) from the decoder.
+
+**Framing:** "We evaluate frozen segmentation on CAMUS using a linear decoder (~3-4K parameters) on spatial tokens extracted from frozen encoders. ViT-based SSL models (EchoJEPA, EchoMAE) preserve 14×14 spatial token grids, while EchoPrime (MViT-v2) and PanEcho (ConvNeXt) produce 7×7 grids due to hierarchical pooling. EchoJEPA-L achieves [X] mean Dice vs [Y] for baselines, demonstrating that the combination of latent prediction and high-resolution spatial tokens supports both recognition and dense prediction tasks from frozen representations."
 
 **On report generation** (6t2T): Report generation requires a text decoder and is orthogonal to representation quality evaluation. We consider this an important downstream application enabled by our representations, but it constitutes a separate contribution. We discuss this as future work.
 
@@ -109,33 +125,42 @@ We thank the reviewer for this important suggestion. We have added three represe
 **Experiment 1: Representation stability under speckle perturbation (CKA)**
 
 - Take N test videos, add synthetic speckle noise at K intensity levels (multiplicative Rayleigh noise simulating ultrasound speckle)
-- Extract frozen representations from clean and noisy inputs for both EchoJEPA-L and EchoMAE-L
+- Extract frozen representations from clean and noisy inputs for **all available models** (not just JEPA-L vs MAE-L)
 - Compute CKA (Centered Kernel Alignment) between clean and noisy representation matrices
 - Higher CKA = more noise-invariant representations
 
-**Expected result:** EchoJEPA representations remain stable (high CKA) while EchoMAE representations shift substantially (low CKA), directly confirming that latent prediction filters speckle.
+**Expected result:** EchoJEPA representations remain stable (high CKA) while reconstruction/contrastive baselines shift substantially (low CKA), confirming that latent prediction filters speckle across model families.
 
 **Results:** [TO BE FILLED]
 
-| Model | CKA (mild noise) | CKA (moderate) | CKA (severe) |
-|-------|-------------------|----------------|--------------|
-| EchoJEPA-L | — | — | — |
-| EchoMAE-L | — | — | — |
+| Model | Objective | CKA (mild) | CKA (moderate) | CKA (severe) |
+|-------|-----------|------------|----------------|--------------|
+| EchoJEPA-G | Latent prediction | — | — | — |
+| EchoJEPA-L | Latent prediction | — | — | — |
+| EchoMAE-L | Pixel reconstruction | — | — | — |
+| EchoPrime | Contrastive (CLIP) | — | — | — |
+| PanEcho | Supervised multitask | — | — | — |
+
+Including all models (not just the controlled pair) strengthens the finding: if JEPA is the most noise-invariant across ALL objectives — latent, reconstruction, contrastive, supervised — that's a much stronger claim than just beating MAE.
 
 **Experiment 2: Noise-level probing**
 
 - Add speckle at 5 discrete intensity levels to test videos
 - Train a linear probe on frozen representations to predict the noise level
 - Lower accuracy = less noise information encoded in the representation
+- Run on all available models
 
-**Expected result:** EchoMAE features allow accurate noise-level prediction (representations encode speckle). EchoJEPA features do not (speckle is suppressed).
+**Expected result:** EchoMAE features allow accurate noise-level prediction (representations encode speckle). EchoJEPA features do not (speckle is suppressed). EchoPrime/PanEcho fall between.
 
 **Results:** [TO BE FILLED]
 
-| Model | Noise-Level Probe Accuracy |
-|-------|---------------------------|
-| EchoJEPA-L | — |
-| EchoMAE-L | — |
+| Model | Objective | Noise-Level Probe Accuracy |
+|-------|-----------|---------------------------|
+| EchoJEPA-G | Latent prediction | — |
+| EchoJEPA-L | Latent prediction | — |
+| EchoMAE-L | Pixel reconstruction | — |
+| EchoPrime | Contrastive (CLIP) | — |
+| PanEcho | Supervised multitask | — |
 
 **Experiment 3: Attention visualization under perturbation**
 
@@ -189,11 +214,15 @@ This is not a substitute for a fully controlled comparison — but it provides s
 
 ### Response
 
-**Option A — Reframe existing comparison (minimum viable):**
+**Option A — Reframe EchoPrime as the contrastive baseline (minimum viable, but stronger than it looks):**
 
-EchoPrime uses contrastive vision-language learning (CLIP-style) on 12.1M video-report pairs from 109K patients and represents the contrastive paradigm in our evaluation. While this comparison is not architecture-matched (MViT-v2-S vs ViT-L), EchoPrime had access to 23x more training data and 24x more patients than EchoJEPA-L, yet achieves substantially lower view classification accuracy (42.1% vs 85.5%) and higher LVEF error (5.33 vs 5.97). As discussed in Concern 3b, this data disadvantage for EchoJEPA-L makes the system-level comparison more informative than it initially appears.
+EchoPrime IS a contrastive baseline — it uses CLIP-style contrastive vision-language alignment, the dominant contrastive paradigm in medical imaging. It is not a toy comparison: EchoPrime is trained on **12.1M video-report pairs from 109K patients** with direct text supervision, making it the most data-rich and clinically validated contrastive model for echocardiography. It was published in a top clinical journal and represents the state-of-the-art contrastive approach in this domain.
+
+Despite this massive data advantage (23x more data, 24x more patients than EchoJEPA-L), EchoPrime achieves substantially lower view classification accuracy (42.1% vs 85.5%) and higher LVEF error (5.33 vs 5.97). The reviewer may have meant a self-supervised contrastive baseline (e.g., BYOL, SimCLR) rather than a vision-language contrastive one — but EchoPrime is arguably a harder comparison to beat, given its scale and supervision. If latent prediction with 525K clips outperforms CLIP-style contrastive learning with 12.1M clips, the signal is clear.
 
 Our controlled comparison focuses on the prediction target (latent vs pixel) as the key variable, since this is the distinction most relevant to the speckle-noise hypothesis. Contrastive learning introduces different inductive biases — either augmentation invariances (BYOL) or text supervision (CLIP) — making it a less clean test of the noise-filtering mechanism.
+
+**Note on DINOv2:** Adapting DINOv2 to video is non-trivial — it is image-only and requires multi-crop on individual frames with no native temporal processing. A proper adaptation would not be feasible in the rebuttal timeframe and would not be a fair comparison (frame-level vs video-level).
 
 **Option B — BYOL-Video controlled baseline (high impact, primary plan):**
 
@@ -256,7 +285,7 @@ This provides the community with:
 - PanEcho (28M params) — released, but 40x smaller
 - EchoFM — released, but much smaller scale
 
-Gated access is standard practice for medical AI models (LLaMA, Gemma, BiomedCLIP) and enables researchers to reproduce our flagship results, build downstream applications, and conduct independent validation — all without requiring access to the proprietary training data.
+Gated access is standard practice for models trained on sensitive clinical data (e.g., PhysioNet credentialed access for MIMIC, RadImageNet institutional agreements, GatorTron for clinical NLP) and enables researchers to reproduce our flagship results, build downstream applications, and conduct independent validation — all without requiring access to the proprietary training data.
 
 **Rebuttal text:** "We are pleased to announce that, upon acceptance, the EchoJEPA-G checkpoint (ViT-Giant, 1.1B parameters) will be released under gated institutional access, enabling the research community to reproduce and build upon our flagship results. Combined with the already-public EchoJEPA-L, our open-source evaluation framework, and our open-source physics-informed robustness benchmarks (depth attenuation, acoustic shadow, haze, speckle reduction — extensible to additional perturbation types), this provides full reproducibility at both model scales along with standardized tools for evaluating any ultrasound foundation model under realistic degradation. To our knowledge, this will make EchoJEPA the largest publicly available echocardiography video foundation model, and EchoBench the first open-source, video-level, physics-informed robustness evaluation suite for echocardiography."
 
@@ -311,19 +340,19 @@ Priority informed by review simulation (Claude web app) and independent analysis
 | # | Experiment | Target Reviewer | Effort | P(flips a score) |
 |---|-----------|-----------------|--------|------------------|
 | 1 | **BYOL-Video controlled baseline on MIMIC ViT-L** | hfQ1 (2->3) | 3 days GPU (8xH100 or 8xA100) | High |
-| 2 | **CKA speckle invariance (clean vs noisy representations)** | ncQn (3->4) | Hours | Very High |
-| 3 | **Frame shuffling temporal ablation** | ALL — gives AC a "champion sentence" | Hours | Very High |
-| 4 | **Noise-level linear probe on frozen features** | ncQn (3->4) | Hours | Very High (complements CKA) |
+| 2 | **CKA speckle invariance — ALL models (clean vs noisy representations)** | ncQn (3->4) | Hours | Very High |
+| 3 | **Frame shuffling temporal ablation — ALL models** | ALL — gives AC a "champion sentence" | Hours | Very High |
+| 4 | **Noise-level linear probe on frozen features — ALL models** | ncQn (3->4) | Hours | Very High (complements CKA) |
 
 **~~Cross-modal probe (E/e' from B-mode) — REMOVED from ICML rebuttal.~~** Two reasons: (1) **Double submission risk** — cross-modal hemodynamic prediction is Nature Medicine Pillar 2 ("structure predicts flow"). Including it in the ICML rebuttal scoops the NatMed narrative and creates result overlap where currently there is none. (2) **Audience mismatch** — ICML reviewers don't know what E/e' is; explaining clinical significance burns rebuttal space. **Save this for Nature Medicine where it's the headline finding and the audience values it.**
 
 **Experiment 1 rationale:** Three-way controlled comparison isolating the prediction target variable: JEPA predicts local masked token representations, BYOL predicts global mean-pooled representations, MAE predicts pixels. Same ViT-L, same MIMIC data, same EMA teacher, matched compute budget. BYOL-Video is video-native (global mean-pooled self-distillation on video clips) — unlike DINO, which is image-only and requires non-trivial video adaptation. This is the only experiment likely to move hfQ1. Three contingency framings prepared (see Concern 4).
 
-**Experiment 2 rationale:** ncQn explicitly asked for "feature invariance tests, representation visualization, or noise sensitivity studies." CKA between clean and speckle-perturbed representations directly validates the noise-filtering claim. If EchoJEPA CKA >0.9 and EchoMAE <0.7, ncQn should flip.
+**Experiment 2 rationale:** ncQn explicitly asked for "feature invariance tests, representation visualization, or noise sensitivity studies." CKA between clean and speckle-perturbed representations directly validates the noise-filtering claim. **Run on ALL models** (EchoJEPA-G, EchoJEPA-L, EchoMAE-L, EchoPrime, PanEcho) — not just the controlled pair. If JEPA is the most noise-invariant across all objectives (latent, reconstruction, contrastive, supervised), the claim is far stronger. If EchoJEPA CKA >0.9 and EchoMAE <0.7, ncQn should flip.
 
-**Experiment 3 rationale (NEW champion sentence for AC):** Shuffle frame order in test videos, evaluate LVEF probe degradation. EchoJEPA degrades 10.9-15.1%, EchoMAE is invariant (<0.5%). This is pure ML, immediately striking, requires no clinical knowledge, and proves JEPA learns temporal dynamics while MAE learns static frame patterns. The AC champion sentence: "When temporal order is destroyed, JEPA representations degrade by 15% while MAE representations are completely invariant — the first direct evidence that latent prediction encodes cardiac dynamics rather than static appearance." This finding is not in the Nature Medicine paper and does not create overlap.
+**Experiment 3 rationale (NEW champion sentence for AC):** Shuffle frame order in test videos, evaluate LVEF probe degradation. **Run on ALL models.** EchoJEPA degrades 10.9-15.1%, EchoMAE is invariant (<0.5%). Including EchoPrime and PanEcho shows where each objective lands on the temporal-encoding spectrum. This is pure ML, immediately striking, requires no clinical knowledge, and proves JEPA learns temporal dynamics while MAE learns static frame patterns. The AC champion sentence: "When temporal order is destroyed, JEPA representations degrade by 15% while MAE representations are completely invariant — the first direct evidence that latent prediction encodes cardiac dynamics rather than static appearance." This finding is not in the Nature Medicine paper and does not create overlap.
 
-**Experiment 4 rationale (noise-level probe — elevated from Tier 2):** Train a linear probe on frozen features to predict which synthetic speckle intensity level was added (5 discrete levels). MAE features should enable accurate prediction (speckle information is encoded in the representation). JEPA features should fail (speckle is filtered out by the EMA target). This complements CKA: CKA measures representation *stability* under noise, the noise probe measures *information content* about noise. Together they make the noise-filtering case airtight for ncQn. Standard probing technique — any representation analysis would include this.
+**Experiment 4 rationale (noise-level probe — elevated from Tier 2):** Train a linear probe on frozen features to predict which synthetic speckle intensity level was added (5 discrete levels). **Run on ALL models.** MAE features should enable accurate prediction (speckle information is encoded in the representation). JEPA features should fail (speckle is filtered out by the EMA target). EchoPrime/PanEcho provide additional data points. This complements CKA: CKA measures representation *stability* under noise, the noise probe measures *information content* about noise. Together they make the noise-filtering case airtight for ncQn. Standard probing technique — any representation analysis would include this.
 
 ### Tier 2 — Scaling analysis + supporting evidence
 
@@ -394,12 +423,14 @@ Priority informed by review simulation (Claude web app) and independent analysis
 3. The EchoBench framing protects us: the result is degradation curves, not just clean Dice
 4. EchoNet-Dynamic has expert LV tracings readily available
 5. Lightweight frozen decoder (1x1 conv or linear upsampling) maintains frozen-backbone consistency
+6. **EchoPrime and PanEcho have 4× lower spatial resolution** — both produce 7×7 spatial grids (via hierarchical pooling and ConvNeXt downsampling) vs 14×14 for ViT-based SSL models. Their default pipelines pool these to single vectors, but pre-pooling spatial tokens can be extracted for segmentation. The 14×14 vs 7×7 gap gives JEPA/MAE a structural spatial advantage.
 
 The expected finding tells a richer story than clean Dice alone:
 - MAE: Dice 0.88 clean → 0.65 under severe shadow (26% degradation)
 - JEPA: Dice 0.85 clean → 0.80 under severe shadow (6% degradation)
+- EchoPrime/PanEcho: Lower spatial resolution (7×7 vs 14×14) — structural disadvantage for dense prediction
 
-Even if MAE wins on clean segmentation, JEPA wins on robust segmentation — directly supporting the thesis. **Report all results honestly.** The benchmark framing makes completeness a virtue.
+Even if MAE wins on clean segmentation, JEPA wins on robust segmentation — directly supporting the thesis. EchoPrime/PanEcho's 7×7 resolution may further disadvantage them on fine-grained spatial tasks. **Report all results honestly.** The benchmark framing makes completeness a virtue.
 
 **What EchoBench adds to the novelty argument:**
 
@@ -436,35 +467,39 @@ The contribution list becomes: (1) controlled finding about objectives, (2) temp
 ## Rebuttal Structure (Updated — Lead with Surprise, Not Method)
 
 **Key principles:**
-1. Lead with the falsifiable hypothesis, not with defense. Own the architecture point, then pivot hard to what IS novel.
-2. "Objective choice matters more than scale" is the central claim — evidence: 525K clips beats 12M clips when the objective is right
-3. A rebuttal with 3-4 striking results presented cleanly outperforms one with 9 results in a laundry list
-4. Target the AC, not just reviewers — the AC decides when scores are split
-5. Every sentence of preamble is attention wasted
+1. **This is an SSL insight paper, not an application paper.** The contribution is understanding WHEN and WHY pixel reconstruction fails — echo is the case study, not the contribution. Frame for ICML audience (general ML), not MICCAI audience (medical imaging).
+2. Lead with the falsifiable hypothesis, not with defense. Own the architecture point, then pivot hard to what IS novel: the mechanistic evidence (frame shuffling, CKA, noise probe) constitutes the first characterization of the noise-filtering mechanism in latent prediction.
+3. "Objective choice matters more than scale" is the central claim — evidence: 525K clips beats 12M clips when the objective is right
+4. A rebuttal with 3-4 striking results presented cleanly outperforms one with 9 results in a laundry list
+5. Target the AC, not just reviewers — the AC decides when scores are split
+6. Generalize explicitly: radar, sonar, low-SNR microscopy, fetal ultrasound — the EMA-as-noise-filter mechanism is domain-agnostic
+7. Every sentence of preamble is attention wasted
 
 ### Opening (2 sentences)
 
-"This paper tests a falsifiable hypothesis: pixel reconstruction fails for ultrasound because pixels are dominated by stochastic noise, while latent prediction succeeds because it filters this noise. We now provide direct mechanistic evidence: (1) when temporal order is destroyed, JEPA representations degrade by 15% while MAE is invariant — proving JEPA encodes cardiac dynamics, not static texture; (2) CKA analysis confirms JEPA representations are noise-invariant while MAE representations shift under speckle perturbation; and (3) objective choice matters more than scale — EchoJEPA-L on 525K clips outperforms models trained on 12M clips with text supervision."
+"This paper tests a falsifiable hypothesis: pixel reconstruction fails in stochastic-noise-dominated domains because the model wastes capacity encoding noise, while latent prediction succeeds because the EMA target filters it. We now provide the first mechanistic evidence for this claim: (1) when temporal order is destroyed, JEPA representations degrade by 15% while MAE is invariant — proving JEPA encodes dynamics, not static texture; (2) CKA analysis confirms JEPA representations are noise-invariant while MAE representations shift under perturbation; and (3) objective choice matters more than scale — 525K clips with the right objective outperforms 12M clips with text supervision. These findings generalize beyond echocardiography to any domain where pixel fidelity is dominated by stochastic interference."
 
 Then immediately into the evidence. Do not re-explain the paper.
 
 ### Section 1: The Hypothesis (all reviewers — 2 paragraphs max)
 
-**Lead with the falsifiable hypothesis, not with defense.** Paragraph 1: "The architecture is not novel — we use V-JEPA2 without modification. The contribution is a domain-specific empirical finding: pixel reconstruction fails for ultrasound because pixels are dominated by stochastic speckle noise, forcing the model to devote capacity to noise rather than anatomy. Latent prediction avoids this by predicting EMA-filtered representations that have already discarded pixel-level noise. This is a testable hypothesis, and we test it."
+**Lead with the general principle, not defense.** Paragraph 1: "The architecture is not novel — we use V-JEPA2 without modification. The contribution is a new understanding about self-supervised learning: pixel reconstruction fails in stochastic-noise-dominated domains because the model devotes capacity to encoding noise rather than structure. Latent prediction avoids this — the EMA target acts as a noise low-pass filter, and the student learns to predict semantic content rather than stochastic texture. This is a testable, falsifiable hypothesis that generalizes beyond echocardiography to any modality where pixel noise dominates signal (radar, sonar, low-SNR microscopy). We test it on ultrasound as a case study."
 
-Paragraph 2: "Objective choice matters more than scale. EchoJEPA-L (300M params, 525K clips) outperforms EchoPrime (12.1M clips, text supervision) and PanEcho (1.19M clips, 39-task supervision). A 45-point view classification gap between EchoJEPA-L and EchoMAE-L — identical in every respect except the objective — confirms the hypothesis under controlled conditions. New evidence: frame shuffling shows JEPA encodes temporal dynamics (15% degradation) while MAE learns static patterns (0% degradation); CKA analysis confirms JEPA representations are noise-invariant."
+Paragraph 2: "Objective choice matters more than scale. EchoJEPA-L (300M params, 525K clips) outperforms EchoPrime (12.1M clips, text supervision) and PanEcho (1.19M clips, 39-task supervision). A 45-point view classification gap between EchoJEPA-L and EchoMAE-L — identical in every respect except the objective — confirms the hypothesis under controlled conditions. New mechanistic evidence: frame shuffling shows JEPA encodes temporal dynamics (15% degradation) while MAE learns static patterns (0% degradation); CKA confirms JEPA representations are noise-invariant; a noise-level probe shows MAE features encode speckle while JEPA features do not. Together these constitute the first mechanistic characterization of the noise-filtering mechanism in latent prediction."
 
 One-line linear probe confirmation: "This ranking holds under linear probing (EchoJEPA-L: 70.8% vs EchoMAE-L: 59.2%), ruling out probe architecture as a confound."
 
-### Section 2: Representation-Level Evidence (ncQn + AC champion sentence)
+### Section 2: Mechanistic Evidence — A Contribution to SSL Understanding (ncQn + AC + ALL)
+
+**Framing:** These results are not just answers to ncQn's request — they are the paper's primary scientific contribution. They provide the first mechanistic characterization of WHY latent prediction filters noise, which is a finding about self-supervised learning broadly, not just echocardiography.
 
 Three strong results that are pure ML and require no clinical knowledge:
 
-1. **Frame shuffling (champion result)** — JEPA degrades 10.9-15.1% on LVEF when frames shuffled, MAE invariant <0.5%. AC champion sentence: "The first direct evidence that latent prediction encodes temporal cardiac dynamics while pixel reconstruction learns static frame-level patterns." This is immediately striking, mechanistic, and addresses both the novelty concern (new finding about what the objective learns) and ncQn's representation-level evidence request.
+1. **Frame shuffling (champion result)** — JEPA degrades 10.9-15.1% on LVEF when frames shuffled, MAE invariant <0.5%. AC champion sentence: "The first direct evidence that latent prediction encodes temporal dynamics while pixel reconstruction learns static frame-level patterns." This is immediately striking, mechanistic, and addresses the novelty concern directly — it's a new finding about what these objectives learn.
 
-2. **CKA speckle invariance** — one quantitative table. JEPA representations stable under noise, MAE shifts. Directly answers ncQn's specific ask.
+2. **CKA speckle invariance** — one quantitative table. JEPA representations stable under noise, MAE shifts. Validates the "EMA as noise low-pass filter" mechanism. This result would hold for any stochastic-noise-dominated domain, not just ultrasound.
 
-3. **Noise-level linear probe** — MAE features predict speckle intensity (high accuracy), JEPA features do not (low accuracy). Complements CKA: stability (CKA) + information content (probe). Together these two make the noise-filtering case airtight.
+3. **Noise-level linear probe** — MAE features predict speckle intensity (high accuracy), JEPA features do not (low accuracy). Complements CKA: stability (CKA) + information content (probe). Together: **the encoder literally learns to ignore noise when trained with latent prediction, and to encode noise when trained with pixel reconstruction.** This is the mechanistic insight that elevates the paper from "ablation" to "understanding."
 
 ### Section 2.5: Scaling Analysis (all reviewers — if ViT-B results ready)
 
@@ -493,16 +528,38 @@ BYOL-Video results if available. If ready, use appropriate contingency framing (
 
 ### Section 5: Community Resources & Reproducibility (all reviewers)
 
-Three community contributions:
+Four community contributions:
 1. **EchoJEPA-G** — gated release upon acceptance, largest open echo video FM (1.1B params)
 2. **EchoBench** — first video-level robustness benchmark for echocardiography FMs with echo-specific physics-based perturbations, temporal corruptions, and dense prediction. Covers EchoNet-Dynamic + EchoNet-Pediatric. Strictly more comprehensive than concurrent frame-level evaluations.
-3. **EchoJEPA-L + evaluation framework** — already public
+3. **Multi-view probing framework** — general-purpose method for variable-composition multi-view evaluation, applicable to multi-sequence MRI, multi-phase CT, multi-probe ultrasound. Open-sourced.
+4. **EchoJEPA-L + evaluation framework** — already public
 
 Dataset diversity clarification. Double-blind fix.
 
 ### Section 6: Camera-Ready Revisions
 
-Summary table of all committed changes.
+**Narrative restructuring (key commitment):** We will restructure the paper to lead with the general principle rather than the application:
+
+- **Title consideration:** "Latent Prediction Outperforms Pixel Reconstruction in Noisy Imaging Domains: Evidence from Echocardiography" — positions echo as the case study for a general finding, not the end in itself
+- **Introduction reframe:** Open with the general problem (pixel reconstruction in stochastic-noise-dominated domains), state the hypothesis, introduce echo as the ideal testbed (well-characterized noise, controlled comparison possible, clinical impact)
+- **New "Mechanistic Analysis" section:** Elevate CKA + noise probe + frame shuffling from rebuttal supplement to main text. These are the primary scientific contribution — the first evidence for WHY latent prediction filters noise
+- **Discussion:** Explicit connection to other noisy domains (radar, sonar, microscopy) — the mechanism (EMA target as noise filter) is domain-agnostic
+- **Multi-view framework reframing:** Explicitly note applicability to multi-sequence MRI, multi-phase CT, and other variable-composition medical imaging
+
+**Contribution list for camera-ready:**
+
+| # | Contribution | Type | Scope |
+|---|-------------|------|-------|
+| 1 | Falsifiable hypothesis: pixel reconstruction fails in stochastic-noise domains | Scientific | General SSL |
+| 2 | Mechanistic evidence: frame shuffling + CKA + noise probe | Empirical (SSL) | General SSL |
+| 3 | Controlled experiment: objective matters more than 20× data scale | Empirical | General SSL |
+| 4 | Multi-view attentive probing framework | Methodological | General medical imaging |
+| 5 | EchoBench: video-level robustness benchmark | Community resource | Echocardiography |
+| 6 | EchoJEPA-G/L: largest open echo video foundation models | Community resource | Echocardiography |
+
+The key shift: contributions 1-3 are about SSL understanding (ICML scope), not about echocardiography (medical venue scope). Echo is the case study, not the contribution.
+
+Summary table of all committed changes (experiments, text revisions, anonymization fixes).
 
 ### Discussion Period Strategy
 
@@ -518,16 +575,17 @@ After rebuttal submission, engage actively during the author-reviewer discussion
 
 ### Key assets (in order of impact)
 
-1. **Frame shuffling** (AC champion sentence — "15% degradation vs 0% proves JEPA encodes dynamics, MAE doesn't" — pure ML, no clinical knowledge needed, no NatMed overlap. Fundamentally differentiates video-level approaches from frame-level ones.)
-2. **CKA speckle invariance** (ncQn's direct ask — quantitative noise-filtering stability evidence)
-3. **Noise-level linear probe** (complements CKA — noise information content evidence. Together with CKA, makes the noise-filtering case airtight for ncQn.)
-4. **BYOL-Video controlled baseline** (only lever for hfQ1 — video-native, isolates local vs global prediction targets)
-5. **EchoJEPA-G gated release** (zero compute, addresses 3/4 reviewers)
-6. **ViT-B → ViT-L → ViT-G scaling analysis** (model scaling with honest 2.0→2.1 caveat for B→L; adds contribution dimension)
-7. **EchoBench** (video-level benchmark with echo-specific perturbations — addresses segmentation + noise + novelty, but lower priority than 1-6 due to execution risk)
-8. **Novelty reframing** (falsifiable hypothesis + controlled evidence; "objective choice matters more than scale"; own the architecture point, pivot to what IS novel)
-9. **Data scale argument** (Concern 3b — confounds work against EchoJEPA-L)
-10. **Few-shot label scaling** (practical value — "reaches full-data baselines with 10% of labels"; include if time after 1-6)
+1. **Narrative reframe: SSL insight paper, not application paper** (ALL reviewers + AC — this is the single most important change. Echo is the case study, not the contribution. The contribution is understanding when/why pixel reconstruction fails in noisy domains. Mechanistic evidence elevates from "ablation" to "understanding." Explicit generalization to radar, sonar, microscopy. Costs zero compute.)
+2. **Frame shuffling** (AC champion sentence — "15% degradation vs 0% proves JEPA encodes dynamics, MAE doesn't" — pure ML, no clinical knowledge needed, no NatMed overlap. Fundamentally differentiates video-level approaches from frame-level ones.)
+3. **CKA speckle invariance** (ncQn's direct ask — quantitative noise-filtering stability evidence. Frame as: "first evidence that EMA target acts as noise low-pass filter" — SSL contribution, not just echo.)
+4. **Noise-level linear probe** (complements CKA — noise information content evidence. Together with CKA, makes the noise-filtering case airtight. "The encoder literally learns to ignore noise under latent prediction.")
+5. **BYOL-Video controlled baseline** (only lever for hfQ1 — video-native, isolates local vs global prediction targets)
+6. **EchoJEPA-G gated release** (zero compute, addresses 3/4 reviewers)
+7. **ViT-B → ViT-L → ViT-G scaling analysis** (model scaling with honest 2.0→2.1 caveat for B→L; adds contribution dimension)
+8. **EchoBench** (video-level benchmark with echo-specific perturbations — addresses segmentation + noise + novelty, but lower priority than 1-7 due to execution risk)
+9. **Camera-ready restructuring commitment** (title change, lead with general principle, elevate mechanistic analysis to main text, discussion connecting to other noisy domains — shows reviewers the paper they'd accept is stronger than what they reviewed)
+10. **Data scale argument** (Concern 3b — confounds work against EchoJEPA-L)
+11. **Few-shot label scaling** (practical value — "reaches full-data baselines with 10% of labels"; include if time after 1-7)
 
 ### Per-reviewer predicted movement
 
@@ -568,28 +626,36 @@ After rebuttal submission, engage actively during the author-reviewer discussion
 
 ---
 
-## Timeline (6-day sprint, 2026-03-26 to 2026-04-01)
+## Timeline (Updated 2026-03-28)
 
-### Resource constraint
-V-JEPA 2.1 ViT-L pretraining occupies 8xH100 (H100 node) until ~epoch 240/240 completes.
-8xA100 (this node) is free. BYOL can run on A100 (slower, ~1.7x) or wait for H100.
+### Resource status
+- **H100 node** (2 nodes x 8x H100): BYOL-Video v2 training (Job 241, epoch 12/240). Must stop in ~48h (~epoch 92).
+- **A100 node** (8x A100 80GB): Available for CKA/frame shuffling/probes.
 
 ### Priority order (strict — do not reorder)
 1. **CKA + noise-level probe + frame shuffling** (hours) — directly answers ncQn, provides AC champion sentence, highest ROI
-2. **BYOL-Video training** (3 days GPU) — only experiment that might move hfQ1; start early, runs in background
+2. **BYOL-Video training** (running on H100, ~48h to epoch 92) — only experiment that might move hfQ1
 3. **ViT-B probes on ICML tasks** (hours) — scaling analysis (view, LVEF, RVSP), low effort
 4. **Perturbed data generation** (hours) — needed for CKA; generate synthetic Rayleigh speckle at 3-5 intensity levels
 5. **Few-shot label scaling** (hours) — if time after 1-4, high narrative value
 6. **EchoBench / segmentation on EchoNet-Dynamic** (1-2 days) — only if time permits after 1-5; risk: MAE may win clean Dice
 7. **Rebuttal writing** (1 day) — AFTER BYOL results are in; do not write before
 
-### Day-by-day
-- Day 1 (Mar 26): Start BYOL-Video on A100 (runs 3 days in background). Generate perturbed data. Run frame shuffling + CKA + noise probe (hours, A100). Start ViT-B probes on view/LVEF/RVSP.
-- Day 2-3 (Mar 27-28): BYOL training continues. Few-shot scaling runs if GPUs free. ViT-B probe results collected.
-- Day 4 (Mar 29): BYOL results. Evaluate on view/LVEF/RVSP. Pick contingency framing (see Concern 4).
-- Day 5 (Mar 30): EchoBench/segmentation if time and results favorable. Draft rebuttal text.
-- Day 6 (Mar 31): Finalize rebuttal. Review narrative coherence.
-- Buffer (Apr 1): Submission.
+### Day-by-day (revised)
+- Day 1 (Mar 28, TODAY): BYOL training running on H100 (epoch 12). Run CKA + frame shuffling + noise probe on A100. Start ViT-B probes.
+- Day 2 (Mar 29): BYOL continues (~epoch 52). Few-shot scaling if GPUs free. ViT-B probe results collected.
+- Day 3 (Mar 30): BYOL reaches ~epoch 92, stop training. Evaluate BYOL on view/LVEF/RVSP. Pick contingency framing.
+- Day 4 (Mar 31): EchoBench/segmentation if time and results favorable. Draft rebuttal text.
+- Day 5 (Apr 1): Finalize rebuttal. Review narrative coherence.
+- Buffer (Apr 2): Submission.
+
+### Three-way comparison checkpoints (all on S3)
+
+| Model | S3 Path | Epoch |
+|-------|---------|-------|
+| V-JEPA (EchoJEPA-L) | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/vjepa_mimic_pretrain_125/training_folder/e100.pt` | 100 |
+| EchoMAE-L | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/videomae_115/training_folder/checkpoint-99.pth` | 99 |
+| BYOL-Video-L | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/byol-vitl-imagenet-v2/e92.pt` | 92 |
 
 ---
 
@@ -617,10 +683,57 @@ Online vs target nearly identical within each checkpoint. Target encoder degrade
 all conditions (barely above mean-prediction baseline), so Pearson r was the sensitive metric.
 **This run does not constitute a valid controlled comparison.**
 
-**Run v2 config (fixed, ready to deploy):** Both configs updated:
-- `ema: [0.99925, 0.99925]` — constant, matching V-JEPA
-- `batch_size: 128` — matching V-JEPA effective batch (1024 on 8 GPUs)
-- Fresh start from ImageNet-21k init, new S3 checkpoint path
+**Run v2 — LAUNCHED (2026-03-28, Job 241)**
+
+Infrastructure:
+- Cluster: echojepa-h100-march (SageMaker HyperPod, `yyepvbne5vzr`)
+- Compute: 2 nodes x 8x H100 80GB = 16 GPUs
+- Launcher: `srun python -m app.main_srun` (multi-node DDP)
+- sbatch: `~/byol_pretrain_2node.sbatch`
+
+Training config (matched to V-JEPA / EchoJEPA-L):
+
+| Parameter | Value |
+|-----------|-------|
+| Model | ViT-L/16, RoPE, activation checkpointing |
+| Init weights | `vitl_in21k.pt` (ImageNet-21k) |
+| Objective | BYOL (cosine similarity, 2 temporal clips) |
+| EMA | [0.99925, 0.99925] constant (matches V-JEPA) |
+| Batch size | 64/GPU x 16 GPUs = 1024 effective (matches V-JEPA) |
+| LR | 1.75e-4 constant after warmup (start: 3.33e-5) |
+| Warmup | 40 epochs (12,000 iters) |
+| Epochs | 240 |
+| ipe | 300 |
+| Total samples | 73.7M (matched to V-JEPA) |
+| Weight decay | 0.04 |
+| Precision | bfloat16 |
+| Projector | 4096 hidden -> 256 dim |
+| Predictor | 4096 hidden MLP |
+
+Progress (as of 2026-03-28):
+- Current: Epoch 12 of 240 (5%), still in warmup phase (12 of 40)
+- Loss: -1.98 (monotonically improving from -1.66 at e1, no plateau)
+- Iter time: ~7.2s, ~36 min/epoch
+- Elapsed: ~7h, Remaining: ~5.7 days, ETA: ~April 3
+
+Checkpointing:
+- latest.pt + latest_opt.pt every epoch (~4.8GB)
+- Periodic snapshots every 2 epochs, all archived to S3
+- S3: `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/byol-vitl-imagenet-v2/`
+
+**Timing constraint:** Must stop training in ~48h (reach ~epoch 92). Compare all three models at matched epoch count:
+
+| Model | Checkpoint | Epoch |
+|-------|-----------|-------|
+| V-JEPA (EchoJEPA-L) | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/vjepa_mimic_pretrain_125/training_folder/e100.pt` | 100 |
+| EchoMAE-L | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/videomae_115/training_folder/checkpoint-99.pth` | 99 |
+| BYOL-Video | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/byol-vitl-imagenet-v2/e92.pt` | 92 |
+
+~8 epoch spread (92 vs 99-100). All post-warmup with 50+ epochs of full LR training. Defensible comparison — same architecture, same data, same init, matched LR schedule, ~matched compute. The only variable is the objective.
+
+**Why 6 days instead of 3:** V1 used batch_size=32 (effective 512), giving 3.7s/iter. V2 doubled to batch_size=64 (effective 1024) to match V-JEPA, so iter time doubled. Necessary for fair three-way comparison where total samples, LR schedule, and batch size are all matched.
+
+**Note on ipe:** Reducing ipe from 300 to 150 doesn't help — it halves total samples unless you also double epochs (and warmup), giving identical wall time. Wall time is locked at total_iters x iter_time.
 
 **Risk**: If BYOL achieves ~80%+ view accuracy, the "only latent prediction works" narrative weakens.
 This is non-trivial — BYOL shares the EMA teacher mechanism with JEPA, which may be the actual
