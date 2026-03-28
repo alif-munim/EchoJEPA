@@ -261,9 +261,17 @@ Three-way controlled comparison:
 | EchoMAE-L | Pixel reconstruction | Pixels (masked patches) | ViT-L | MIMIC 525K | Matched |
 | EchoBYOL-L | Self-distillation | Global (mean-pooled) | ViT-L | MIMIC 525K | Matched |
 
-**Resource constraint:** V-JEPA 2.1 ViT-L pretraining occupies the H100 node (8xH100) until ~epoch 240 completes. BYOL training cannot start until that run finishes or is moved to the A100 node (~1.7x slower).
+**Training status (2026-03-28):** BYOL-Video v2 running on H100 cluster (2×8 H100, Job 241). Epoch 45/240 (19%). Learning curve test confirms representations improving steadily:
 
-**Recommendation:** Pursue Option B (BYOL-Video) as the primary plan — it is the single most impactful addition for hfQ1. Fall back to Option A if GPU time runs out before the deadline.
+| Epoch | BYOL Loss | LVEF Linear R² (3K subset) |
+|-------|-----------|---------------------------|
+| 1     | -1.659    | 0.103                     |
+| 11    | -1.987    | 0.177                     |
+| 45    | -1.986    | **0.224**                 |
+
+No collapse, no stalling. Feature norms constant (32.0). Constant EMA fix from v1 is working. Full attentive probe eval pending at final checkpoint.
+
+**Recommendation:** Let training complete to epoch ~92+ (checkpoint matched to V-JEPA e100 / MAE e99). Fall back to Option A (EchoPrime as contrastive baseline) if GPU time runs out.
 
 **BYOL result contingency framings (prepare ALL THREE before running):**
 - **BYOL ~40% (clusters with MAE):** "Three paradigms fail — pixel reconstruction, global self-distillation, and supervised. Only local latent prediction succeeds. The critical factor is predicting *local* masked representations, not merely using latent targets."

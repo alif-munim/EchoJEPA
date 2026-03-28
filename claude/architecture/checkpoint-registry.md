@@ -25,7 +25,7 @@ All model and probe checkpoints used across the project. Descriptive symlinks in
 
 | Descriptive name | Original path | Architecture | Pretraining data | Epochs | Notes |
 |------------------|---------------|-------------|------------------|--------|-------|
-| `echobyol_l_mimic_latest.pt` | `byol_vitl_latest.pt` | ViT-L (304M) | MIMIC-IV-Echo | In progress | ICML rebuttal contrastive comparison. Training on H100 node. |
+| `echobyol_l_mimic_latest.pt` | `byol_vitl_latest.pt` | ViT-L (304M) | MIMIC-IV-Echo | 45/240 (v2) | ICML rebuttal contrastive comparison. H100 2-node (Job 241). ImageNet-21k init, constant EMA 0.99925. S3: `s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet-v2/` |
 
 ### External Models (not self-supervised by us)
 

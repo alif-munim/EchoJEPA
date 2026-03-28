@@ -1,0 +1,52 @@
+# BYOL ViT-L epoch 10 — LVEF probe for learning curve test
+app: vjepa
+folder: /home/sagemaker-user/user-default-efs/vjepa2/evals/vitl/byol_lvef_e10
+nodes: 1
+tasks_per_node: 2
+num_workers: 4
+
+eval_name: video_classification_frozen
+resume_checkpoint: true
+tag: echobyol-vitl-lvef-e10
+
+experiment:
+  classifier:
+    task_type: regression
+    num_heads: 16
+    num_probe_blocks: 1
+    num_targets: 1
+
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_train_224px.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_val_224px.csv
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 2
+    num_segments: 2
+    num_views_per_segment: 1
+
+  optimization:
+    batch_size: 1
+    multihead_kwargs:
+    - {lr: 0.0001, start_lr: 0.0001, final_lr: 0.0, weight_decay: 0.01, final_weight_decay: 0.01, warmup: 0.0}
+    - {lr: 0.0001, start_lr: 0.0001, final_lr: 0.0, weight_decay: 0.1, final_weight_decay: 0.1, warmup: 0.0}
+    - {lr: 0.00005, start_lr: 0.00005, final_lr: 0.0, weight_decay: 0.01, final_weight_decay: 0.01, warmup: 0.0}
+    num_epochs: 10
+    use_bfloat16: true
+    use_pos_embed: false
+
+model_kwargs:
+  checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/byol_vitl_e10.pt
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: target_encoder
+      model_name: vit_large
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true
+  wrapper_kwargs:
+    max_frames: 128
+    use_pos_embed: false

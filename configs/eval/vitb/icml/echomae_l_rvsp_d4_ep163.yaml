@@ -9,7 +9,7 @@ tasks_per_node: 8
 num_workers: 8
 
 eval_name: video_classification_frozen_multi
-resume_checkpoint: false
+resume_checkpoint: true
 tag: icml-echomae-l-rvsp-d4-ep163-full
 
 experiment:

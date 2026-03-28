@@ -6,6 +6,37 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-28 (Session 36)
+
+### BYOL-Video v2 learning curve: representations improving
+
+**Motivation:** BYOL-Video ViT-L v2 running on H100 cluster (2×8 H100, Job 241). Need to verify representations are improving across pretraining epochs, not stalling like v1.
+
+**Method:** Downloaded 3 BYOL checkpoints from S3 (e0, e10, e44). Loaded frozen ViT-L encoder, extracted mean-pooled features (3K train / 1K val, UHN LVEF dataset), fit sklearn Ridge regression. Tested both `target_encoder` (momentum-averaged) and `encoder` (online).
+
+**Results (Val R², UHN LVEF linear probe):**
+
+| Epoch | BYOL Loss | Target Encoder | Online Encoder |
+|-------|-----------|----------------|----------------|
+| 1     | -1.659    | 0.103          | 0.144          |
+| 11    | -1.987    | 0.177          | 0.183          |
+| 45    | -1.986    | **0.224**      | **0.225**      |
+
+**Analysis:**
+- Clear upward trend — performance improving steadily, no collapse or stalling
+- Constant EMA fix (v2) is working: target and online encoder converge by e44
+- Feature norms constant at 32.0 — no representation collapse
+- Only 19% through training (45/240), trajectory still ascending
+- BYOL loss converges early (-1.99 by e10) but downstream quality continues to improve — confirms loss alone is uninformative (same as JEPA)
+
+**Files:**
+- `scripts/byol_learning_curve.py` (NEW) — quick feature extraction + sklearn Ridge probe for checkpoint evaluation
+- `configs/eval/vitl/byol_lvef_e{0,10,44}.yaml` (NEW) — full attentive probe configs (not yet run)
+
+**S3 checkpoints available:** e0 through e44 (every 2 epochs) at `s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet-v2/`
+
+---
+
 ## 2026-03-28 (Session 35)
 
 ### Z-score params embedded in probe checkpoints (self-contained inference)
