@@ -6,6 +6,56 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-28 (Session 31, continued)
+
+### ICML Rebuttal: EchoJEPA-L-K LVEF d=4 Probe — PAUSED at Epoch 12/20
+
+**Config:** `configs/eval/vitl/icml/echojepa_l_k_lvef_d4.yaml`
+**Protocol:** ICML preprint (d=4 attentive, 6-head HP grid, 20 epochs, BS=1, 224px, 16f)
+**Checkpoint:** `checkpoints/anneal/keep/vitl-kinetics-pt220-an55.pt` (ViT-L Kinetics→UHN)
+**Data:** UHN LVEF, 176K train / 26K val (A4C + B-mode view-filtered, S3 224px)
+**Output:** `evals/vitl/icml/lvef/video_classification_frozen/icml-echojepa-l-k-lvef-d4/`
+
+**Results (12 epochs completed):**
+
+| Epoch | Val MAE | Val R² | Val Pearson | Best Head |
+|-------|---------|--------|-------------|-----------|
+| 1 | 5.384 | 0.639 | 0.810 | head 4 |
+| 2 | 5.342 | 0.653 | 0.821 | head 4 |
+| 3 | 4.957 | 0.687 | 0.833 | head 3 |
+| 4 | 4.952 | 0.693 | 0.834 | head 4 |
+| 5 | 4.822 | 0.711 | 0.843 | head 3 |
+| 6 | 5.117 | 0.670 | 0.842 | head 3 |
+| 7 | 4.782 | 0.715 | 0.847 | head 4 |
+| 8 | 4.845 | 0.712 | 0.848 | head 3 |
+| 9 | 4.740 | 0.723 | 0.853 | head 3 |
+| 10 | 4.696 | 0.725 | 0.854 | head 3 |
+| 11 | 4.638 | 0.734 | 0.858 | head 3 |
+| 12 | **4.617** | **0.735** | **0.858** | head 3 |
+
+**Best:** Epoch 12 — R² 0.735, MAE 4.617, Pearson 0.858.
+**Comparison:** Nature Medicine d=1 L-K was R² 0.702. d=4 achieves +0.033 R² improvement.
+**Throughput:** 0.24s/step, ~94 min/epoch (89 min train + 5 min val), 8× A100.
+**Log:** `logs/icml_lk_lvef_d4.log`
+
+**Resume command:**
+```bash
+cd /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2
+# Set resume_checkpoint: true in the config first, then:
+TMPDIR=/tmp LD_LIBRARY_PATH=/opt/conda/lib:$LD_LIBRARY_PATH \
+  nohup python -m evals.main \
+    --fname configs/eval/vitl/icml/echojepa_l_k_lvef_d4.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 \
+  > /home/sagemaker-user/user-default-efs/vjepa2/logs/icml_lk_lvef_d4.log 2>&1 &
+```
+**To resume:** Change `resume_checkpoint: false` → `resume_checkpoint: true` in the YAML config. Will pick up from epoch 12 via `latest.pt`.
+
+### Bug 015: torch_shm_manager Broken on SageMaker A100 — FIXED
+
+See `claude/dev/bugs/015-torch-shm-manager-broken.md`. Changed sharing strategy from `file_system` to `file_descriptor` in `app/vjepa_2_1/train.py`. Requires `TMPDIR=/tmp` and `LD_LIBRARY_PATH=/opt/conda/lib:$LD_LIBRARY_PATH` for all launches on this node.
+
+---
+
 ## 2026-03-27 (Session 31)
 
 ### BYOL-Video V2 Run — Fresh Start with Matched Config
