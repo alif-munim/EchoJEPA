@@ -524,6 +524,44 @@ data_aug:
 ---
 
 
+## Segmentation Evaluation (CAMUS)
+
+Evaluate frozen encoder representations on the [CAMUS](https://www.creatis.insa-lyon.fr/Challenge/camus/) echocardiography segmentation benchmark. Trains a lightweight segmentation decoder (linear or small conv) on frozen encoder features and evaluates Dice score per structure (LV, myocardium, left atrium) at end-diastole and end-systole.
+
+```bash
+# Download CAMUS dataset (~3.6 GB)
+wget -O data/camus/camus.zip "https://humanheart-project.creatis.insa-lyon.fr/database/api/v1/collection/6373703d73e9f0047faa1bc8/download"
+unzip -q data/camus/camus.zip -d data/camus/
+
+# EchoJEPA-L (V-JEPA objective, MIMIC)
+python -m evals.segmentation_frozen.eval \
+    --model_type vjepa \
+    --checkpoint checkpoints/vitl-pt-210-an25.pt \
+    --output_dir results/segmentation/echojepa_l \
+    --device cuda:0 \
+    --num_epochs 50
+
+# EchoMAE-L (pixel reconstruction objective, MIMIC)
+python -m evals.segmentation_frozen.eval \
+    --model_type videomae \
+    --checkpoint checkpoints/echomae_l_mimic_ep99.pth \
+    --output_dir results/segmentation/echomae_l \
+    --device cuda:0 \
+    --num_epochs 50
+```
+
+**How it works:** CAMUS provides full cardiac cycle NIfTI sequences (A4C + A2C) with dense segmentation masks (4 classes: background, LV, myocardium, LA) for 500 patients. The pipeline uniformly samples 16 frames per sequence, passes them through the frozen encoder to get 8×14×14 spatiotemporal tokens, extracts the 14×14 spatial grid at the ED/ES temporal position, and decodes to a segmentation mask. The linear decoder has only ~4K trainable parameters — any performance difference is attributable to representation quality, not decoder capacity.
+
+**Options:**
+- `--decoder_type linear` (default): 1×1 conv + bilinear upsample (~4K params). Most fair for cross-model comparison.
+- `--decoder_type conv`: 4-layer transposed conv stack (~2M params). Better spatial precision.
+- `--views 4CH 2CH` (default): Uses both views, 800 train / 100 val / 100 test samples.
+
+Results are saved to `results.json` with per-structure Dice and HD95 metrics at ED and ES.
+
+---
+
+
 ## Precomputed Embeddings
 
 For quick prototyping without GPU video decoding, precomputed frozen embeddings are available for ICML benchmarks and MIMIC-IV-Echo (7 models, 23 tasks). See [`experiments/README.md`](experiments/README.md) for full documentation: NPZ formats, sklearn probe training, model comparison, and download instructions.
@@ -546,6 +584,7 @@ For quick prototyping without GPU video decoding, precomputed frozen embeddings 
 ├── evals/                                 # evaluation loops
 │   ├── video_classification_frozen/       #   single-view probe
 │   ├── video_classification_frozen_multi/ #   multi-view probe
+│   ├── segmentation_frozen/               #   frozen encoder segmentation (CAMUS)
 │   ├── extract_embeddings.py              #   embedding extraction (legacy)
 │   ├── pool_embeddings.py                 #   clip → study-level pooling (legacy)
 │   ├── train_probe.py                     #   sklearn probes on NPZ (legacy)
