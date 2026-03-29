@@ -12,7 +12,8 @@ See `claude/rebuttals/11-rebuttal-task-tracker.md` for the full task list.
 | `cka_speckle.py` | P0.3 | CKA between clean and perturbed representations. Measures representation stability. |
 | `noise_level_probe.py` | P0.4 | Linear probe to predict perturbation severity from frozen features. Tests what information the representation encodes. |
 | `frame_shuffling.py` | P0.1 | Frame shuffling temporal ablation. Measures whether encoder relies on temporal order. |
-| `noised_inference.py` | P0.6 | On-the-fly noised test inference. Runs trained probes on perturbed test sets to generate task degradation curves. |
+| `noised_inference.py` | P0.6 | On-the-fly noised test inference for regression/classification probes (LVEF, view, etc.). |
+| `noised_segmentation.py` | P0.6 | On-the-fly noised CAMUS segmentation inference. Runs trained decoder on perturbed test videos, reports Dice degradation per structure. |
 
 ## Quick Start
 
@@ -124,6 +125,44 @@ CUDA_VISIBLE_DEVICES=2 python scripts/rebuttal/noised_inference.py \
 
 wait
 ```
+
+### 6. Noised CAMUS segmentation (P0.6) — single GPU per run
+
+Same pattern as noised_inference.py but for segmentation (Dice score degradation).
+
+**EchoJEPA-L pt50:**
+```bash
+python scripts/rebuttal/noised_segmentation.py \
+    --encoder_type vjepa \
+    --encoder_checkpoint checkpoints/echojepa-l-pt50.pt \
+    --encoder_model_name vit_large \
+    --decoder_checkpoint results/segmentation/echojepa_l_pt50/lr5e-02_wd1e-04/best_decoder.pt \
+    --device cuda:0 \
+    --label echojepa_l_pt50
+```
+
+**EchoBYOL-L pt50:**
+```bash
+python scripts/rebuttal/noised_segmentation.py \
+    --encoder_type byol \
+    --encoder_checkpoint checkpoints/byol_vitl_imagenet_v2_e50.pt \
+    --encoder_model_name vit_large \
+    --decoder_checkpoint results/segmentation/echobyol_l_pt50/lr5e-02_wd1e-04/best_decoder.pt \
+    --device cuda:0 \
+    --label echobyol_l_pt50
+```
+
+**EchoMAE-L pt50:**
+```bash
+python scripts/rebuttal/noised_segmentation.py \
+    --encoder_type videomae \
+    --encoder_checkpoint checkpoints/videomae_l_mimic_ep50.pth \
+    --decoder_checkpoint results/segmentation/echomae_l_pt50/lr1e-02_wd1e-04/best_decoder.pt \
+    --device cuda:0 \
+    --label echomae_l_pt50
+```
+
+Supports same `--perturbation_types`, `--severity_levels`, `--skip_clean` flags as noised_inference.py.
 
 ## Perturbation Types
 
