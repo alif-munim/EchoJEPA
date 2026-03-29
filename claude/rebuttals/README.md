@@ -7,6 +7,7 @@ Active rebuttal materials for the EchoJEPA ICML 2026 submission. Pre-review docs
 | File | Purpose |
 |------|---------|
 | **`08-rebuttal-v2.md`** | **Primary rebuttal plan based on actual reviews (scores 2/3/3/4)** |
+| `09-three-way-comparison-results.md` | Live results tracker for JEPA-L vs BYOL-L vs MAE-L (50ep controlled comparison) |
 | `reviewer-comments.md` | Raw reviewer comments from OpenReview |
 | `review-simulation-prompt.md` | Prompt for simulating review panel in Claude web app |
 

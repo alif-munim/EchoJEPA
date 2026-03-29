@@ -280,7 +280,7 @@ All three models use the same ViT-L encoder, same training data, and the **same 
 | Model | Status | Notes |
 |-------|--------|-------|
 | EchoJEPA-L (50ep) | **Done** | Existing checkpoint from V-JEPA 2.0 pretraining |
-| EchoBYOL-L (50ep) | **Nearly done** | Running on H100 cluster (2×8 H100, Job 241). Learning curve healthy, no collapse |
+| EchoBYOL-L (50ep) | **Done** | Completed on H100 cluster. Checkpoint: `byol_vitl_imagenet_v2_e50.pt` |
 | EchoMAE-L (50ep) | **Planned** | Retrain with corrected LR (1.5e-4 base, standard VideoMAE recipe). ~22h on 8×A100. Starts when current pretraining run completes |
 
 BYOL learning curve (confirmed healthy — no collapse, feature norms stable at 32.0):
@@ -290,6 +290,64 @@ BYOL learning curve (confirmed healthy — no collapse, feature norms stable at 
 | 1     | -1.659    | 0.103                     |
 | 11    | -1.987    | 0.177                     |
 | 45    | -1.986    | **0.224**                 |
+| 50    | —         | —                         |
+
+**Probe training status (2026-03-29):**
+
+RVSP multi-view regression probes (d=4 attentive, 16 HP heads, 20 epochs):
+
+| Model | Dataset | Status | Best Val MAE | Best R² | Best Pearson | Notes |
+|-------|---------|--------|-------------|---------|-------------|-------|
+| EchoJEPA-L (pt50) | 5K/1K subset | **DONE** | 9.771 | 0.092 | 0.376 | Weak signal; 5K insufficient for RVSP |
+| EchoJEPA-L (pt50) | Full 41K/5K | **Running** (ep 12/20) | 9.124 | 0.235 | 0.485 | Much stronger; on par with pt210-an25 |
+| EchoBYOL-L (pt50) | Full 41K/5K | **Queued** | — | — | — | Waiting for GPU availability |
+| EchoMAE-L (50ep) | — | **Blocked** | — | — | — | Needs MAE retrain first |
+
+**EchoJEPA-L pt50 RVSP probe — 5K subset FINAL (20/20 epochs):**
+
+| Epoch | Train MAE | Val MAE | Val R² | Val Pearson |
+|-------|-----------|---------|--------|-------------|
+| 1 | 10.139 | 10.595 | -0.040 | 0.044 |
+| 4 | 9.774 | 10.604 | -0.003 | 0.065 |
+| 8 | 9.610 | 10.550 | -0.106 | 0.210 |
+| 12 | 9.351 | 10.197 | 0.084 | 0.313 |
+| 16 | 9.117 | 9.858 | 0.067 | 0.368 |
+| **20** | **9.044** | **9.771** | **0.089** | **0.376** |
+
+Conclusion: 5K subset is insufficient for multi-view RVSP. R² peaked at 0.092, Pearson plateaued at 0.376. Switched to full 41K dataset.
+
+**EchoJEPA-L pt50 RVSP probe — full 41K (in progress, epoch 12/20, ETA ~6.5h):**
+
+| Epoch | Train MAE | Val MAE | Val R² | Val Pearson |
+|-------|-----------|---------|--------|-------------|
+| 1 | 9.823 | 10.544 | -0.007 | 0.206 |
+| 2 | 9.568 | 9.882 | 0.079 | 0.336 |
+| 3 | 9.320 | 9.701 | 0.138 | 0.382 |
+| 4 | 9.183 | 9.839 | 0.167 | 0.419 |
+| 6 | 9.006 | 9.339 | 0.133 | 0.445 |
+| 8 | 8.864 | 9.344 | 0.161 | 0.452 |
+| 10 | 8.788 | 9.234 | 0.221 | 0.475 |
+| **12** | **8.717** | **9.124** | **0.235** | **0.485** |
+
+Key observations:
+- **Full 41K dramatically better than 5K**: R² 0.235 vs 0.092, Pearson 0.485 vs 0.376 at comparable epochs
+- **On par with pt210-an25** at epoch 12: pt210-an25 had R² 0.235 / Pearson 0.504 at epoch 9. pt50 matching R² but slightly lower Pearson — impressive given 4× less pretraining
+- Pearson still climbing; expect ~0.50+ by epoch 20
+- All three models (JEPA/BYOL/MAE) should use the full 41K for the controlled comparison
+
+**Reference: EchoJEPA-L pt210-an25 RVSP probe — full 41K training curve (from prior session):**
+
+| Epoch | Train MAE | Val MAE | Val R² | Val Pearson |
+|-------|-----------|---------|--------|-------------|
+| 1 | 9.825 | 10.525 | -0.034 | 0.167 |
+| 2 | 9.540 | 9.788 | 0.082 | 0.347 |
+| 3 | 9.199 | 9.782 | 0.160 | 0.401 |
+| 4 | 9.010 | 9.542 | 0.195 | 0.442 |
+| 5 | 8.927 | 9.284 | 0.199 | 0.459 |
+| 6 | 8.861 | 9.148 | 0.187 | 0.477 |
+| 7 | 8.766 | 9.343 | 0.236 | 0.486 |
+| 8 | 8.729 | 9.163 | 0.196 | 0.497 |
+| 9 | 8.703 | 9.040 | 0.235 | 0.504 |
 
 **Why retrain EchoMAE:** The original EchoMAE-L (163 epochs) was trained with LR 3.5e-6 (~170× below the standard VideoMAE recipe of 6e-4 at batch 1024) and an inverted cosine schedule (min_lr > peak_lr). Retraining at the standard LR ensures the three-way comparison is fair. No reviewer raised this issue, so the retrain is presented as the epoch-matched comparison — no need to mention the original was flawed.
 

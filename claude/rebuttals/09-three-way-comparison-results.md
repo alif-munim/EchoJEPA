@@ -1,0 +1,184 @@
+# Three-Way Controlled Comparison Results (2026-03-29)
+
+Epoch-matched (50ep) controlled comparison: JEPA-L vs BYOL-L vs MAE-L, all ViT-L on MIMIC 525K.
+See `08-rebuttal-v2.md` §Concern 3b and §Concern 4 for context and contingency framings.
+
+## Checkpoints
+
+| Model | Checkpoint | Status |
+|-------|-----------|--------|
+| EchoJEPA-L (50ep) | `checkpoints/echojepa-l-pt50.pt` | Done |
+| EchoBYOL-L (50ep) | `checkpoints/byol_vitl_imagenet_v2_e50.pt` | Done (downloaded from H100 cluster) |
+| EchoMAE-L (50ep) | — | Planned (retrain with corrected LR) |
+
+## BYOL Pretraining Summary
+
+- **Training**: BYOL-Video, ViT-L, MIMIC 525K, 50 epochs on 2×8 H100 (Job 241)
+- **Init**: ImageNet-pretrained ViT-L (same class as JEPA-L and MAE-L)
+- **EMA**: constant 0.99925, batch 128
+- **Learning curve**: healthy, no collapse, feature norms stable at 32.0
+- BYOL loss: -1.659 (e1) → -1.987 (e11) → -1.986 (e45)
+- LVEF linear R² (3K subset): 0.103 (e1) → 0.177 (e11) → 0.224 (e45)
+
+---
+
+## Task 1: LVEF Regression (Single-View, d=4 Attentive Probe)
+
+**Config**: `configs/eval/vitb/icml/echobyol_l_pt50_lvef_d4.yaml`
+**Data**: 10K train / 1K val (rebuttal subset), Z-score norm (mean=57.07, std=11.28)
+**Probe**: d=4 attentive, 16 heads, 6 HP combos, 20 epochs, 8 GPUs
+**Predict-mean baseline MAE**: 9.000
+
+### EchoJEPA-L (50ep) — DONE (20/20 epochs)
+
+| Epoch | Train MAE | Val MAE | Val R² | Val Pearson |
+|-------|-----------|---------|--------|-------------|
+| 1 | 8.196 | 9.046 | -0.014 | 0.216 |
+| 5 | 7.486 | 7.005 | 0.285 | 0.544 |
+| 10 | 7.051 | 6.870 | 0.352 | 0.617 |
+| 15 | 6.787 | 6.371 | 0.418 | 0.656 |
+| 17 | 6.760 | **6.329** | 0.434 | **0.667** |
+| 18 | 6.783 | 6.352 | **0.436** | 0.667 |
+| 20 | 6.739 | 6.361 | 0.430 | 0.663 |
+
+**Best: epoch 17 — Val MAE 6.329 (11.1% of mean), R² 0.436, Pearson 0.667**
+
+### EchoBYOL-L (50ep) — DONE (20/20 epochs)
+
+| Epoch | Train MAE | Val MAE | Best Val MAE |
+|-------|-----------|---------|--------------|
+| 1 | 8.141 | 8.264 | 8.264 |
+| 5 | 7.622 | 7.415 | 7.415 |
+| 10 | 7.180 | 6.860 | 6.765 |
+| 13 | 7.013 | 6.387 | 6.387 |
+| 15 | 6.910 | 6.372 | 6.372 |
+| 17 | 6.886 | 6.334 | 6.334 |
+| 18 | 6.885 | **6.297** | **6.297** |
+| 19 | 6.901 | 6.381 | 6.297 |
+| 20 | 6.841 | 6.378 | 6.297 |
+
+**Best: epoch 18 — Val MAE 6.297 (11.0% of mean)** — 30% better than predict-mean baseline.
+R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc from best checkpoint.
+
+### Comparison (LVEF)
+
+| Model | Objective | Best Val MAE | % of Mean | R² | Pearson | Status |
+|-------|-----------|-------------|-----------|-----|---------|--------|
+| EchoJEPA-L (50ep) | Latent prediction | 6.329 (ep17) | 11.1% | 0.436 | 0.667 | DONE |
+| EchoBYOL-L (50ep) | Self-distillation | **6.297** (ep18) | **11.0%** | — | — | DONE |
+| EchoMAE-L (50ep) | Pixel reconstruction | — | — | — | — | NOT STARTED |
+
+**Finding:** BYOL slightly *outperforms* JEPA on LVEF (6.297 vs 6.329, 0.5% gap). See architecture analysis below for interpretation.
+
+---
+
+## Task 2: RVSP Regression (Multi-View, d=4 Attentive Probe)
+
+**Config**: `configs/eval/vitl/icml/echobyol_l_pt50_rvsp_d4.yaml`
+**Data**: 5K train / 1K val (rebuttal subset), Z-score norm (mean=34.47, std=14.01)
+**Probe**: d=4 attentive, 16 heads, factorized 2-view + 2 clips/view, 6 HP combos, 20 epochs, 8 GPUs
+**Status**: QUEUED — starts automatically after LVEF completes
+
+### Comparison (RVSP, to be completed)
+
+| Model | Objective | Best Val MAE | % of Mean | R² | Pearson |
+|-------|-----------|-------------|-----------|-----|---------|
+| EchoJEPA-L (50ep) | Latent prediction | — | — | — | — |
+| EchoBYOL-L (50ep) | Self-distillation | — | — | — | — |
+| EchoMAE-L (50ep) | Pixel reconstruction | — | — | — | — |
+
+---
+
+## Task 3: CAMUS Segmentation (Frozen Linear Decoder)
+
+**Script**: `python -m evals.segmentation_frozen.eval --model_type vjepa`
+**Data**: CAMUS 400/50/50 train/val/test, 4CH+2CH views
+**Decoder**: Linear (1×1 conv + bilinear upsample, ~4.1K params), 50 epochs, 7 HP configs
+**Status**: QUEUED — starts automatically after RVSP completes
+
+### Comparison (CAMUS, to be completed)
+
+Existing results from `08-rebuttal-v2.md` (fully trained models):
+
+| Model | Objective | Epochs | LV Dice | MYO Dice | LA Dice | Mean Dice |
+|-------|-----------|--------|---------|----------|---------|-----------|
+| EchoJEPA-L | Latent prediction | 210+25 | 0.884 | 0.762 | 0.807 | **0.818** |
+| EchoMAE-L | Pixel reconstruction | 163 | 0.852 | 0.735 | 0.783 | 0.790 |
+
+50-epoch controlled comparison (to be filled):
+
+| Model | Objective | LV Dice | MYO Dice | LA Dice | Mean Dice |
+|-------|-----------|---------|----------|---------|-----------|
+| EchoJEPA-L (50ep) | Latent prediction | — | — | — | — |
+| EchoBYOL-L (50ep) | Self-distillation | — | — | — | — |
+| EchoMAE-L (50ep) | Pixel reconstruction | — | — | — | — |
+
+---
+
+## BYOL Architecture Analysis (Code Audit)
+
+**Verified: `app/byol_video/train.py` is a genuine BYOL-Video implementation, NOT V-JEPA with a different loss.**
+
+### Key differences from V-JEPA (lines 615-646 of train.py)
+
+| Property | V-JEPA | BYOL-Video |
+|----------|--------|------------|
+| Masking | Spatiotemporal block masking (context + target masks) | **None** — both branches see full unmasked clips |
+| Prediction target | Local masked token representations (1568 tokens) | **Global mean-pooled vector** (`z.mean(dim=1)` → single vector) |
+| Predictor | Transformer with positional mask tokens (22M params) | **MLP** projector (4096→256) + predictor (256→4096→256) |
+| Loss | MSE in latent space (per-token) | **Cosine similarity** on global vectors |
+| Cross-view | Student sees context tokens, teacher sees all tokens | Student sees clip `i`, teacher sees clip `j` (temporal augmentation) |
+| EMA teacher | Yes (encoder only) | Yes (encoder + projector) |
+
+### Training code evidence
+
+```python
+# Online branch (train.py lines 621-625)
+z = encoder(clips[i])       # [B, N, D]  — full unmasked clip, no masking
+z = z.mean(dim=1)            # [B, D]    — GLOBAL mean pool (not local tokens)
+z = online_projector(z)      # [B, 256]
+z = online_predictor(z)      # [B, 256]
+
+# Target branch (lines 628-631)
+h = target_encoder(clips[j])  # [B, N, D] — different clip, no masking
+h = h.mean(dim=1)              # [B, D]   — GLOBAL mean pool
+h = target_projector(h)        # [B, 256]
+
+# Cosine loss (lines 634-637)
+loss = -2.0 * (z_norm * h_norm).sum(dim=-1).mean()
+```
+
+The collator (`BYOLCollator`, line 131) explicitly stacks clips without generating masks. Architecture from `src/models/byol_projector.py` (BYOLProjector: Linear→BN→ReLU→Linear, BYOLPredictor: Linear→BN→ReLU→Linear).
+
+### Interpretation of LVEF Results
+
+BYOL (6.297) and JEPA (6.329) are near-identical on LVEF — BYOL is marginally *better* (0.5% gap).
+
+**Why this makes sense for LVEF:** LVEF is a global cardiac function metric (% ejection). It does not require fine spatial localization — it requires understanding the overall ventricular contraction pattern across the cardiac cycle. Global mean-pooled representations (BYOL) capture this just as well as local token-level representations (JEPA).
+
+**The shared ingredient is the EMA teacher.** Both JEPA and BYOL use momentum-updated target encoders, which act as a noise low-pass filter on stochastic speckle. MAE has no EMA teacher — it reconstructs raw noisy pixels. This maps to the **"BYOL ~80%+" contingency framing** from `08-rebuttal-v2.md`:
+
+> "EMA-based self-distillation is the key ingredient for noisy domains. JEPA provides additional benefit via local prediction, but the broader principle — latent targets filter noise — is itself a novel finding."
+
+**Where JEPA should pull ahead:** Tasks requiring spatial precision (CAMUS segmentation) or multi-view spatial reasoning (RVSP with factorized view embeddings). BYOL's global pooling discards spatial structure during pretraining; JEPA's local masked prediction preserves it. The RVSP and CAMUS results will test this hypothesis.
+
+**Rebuttal framing:** The three-way comparison reveals a hierarchy of noise filtering: EMA-based methods (JEPA, BYOL) >> pixel reconstruction (MAE). Within EMA methods, local prediction (JEPA) and global prediction (BYOL) are equivalent for global function metrics, but JEPA's spatial inductive bias should emerge on spatially demanding tasks. The novel finding is not "JEPA beats everything" but "EMA targets filter noise in stochastic domains" — a general SSL principle.
+
+---
+
+## Execution Queue (2026-03-29, updated 01:15 ET)
+
+1. **DONE**: BYOL-L pt50 LVEF — Best MAE 6.297 (ep18)
+   - Log: `logs/echobyol_l_pt50_lvef.log`
+   - Output: `evals/vitb/icml/byol_pt50_lvef/`
+2. **RUNNING**: BYOL-L pt50 RVSP (8 GPUs, launched after LVEF completed)
+   - Log: `logs/echobyol_l_pt50_rvsp_and_camus.log`
+   - Output: `evals/vitl/icml/byol_pt50_rvsp/`
+3. **QUEUED**: BYOL-L pt50 CAMUS segmentation (waiting on RVSP, same script)
+   - Output: `results/segmentation/echobyol_l_pt50/`
+
+## Notes
+
+- R²/Pearson not computed during LVEF training due to scipy `CXXABI_1.3.15` libstdc++ mismatch. Fix: set `LD_LIBRARY_PATH=/opt/conda/lib:$LD_LIBRARY_PATH` at launch (done for RVSP and CAMUS). Compute post-hoc for LVEF from best checkpoint.
+- BYOL checkpoint uses `target_encoder` key with unprefixed weights (no `module.backbone.`). The `vit_encoder_multiclip` adapter handles this automatically.
+- CAMUS segmentation uses standalone script (single GPU), not the distributed eval scaffold.

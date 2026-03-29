@@ -262,7 +262,7 @@ With all bugs fixed (017a: runtime z-scoring, 017b: explicit params in YAML), Ec
 - Z-score: target_mean=34.465, target_std=14.013 (explicit in YAML)
 - 8× A100, confirmed running `video_classification_frozen_multi`
 
-**Training progress (epoch 1-8, as of 2026-03-29):**
+**Training progress — pt210-an25 on full 41K (killed at epoch 9 to switch to pt50 for rebuttal):**
 
 | Epoch | Train MAE | Val MAE | Val R² | Val Pearson |
 |-------|-----------|---------|--------|-------------|
@@ -282,8 +282,33 @@ Key observations:
 - **Best head**: Head 5 (lr=5e-5, wd=0.4) consistently selected across all epochs
 - **Val MAE ~9.0 mmHg** — higher than preprint's "5.01" but that was fake
 - **R² ~0.24** vs preprint's effective R²=-0.05 — the current run actually predicts RVSP, not just the mean
-- Currently in epoch 10/20, ~7 hours remaining (ETA ~08:45 UTC Mar 29)
 - For context: Nature Medicine d=1 single-view RVSP was R²=0.168 for L. Current d=4 multi-view already exceeds this.
+
+**Training progress — pt50 on 5K subset FINAL (3-way rebuttal comparison, 20/20 epochs):**
+
+| Epoch | Train MAE | Val MAE | Val R² | Val Pearson |
+|-------|-----------|---------|--------|-------------|
+| 1 | 10.139 | 10.595 | -0.040 | 0.044 |
+| 8 | 9.610 | 10.550 | -0.106 | 0.210 |
+| 14 | 9.208 | 10.000 | 0.092 | 0.350 |
+| **20** | **9.044** | **9.771** | **0.089** | **0.376** |
+
+Conclusion: 5K subset insufficient for multi-view RVSP. R² peaked 0.092, Pearson 0.376. Switched to full 41K.
+
+**Training progress — pt50 on full 41K (epoch 1-12 as of 2026-03-29, running):**
+
+| Epoch | Train MAE | Val MAE | Val R² | Val Pearson |
+|-------|-----------|---------|--------|-------------|
+| 1 | 9.823 | 10.544 | -0.007 | 0.206 |
+| 4 | 9.183 | 9.839 | 0.167 | 0.419 |
+| 8 | 8.864 | 9.344 | 0.161 | 0.452 |
+| **12** | **8.717** | **9.124** | **0.235** | **0.485** |
+
+Key observations (pt50 full 41K):
+- Dramatically stronger than 5K: R² 0.235 vs 0.092, Pearson 0.485 vs 0.376
+- On par with pt210-an25 on same dataset (R² 0.235 / Pearson 0.504 at epoch 9) despite 4× less pretraining
+- 8 epochs remaining, ~48 min/epoch, ETA ~6.5h. Pearson still climbing — expect ~0.50+ by epoch 20
+- All three controlled comparison models (JEPA/BYOL/MAE) should use full 41K, not 5K subset
 
 ### Impact
 
