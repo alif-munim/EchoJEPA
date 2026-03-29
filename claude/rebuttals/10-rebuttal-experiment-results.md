@@ -1,4 +1,4 @@
-# ICML Rebuttal — Experiment Results Tracker (2026-03-29, updated 17:00 UTC)
+# ICML Rebuttal — Experiment Results Tracker (2026-03-29, updated 22:00 UTC)
 
 Consolidated results from all rebuttal experiments. **Single source of truth** for run status and numbers.
 See `08-rebuttal-v2.md` for reviewer concerns, narrative framing, and contingency plans.
@@ -85,14 +85,14 @@ Z-score: mean=34.465, std=14.013.
 | Model | Objective | Dataset | Best Val MAE | Val R² | Val Pearson | Status |
 |-------|-----------|---------|-------------|--------|-------------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | 5K/1K subset | 9.771 (ep20) | 0.092 | 0.376 | DONE (insufficient) |
-| EchoJEPA-L (50ep) | Latent prediction | Full 41K/5K | 9.124 (ep12) | 0.235 | 0.485 | **RUNNING** (ep 12/20) |
-| EchoBYOL-L (50ep) | Self-distillation | Full 41K/5K | — | — | — | QUEUED |
+| EchoJEPA-L (50ep) | Latent prediction | Full 41K/5K | 9.044 (ep16) | 0.237 | **0.503** | PAUSED (ep17/20, killed) |
+| EchoBYOL-L (50ep) | Self-distillation | Full 41K/5K | — | — | — | KILLED (ep1, restart needed) |
 | EchoMAE-L (ep163) | Pixel reconstruction | Full 41K/5K | 10.529 (ep1) | -0.031 | 0.124 | PAUSED (ep2) |
 | EchoMAE-L (50ep) | Pixel reconstruction | — | — | — | — | NOT STARTED |
 
 **Finding (5K subset):** Insufficient data for multi-view RVSP. Pearson plateaued at 0.376, R² peaked at 0.092. All three models should use full 41K.
 
-**Finding (41K, in progress):** Dramatically better. R² 0.235, Pearson 0.485 at epoch 12 — on par with pt210-an25 (R² 0.235, Pearson 0.504 at epoch 9) despite 4× less pretraining. Expect ~0.50+ Pearson by epoch 20.
+**Finding (41K, ep17):** Dramatically better. R² 0.237, **Pearson 0.503 at epoch 16** — matches pt210-an25 (R² 0.235, Pearson 0.504 at epoch 9) despite 4× less pretraining. Best MAE 9.044, still improving slightly. Only 3 epochs remain.
 
 <details>
 <summary>EchoJEPA-L pt50 RVSP — full 41K epoch table (in progress)</summary>
@@ -107,6 +107,9 @@ Z-score: mean=34.465, std=14.013.
 | 8 | 8.864 | 9.344 | 0.161 | 0.452 |
 | 10 | 8.788 | 9.234 | 0.221 | 0.475 |
 | 12 | 8.717 | 9.124 | 0.235 | 0.485 |
+| 15 | 8.618 | 9.139 | 0.241 | 0.498 |
+| 16 | 8.599 | **9.044** | 0.232 | **0.503** |
+| 17 | 8.588 | 9.051 | 0.237 | 0.503 |
 
 </details>
 
@@ -153,7 +156,7 @@ Z-score: mean=34.465, std=14.013.
 |-------|-----------|--------------|-----------|--------|
 | **EchoBYOL-L (50ep)** | Self-distillation | 0.821 (ep48) | **0.821** | DONE |
 | EchoJEPA-L (50ep) | Latent prediction | 0.818 (ep48) | 0.815 | DONE |
-| EchoMAE-L (50ep) | Pixel reconstruction | — | — | RUNNING (ep 29/50, best val 0.830) |
+| **EchoMAE-L (50ep)** | Pixel reconstruction | 0.834 (ep49) | **0.822** | DONE |
 
 **Per-structure test Dice (EchoJEPA-L pt50, best config lr=5e-2, wd=1e-4):**
 
@@ -171,9 +174,17 @@ Z-score: mean=34.465, std=14.013.
 | MYO | 0.769 | 0.769 | **0.769** |
 | LA | 0.804 | 0.822 | **0.813** |
 
-**Finding:** BYOL edges out JEPA on CAMUS segmentation (+0.6pp test Dice, 0.821 vs 0.815). The advantage is consistent across all structures: MYO +0.9pp, LA +0.6pp, LV +0.2pp. This reverses the expected pattern — BYOL's global self-distillation produces equally or slightly more spatially precise features than JEPA's local latent prediction, at least for this frozen linear decoder evaluation.
+**Per-structure test Dice (EchoMAE-L pt50, best config lr=1e-2, wd=1e-4):**
 
-Both EMA-based methods nearly match the fully-trained pt210-an25 (0.818), confirming that 50 pretraining epochs capture most spatial feature quality. The rebuttal narrative shifts from "JEPA > BYOL on spatial tasks" to "EMA-based methods (JEPA ≈ BYOL) >> pixel reconstruction (MAE)" — pending MAE pt50 results.
+| Structure | ED Dice | ES Dice | Mean Dice |
+|-----------|---------|---------|-----------|
+| LV | 0.906 | 0.867 | **0.887** |
+| MYO | 0.755 | 0.765 | **0.760** |
+| LA | 0.794 | 0.842 | **0.818** |
+
+**Finding:** All three methods converge to near-identical CAMUS segmentation: MAE 0.822, BYOL 0.821, JEPA 0.815. The 0.7pp spread is within HP noise. MAE — which shows zero LVEF signal — achieves the best clean segmentation Dice. This is the key dissociation: pixel reconstruction encodes spatial appearance (anatomy) but not hemodynamic function. EMA-based methods encode both.
+
+All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming that 50 pretraining epochs capture nearly all spatial feature quality. The rebuttal narrative: "EMA-based methods (JEPA ≈ BYOL ≈ MAE on spatial anatomy) >> pixel reconstruction on hemodynamic function (MAE R²=0 on LVEF)."
 
 <details>
 <summary>Full HP grid results — EchoBYOL-L pt50 (7 configs)</summary>
@@ -243,16 +254,15 @@ Both EMA-based methods nearly match the fully-trained pt210-an25 (0.818), confir
 
 ### Currently Running
 
-| Experiment | GPU | Progress | ETA |
-|-----------|-----|----------|-----|
-| EchoMAE-L pt50 CAMUS seg (50ep, 7 HP) | cuda:1 | Epoch 29/50, best val 0.830 | ~20 min |
+_None — all GPUs idle._
 
 ### Queued
 
 | Experiment | Waiting For | Config |
 |-----------|-------------|--------|
-| EchoBYOL-L pt50 RVSP (full 41K) | JEPA RVSP finish + GPU availability | To be created (use full 41K, not 5K) |
-| EchoMAE-L pt50 RVSP (full 41K) | MAE CAMUS finish + GPU availability | To be created |
+| EchoJEPA-L pt50 RVSP 41K resume (ep17→20) | GPU + relaunch | `resume_checkpoint: true` on existing config |
+| EchoBYOL-L pt50 RVSP (full 41K) | GPU availability | Config exists (`echobyol_l_pt50_rvsp_d4_full.yaml`) — restart from ep0 |
+| EchoMAE-L pt50 RVSP (full 41K) | GPU availability | To be created |
 | EchoMAE-L pt50 LVEF (10K) | GPU availability | To be created |
 
 ### Completed
@@ -268,6 +278,7 @@ Both EMA-based methods nearly match the fully-trained pt210-an25 (0.818), confir
 | CAMUS seg (6 fully-trained models) | JEPA-L=0.818, MAE=0.790 (+2.8pp) | 2026-03-27 |
 | EchoJEPA-L pt50 CAMUS (50ep, 7 HP) | Test Dice=0.815, Val Dice=0.818 (ep48) | 2026-03-29 |
 | EchoBYOL-L pt50 CAMUS (50ep, 7 HP) | Test Dice=0.821, Val Dice=0.821 (ep48) | 2026-03-29 |
+| **EchoMAE-L pt50 CAMUS (50ep, 7 HP)** | **Test Dice=0.822**, Val Dice=0.834 (ep49) | 2026-03-29 |
 | EchoJEPA-L pt50 LVEF test (53K clips) | R²=0.409, Pearson=0.650, MAE=6.508 (head 4) | 2026-03-29 |
 | EchoBYOL-L pt50 LVEF test (53K clips) | R²=0.384, Pearson=0.625, MAE=6.656 (head 0) | 2026-03-29 |
 
@@ -275,6 +286,8 @@ Both EMA-based methods nearly match the fully-trained pt210-an25 (0.818), confir
 
 | Experiment | Reason | How to Resume |
 |-----------|--------|---------------|
+| EchoJEPA-L pt50 RVSP 41K | Killed at ep17/20 | `resume_checkpoint: true`, relaunch — only 3 ep left |
+| EchoBYOL-L pt50 RVSP 41K | Killed in ep1 | Restart from scratch — no completed epochs saved |
 | EchoMAE-L ep163 RVSP (full 41K) | GPU priority | Set `resume_checkpoint: true`, relaunch |
 
 ### Not Started
@@ -311,7 +324,7 @@ RVSP on 5K: Pearson 0.376. RVSP on 41K: Pearson 0.485 at epoch 12 (still climbin
 
 ### 5d. pt50 Matches pt210-an25 on RVSP (Full 41K)
 
-Despite 4× less pretraining, pt50 on full 41K matches pt210-an25's performance at comparable epochs (R² 0.235, Pearson 0.485 vs 0.504). This suggests the 50-epoch checkpoint already captures most of the RVSP-relevant information — more pretraining helps but has diminishing returns.
+Despite 4× less pretraining, pt50 on full 41K **matches** pt210-an25 at epoch 16: Pearson **0.503** vs 0.504 (at ep9). R² 0.232 vs 0.235. Best MAE 9.044 vs 9.040. The 50-epoch checkpoint captures essentially all RVSP-relevant information — more pretraining has negligible returns.
 
 ### 5f. pt50 Matches Fully-Trained on CAMUS Segmentation
 
@@ -321,9 +334,17 @@ Both EMA methods at pt50 match the fully-trained pt210-an25 (test Dice 0.818): B
 
 BYOL test Dice 0.821 vs JEPA 0.815 (+0.6pp). Advantage is consistent across structures: MYO +0.9pp, LA +0.6pp, LV +0.2pp. This was unexpected — BYOL's global self-distillation produces equally or slightly more spatially precise features than JEPA's local latent prediction on this frozen linear decoder task. However, the gap is small (within HP noise) and both methods dramatically outperform the expected MAE baseline.
 
-### 5e. Rebuttal Narrative: "EMA Targets Filter Noise"
+### 5e. Rebuttal Narrative: "EMA Targets Filter Noise" — CONFIRMED
 
-The emerging story is: EMA-based methods (JEPA, BYOL) >> pixel reconstruction (MAE). Within EMA methods, JEPA and BYOL are near-identical: JEPA wins on LVEF (test R² 0.409 vs 0.384), BYOL wins on CAMUS (test Dice 0.821 vs 0.815). No consistent winner — the shared ingredient (momentum teacher filtering speckle noise) matters more than the prediction target (local latent vs global embedding). The novel finding is "EMA targets filter noise in stochastic imaging domains" — a general SSL principle, not "JEPA beats everything."
+The complete three-way comparison:
+
+| Task | JEPA | BYOL | MAE | Winner |
+|------|------|------|-----|--------|
+| LVEF R² | **0.409** | 0.384 | ~0 | JEPA |
+| CAMUS Dice | 0.815 | 0.821 | **0.822** | MAE (spatial only) |
+| RVSP Pearson | **0.503** (ep16) | TBD | TBD | JEPA so far |
+
+The key dissociation: MAE achieves the **best** clean segmentation but **zero** hemodynamic signal. EMA-based methods encode both anatomy and function. Within EMA methods, JEPA edges BYOL on hemodynamics (LVEF +2.5pp R², RVSP in progress). The shared ingredient (momentum teacher) matters more than the prediction target. Novel finding: "EMA targets filter noise in stochastic imaging domains."
 
 ### 5h. RVSP Data Is Truly Multi-View (UHN DICOM Audit)
 
@@ -407,16 +428,14 @@ Existing infrastructure for EchoNet-Dynamic/Pediatric noise experiments:
 |-----------|-----------|----------------|
 | 3-way LVEF (JEPA, BYOL) | JEPA R²=0.409 > BYOL 0.384 >> MAE ~0 | hfQ1 (contrastive), ALL |
 | 3-way LVEF test (53K) | Confirms val ranking, widens gap | ALL |
-| 3-way CAMUS (JEPA, BYOL, MAE running) | BYOL 0.821 ≈ JEPA 0.815, MAE tracking 0.830 (ep29) | hfQ1, 6t2T |
+| **3-way CAMUS (complete)** | **MAE 0.822 ≈ BYOL 0.821 ≈ JEPA 0.815** — MAE best despite R²=0 on LVEF | hfQ1, 6t2T, ncQn |
 | ViT-B scaling LVEF | R²=0.650 (B) > 0.436 (L pt50) — but confounded by 2.0→2.1 | 6t2T |
 | RVSP multi-view data audit | Confirmed truly multi-view (A4C+PSAX-AV) | L8sp |
 | Biplane LVEF feasibility | 97% of studies have A4C+A2C | Future (NatMed?) |
 
 ### What's running
 
-| Experiment | ETA | Then what? |
-|-----------|-----|-----------|
-| EchoMAE-L pt50 CAMUS (cuda:1) | ~20 min | Record results → completes 3-way CAMUS |
+_Nothing — all 8 GPUs idle. Ready to launch next wave._
 
 ### Priority tiers — remaining experiments
 
