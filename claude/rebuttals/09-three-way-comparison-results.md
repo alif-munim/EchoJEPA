@@ -81,7 +81,7 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 **Data**: 41K train / 5K val (full UHN RVSP), Z-score norm (mean=34.47, std=14.01)
 **Probe**: d=4 attentive, 16 heads, factorized 2-view + 2 clips/view, 6 HP combos, 20 epochs, 8 GPUs
 
-### EchoJEPA-L (50ep) — RUNNING (epoch 19/20, 8× A100)
+### EchoJEPA-L (50ep) — DONE (20/20 epochs)
 
 | Epoch | Train MAE | Val MAE | R² | Pearson |
 |-------|-----------|---------|-----|---------|
@@ -95,11 +95,13 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 | 12 | 8.717 | 9.124 | 0.235 | 0.486 |
 | 13 | 8.658 | 9.097 | 0.229 | 0.491 |
 | 15 | 8.618 | 9.139 | 0.241 | 0.498 |
-| 16 | 8.599 | **9.044** | 0.232 | **0.503** |
+| 16 | 8.599 | **9.044** | 0.232 | 0.503 |
 | 17 | 8.588 | 9.051 | 0.237 | 0.503 |
 | 18 | 8.547 | 9.077 | 0.240 | 0.503 |
+| 19 | 8.536 | 9.067 | 0.238 | **0.504** |
+| 20 | 8.544 | 9.083 | **0.241** | 0.503 |
 
-**Current best: epoch 16 — Val MAE 9.044 (26.2% of mean), R² 0.241, Pearson 0.503**
+**Best: epoch 16 — Val MAE 9.044 (26.2% of mean). Best R² 0.241 (ep20), Best Pearson 0.504 (ep19). Plateaued ep16-20.**
 
 ### EchoBYOL-L (50ep) — KILLED (ep1, no checkpoint saved, needs full restart)
 
@@ -127,11 +129,11 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 
 | Model | Objective | Best Val MAE | R² | Pearson | Status |
 |-------|-----------|-------------|-----|---------|--------|
-| EchoJEPA-L (50ep) | Latent prediction | **9.044** (ep16) | **0.241** | **0.503** | RUNNING ep19/20 (8× A100) |
+| EchoJEPA-L (50ep) | Latent prediction | **9.044** (ep16) | **0.241** | **0.504** | DONE (20/20) |
 | EchoBYOL-L (50ep) | Self-distillation | 9.531 (ep6) | 0.133 | 0.408 | KILLED (ep1, restart needed) |
 | EchoMAE-L (50ep) | Pixel reconstruction | 9.482 (ep6) | 0.163 | 0.406 | IN PROGRESS (HyperPod job 260, ep8/20) |
 
-**Finding:** JEPA converges faster and maintains a consistent lead on multi-view RVSP. Pearson 0.503 at ep16 matches the fully-trained pt210-an25 (0.504 at ep9), confirming pt50 captures most RVSP-relevant information. RVSP requires integrating spatial information across two echo views (A4C + RV-focused), which benefits from JEPA's spatially structured representations over BYOL's global mean-pooling.
+**Finding:** JEPA converges faster and maintains a consistent lead on multi-view RVSP. Final Pearson **0.504** (ep19) matches the fully-trained pt210-an25 (0.504 at ep9), confirming pt50 captures essentially all RVSP-relevant information. Metrics plateaued ep16-20. RVSP requires integrating spatial information across two echo views (A4C + RV-focused), which benefits from JEPA's spatially structured representations over BYOL's global mean-pooling.
 
 ---
 
@@ -221,7 +223,7 @@ BYOL (6.297) and JEPA (6.329) are near-identical on LVEF — BYOL is marginally 
 3. **DONE**: EchoJEPA-L pt50 CAMUS — Test Dice 0.815
 4. **DONE**: EchoBYOL-L pt50 CAMUS — Test Dice 0.821
 5. **DONE**: EchoMAE-L pt50 CAMUS — Test Dice 0.822
-6. **RUNNING (local 8× A100, PID 665767)**: EchoJEPA-L pt50 RVSP full (41K/5K) — ep19/20, Pearson 0.503
+6. **DONE**: EchoJEPA-L pt50 RVSP full (41K/5K) — 20/20, Pearson 0.504, MAE 9.044
 7. **RUNNING (HyperPod job 260, node 184)**: EchoMAE-L pt50 RVSP full (41K/5K) — ep8/20, best MAE 9.48, Pearson 0.406
 8. **RUNNING (HyperPod job 274, node 83)**: EchoMAE-L pt50 LVEF retrain (10K/1K) — head 2/6, head 1 done (MAE 7.17)
 9. **KILLED**: EchoBYOL-L pt50 RVSP full (41K/5K) — killed ep1, needs restart

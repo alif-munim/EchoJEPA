@@ -12,12 +12,13 @@ These are the experiments the rebuttal narrative is built on. Without them, we h
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
 | P0.1 | **Frame shuffling temporal ablation** | NOT STARTED | ALL (AC champion) | ~4h | None | `scripts/rebuttal/frame_shuffling.py` exists. Run JEPA-L, BYOL-L, MAE-L on LVEF + view. 3 shuffle types (tubelet, frame, matched-position) × 3 seeds. |
-| P0.2 | **Generate perturbed speckle data** | NOT STARTED | — (blocks P0.3, P0.4) | ~2h | None (CPU) | Synthetic Rayleigh speckle at 3-5 intensity levels. `scripts/rebuttal/generate_perturbed_videos.py`. Can run on CPU. |
-| P0.3 | **CKA speckle invariance** | NOT STARTED | ncQn (explicit ask) | ~4h | P0.2 | CKA between clean and perturbed representations. All 5 models. |
-| P0.4 | **Noise-level linear probe** | NOT STARTED | ncQn (explicit ask) | ~4h | P0.2 | Predict speckle intensity from frozen features. All 5 models. |
+| P0.2 | **Generate perturbed test data** | NOT STARTED | — (blocks P0.3, P0.4, P0.6) | ~2h | None (CPU) | Synthetic Rayleigh speckle at 3-5 intensity levels on LVEF, RVSP, and CAMUS test sets. `scripts/rebuttal/generate_perturbed_videos.py`. Can run on CPU. Generate for ALL test sets, not just CKA subset. |
+| P0.3 | **CKA speckle invariance** | NOT STARTED | ncQn (explicit ask) | ~4h | P0.2 | CKA between clean and perturbed representations. All 5 models. Representation-level stability evidence. |
+| P0.4 | **Noise-level linear probe** | NOT STARTED | ncQn (explicit ask) | ~4h | P0.2 | Predict speckle intensity from frozen features. All 5 models. Representation-level information content evidence. |
 | P0.5 | **Record MAE pt50 CAMUS results** | **DONE** | hfQ1, 6t2T | — | — | Test Dice=0.822, Val Dice=0.834. MAE best on CAMUS despite R²=0 on LVEF. |
+| P0.6 | **Noised test inference (LVEF, CAMUS, RVSP)** | NOT STARTED | ALL | ~4-6h | P0.2 + trained probes from P1 | Run existing trained probes on perturbed test sets (3-5 speckle levels). No retraining — inference only. Probes: pt50 JEPA/BYOL/MAE on LVEF (done), CAMUS (done), RVSP (P1.2-P1.4). **Task-level complement to CKA** (P0.3 = representation stability, P0.6 = downstream task degradation). Expected: MAE degrades most, JEPA least — flips CAMUS clean ordering where MAE wins. |
 
-**Why P0:** ncQn is 75-80% likely to flip 3→4/5 if P0.1-P0.4 are strong. Frame shuffling provides the AC champion sentence. These three together ARE the "mechanistic evidence" section of the rebuttal.
+**Why P0:** ncQn is 75-80% likely to flip 3→4/5 if P0.1-P0.4 are strong. Frame shuffling provides the AC champion sentence. CKA + noise probe + noised inference together provide three complementary angles on noise filtering: representation stability (CKA), noise information content (probe), and task-level degradation curves (noised inference). The clean 3-way results are close (CAMUS: 0.7pp spread, MAE wins; LVEF: 1.5pp JEPA-BYOL gap) — **perturbation testing is what separates the methods and turns the close clean results from a weakness into a strength**: *"Under clean conditions all methods converge; under realistic noise, only latent prediction maintains performance."*
 
 ---
 
@@ -28,7 +29,7 @@ Without these, the controlled comparison only covers LVEF and CAMUS. RVSP adds t
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
 | P1.1 | **EchoMAE-L pt50 LVEF probe** | **RETRAIN IN PROGRESS** (HyperPod job 274) | hfQ1, ncQn | ~8h remaining | — | ⚠️ Job 247 probe trained without z-score normalization (Bug 017c) — invalid for inference (test MAE 719). Job 274 retraining: head 1/6 done (val MAE 7.17), head 2/6 in progress. |
-| P1.2 | **Resume JEPA pt50 RVSP 41K** (ep18→20) | **RUNNING** (ep19/20, 8× A100, PID 665767) | ALL | ~20 min | — | Pearson=0.503 at ep16 (matches pt210-an25). Resumed from ep18 checkpoint. |
+| P1.2 | **Resume JEPA pt50 RVSP 41K** (ep18→20) | **DONE** (20/20) | ALL | — | — | **Pearson=0.504** (ep19), R²=0.241 (ep20), Val MAE=9.044 (ep16). Matches pt210-an25. |
 | P1.3 | **BYOL pt50 RVSP 41K** (20ep) | KILLED (ep0) | hfQ1 | ~10h | Config exists | Killed mid-epoch-1, no checkpoint. Full restart needed. |
 | P1.4 | **MAE pt50 RVSP 41K** (20ep) | **IN PROGRESS** (HyperPod job 260, ep8/20) | ALL | ~5h remaining | — | Val MAE 9.48 (ep6), R²=0.163 (ep7), Pearson=0.406 (ep8). Running on node ip-10-0-50-184. |
 
@@ -96,31 +97,32 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 
 ## Execution Plan (Mar 29 evening → Apr 2)
 
-### Tonight (Mar 29) — UPDATED
+### Completed (Mar 28-29)
 - [x] P0.5: Record MAE CAMUS results — **Test Dice 0.822** ✓
 - [x] P1.1: Launched MAE pt50 LVEF retrain — HyperPod job 274, node 83 (6 HP heads, ~8h)
 - [x] Infrastructure: Migrated ALL 34 sbatch scripts from code.tar to deploy.sh `/opt/vjepa2` workflow
 - [x] Infrastructure: Updated deploy.sh to target both compute nodes by default
-- [ ] P1.4: MAE pt50 RVSP running (job 260, ep8/20) — monitor
-- [ ] P0.1: Launch frame shuffling (blocked — both HyperPod nodes busy)
-- [ ] P0.2: Launch speckle generation on CPU (runs ~2h, can run independently)
-- [ ] P1.2: Resume JEPA RVSP 41K (blocked — need GPU)
-- [ ] P1.3: Resume BYOL RVSP 41K (blocked — need GPU)
 
-### Mar 30
-- [ ] P0.3: Launch CKA (after P0.2 finishes, morning)
-- [ ] P0.4: Launch noise probe (after P0.2, parallel with CKA)
-- [ ] P2.1: Train EchoNet-Dynamic pt50 probes (3 models, queue overnight)
+### Mar 30 — Mechanistic evidence day (P0 focus)
+- [ ] P0.2: Generate perturbed test data on CPU (speckle at 3-5 levels on LVEF + CAMUS + RVSP test sets) — **start first, blocks P0.3/P0.4/P0.6**
+- [ ] P0.1: Launch frame shuffling on A100 (JEPA/BYOL/MAE × LVEF + view × 3 shuffle types × 3 seeds)
+- [ ] P0.3: Launch CKA (after P0.2 finishes, parallel with P0.4)
+- [ ] P0.4: Launch noise probe (after P0.2, parallel with P0.3)
+- [ ] P1.2: Check JEPA pt50 RVSP 41K final result (was ep19/20)
+- [ ] P1.1: Check MAE pt50 LVEF retrain (HyperPod job 274)
+- [ ] P1.4: Check MAE pt50 RVSP 41K (HyperPod job 260)
+- [ ] P1.3: Restart BYOL pt50 RVSP 41K (if GPU available)
+
+### Mar 31 — Task-level degradation + EchoBench
+- [ ] P0.6: Noised test inference — run trained LVEF + CAMUS probes on perturbed test sets (inference only). RVSP if P1.2-P1.4 probes done.
+- [ ] P0.6: Generate degradation curves (performance vs noise level, per model)
+- [ ] P2.1: Train EchoNet-Dynamic pt50 probes (3 models) if GPUs free
 - [ ] Record all P0 results → update icml_rebuttal.tex
+- [ ] P3.1: Single-view RVSP ablation (if GPU free — quick win)
 
-### Mar 31
-- [ ] P2.3: Generate perturbed EchoNet-Dynamic test videos
-- [ ] P2.4: Run perturbation matrix
-- [ ] P3.1: Single-view RVSP ablation (if GPU free)
-- [ ] Record all P1/P2 results → update docs
-
-### Apr 1
-- [ ] Write rebuttal text (all experiments done by now)
+### Apr 1 — Write rebuttal
+- [ ] P2.3-P2.4: EchoBench perturbation matrix (if P2.1 probes done)
+- [ ] Write rebuttal text — all P0 results must be in by now
 - [ ] Final numbers into icml_rebuttal.tex (replace all \tbd)
 - [ ] Review narrative coherence
 

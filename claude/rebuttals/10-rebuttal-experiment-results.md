@@ -1,4 +1,4 @@
-# ICML Rebuttal — Experiment Results Tracker (2026-03-30, updated 00:10 UTC)
+# ICML Rebuttal — Experiment Results Tracker (2026-03-30, updated 00:15 UTC)
 
 Consolidated results from all rebuttal experiments. **Single source of truth** for run status and numbers.
 See `08-rebuttal-v2.md` for reviewer concerns, narrative framing, and contingency plans.
@@ -105,14 +105,14 @@ Z-score: mean=34.465, std=14.013.
 | Model | Objective | Dataset | Best Val MAE | Val R² | Val Pearson | Status |
 |-------|-----------|---------|-------------|--------|-------------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | 5K/1K subset | 9.771 (ep20) | 0.092 | 0.376 | DONE (insufficient) |
-| EchoJEPA-L (50ep) | Latent prediction | Full 41K/5K | 9.044 (ep16) | 0.237 | **0.503** | RUNNING (ep19/20, 8 GPUs on local node) |
+| EchoJEPA-L (50ep) | Latent prediction | Full 41K/5K | **9.044** (ep16) | **0.241** (ep20) | **0.504** (ep19) | DONE (20/20) |
 | EchoBYOL-L (50ep) | Self-distillation | Full 41K/5K | — | — | — | KILLED (ep1, restart needed) |
 | EchoMAE-L (ep163) | Pixel reconstruction | Full 41K/5K | 10.529 (ep1) | -0.031 | 0.124 | PAUSED (ep2) |
 | EchoMAE-L (50ep) | Pixel reconstruction | Full 41K/5K | 9.482 (ep6) | 0.163 | 0.406 | IN PROGRESS (HyperPod job 260, ep8/20) |
 
 **Finding (5K subset):** Insufficient data for multi-view RVSP. Pearson plateaued at 0.376, R² peaked at 0.092. All three models should use full 41K.
 
-**Finding (41K, ep17):** Dramatically better. R² 0.237, **Pearson 0.503 at epoch 16** — matches pt210-an25 (R² 0.235, Pearson 0.504 at epoch 9) despite 4× less pretraining. Best MAE 9.044, still improving slightly. Only 3 epochs remain.
+**Finding (41K, FINAL 20/20):** Dramatically better. Best Val MAE **9.044** (ep16), **Pearson 0.504** (ep19), R² 0.241 (ep20). Matches pt210-an25 (Pearson 0.504, R² 0.235 at ep9) despite 4× less pretraining. Metrics plateaued from ep16-20 — 50 pretraining epochs capture essentially all RVSP-relevant information.
 
 <details>
 <summary>EchoJEPA-L pt50 RVSP — full 41K epoch table (in progress)</summary>
@@ -131,6 +131,8 @@ Z-score: mean=34.465, std=14.013.
 | 16 | 8.599 | **9.044** | 0.232 | **0.503** |
 | 17 | 8.588 | 9.051 | 0.237 | 0.503 |
 | 18 | 8.547 | 9.077 | 0.240 | 0.503 |
+| 19 | 8.536 | 9.067 | 0.238 | 0.504 |
+| 20 | 8.544 | 9.083 | 0.241 | 0.503 |
 
 </details>
 
@@ -277,7 +279,6 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 
 | Experiment | Node | Job/PID | Epoch | ETA |
 |-----------|------|---------|-------|-----|
-| EchoJEPA-L pt50 RVSP 41K | Local (8× A100) | PID 665767 | 19/20 | ~20 min |
 | EchoMAE-L pt50 RVSP 41K | HyperPod ip-10-0-50-184 | Job 260 | 8/20 | ~5h |
 | EchoMAE-L pt50 LVEF 10K (retrain) | HyperPod ip-10-0-50-83 | Job 274 | head 2 ep4/20 (head 1 done) | ~8h (6 heads total) |
 
@@ -303,6 +304,7 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 | **EchoMAE-L pt50 CAMUS (50ep, 7 HP)** | **Test Dice=0.822**, Val Dice=0.834 (ep49) | 2026-03-29 |
 | EchoJEPA-L pt50 LVEF test (53K clips) | R²=0.409, Pearson=0.650, MAE=6.508 (head 4) | 2026-03-29 |
 | EchoBYOL-L pt50 LVEF test (53K clips) | R²=0.384, Pearson=0.625, MAE=6.656 (head 0) | 2026-03-29 |
+| **EchoJEPA-L pt50 RVSP 41K (20ep)** | **Val MAE=9.044 (ep16), Pearson=0.504 (ep19), R²=0.241 (ep20)** | 2026-03-30 |
 
 ### Paused
 
@@ -345,7 +347,7 @@ RVSP on 5K: Pearson 0.376. RVSP on 41K: Pearson 0.485 at epoch 12 (still climbin
 
 ### 5d. pt50 Matches pt210-an25 on RVSP (Full 41K)
 
-Despite 4× less pretraining, pt50 on full 41K **matches** pt210-an25 at epoch 16: Pearson **0.503** vs 0.504 (at ep9). R² 0.232 vs 0.235. Best MAE 9.044 vs 9.040. The 50-epoch checkpoint captures essentially all RVSP-relevant information — more pretraining has negligible returns.
+Despite 4× less pretraining, pt50 on full 41K **matches** pt210-an25: Pearson **0.504** vs 0.504, R² 0.241 vs 0.235, Best MAE 9.044 vs 9.040. Metrics plateaued ep16-20. The 50-epoch checkpoint captures essentially all RVSP-relevant information — more pretraining has negligible returns.
 
 ### 5f. pt50 Matches Fully-Trained on CAMUS Segmentation
 
@@ -363,9 +365,9 @@ The complete three-way comparison:
 |------|------|------|-----|--------|
 | LVEF R² | **0.409** | 0.384 | ~0 | JEPA |
 | CAMUS Dice | 0.815 | 0.821 | **0.822** | MAE (spatial only) |
-| RVSP Pearson | **0.503** (ep16) | TBD | TBD | JEPA so far |
+| RVSP Pearson | **0.504** (ep19) | TBD | 0.406 (ep8) | JEPA |
 
-The key dissociation: MAE achieves the **best** clean segmentation but **zero** hemodynamic signal. EMA-based methods encode both anatomy and function. Within EMA methods, JEPA edges BYOL on hemodynamics (LVEF +2.5pp R², RVSP in progress). The shared ingredient (momentum teacher) matters more than the prediction target. Novel finding: "EMA targets filter noise in stochastic imaging domains."
+The key dissociation: MAE achieves the **best** clean segmentation but **zero** hemodynamic signal. EMA-based methods encode both anatomy and function. Within EMA methods, JEPA edges BYOL on hemodynamics (LVEF +2.5pp R²) and leads MAE on RVSP (Pearson 0.504 vs 0.406 at ep8). The shared ingredient (momentum teacher) matters more than the prediction target. Novel finding: "EMA targets filter noise in stochastic imaging domains."
 
 ### 5h. RVSP Data Is Truly Multi-View (UHN DICOM Audit)
 
@@ -460,7 +462,7 @@ Existing infrastructure for EchoNet-Dynamic/Pediatric noise experiments:
 
 | Experiment | Node | Job/PID | Progress |
 |-----------|------|---------|----------|
-| EchoJEPA-L pt50 RVSP 41K | Local (8× A100) | PID 665767 | ep19/20, Pearson 0.503 |
+| ~~EchoJEPA-L pt50 RVSP 41K~~ | — | — | **DONE** (20/20, Pearson 0.504, MAE 9.044) |
 | EchoMAE-L pt50 RVSP 41K | ip-10-0-50-184 | 260 | ep8/20, val MAE 9.48, Pearson 0.406 |
 | EchoMAE-L pt50 LVEF 10K (retrain) | ip-10-0-50-83 | 274 | head 2/6 ep4, head 1 done (MAE 7.17) |
 
@@ -473,15 +475,16 @@ Existing infrastructure for EchoNet-Dynamic/Pediatric noise experiments:
 | 1a | CKA speckle invariance | ncQn explicit ask | ~4h compute | Perturbed data generation |
 | 1b | Frame shuffling temporal ablation | ALL (AC champion) | ~4h compute | None |
 | 1c | Noise-level linear probe | ncQn explicit ask | ~4h compute | Perturbed data generation |
+| 1d | **Noised test inference (LVEF, CAMUS, RVSP)** | ALL | ~4-6h compute | Perturbed data + trained probes |
 
-These three together provide mechanistic evidence for WHY latent prediction filters noise. This is the primary scientific contribution per the rebuttal narrative. ncQn is the most likely reviewer to flip (75-80% → 4/5 if these are strong).
+1a-1c provide representation-level evidence. **1d provides task-level evidence**: run existing trained probes on perturbed test sets (inference only, no retraining). Expected: MAE degrades most under noise, JEPA least — flips the close/awkward clean results (CAMUS: MAE 0.822 > JEPA 0.815 clean → JEPA > MAE under noise). Turns close clean results from a weakness into a strength: *"Under clean conditions all methods converge; under realistic noise, only latent prediction maintains performance."* Three complementary angles: CKA (representation stability) + noise probe (information content) + noised inference (task degradation curves).
 
 **TIER 2 — SHOULD DO (completes 3-way comparison, strengthens controlled story)**
 
 | # | Experiment | Addresses | Effort | Depends On |
 |---|-----------|-----------|--------|-----------|
 | 2a | EchoMAE-L pt50 LVEF | 3-way completion | ~8h remaining | IN PROGRESS (HyperPod job 274, 6 heads) |
-| 2b | ~~Finish JEPA pt50 RVSP 41K~~ | ~~3-way completion~~ | — | **RUNNING** (ep19/20, local 8× A100) |
+| 2b | ~~Finish JEPA pt50 RVSP 41K~~ | ~~3-way completion~~ | — | **DONE** (20/20, Pearson 0.504) |
 | 2c | BYOL pt50 RVSP 41K (20ep) | 3-way completion | ~10h | Config exists — restart from ep0 |
 | 2d | ~~MAE pt50 RVSP 41K~~ | ~~3-way completion~~ | — | **RUNNING** (HyperPod job 260, ep8/20) |
 
