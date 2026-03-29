@@ -1,5 +1,11 @@
 # ICML Rebuttal v2 — Based on Actual Reviews (2026-03-26)
 
+**Companion docs** (created in later sessions — consult alongside this plan):
+- **`11-rebuttal-task-tracker.md`** — canonical task list with P0-P3 priorities, status, and day-by-day execution plan
+- **`10-rebuttal-experiment-results.md`** — consolidated results, running/queued/done status, key findings
+- **`09-three-way-comparison-results.md`** — detailed 3-way (JEPA/BYOL/MAE) results + BYOL architecture audit
+- **`12-checkpoint-reference.md`** — all encoder and probe checkpoint paths
+
 ## Scores
 
 | Reviewer | Score | Confidence | Primary Concern |
@@ -736,12 +742,12 @@ After rebuttal submission, engage actively during the author-reviewer discussion
 ## Timeline (Updated 2026-03-28)
 
 ### Resource status
-- **H100 node** (2 nodes x 8x H100): BYOL-Video v2 training (Job 241, epoch 12/240). Must stop in ~48h (~epoch 92).
+- **H100 node** (2 nodes x 8x H100): BYOL-Video v2 training (Job 241). ~~Must stop in ~48h (~epoch 92).~~ **Eval target is epoch 50** (see "Epoch-matched three-way controlled comparison" in Concern 4). BYOL v2 ep50 checkpoint should already exist. Training may continue beyond 50 for bonus analysis but the rebuttal comparison uses ep50.
 - **A100 node** (8x A100 80GB): Available for CKA/frame shuffling/probes.
 
 ### Priority order (strict — do not reorder)
 1. **CKA + noise-level probe + frame shuffling** (hours) — directly answers ncQn, provides AC champion sentence, highest ROI
-2. **BYOL-Video training** (running on H100, ~48h to epoch 92) — only experiment that might move hfQ1
+2. **BYOL-Video training** (running on H100, **eval at epoch 50**) — only experiment that might move hfQ1
 3. **ViT-B probes on ICML tasks** (hours) — scaling analysis (view, LVEF, RVSP), low effort
 4. **Perturbed data generation** (hours) — needed for CKA; generate synthetic Rayleigh speckle at 3-5 intensity levels
 5. **Few-shot label scaling** (hours) — if time after 1-4, high narrative value
@@ -750,19 +756,21 @@ After rebuttal submission, engage actively during the author-reviewer discussion
 
 ### Day-by-day (revised)
 - Day 1 (Mar 28, TODAY): BYOL training running on H100 (epoch 12). Run CKA + frame shuffling + noise probe on A100. Start ViT-B probes.
-- Day 2 (Mar 29): BYOL continues (~epoch 52). Few-shot scaling if GPUs free. ViT-B probe results collected.
-- Day 3 (Mar 30): BYOL reaches ~epoch 92, stop training. Evaluate BYOL on view/LVEF/RVSP. Pick contingency framing.
+- Day 2 (Mar 29): BYOL ep50 checkpoint ready. Evaluate BYOL on view/LVEF/RVSP. Few-shot scaling if GPUs free. ViT-B probe results collected.
+- Day 3 (Mar 30): ~~BYOL reaches ~epoch 92, stop training.~~ Pick contingency framing based on ep50 BYOL probe results. Start MAE retrain if A100s available.
 - Day 4 (Mar 31): EchoBench/segmentation if time and results favorable. Draft rebuttal text.
 - Day 5 (Apr 1): Finalize rebuttal. Review narrative coherence.
 - Buffer (Apr 2): Submission.
 
-### Three-way comparison checkpoints (all on S3)
+### ~~Three-way comparison checkpoints (all on S3)~~ OUTDATED — use epoch 50 checkpoints
 
-| Model | S3 Path | Epoch |
-|-------|---------|-------|
-| V-JEPA (EchoJEPA-L) | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/vjepa_mimic_pretrain_125/training_folder/e100.pt` | 100 |
-| EchoMAE-L | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/videomae_115/training_folder/checkpoint-99.pth` | 99 |
-| BYOL-Video-L | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/byol-vitl-imagenet-v2/e92.pt` | 92 |
+> **SUPERSEDED by the 50-epoch matched comparison (Concern 4, line 266).** The table below lists late-training checkpoints that were noted as "what will be available," NOT the eval targets. All probe work and the rebuttal comparison use epoch 50. These longer checkpoints may be useful for bonus sensitivity analysis only.
+
+| Model | S3 Path | Epoch | Use for rebuttal? |
+|-------|---------|-------|----|
+| V-JEPA (EchoJEPA-L) | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/vjepa_mimic_pretrain_125/training_folder/e100.pt` | 100 | **No — use e50** |
+| EchoMAE-L | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/videomae_115/training_folder/checkpoint-99.pth` | 99 | **No — use e50 retrain** |
+| BYOL-Video-L | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/byol-vitl-imagenet-v2/e92.pt` | 92 | **No — use e50** |
 
 ---
 
@@ -828,15 +836,17 @@ Checkpointing:
 - Periodic snapshots every 2 epochs, all archived to S3
 - S3: `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/byol-vitl-imagenet-v2/`
 
-**Timing constraint:** Must stop training in ~48h (reach ~epoch 92). Compare all three models at matched epoch count:
+~~**Timing constraint:** Must stop training in ~48h (reach ~epoch 92). Compare all three models at matched epoch count:~~
 
-| Model | Checkpoint | Epoch |
+> **OUTDATED — eval target is epoch 50, not 92-100.** See "Epoch-matched three-way controlled comparison" (Concern 4, line 266). All existing probe work uses ep50 JEPA-L. The table below was written before settling on the 50-epoch design.
+
+| Model | ~~Checkpoint~~ | ~~Epoch~~ |
 |-------|-----------|-------|
-| V-JEPA (EchoJEPA-L) | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/vjepa_mimic_pretrain_125/training_folder/e100.pt` | 100 |
-| EchoMAE-L | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/videomae_115/training_folder/checkpoint-99.pth` | 99 |
-| BYOL-Video | `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/byol-vitl-imagenet-v2/e92.pt` | 92 |
+| ~~V-JEPA (EchoJEPA-L)~~ | ~~e100.pt~~ | ~~100~~ |
+| ~~EchoMAE-L~~ | ~~checkpoint-99.pth~~ | ~~99~~ |
+| ~~BYOL-Video~~ | ~~e92.pt~~ | ~~92~~ |
 
-~8 epoch spread (92 vs 99-100). All post-warmup with 50+ epochs of full LR training. Defensible comparison — same architecture, same data, same init, matched LR schedule, ~matched compute. The only variable is the objective.
+~~~8 epoch spread (92 vs 99-100). All post-warmup with 50+ epochs of full LR training. Defensible comparison — same architecture, same data, same init, matched LR schedule, ~matched compute. The only variable is the objective.~~
 
 **Why 6 days instead of 3:** V1 used batch_size=32 (effective 512), giving 3.7s/iter. V2 doubled to batch_size=64 (effective 1024) to match V-JEPA, so iter time doubled. Necessary for fair three-way comparison where total samples, LR schedule, and batch size are all matched.
 
@@ -855,7 +865,16 @@ data scale argument (Concern 3b). This is weaker but still viable. hfQ1 flip pro
 
 ---
 
-## Relationship to Previous Rebuttal Documents
+## Relationship to Other Rebuttal Documents
+
+### Companion docs (created after this plan — consult for live status)
+
+- **`11-rebuttal-task-tracker.md`** — **canonical task list**. P0-P3 priorities, DONE/RUNNING/NOT STARTED status, day-by-day execution plan. Start here to see what to do next.
+- **`10-rebuttal-experiment-results.md`** — **consolidated results**. Single source of truth for all experiment numbers, running jobs, key findings (§5), and config-to-checkpoint mapping (§6).
+- **`09-three-way-comparison-results.md`** — **3-way comparison detail**. JEPA/BYOL/MAE epoch tables, BYOL architecture audit (code evidence that BYOL is genuinely different from V-JEPA), interpretation of LVEF/RVSP/CAMUS results.
+- **`12-checkpoint-reference.md`** — **checkpoint paths**. All encoder checkpoints (rebuttal 3-way, scaling, fully-trained) and probe checkpoint locations.
+
+### Pre-review docs (`01`-`07`, archived to `claude/archive/rebuttals/`)
 
 This document **supersedes** the strategy in `01`-`07` for the actual rebuttal response. Those documents remain valuable as:
 - `01-paper-audit.md` — reference for appendix fixes and editorial corrections

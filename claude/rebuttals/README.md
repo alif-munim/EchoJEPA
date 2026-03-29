@@ -4,12 +4,15 @@ Active rebuttal materials for the EchoJEPA ICML 2026 submission. Pre-review docs
 
 ## Active Files
 
-| File | Purpose |
-|------|---------|
-| **`08-rebuttal-v2.md`** | **Primary rebuttal plan based on actual reviews (scores 2/3/3/4)** |
-| `09-three-way-comparison-results.md` | Live results tracker for JEPA-L vs BYOL-L vs MAE-L (50ep controlled comparison) |
-| `reviewer-comments.md` | Raw reviewer comments from OpenReview |
-| `review-simulation-prompt.md` | Prompt for simulating review panel in Claude web app |
+| File | Purpose | Start here? |
+|------|---------|-------------|
+| **`08-rebuttal-v2.md`** | **Primary rebuttal plan** — reviewer concerns, narrative strategy, contingency framings, acceptance analysis | Strategy & framing |
+| **`11-rebuttal-task-tracker.md`** | **Canonical task list** — P0-P3 priorities, DONE/RUNNING/NOT STARTED, day-by-day execution plan | **What to do next** |
+| `10-rebuttal-experiment-results.md` | **Consolidated results** — all numbers, running jobs, key findings (§5), config↔checkpoint mapping (§6) | Latest numbers |
+| `09-three-way-comparison-results.md` | 3-way comparison detail — epoch tables, BYOL architecture audit, LVEF/RVSP/CAMUS interpretation | Deep dive on 3-way |
+| `12-checkpoint-reference.md` | All encoder and probe checkpoint paths | Finding checkpoints |
+| `reviewer-comments.md` | Raw reviewer comments from OpenReview | — |
+| `review-simulation-prompt.md` | Prompt for simulating review panel in Claude web app | — |
 
 ## Archived (pre-review, superseded by 08)
 
