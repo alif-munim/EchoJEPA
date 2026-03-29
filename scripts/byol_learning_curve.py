@@ -117,6 +117,7 @@ def main():
         ("e0", f"{base}/checkpoints/byol_vitl_e0.pt"),
         ("e10", f"{base}/checkpoints/byol_vitl_e10.pt"),
         ("e44", f"{base}/checkpoints/byol_vitl_e44.pt"),
+        ("e50", f"{base}/checkpoints/byol_vitl_e50.pt"),
     ]
 
     train_csv = "/home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_train_224px.csv"

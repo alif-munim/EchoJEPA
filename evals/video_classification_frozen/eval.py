@@ -1002,7 +1002,8 @@ def run_one_epoch(
             metric_symbol = "%"
             
         # Only log to text log periodically, rank 0 only (keep tqdm clean)
-        if itr % 10 == 0 and rank == 0:
+        _rank = torch.distributed.get_rank() if torch.distributed.is_available() and torch.distributed.is_initialized() else 0
+        if itr % 10 == 0 and _rank == 0:
             if val_only:
                 # Update description dynamically with metrics
                 if task_type == "regression":
