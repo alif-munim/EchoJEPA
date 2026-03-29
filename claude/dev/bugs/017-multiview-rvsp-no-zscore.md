@@ -123,6 +123,52 @@ The log clearly shows LVEF params (mean≈57, std≈11.3) being loaded for an RV
 
 ---
 
+## Bug 017a: Stale code.tar on S3 deployed pre-fix eval.py to HyperPod (discovered 2026-03-29)
+
+**Severity:** CRITICAL
+**Status:** FIXED (2026-03-29)
+**Root cause:** S3 `code.tar` was built before the Bug 017 z-score fix. HyperPod sbatch scripts extract code from this tarball, so compute nodes ran the old eval.py despite the fix being in git.
+
+### Symptoms
+
+RVSP probe job 252 (EchoMAE-L pt50, full 41K, node ip-10-0-50-184) showed MAE ~136 mmHg at epoch 1 — the exact signature of missing z-score normalization. The config had correct `target_mean`/`target_std` but the extracted `eval.py` had no runtime z-scoring code.
+
+### Additional issues discovered during fix
+
+1. **Missing `videomae_encoder.py` adapter**: `evals/video_classification_frozen_multi/modelcustom/videomae_encoder.py` was not in code.tar. Job 248 failed with `ModuleNotFoundError`.
+
+2. **Broken `VideoMAE` symlink**: The multi-view modelcustom had a symlink `VideoMAE -> /mnt/custom-file-systems/efs/.../vjepa2/evals/video_classification_frozen/modelcustom/VideoMAE`. This EFS path doesn't exist on HyperPod compute nodes. The videomae_encoder.py dynamically imports `modeling_finetune.py` from this directory. Job 252 exited with RC=0 (misleadingly) but all 8 ranks hit `ImportError: VideoMAE directory not found`.
+
+3. **Repo root detection**: `find . -name "run_inf.sh" | xargs dirname` returned `./scripts` (the directory containing the script) instead of `.` (the repo root). This caused `cd ./scripts` which broke all subsequent relative paths.
+
+### Fix
+
+1. **Rebuilt code.tar** from current repo with all fixes:
+   - Replaced broken `VideoMAE` symlink with real directory copy
+   - Includes fixed `eval.py` with z-score normalization
+   - Includes `videomae_encoder.py` multi-view adapter
+   - Uploaded to `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/code/vjepa2-code.tar`
+
+2. **Fixed repo root detection** in probe sbatch scripts: changed marker from `run_inf.sh` (in `scripts/`) to `pyproject.toml` (at repo root).
+
+3. **Removed manual patch lines** from RVSP sbatch (adapter download + VideoMAE copy) since code.tar now includes everything.
+
+### Verification
+
+Job 260 (post-fix): MAE ~9.9 mmHg at epoch 1 iter 2600 — matches expected value.
+
+| Job | Code version | Epoch 1 MAE | Status |
+|-----|-------------|-------------|--------|
+| 248 | Pre-fix code.tar | `ModuleNotFoundError` | Failed |
+| 252 | Pre-fix code.tar + adapter patch | ~136 mmHg | Garbage (no z-score) |
+| 260 | Rebuilt code.tar with all fixes | ~9.9 mmHg | Correct |
+
+### Lesson
+
+**Always rebuild code.tar after critical fixes.** The HyperPod sbatch workflow downloads code from S3, not from the controller's git repo. A fix committed to git is not deployed until code.tar is rebuilt and uploaded.
+
+---
+
 ## Additional Notes
 
 ### The `int()` cast problem

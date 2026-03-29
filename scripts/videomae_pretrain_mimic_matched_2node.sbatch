@@ -355,9 +355,10 @@ if [ "${UPDATES_PER_EPOCH}" -le 0 ]; then
   exit 1
 fi
 
-# Update-matched: same number of optimizer updates as V-JEPA 50 epochs
-EPOCHS=$(( (TARGET_JEPA_UPDATES + UPDATES_PER_EPOCH - 1) / UPDATES_PER_EPOCH ))
+# Warmup matched to V-JEPA 40 ipe-epochs (12,000 updates)
+# Total epochs extended to 100 for flexibility (matched checkpoint at ~30)
 WARMUP_EPOCHS=$(( (TARGET_WARMUP_UPDATES + UPDATES_PER_EPOCH - 1) / UPDATES_PER_EPOCH ))
+EPOCHS=100
 
 ACTUAL_UPDATES=$((EPOCHS * UPDATES_PER_EPOCH))
 ACTUAL_WARMUP=$((WARMUP_EPOCHS * UPDATES_PER_EPOCH))

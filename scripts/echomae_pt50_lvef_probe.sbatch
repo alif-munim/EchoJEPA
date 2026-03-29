@@ -1,0 +1,210 @@
+#!/bin/bash
+#SBATCH -p ml-p5-48xlarge
+#SBATCH -N 1
+#SBATCH --gres=gpu:8
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=96
+#SBATCH -t 1-00:00:00
+#SBATCH -J mae_lvef
+#SBATCH -o /tmp/mae_lvef-%j.out
+#SBATCH -e /tmp/mae_lvef-%j.err
+#SBATCH --chdir=/tmp
+
+set -euxo pipefail
+
+# Use system Python from pre-installed env
+export PATH="/opt/vjepa2-312/bin:$PATH"
+
+# =========================
+# AWS CONFIG
+# =========================
+export AWS_DEFAULT_REGION="us-west-2"
+export AWS_REGION="us-west-2"
+export AWS_SDK_LOAD_CONFIG=1
+export HOME="/home/ubuntu"
+export AWS_SHARED_CREDENTIALS_FILE="${HOME}/.aws/credentials"
+export AWS_CONFIG_FILE="${HOME}/.aws/config"
+unset AWS_EC2_METADATA_DISABLED 2>/dev/null || true
+export AWS_METADATA_SERVICE_TIMEOUT=5
+export AWS_METADATA_SERVICE_NUM_ATTEMPTS=3
+
+# =========================
+# S3 CONFIGURATION
+# =========================
+ART_BUCKET="sagemaker-hyperpod-lifecycle-495467399120-usw2"
+S3_BASE="s3://${ART_BUCKET}/vjepa2-artifacts"
+
+ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
+CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
+
+# Config (relative to repo root inside code.tar)
+CFG_REL="configs/eval/vitb/icml/echomae_l_pt50_lvef_d4.yaml"
+
+# Data CSVs
+TRAIN_CSV_S3="${S3_BASE}/data/csv/rebuttal/lvef/lvef_train_10k.csv"
+VAL_CSV_S3="${S3_BASE}/data/csv/rebuttal/lvef/lvef_val_1k.csv"
+
+# Backbone checkpoint (epoch 50, compute-matched VideoMAE)
+ENC_CKPT_S3="${S3_BASE}/runs/videomae_matched_2n_245/training_folder/checkpoint-49.pth"
+ENC_CKPT_LOCAL="/opt/dlami/nvme/checkpoints/echomae_l_pt50.pth"
+
+# Run output
+RUN_S3="${S3_BASE}/runs/echomae_pt50_lvef_${SLURM_JOB_ID}"
+
+# =========================
+# LOGGING
+# =========================
+upload_logs() {
+  aws s3 cp "/tmp/mae_lvef-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/job.out" --only-show-errors 2>/dev/null || true
+  aws s3 cp "/tmp/mae_lvef-${SLURM_JOB_ID}.err" "${RUN_S3}/logs/job.err" --only-show-errors 2>/dev/null || true
+}
+trap 'rc=$?; upload_logs; exit $rc' EXIT
+
+# =========================
+# HOST SETUP
+# =========================
+echo "[INFO] host=$(hostname) job=${SLURM_JOB_ID}"
+nvidia-smi -L || true
+
+SCRATCH="/opt/dlami/nvme"
+[ ! -d "$SCRATCH" ] && SCRATCH="/tmp"
+WORKDIR="${SCRATCH}/mae_lvef_${SLURM_JOB_ID}"
+mkdir -p "$WORKDIR"
+cd "$WORKDIR"
+
+# =========================
+# ENVIRONMENT
+# =========================
+echo "[INFO] Setting up environment..."
+if [ ! -d "env/bin" ]; then
+    aws s3 cp "$ENV_S3" env.tar
+    mkdir -p env && tar -xf env.tar -C env
+    set +u && source env/bin/activate && set -u
+    env/bin/conda-unpack || true
+    pip install "numpy<2.0" boto3 --no-cache-dir
+    rm -f env.tar
+else
+    set +u && source env/bin/activate && set -u
+fi
+
+# =========================
+# CODE
+# =========================
+echo "[INFO] Setting up code..."
+aws s3 cp "$CODE_S3" code.tar
+tar -xf code.tar
+rm -f code.tar
+
+# Find repo root (pyproject.toml lives at repo root)
+REPO_DIR=$(find . -maxdepth 3 -type f -name "pyproject.toml" -print -quit | xargs -r dirname)
+if [ -z "$REPO_DIR" ]; then
+    echo "[FATAL] Could not find repo root in code.tar"
+    exit 1
+fi
+cd "$REPO_DIR"
+
+# Download config (may be newer than code.tar)
+mkdir -p "$(dirname "$CFG_REL")"
+aws s3 cp "${S3_BASE}/configs/echomae_l_pt50_lvef_d4.yaml" "$CFG_REL"
+
+if [ ! -f "$CFG_REL" ]; then
+    echo "[FATAL] Config $CFG_REL not found"
+    exit 1
+fi
+
+# Patch EFS/Studio paths to local scratch
+python - <<'PY'
+from pathlib import Path
+import os, re
+
+repo = os.getcwd()
+studio = "/home/sagemaker-user/user-default-efs/vjepa2"
+efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
+
+for r in ["configs", "app", "evals", "src"]:
+    p = Path(r)
+    if not p.exists(): continue
+    for f in p.rglob("*"):
+        if f.suffix in {".yaml", ".py"} and f.is_file():
+            try:
+                t = f.read_text()
+                t2 = t.replace(studio, repo)
+                t2 = efs_pat.sub(repo, t2)
+                if t2 != t:
+                    f.write_text(t2)
+                    print(f"Patched {f}")
+            except Exception as e:
+                print(f"Skipping {f}: {e}")
+PY
+
+# Make code importable
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
+export PYTHONPATH="$PWD:${PYTHONPATH:-}"
+
+# =========================
+# DOWNLOAD DATA & CHECKPOINT
+# =========================
+echo "[INFO] Downloading data CSVs..."
+mkdir -p /opt/dlami/nvme/data/csv/rebuttal/lvef
+aws s3 cp "$TRAIN_CSV_S3" /opt/dlami/nvme/data/csv/rebuttal/lvef/lvef_train_10k.csv
+aws s3 cp "$VAL_CSV_S3" /opt/dlami/nvme/data/csv/rebuttal/lvef/lvef_val_1k.csv
+
+echo "[INFO] Downloading backbone checkpoint..."
+mkdir -p "$(dirname "$ENC_CKPT_LOCAL")"
+aws s3 cp "$ENC_CKPT_S3" "$ENC_CKPT_LOCAL"
+
+# =========================
+# OUTPUT FOLDER
+# =========================
+CFG_FOLDER="/opt/dlami/nvme/evals/icml/echomae_pt50_lvef"
+mkdir -p "$CFG_FOLDER"
+echo "[INFO] Output folder: $CFG_FOLDER"
+
+# =========================
+# RUN PROBE TRAINING
+# =========================
+GPU_COUNT=$(nvidia-smi -L | wc -l)
+DEVICES=()
+for ((i=0; i<GPU_COUNT; i++)); do DEVICES+=("cuda:${i}"); done
+
+echo "[INFO] Launching probe training on ${GPU_COUNT} GPUs..."
+
+# Background sync
+(
+    while true; do
+        sleep 600
+        aws s3 sync "$CFG_FOLDER" "${RUN_S3}/training_folder/" \
+            --exclude "*.pth" \
+            --include "*.pt" --include "*.csv" --include "*.log" --include "*.json" \
+            --only-show-errors || true
+    done
+) &
+SYNC_PID=$!
+
+set +e
+python -m evals.main \
+  --fname "$CFG_REL" \
+  --devices "${DEVICES[@]}" \
+  2>&1 | tee "probe_train_${SLURM_JOB_ID}.log"
+RC=${PIPESTATUS[0]}
+set -e
+
+# Cleanup
+kill $SYNC_PID 2>/dev/null || true
+wait $SYNC_PID 2>/dev/null || true
+
+# Final upload
+echo "[INFO] Uploading final artifacts..."
+aws s3 sync "$CFG_FOLDER" "${RUN_S3}/training_folder/" \
+  --exclude "*.pth" \
+  --include "*.pt" --include "*.csv" --include "*.log" --include "*.json" \
+  --only-show-errors || true
+
+aws s3 cp "probe_train_${SLURM_JOB_ID}.log" "${RUN_S3}/logs/probe_train.log" --only-show-errors || true
+
+if [ "$RC" -ne 0 ]; then
+  echo "[ERROR] Probe training failed with exit code ${RC}"
+  exit "$RC"
+fi
+
+echo "[INFO] DONE. Results at: ${RUN_S3}"
