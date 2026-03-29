@@ -15,6 +15,16 @@ Paths are relative to the repo root unless marked with full path.
 | EchoBYOL-L (50ep) | `checkpoints/byol_vitl_imagenet_v2_e50.pt` | BYOL-Video v2, key: `target_encoder` |
 | EchoMAE-L (50ep) | `checkpoints/videomae_l_mimic_ep50.pth` | VideoMAE, key: `model` (pretrain format, auto-converted) |
 
+**S3 copies for HyperPod** (uploaded 2026-03-29):
+
+| Model | S3 Path |
+|-------|---------|
+| EchoJEPA-L (50ep) | `s3://.../vjepa2-artifacts/checkpoints/echojepa_l_mimic_ep50.pt` |
+| EchoBYOL-L (50ep) | `s3://.../vjepa2-artifacts/checkpoints/echobyol_l_mimic_ep50.pt` |
+| EchoMAE-L (50ep) | `s3://.../vjepa2-artifacts/runs/videomae_matched_2n_245/training_folder/checkpoint-49.pth` |
+
+S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
+
 ### Other EchoMAE-L
 
 | Model | Checkpoint | Notes |
@@ -60,25 +70,35 @@ Paths are relative to the repo root unless marked with full path.
 
 ## 2. ICML Rebuttal Probe Checkpoints
 
-### LVEF Probes (Single-View, d=4 attentive)
+### LVEF Probes — UHN (Single-View, d=4 attentive)
 
 | Model | Probe Location | Best Result |
 |-------|---------------|-------------|
-| EchoJEPA-L pt50 | `evals/vitb/icml/echojepa_l_pt50_lvef/.../icml-echojepa-l-pt50-lvef-d4/best.pt` | R²=0.436, test R²=0.409 |
-| EchoBYOL-L pt50 | `evals/vitb/icml/byol_pt50_lvef/.../icml-echobyol-l-pt50-lvef-d4/best.pt` | R²=0.421, test R²=0.384 |
-| EchoMAE-L ep99 | `evals/vitb/icml/echomae_lvef/.../icml-echomae-l-lvef-d4/best.pt` | R²≈0 (no signal) |
-| EchoJEPA-B | `evals/vitb/icml/lvef/.../icml-echojepa-b-lvef-d4/best.pt` | R²=0.650 |
+| EchoJEPA-L pt50 | `evals/vitb/icml/echojepa_l_pt50_lvef/.../icml-echojepa-l-pt50-lvef-d4/best.pt` (EFS) | R²=0.436, test R²=0.409 |
+| EchoBYOL-L pt50 | `evals/vitb/icml/byol_pt50_lvef/.../icml-echobyol-l-pt50-lvef-d4/best.pt` (EFS) | R²=0.421, test R²=0.384 |
+| **EchoMAE-L pt50** | **S3**: `s3://.../runs/echomae_pt50_lvef_274/.../icml-echomae-l-pt50-lvef-d4/best.pt` | **R²=0.325, Pearson=0.584, MAE=6.866** (HyperPod job 274) |
+| EchoMAE-L ep99 | `evals/vitb/icml/echomae_lvef/.../icml-echomae-l-lvef-d4/best.pt` (EFS) | R²≈0 (no signal) |
+| EchoJEPA-B | `evals/vitb/icml/lvef/.../icml-echojepa-b-lvef-d4/best.pt` (EFS) | R²=0.650 |
+
+### LVEF Probes — EchoNet-Dynamic (pt50, d=4 attentive)
+
+| Model | Probe Location | Best Result |
+|-------|---------------|-------------|
+| **EchoJEPA-L pt50** | **S3**: `s3://.../runs/echojepa_pt50_end_lvef_282/.../best.pt` | **IN PROGRESS** (HyperPod job 282) |
+| EchoBYOL-L pt50 | — | NOT STARTED |
+| EchoMAE-L pt50 | — | NOT STARTED |
 
 ### RVSP Probes (Multi-View, d=4 attentive)
 
 | Model | Probe Location | Best Result |
 |-------|---------------|-------------|
-| EchoJEPA-L pt50 (5K) | `evals/vitl/icml/rvsp/.../icml-echojepa-l-pt50-rvsp-d4/best.pt` | Pearson=0.376 (insufficient) |
-| EchoJEPA-L pt50 (41K) | `evals/vitl/icml/rvsp/.../icml-echojepa-l-pt50-rvsp-d4-full/best.pt` | Pearson=0.503 (ep16), **running ep19** |
-| EchoBYOL-L pt50 (5K) | `evals/vitl/icml/byol_pt50_rvsp/.../icml-echobyol-l-pt50-rvsp-d4/best.pt` | — |
-| EchoBYOL-L pt50 (41K) | `evals/vitl/icml/byol_pt50_rvsp_full/.../icml-echobyol-l-pt50-rvsp-d4-full/best.pt` | Killed ep1, needs restart |
-| EchoMAE-L ep99 (5K) | `evals/vitb/icml/echomae_rvsp/.../icml-echomae-l-rvsp-d4/best.pt` | — |
-| EchoMAE-L ep163 (41K) | `evals/vitb/icml/echomae_rvsp_ep163/.../icml-echomae-l-rvsp-d4-ep163-full/best.pt` | Paused ep2 |
+| EchoJEPA-L pt50 (5K) | `evals/vitl/icml/rvsp/.../icml-echojepa-l-pt50-rvsp-d4/best.pt` (EFS) | Pearson=0.376 (insufficient) |
+| **EchoJEPA-L pt50 (41K)** | `evals/vitl/icml/rvsp/.../icml-echojepa-l-pt50-rvsp-d4-full/best.pt` (EFS) | **DONE — Pearson=0.504, R²=0.241, MAE=9.044** |
+| EchoBYOL-L pt50 (5K) | `evals/vitl/icml/byol_pt50_rvsp/.../icml-echobyol-l-pt50-rvsp-d4/best.pt` (EFS) | — |
+| EchoBYOL-L pt50 (41K) | `evals/vitl/icml/byol_pt50_rvsp_full/.../icml-echobyol-l-pt50-rvsp-d4-full/best.pt` (EFS) | Killed ep1, needs restart |
+| **EchoMAE-L pt50 (41K)** | **S3**: `s3://.../runs/echomae_pt50_rvsp_260/.../icml-echomae-l-pt50-rvsp-d4/best.pt` | **IN PROGRESS** ep14/20, Pearson=0.441 (HyperPod job 260) |
+| EchoMAE-L ep99 (5K) | `evals/vitb/icml/echomae_rvsp/.../icml-echomae-l-rvsp-d4/best.pt` (EFS) | — |
+| EchoMAE-L ep163 (41K) | `evals/vitb/icml/echomae_rvsp_ep163/.../icml-echomae-l-rvsp-d4-ep163-full/best.pt` (EFS) | Paused ep2 |
 
 ### RVSP Probes (Prior / Fully-Trained Encoders)
 
@@ -200,6 +220,40 @@ All rebuttal configs in `configs/eval/vit{b,l}/icml/`. See `10-rebuttal-experime
 |------|--------|
 | JEPA pt50 LVEF | `configs/eval/vitb/icml/echojepa_l_pt50_lvef_d4.yaml` |
 | BYOL pt50 LVEF | `configs/eval/vitb/icml/echobyol_l_pt50_lvef_d4.yaml` |
+| MAE pt50 LVEF | `configs/eval/vitb/icml/echomae_l_pt50_lvef_d4.yaml` |
 | JEPA pt50 RVSP (41K) | `configs/eval/vitl/icml/echojepa_l_pt50_rvsp_d4_full.yaml` |
 | BYOL pt50 RVSP (41K) | `configs/eval/vitl/icml/echobyol_l_pt50_rvsp_d4_full.yaml` |
 | MAE pt50 RVSP (41K) | `configs/eval/vitl/icml/echomae_l_pt50_rvsp_d4_full.yaml` |
+
+### Key Configs (EchoBench — EchoNet-Dynamic/Pediatric)
+
+| Task | Config |
+|------|--------|
+| JEPA pt50 EchoNet-Dynamic LVEF | `configs/eval/vitl/icml/echojepa_l_pt50_end_lvef_d4.yaml` |
+| JEPA pt50 EchoNet-Pediatric LVEF | `configs/eval/vitl/icml/echojepa_l_pt50_enp_lvef_d4.yaml` |
+
+### HyperPod Data CSVs (S3)
+
+All at `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/data/csv/`.
+
+| CSV | Labels | Notes |
+|-----|--------|-------|
+| `echonet_dynamic_train_s3_raw.csv` | Raw LVEF (mean=55.78, std=12.41) | 7,465 videos, S3 paths |
+| `echonet_dynamic_val_s3_raw.csv` | Raw LVEF | 1,288 videos |
+| `echonet_dynamic_test_s3_raw.csv` | Raw LVEF | 1,277 videos |
+| `echonet_pediatric_train_s3_raw.csv` | Raw LVEF (mean TBD) | 2,580 videos |
+| `echonet_pediatric_val_s3_raw.csv` | Raw LVEF | 336 videos |
+| `echonet_pediatric_test_s3_raw.csv` | Raw LVEF | 368 videos |
+| `echonet_dynamic_train_s3.csv` | Pre-z-scored | Legacy, do not use |
+| `rebuttal/lvef/lvef_train_10k.csv` | Raw LVEF (mean=57.06, std=11.28) | UHN 10K rebuttal subset |
+| `rebuttal/lvef/lvef_val_1k.csv` | Raw LVEF | UHN 1K rebuttal subset |
+| `rvsp_train.csv` / `rvsp_val.csv` | Raw RVSP (mean=34.47, std=14.01) | UHN full 41K/5K |
+
+### HyperPod Sbatch Scripts
+
+| Script | Task | Node |
+|--------|------|------|
+| `scripts/echojepa_pt50_end_lvef_probe.sbatch` | JEPA pt50 EchoNet-Dynamic LVEF | node 83 |
+| `scripts/echomae_pt50_lvef_probe.sbatch` | MAE pt50 UHN LVEF | node 83 |
+| `scripts/echomae_pt50_rvsp_probe.sbatch` | MAE pt50 UHN RVSP | node 184 |
+| `scripts/echomae_pt50_lvef_test.sbatch` | MAE pt50 LVEF test inference | node 83 |

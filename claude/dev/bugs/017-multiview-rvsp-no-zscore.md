@@ -172,7 +172,7 @@ Job 260 (post-fix): MAE ~9.9 mmHg at epoch 1 iter 2600 — matches expected valu
 ## Bug 017c: Single-view LVEF probe z-score mismatch at inference (discovered 2026-03-29)
 
 **Severity:** HIGH
-**Status:** FIX IN PROGRESS (HyperPod job 274)
+**Status:** FIXED (HyperPod job 274 — R²=0.325, Pearson=0.584, MAE=6.866)
 **Root cause:** LVEF probe (job 247) trained on pre-March-14 single-view eval code that lacked z-score normalization. The probe learned to predict raw LVEF values (~60%). Current inference code z-scores labels at runtime, creating a mismatch.
 
 ### Symptoms
@@ -194,7 +194,7 @@ Test inference on 53K UHN clips (job 264) produced:
 Retrained the LVEF probe with z-score normalization:
 1. Added `target_mean: 57.0569` and `target_std: 11.2817` to `configs/eval/vitb/icml/echomae_l_pt50_lvef_d4.yaml`
 2. Submitted job 274 on HyperPod node ip-10-0-50-83 using deploy.sh-deployed code
-3. Head 1/6 complete: val MAE 7.17 (ep16) — consistent with job 247's 7.155
+3. Job 274 complete (20 epochs): best val MAE 6.866 (ep18), R²=0.325, Pearson=0.584
 
 ### Lesson
 

@@ -66,11 +66,11 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 |-------|-----------|-------------|-----------|-----|---------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | 6.329 (ep17) | 11.1% | 0.436 | 0.667 | DONE |
 | EchoBYOL-L (50ep) | Self-distillation | **6.297** (ep18) | **11.0%** | — | — | DONE |
-| EchoMAE-L (50ep) | Pixel reconstruction | **7.155** (ep16) | **12.5%** | — | — | ⚠️ RETRAIN (job 274) |
+| EchoMAE-L (50ep) | Pixel reconstruction | **6.866** (ep18) | **12.0%** | **0.325** | **0.584** | DONE (job 274) |
 
-**⚠️ MAE pt50 LVEF retrain (Bug 017c):** Job 247 was trained on pre-March-14 single-view eval code that lacked z-score normalization. The probe predicted raw LVEF values. At test inference time with current code, MAE was 719 (z-score mismatch). Job 274 is retraining with z-score normalization on HyperPod node 83. Head 1/6 done: val MAE 7.17 (ep16) — consistent with job 247's 7.155. Training metrics were unaffected; only test inference was broken.
+**Note (Bug 017c):** Original job 247 was trained without z-score normalization and was unusable for inference. Job 274 retrained with correct z-scoring — all MAE numbers above are from job 274.
 
-**Finding:** BYOL and JEPA near-identical on LVEF (6.297 vs 6.329, 0.5% gap). MAE pt50 shows signal (7.155) unlike MAE ep99 (8.05, R²~0) — the ep99 failure was due to the inverted LR bug, not inherent to MAE. However, MAE still trails both EMA methods by ~13% (7.16 vs 6.30), supporting the "EMA targets filter noise" thesis. See architecture analysis below for interpretation.
+**Finding:** BYOL and JEPA near-identical on LVEF (6.297 vs 6.329, 0.5% gap). MAE pt50 shows real signal (R²=0.325, Pearson=0.584) unlike MAE ep99 (R²~0) — the ep99 failure was due to the inverted LR bug, not inherent to MAE. However, MAE still trails both EMA methods (R² 0.325 vs 0.436/0.421, MAE 6.87 vs 6.33/6.30), consistent with the "EMA targets filter noise" thesis. See architecture analysis below for interpretation.
 
 ---
 
@@ -131,7 +131,7 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 |-------|-----------|-------------|-----|---------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | **9.044** (ep16) | **0.241** | **0.504** | DONE (20/20) |
 | EchoBYOL-L (50ep) | Self-distillation | 9.531 (ep6) | 0.133 | 0.408 | KILLED (ep1, restart needed) |
-| EchoMAE-L (50ep) | Pixel reconstruction | 9.482 (ep6) | 0.163 | 0.406 | IN PROGRESS (HyperPod job 260, ep8/20) |
+| EchoMAE-L (50ep) | Pixel reconstruction | 9.346 (ep13) | 0.185 | 0.441 | IN PROGRESS (HyperPod job 260, ep14/20) |
 
 **Finding:** JEPA converges faster and maintains a consistent lead on multi-view RVSP. Final Pearson **0.504** (ep19) matches the fully-trained pt210-an25 (0.504 at ep9), confirming pt50 captures essentially all RVSP-relevant information. Metrics plateaued ep16-20. RVSP requires integrating spatial information across two echo views (A4C + RV-focused), which benefits from JEPA's spatially structured representations over BYOL's global mean-pooling.
 
@@ -224,8 +224,9 @@ BYOL (6.297) and JEPA (6.329) are near-identical on LVEF — BYOL is marginally 
 4. **DONE**: EchoBYOL-L pt50 CAMUS — Test Dice 0.821
 5. **DONE**: EchoMAE-L pt50 CAMUS — Test Dice 0.822
 6. **DONE**: EchoJEPA-L pt50 RVSP full (41K/5K) — 20/20, Pearson 0.504, MAE 9.044
-7. **RUNNING (HyperPod job 260, node 184)**: EchoMAE-L pt50 RVSP full (41K/5K) — ep8/20, best MAE 9.48, Pearson 0.406
-8. **RUNNING (HyperPod job 274, node 83)**: EchoMAE-L pt50 LVEF retrain (10K/1K) — head 2/6, head 1 done (MAE 7.17)
+7. **DONE (HyperPod job 274)**: EchoMAE-L pt50 LVEF (10K/1K) — R²=0.325, Pearson=0.584, MAE=6.866
+8. **RUNNING (HyperPod job 260, node 184)**: EchoMAE-L pt50 RVSP full (41K/5K) — ep14/20, best MAE 9.35, Pearson 0.441
+9. **RUNNING (HyperPod job 282, node 83)**: EchoJEPA-L pt50 EchoNet-Dynamic LVEF (7.5K train / 1.3K val) — just started
 9. **KILLED**: EchoBYOL-L pt50 RVSP full (41K/5K) — killed ep1, needs restart
 
 ## Notes

@@ -28,10 +28,10 @@ Without these, the controlled comparison only covers LVEF and CAMUS. RVSP adds t
 
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
-| P1.1 | **EchoMAE-L pt50 LVEF probe** | **RETRAIN IN PROGRESS** (HyperPod job 274) | hfQ1, ncQn | ~8h remaining | — | ⚠️ Job 247 probe trained without z-score normalization (Bug 017c) — invalid for inference (test MAE 719). Job 274 retraining: head 1/6 done (val MAE 7.17), head 2/6 in progress. |
+| P1.1 | **EchoMAE-L pt50 LVEF probe** | **DONE** (HyperPod job 274) | hfQ1, ncQn | — | — | R²=0.325, Pearson=0.584, MAE=6.866 (ep18). Retrained with z-score normalization after Bug 017c. MAE trails JEPA (0.436) and BYOL (0.421) on R², confirming EMA advantage. |
 | P1.2 | **Resume JEPA pt50 RVSP 41K** (ep18→20) | **DONE** (20/20) | ALL | — | — | **Pearson=0.504** (ep19), R²=0.241 (ep20), Val MAE=9.044 (ep16). Matches pt210-an25. |
 | P1.3 | **BYOL pt50 RVSP 41K** (20ep) | KILLED (ep0) | hfQ1 | ~10h | Config exists | Killed mid-epoch-1, no checkpoint. Full restart needed. |
-| P1.4 | **MAE pt50 RVSP 41K** (20ep) | **IN PROGRESS** (HyperPod job 260, ep8/20) | ALL | ~5h remaining | — | Val MAE 9.48 (ep6), R²=0.163 (ep7), Pearson=0.406 (ep8). Running on node ip-10-0-50-184. |
+| P1.4 | **MAE pt50 RVSP 41K** (20ep) | **IN PROGRESS** (HyperPod job 260, ep14/20) | ALL | ~3h remaining | — | Val MAE 9.35 (ep13), R²=0.185 (ep14), Pearson=0.441 (ep13). Running on node ip-10-0-50-184. |
 
 **Why P1:** The rebuttal tex claims "converging evidence across LVEF, CAMUS, and RVSP." Without RVSP results for all 3 models, this is only partially supported.
 
@@ -43,7 +43,7 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
-| P2.1 | **Train pt50 EchoNet-Dynamic LVEF probes** (×3 models) | NOT STARTED | 6t2T, hfQ1, ncQn | ~6 GPU-h | Configs needed | JEPA-L-pt50, BYOL-L-pt50, MAE-L-pt50 |
+| P2.1 | **Train pt50 EchoNet-Dynamic LVEF probes** (×3 models) | **1/3 RUNNING** (JEPA job 282, node 83) | 6t2T, hfQ1, ncQn | ~4 GPU-h remaining | Raw-label CSVs built | JEPA-L-pt50 running. BYOL-L-pt50 and MAE-L-pt50 configs needed. |
 | P2.2 | **Train pt50 EchoNet-Pediatric LVEF probes** (×3 models) | NOT STARTED | 6t2T, hfQ1 | ~6 GPU-h | Configs needed | Domain-shift evaluation (adult→pediatric) |
 | P2.3 | **Generate perturbed EchoNet-Dynamic test videos** | NOT STARTED | ncQn | ~2h | Pipeline exists | 7 perturbation types × 3 levels |
 | P2.4 | **Run perturbation matrix** (fully-trained + pt50) | NOT STARTED | ALL | ~8h | P2.1-P2.3 | Probes for 5 fully-trained models already exist |
@@ -92,6 +92,8 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 | ✓ | Biplane LVEF feasibility check | 97% of studies have A4C+A2C | Mar 29 |
 | ✓ | EchoMAE-L pt50 CAMUS (50ep) | **Test Dice=0.822** (best of 3, despite R²=0 on LVEF) | Mar 29 |
 | ✓ | Update icml_rebuttal.tex with results | 3-way numbers, CAMUS, scaling, EMA finding | Mar 29 |
+| ✓ | **EchoMAE-L pt50 LVEF (10K, 20ep)** | **R²=0.325, Pearson=0.584, MAE=6.866** (job 274, retrained) | Mar 29 |
+| ✓ | EchoJEPA-L pt50 RVSP 41K (20ep) | Pearson=0.504, R²=0.241, MAE=9.044 | Mar 29 |
 
 ---
 
@@ -109,8 +111,9 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 - [ ] P0.3: Launch CKA (after P0.2 finishes, parallel with P0.4)
 - [ ] P0.4: Launch noise probe (after P0.2, parallel with P0.3)
 - [ ] P1.2: Check JEPA pt50 RVSP 41K final result (was ep19/20)
-- [ ] P1.1: Check MAE pt50 LVEF retrain (HyperPod job 274)
-- [ ] P1.4: Check MAE pt50 RVSP 41K (HyperPod job 260)
+- [x] P1.1: MAE pt50 LVEF retrain **DONE** — R²=0.325, Pearson=0.584, MAE=6.866
+- [ ] P1.4: Check MAE pt50 RVSP 41K (HyperPod job 260, ep14/20)
+- [ ] P2.1: EchoJEPA-L pt50 EchoNet-Dynamic LVEF probe launched (job 282, node 83)
 - [ ] P1.3: Restart BYOL pt50 RVSP 41K (if GPU available)
 
 ### Mar 31 — Task-level degradation + EchoBench
