@@ -100,29 +100,30 @@ def init_data(
     elif data.lower() == "videogroupdataset":  
         from src.datasets.video_group_dataset import make_videogroupdataset  
           
-        dataset, data_loader, dist_sampler = make_videogroupdataset(  
-            data_paths=root_path,  
-            batch_size=batch_size,  
-            group_size=num_clips,  # num_segments from config  
-            frames_per_clip=clip_len,  
-            frame_step=frame_sample_rate,  
-            num_clips_per_video=num_clips_per_video,  # NEW  
-            random_clip_sampling=random_clip_sampling,  
-            allow_clip_overlap=allow_clip_overlap,  
-            shared_transform=shared_transform,  
-            transform=transform,  
-            collator=collator,  
-            num_workers=num_workers,  
-            pin_mem=pin_mem,  
-            persistent_workers=persistent_workers,  
-            world_size=world_size,  
-            rank=rank,  
-            deterministic=deterministic,  
+        dataset, data_loader, dist_sampler = make_videogroupdataset(
+            data_paths=root_path,
+            batch_size=batch_size,
+            group_size=num_clips,  # num_segments from config
+            frames_per_clip=clip_len,
+            frame_step=frame_sample_rate,
+            num_clips_per_video=num_clips_per_video,  # NEW
+            random_clip_sampling=random_clip_sampling,
+            allow_clip_overlap=allow_clip_overlap,
+            shared_transform=shared_transform,
+            transform=transform,
+            collator=collator,
+            num_workers=num_workers,
+            pin_mem=pin_mem,
+            persistent_workers=persistent_workers,
+            world_size=world_size,
+            rank=rank,
+            deterministic=deterministic,
             log_dir=log_dir,
-            img_size=img_size,                # <<< add this line
-            training=training,                 # <<< NEW
-            miss_augment_prob=miss_augment_prob,          # <<< NEW
-            min_present=min_present,                  # <<< NEW
+            drop_last=drop_last,
+            img_size=img_size,
+            training=training,
+            miss_augment_prob=miss_augment_prob,
+            min_present=min_present,
             split_name=split_name
         )
 
