@@ -274,12 +274,15 @@ With all bugs fixed (017a: runtime z-scoring, 017b: explicit params in YAML), Ec
 | 6 | 8.861 | 9.148 | 0.187 | 0.477 |
 | 7 | 8.766 | 9.343 | 0.236 | 0.486 |
 | 8 | 8.729 | 9.163 | 0.196 | 0.497 |
+| **9** | **8.703** | **9.040** | **0.235** | **0.504** |
 
 Key observations:
-- **Genuine learning**: Pearson climbing steadily (0.167 → 0.497), R² positive and increasing
-- **Val MAE ~9.2 mmHg** at epoch 8 — higher than preprint's "5.01" but that was fake
-- **R² ~0.2** vs preprint's effective R²=-0.05 — the current run actually predicts RVSP, not just the mean
-- 12 epochs remaining, ~8-9 hours to completion
+- **Genuine learning**: Pearson climbing steadily (0.167 → 0.504), R² positive and increasing
+- **New best at epoch 9**: Val MAE 9.040 mmHg, Pearson crossed 0.50
+- **Best head**: Head 5 (lr=5e-5, wd=0.4) consistently selected across all epochs
+- **Val MAE ~9.0 mmHg** — higher than preprint's "5.01" but that was fake
+- **R² ~0.24** vs preprint's effective R²=-0.05 — the current run actually predicts RVSP, not just the mean
+- Currently in epoch 10/20, ~7 hours remaining (ETA ~08:45 UTC Mar 29)
 - For context: Nature Medicine d=1 single-view RVSP was R²=0.168 for L. Current d=4 multi-view already exceeds this.
 
 ### Impact
@@ -287,7 +290,7 @@ Key observations:
 | Context | Affected? | Notes |
 |---------|-----------|-------|
 | ICML preprint RVSP (Table 4) | **YES — ALL NUMBERS INVALID** | `int()` cast quantized 78% of z-scored labels to 0. All models predicted the mean (~35 mmHg). Reported MAEs (4.54-5.65) are artifacts of label quantization, not RVSP estimation. See forensic analysis above. |
-| ICML rebuttal EchoJEPA-L RVSP (41K UHN) | **Fixed & running** | Bug 017a + 017b fixed. First genuine RVSP probe. Epoch 8: R²=0.196, Pearson=0.497. |
+| ICML rebuttal EchoJEPA-L RVSP (41K UHN) | **Fixed & running** | Bug 017a + 017b fixed. First genuine RVSP probe. Epoch 9: R²=0.235, Pearson=0.504, MAE=9.04. |
 | ICML rebuttal EchoMAE-L RVSP (all runs) | **Yes** | Bug 017a (pre-fix runs on 5K) + Bug 017b (post-fix ep163 run on 41K). All invalid. |
 | ICML rebuttal EchoJEPA-B/L-K/BYOL RVSP | **Fixed** | Configs now have explicit params. Not yet run. |
 | Nature Medicine RVSP | **No** | Uses single-view module with correct z-scoring + raw labels |
@@ -304,7 +307,7 @@ Key observations:
 | Batch size scaling | No | Specific to tiny dev dataset. NM uses BS1 on large datasets |
 | Sample efficiency (1% labels) | Yes | Controlled comparison, probe mismatch constant across fractions |
 | Pediatric transfer | Yes | Tests representation directly, not probe design |
-| Multi-view RVSP (4.54 MAE) | **No — artifact** | All RVSP MAEs in Table 4 were artifacts of `int()` quantization of z-scored labels. 78% of labels mapped to the mean; all models predicted ~35 mmHg. First real run in progress (epoch 8: R²=0.196). |
+| Multi-view RVSP (4.54 MAE) | **No — artifact** | All RVSP MAEs in Table 4 were artifacts of `int()` quantization of z-scored labels. 78% of labels mapped to the mean; all models predicted ~35 mmHg. First real run in progress (epoch 9: R²=0.235, Pearson=0.504). |
 
 ## Related Documents
 
