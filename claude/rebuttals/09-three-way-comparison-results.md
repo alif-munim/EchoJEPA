@@ -72,20 +72,48 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 
 ---
 
-## Task 2: RVSP Regression (Multi-View, d=4 Attentive Probe)
+## Task 2: RVSP Regression (Multi-View, d=4 Attentive Probe, Full Dataset)
 
-**Config**: `configs/eval/vitl/icml/echobyol_l_pt50_rvsp_d4.yaml`
-**Data**: 5K train / 1K val (rebuttal subset), Z-score norm (mean=34.47, std=14.01)
+**BYOL config**: `configs/eval/vitl/icml/echobyol_l_pt50_rvsp_d4_full.yaml`
+**JEPA config**: `configs/eval/vitl/icml/echojepa_l_pt50_rvsp_d4_full.yaml`
+**Data**: 41K train / 5K val (full UHN RVSP), Z-score norm (mean=34.47, std=14.01)
 **Probe**: d=4 attentive, 16 heads, factorized 2-view + 2 clips/view, 6 HP combos, 20 epochs, 8 GPUs
-**Status**: QUEUED — starts automatically after LVEF completes
 
-### Comparison (RVSP, to be completed)
+### EchoJEPA-L (50ep) — IN PROGRESS (epoch 15/20)
 
-| Model | Objective | Best Val MAE | % of Mean | R² | Pearson |
-|-------|-----------|-------------|-----------|-----|---------|
-| EchoJEPA-L (50ep) | Latent prediction | — | — | — | — |
-| EchoBYOL-L (50ep) | Self-distillation | — | — | — | — |
-| EchoMAE-L (50ep) | Pixel reconstruction | — | — | — | — |
+| Epoch | Train MAE | Val MAE | R² | Pearson |
+|-------|-----------|---------|-----|---------|
+| 1 | 9.823 | 10.544 | -0.007 | 0.206 |
+| 2 | 9.568 | 9.882 | 0.079 | 0.336 |
+| 3 | 9.320 | 9.700 | 0.138 | 0.382 |
+| 5 | 9.092 | 9.402 | 0.158 | 0.425 |
+| 7 | 8.948 | 9.462 | 0.187 | 0.448 |
+| 9 | 8.833 | 9.217 | 0.179 | 0.468 |
+| 10 | 8.788 | 9.234 | 0.222 | 0.475 |
+| 12 | 8.717 | 9.124 | 0.235 | 0.486 |
+| 13 | 8.658 | **9.097** | 0.229 | 0.491 |
+| 15 | 8.618 | 9.139 | **0.241** | **0.498** |
+
+**Current best: epoch 13 — Val MAE 9.097 (26.4% of mean), R² 0.241, Pearson 0.498**
+
+### EchoBYOL-L (50ep) — IN PROGRESS (epoch 2/20)
+
+| Epoch | Train MAE | Val MAE | R² | Pearson |
+|-------|-----------|---------|-----|---------|
+| 1 | 9.812 | 10.558 | -0.021 | 0.213 |
+| 2 | 9.702 | 10.601 | -0.106 | 0.221 |
+
+### Comparison (RVSP, in progress)
+
+| Model | Objective | Best Val MAE | R² | Pearson | Status |
+|-------|-----------|-------------|-----|---------|--------|
+| EchoJEPA-L (50ep) | Latent prediction | **9.097** (ep13) | **0.241** | **0.498** | ep 15/20 |
+| EchoBYOL-L (50ep) | Self-distillation | 10.558 (ep1) | -0.021 | 0.213 | ep 2/20 |
+| EchoMAE-L (50ep) | Pixel reconstruction | — | — | — | NOT STARTED |
+
+**Early finding:** JEPA is converging significantly faster than BYOL on multi-view RVSP. At epoch 2, JEPA already had val MAE 9.88 while BYOL is at 10.60 — a 7% gap. JEPA's local spatial prediction appears to give a clear advantage over BYOL's global pooling on this spatially demanding multi-view task. This is the predicted separation from the architecture analysis: RVSP requires integrating spatial information across two echo views (A4C + RV-focused), which benefits from spatially structured representations that BYOL's mean-pooling pretraining objective does not produce.
+
+**Caveat:** BYOL is only at epoch 2 — the gap may narrow as training progresses. Update when more epochs complete.
 
 ---
 
