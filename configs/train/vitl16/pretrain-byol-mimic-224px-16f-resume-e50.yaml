@@ -1,0 +1,76 @@
+# BYOL-Video ViT-L pretraining on MIMIC-IV-Echo — Resume from epoch 50 to 100
+# A100 config (8 GPUs, batch_size=128 per GPU = 1024 effective)
+# Three-way controlled comparison: JEPA vs BYOL-Video vs MAE
+#
+# Launch:
+#   python -m app.main --fname configs/train/vitl16/pretrain-byol-mimic-224px-16f-resume-e50.yaml --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+app: byol_video
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 80G
+folder: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/pretrain/mimic/byol_vitl_224px_16f_imagenet_v2_resume
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
+  batch_size: 64                    # 64 × 8 GPUs = 512 effective (half of H100 1024; SHM limit)
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  num_clips: 2                     # rho=2 temporal clips per video
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: true
+  read_checkpoint: null
+  save_every_freq: 5
+  checkpoints_to_keep: 3
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_rope: true
+  # BYOL projector/predictor MLP dimensions
+  proj_hidden_dim: 4096
+  proj_dim: 256
+  pred_hidden_dim: 4096
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: false
+  anneal_ckpt: null
+
+  # Constant EMA matched to V-JEPA
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+
+  ipe: 300
+  ipe_scale: 1.25
+
+  # Same LR as JEPA config for matched comparison
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+
+  warmup: 40
+  epochs: 100
