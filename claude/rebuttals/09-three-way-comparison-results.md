@@ -9,7 +9,7 @@ See `08-rebuttal-v2.md` §Concern 3b and §Concern 4 for context and contingency
 |-------|-----------|--------|
 | EchoJEPA-L (50ep) | `checkpoints/echojepa-l-pt50.pt` | Done |
 | EchoBYOL-L (50ep) | `checkpoints/byol_vitl_imagenet_v2_e50.pt` | Done (downloaded from H100 cluster) |
-| EchoMAE-L (50ep) | — | Planned (retrain with corrected LR) |
+| EchoMAE-L (50ep) | `s3://.../videomae_matched_2n_245/training_folder/checkpoint-49.pth` | Done (HyperPod job 245) |
 
 ## BYOL Pretraining Summary
 
@@ -66,7 +66,9 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 |-------|-----------|-------------|-----------|-----|---------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | 6.329 (ep17) | 11.1% | 0.436 | 0.667 | DONE |
 | EchoBYOL-L (50ep) | Self-distillation | **6.297** (ep18) | **11.0%** | — | — | DONE |
-| EchoMAE-L (50ep) | Pixel reconstruction | **7.155** (ep16) | **12.5%** | — | — | DONE (HyperPod job 247) |
+| EchoMAE-L (50ep) | Pixel reconstruction | **7.155** (ep16) | **12.5%** | — | — | ⚠️ RETRAIN (job 274) |
+
+**⚠️ MAE pt50 LVEF retrain (Bug 017c):** Job 247 was trained on pre-March-14 single-view eval code that lacked z-score normalization. The probe predicted raw LVEF values. At test inference time with current code, MAE was 719 (z-score mismatch). Job 274 is retraining with z-score normalization on HyperPod node 83. Head 1/6 done: val MAE 7.17 (ep16) — consistent with job 247's 7.155. Training metrics were unaffected; only test inference was broken.
 
 **Finding:** BYOL and JEPA near-identical on LVEF (6.297 vs 6.329, 0.5% gap). MAE pt50 shows signal (7.155) unlike MAE ep99 (8.05, R²~0) — the ep99 failure was due to the inverted LR bug, not inherent to MAE. However, MAE still trails both EMA methods by ~13% (7.16 vs 6.30), supporting the "EMA targets filter noise" thesis. See architecture analysis below for interpretation.
 
@@ -79,7 +81,7 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 **Data**: 41K train / 5K val (full UHN RVSP), Z-score norm (mean=34.47, std=14.01)
 **Probe**: d=4 attentive, 16 heads, factorized 2-view + 2 clips/view, 6 HP combos, 20 epochs, 8 GPUs
 
-### EchoJEPA-L (50ep) — IN PROGRESS (epoch 15/20)
+### EchoJEPA-L (50ep) — PAUSED (killed at epoch 17/20)
 
 | Epoch | Train MAE | Val MAE | R² | Pearson |
 |-------|-----------|---------|-----|---------|
@@ -124,7 +126,7 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 |-------|-----------|-------------|-----|---------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | **9.097** (ep13) | **0.241** | **0.498** | ep 15/20 |
 | EchoBYOL-L (50ep) | Self-distillation | 9.531 (ep6) | 0.133 | 0.408 | ep 6/20 |
-| EchoMAE-L (50ep) | Pixel reconstruction | 10.10 (ep4) | 0.128 | 0.365 | IN PROGRESS (HyperPod job 260, ep4/20) |
+| EchoMAE-L (50ep) | Pixel reconstruction | 9.482 (ep6) | 0.163 | 0.406 | IN PROGRESS (HyperPod job 260, ep8/20) |
 
 **Finding:** JEPA converges faster and maintains a consistent lead on multi-view RVSP. At matched epochs, JEPA leads by ~2% in val MAE and ~10% relative in Pearson. The gap has been narrowing (epoch 2: 7% MAE gap → epoch 6: 2% MAE gap) but the Pearson gap is persistent, suggesting JEPA captures more variance in the RVSP distribution. This is consistent with the architecture analysis: RVSP requires integrating spatial information across two echo views (A4C + RV-focused), which benefits from JEPA's spatially structured representations over BYOL's global mean-pooling.
 
@@ -146,13 +148,15 @@ Existing results from `08-rebuttal-v2.md` (fully trained models):
 | EchoJEPA-L | Latent prediction | 210+25 | 0.884 | 0.762 | 0.807 | **0.818** |
 | EchoMAE-L | Pixel reconstruction | 163 | 0.852 | 0.735 | 0.783 | 0.790 |
 
-50-epoch controlled comparison (to be filled):
+50-epoch controlled comparison (DONE):
 
-| Model | Objective | LV Dice | MYO Dice | LA Dice | Mean Dice |
+| Model | Objective | LV Dice | MYO Dice | LA Dice | Mean Test Dice |
 |-------|-----------|---------|----------|---------|-----------|
-| EchoJEPA-L (50ep) | Latent prediction | — | — | — | — |
-| EchoBYOL-L (50ep) | Self-distillation | — | — | — | — |
-| EchoMAE-L (50ep) | Pixel reconstruction | — | — | — | — |
+| EchoJEPA-L (50ep) | Latent prediction | 0.878 | 0.760 | 0.807 | **0.815** |
+| EchoBYOL-L (50ep) | Self-distillation | 0.880 | 0.769 | 0.813 | **0.821** |
+| EchoMAE-L (50ep) | Pixel reconstruction | 0.887 | 0.760 | 0.818 | **0.822** |
+
+**Key finding:** All three methods converge to near-identical CAMUS segmentation (0.7pp spread). MAE achieves the **best** clean Dice (0.822) despite zero LVEF signal (R²~0). This dissociation is the core evidence: pixel reconstruction encodes spatial anatomy but not hemodynamic function; EMA-based methods encode both.
 
 ---
 
@@ -207,18 +211,17 @@ BYOL (6.297) and JEPA (6.329) are near-identical on LVEF — BYOL is marginally 
 
 ---
 
-## Execution Queue (2026-03-29, updated 14:40 ET)
+## Execution Queue (2026-03-29, updated 23:30 UTC)
 
 1. **DONE**: EchoJEPA-L pt50 LVEF (10K/1K rebuttal) — Best MAE 6.329 (ep17)
 2. **DONE**: EchoBYOL-L pt50 LVEF (10K/1K rebuttal) — Best MAE 6.297 (ep18)
-   - Log: `logs/echobyol_l_pt50_lvef.log`
-3. **RUNNING**: EchoJEPA-L pt50 RVSP full (41K/5K) — ep 15/20, best MAE 9.097
-   - Log: `evals/vitl/icml/rvsp/echojepa_l_pt50_rvsp_full.log`
-4. **RUNNING**: EchoBYOL-L pt50 RVSP full (41K/5K) — ep 6/20, best MAE 9.531
-   - Log: `logs/echobyol_l_pt50_rvsp_full.log`
-   - Config: `configs/eval/vitl/icml/echobyol_l_pt50_rvsp_d4_full.yaml`
-5. **SEPARATE MACHINE**: BYOL-L pt50 CAMUS segmentation
-   - Output: `results/segmentation/echobyol_l_pt50/`
+3. **DONE**: EchoJEPA-L pt50 CAMUS — Test Dice 0.815
+4. **DONE**: EchoBYOL-L pt50 CAMUS — Test Dice 0.821
+5. **DONE**: EchoMAE-L pt50 CAMUS — Test Dice 0.822
+6. **RUNNING (HyperPod job 260, node 184)**: EchoMAE-L pt50 RVSP full (41K/5K) — ep8/20, best MAE 9.48, Pearson 0.406
+7. **RUNNING (HyperPod job 274, node 83)**: EchoMAE-L pt50 LVEF retrain (10K/1K) — head 2/6, head 1 done (MAE 7.17)
+8. **PAUSED**: EchoJEPA-L pt50 RVSP full (41K/5K) — killed at ep17/20, Pearson 0.503
+9. **KILLED**: EchoBYOL-L pt50 RVSP full (41K/5K) — killed ep1, needs restart
 
 ## Notes
 

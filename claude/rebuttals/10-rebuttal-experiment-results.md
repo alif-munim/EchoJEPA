@@ -1,4 +1,4 @@
-# ICML Rebuttal — Experiment Results Tracker (2026-03-29, updated 22:00 UTC)
+# ICML Rebuttal — Experiment Results Tracker (2026-03-29, updated 23:30 UTC)
 
 Consolidated results from all rebuttal experiments. **Single source of truth** for run status and numbers.
 See `08-rebuttal-v2.md` for reviewer concerns, narrative framing, and contingency plans.
@@ -26,9 +26,11 @@ All models: ViT-L (304M), MIMIC 525K, 50 pretraining epochs. Probes: d=4 attenti
 | EchoJEPA-L (50ep) | Latent prediction | 6.329 (ep17) | **0.436** (ep18) | **0.667** (ep17) | DONE |
 | EchoBYOL-L (50ep) | Self-distillation | **6.297** (ep18) | 0.421 (post-hoc) | 0.652 (post-hoc) | DONE |
 | EchoMAE-L (ep99) | Pixel reconstruction | 8.05 | ~0 | ~0 | DONE (no signal) |
-| EchoMAE-L (50ep) | Pixel reconstruction | 7.155 (ep16) | — | — | DONE (HyperPod job 247) |
+| EchoMAE-L (50ep) | Pixel reconstruction | 7.155 (ep16) | — | — | ⚠️ RETRAIN (job 247 → 274) |
 
 **Predict-mean baseline MAE:** ~9.0. Z-score: mean=57.07, std=11.28.
+
+**⚠️ MAE pt50 LVEF retrain (Bug 017c):** Job 247 was trained on pre-March-14 code that lacked z-score normalization in the single-view eval module. The probe predicted raw LVEF values (~60). When used with current inference code (which z-scores labels at runtime), test MAE was 719 instead of ~7 — the classic z-score mismatch. **Job 274** (HyperPod node 83) is retraining with z-score normalization. Head 1/6 done: val MAE 7.17 (ep16), consistent with job 247's 7.155. R²/Pearson will be available from heads 2-6 which log them. The training metric (val MAE) was unaffected because it was computed consistently within each run — the mismatch only manifested at test inference time.
 
 **Finding:** JEPA and BYOL near-identical on LVEF (R² 0.436 vs 0.421, Pearson 0.667 vs 0.652). **MAE pt50 shows signal (7.155 MAE) unlike MAE ep99 (8.05, R²~0)** — confirming the ep99 failure was not inherent to MAE but likely due to the inverted LR bug (170× too low peak LR). However, MAE pt50 still trails both EMA methods (7.16 vs 6.30-6.33), consistent with the "EMA targets filter noise" thesis.
 
@@ -106,7 +108,7 @@ Z-score: mean=34.465, std=14.013.
 | EchoJEPA-L (50ep) | Latent prediction | Full 41K/5K | 9.044 (ep16) | 0.237 | **0.503** | PAUSED (ep17/20, killed) |
 | EchoBYOL-L (50ep) | Self-distillation | Full 41K/5K | — | — | — | KILLED (ep1, restart needed) |
 | EchoMAE-L (ep163) | Pixel reconstruction | Full 41K/5K | 10.529 (ep1) | -0.031 | 0.124 | PAUSED (ep2) |
-| EchoMAE-L (50ep) | Pixel reconstruction | Full 41K/5K | 10.10 (ep4) | 0.128 | 0.365 | IN PROGRESS (HyperPod job 260, ep4/20) |
+| EchoMAE-L (50ep) | Pixel reconstruction | Full 41K/5K | 9.482 (ep6) | 0.163 | 0.406 | IN PROGRESS (HyperPod job 260, ep8/20) |
 
 **Finding (5K subset):** Insufficient data for multi-view RVSP. Pearson plateaued at 0.376, R² peaked at 0.092. All three models should use full 41K.
 
@@ -274,7 +276,8 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 
 | Experiment | Node | Job | Epoch | ETA |
 |-----------|------|-----|-------|-----|
-| EchoMAE-L pt50 RVSP 41K | HyperPod ip-10-0-50-184 | 260 | 4/20 | ~6h |
+| EchoMAE-L pt50 RVSP 41K | HyperPod ip-10-0-50-184 | 260 | 8/20 | ~5h |
+| EchoMAE-L pt50 LVEF 10K (retrain) | HyperPod ip-10-0-50-83 | 274 | head 2 ep4/20 (head 1 done) | ~8h (6 heads total) |
 
 ### Queued
 
@@ -282,7 +285,6 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 |-----------|-------------|--------|
 | EchoJEPA-L pt50 RVSP 41K resume (ep17→20) | GPU + relaunch | `resume_checkpoint: true` on existing config |
 | EchoBYOL-L pt50 RVSP (full 41K) | GPU availability | Config exists (`echobyol_l_pt50_rvsp_d4_full.yaml`) — restart from ep0 |
-| EchoMAE-L pt50 LVEF (10K) | **DONE** (HyperPod job 247) | Val MAE 7.155 (ep16) |
 
 ### Completed
 
@@ -298,7 +300,7 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 | EchoJEPA-L pt50 CAMUS (50ep, 7 HP) | Test Dice=0.815, Val Dice=0.818 (ep48) | 2026-03-29 |
 | EchoBYOL-L pt50 CAMUS (50ep, 7 HP) | Test Dice=0.821, Val Dice=0.821 (ep48) | 2026-03-29 |
 | **EchoMAE-L pt50 CAMUS (50ep, 7 HP)** | **Test Dice=0.822**, Val Dice=0.834 (ep49) | 2026-03-29 |
-| **EchoMAE-L pt50 LVEF (10K, 20ep)** | **Val MAE=7.155** (ep16), Train MAE=7.378 (HyperPod job 247) | 2026-03-29 |
+| **EchoMAE-L pt50 LVEF (10K, 20ep)** | **Val MAE=7.155** (ep16) — ⚠️ job 247 probe invalid for inference (Bug 017c), retrain job 274 in progress | 2026-03-29 |
 | EchoJEPA-L pt50 LVEF test (53K clips) | R²=0.409, Pearson=0.650, MAE=6.508 (head 4) | 2026-03-29 |
 | EchoBYOL-L pt50 LVEF test (53K clips) | R²=0.384, Pearson=0.625, MAE=6.656 (head 0) | 2026-03-29 |
 
@@ -435,6 +437,8 @@ Existing infrastructure for EchoNet-Dynamic/Pediatric noise experiments:
 | Bug 017: Multi-view missing z-score | All ICML RVSP numbers invalid | Runtime z-scoring added to multi-view eval.py |
 | Bug 017b: Stale zscore_params.json | Wrong task params silently poison results | Explicit `target_mean`/`target_std` in all YAML configs |
 | Bug 018: Port collision → single-GPU fallback | 5K RVSP took same time as 41K (world_size=1) | Set `MASTER_PORT` env var |
+| Bug 017c: Single-view LVEF z-score mismatch at inference | Job 247 probe trained pre-Mar-14 (no z-scoring), test MAE 719 | Retrained with z-score normalization (job 274) |
+| Bug 017a sequel: Stale code.tar in all sbatch scripts | All 34 sbatch scripts downloaded code.tar from S3 | Migrated all scripts to use deploy.sh `/opt/vjepa2` workflow |
 | Bug 019: Orphan GPU processes | 19 processes accumulated, blocked ports | Kill ppid=1 orphans before relaunch |
 | scipy libstdc++ mismatch | BYOL R²/Pearson NaN at runtime | `LD_LIBRARY_PATH=/opt/conda/lib:$LD_LIBRARY_PATH` |
 
@@ -455,7 +459,10 @@ Existing infrastructure for EchoNet-Dynamic/Pediatric noise experiments:
 
 ### What's running
 
-_Nothing — all 8 GPUs idle. Ready to launch next wave._
+| Experiment | Node | Job | Progress |
+|-----------|------|-----|----------|
+| EchoMAE-L pt50 RVSP 41K | ip-10-0-50-184 | 260 | ep8/20, val MAE 9.48, Pearson 0.406 |
+| EchoMAE-L pt50 LVEF 10K (retrain) | ip-10-0-50-83 | 274 | head 2/6 ep4, head 1 done (MAE 7.17) |
 
 ### Priority tiers — remaining experiments
 
@@ -473,7 +480,7 @@ These three together provide mechanistic evidence for WHY latent prediction filt
 
 | # | Experiment | Addresses | Effort | Depends On |
 |---|-----------|-----------|--------|-----------|
-| 2a | EchoMAE-L pt50 LVEF | 3-way completion | ~2h train | None (can start now) |
+| 2a | EchoMAE-L pt50 LVEF | 3-way completion | ~8h remaining | IN PROGRESS (HyperPod job 274, 6 heads) |
 | 2b | Finish JEPA pt50 RVSP 41K (ep 12→20) | 3-way completion | ~4h | GPU availability |
 | 2c | BYOL pt50 RVSP 41K (20ep) | 3-way completion | ~10h | Config creation |
 | 2d | MAE pt50 RVSP 41K (20ep) | 3-way completion | ~10h | Config creation |

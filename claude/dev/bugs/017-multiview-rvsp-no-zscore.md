@@ -169,6 +169,39 @@ Job 260 (post-fix): MAE ~9.9 mmHg at epoch 1 iter 2600 — matches expected valu
 
 ---
 
+## Bug 017c: Single-view LVEF probe z-score mismatch at inference (discovered 2026-03-29)
+
+**Severity:** HIGH
+**Status:** FIX IN PROGRESS (HyperPod job 274)
+**Root cause:** LVEF probe (job 247) trained on pre-March-14 single-view eval code that lacked z-score normalization. The probe learned to predict raw LVEF values (~60%). Current inference code z-scores labels at runtime, creating a mismatch.
+
+### Symptoms
+
+Test inference on 53K UHN clips (job 264) produced:
+- Val MAE **719** (expected ~7)
+- All `pred_real` values ~731 (constant)
+- `label_real` values ~0 (z-scored labels with mean 57, std 11.28)
+
+### Root cause analysis
+
+`git blame` on `evals/video_classification_frozen/eval.py` lines 933-936 shows z-score normalization was added on **March 14** (commit `531ae49e`). Job 247 was trained on the pre-March-14 code deployed via code.tar, which lacked this normalization.
+
+- **During training:** Labels were raw (~60), predictions were raw (~60), val MAE was correct (~7). Both sides consistent.
+- **At test inference:** Current code z-scores labels to ~0, but the probe still predicts raw values (~60). Un-z-scoring: `pred_real = pred * 11.28 + 57.06 ≈ 60 * 11.28 + 57.06 ≈ 731`. This explains the constant pred_real ≈ 731 and MAE ≈ 719.
+
+### Fix
+
+Retrained the LVEF probe with z-score normalization:
+1. Added `target_mean: 57.0569` and `target_std: 11.2817` to `configs/eval/vitb/icml/echomae_l_pt50_lvef_d4.yaml`
+2. Submitted job 274 on HyperPod node ip-10-0-50-83 using deploy.sh-deployed code
+3. Head 1/6 complete: val MAE 7.17 (ep16) — consistent with job 247's 7.155
+
+### Lesson
+
+The single-view z-score normalization (Bug 017's counterpart) was added silently to the single-view module on March 14. Any probe trained before this date predicts raw values; any probe trained after predicts z-scored values. **Always verify that the probe was trained with the same eval code version used for inference.**
+
+---
+
 ## Additional Notes
 
 ### The `int()` cast problem

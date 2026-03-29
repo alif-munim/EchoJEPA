@@ -27,10 +27,10 @@ Without these, the controlled comparison only covers LVEF and CAMUS. RVSP adds t
 
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
-| P1.1 | **EchoMAE-L pt50 LVEF probe** | **DONE** (HyperPod job 247) | hfQ1, ncQn | — | — | Val MAE **7.155** (ep16). MAE pt50 shows signal (unlike ep99), but trails EMA methods (7.16 vs 6.30). |
+| P1.1 | **EchoMAE-L pt50 LVEF probe** | **RETRAIN IN PROGRESS** (HyperPod job 274) | hfQ1, ncQn | ~8h remaining | — | ⚠️ Job 247 probe trained without z-score normalization (Bug 017c) — invalid for inference (test MAE 719). Job 274 retraining: head 1/6 done (val MAE 7.17), head 2/6 in progress. |
 | P1.2 | **Resume JEPA pt50 RVSP 41K** (ep17→20) | PAUSED (ep17) | ALL | ~2h | GPU | Pearson=0.503 at ep16 (matches pt210-an25). Only 3 ep left. |
 | P1.3 | **BYOL pt50 RVSP 41K** (20ep) | KILLED (ep0) | hfQ1 | ~10h | Config exists | Killed mid-epoch-1, no checkpoint. Full restart needed. |
-| P1.4 | **MAE pt50 RVSP 41K** (20ep) | **IN PROGRESS** (HyperPod job 260, ep4/20) | ALL | ~6h remaining | — | Val MAE 10.10, R²=0.128, Pearson=0.365 at ep4. Running on node ip-10-0-50-184. |
+| P1.4 | **MAE pt50 RVSP 41K** (20ep) | **IN PROGRESS** (HyperPod job 260, ep8/20) | ALL | ~5h remaining | — | Val MAE 9.48 (ep6), R²=0.163 (ep7), Pearson=0.406 (ep8). Running on node ip-10-0-50-184. |
 
 **Why P1:** The rebuttal tex claims "converging evidence across LVEF, CAMUS, and RVSP." Without RVSP results for all 3 models, this is only partially supported.
 
@@ -96,13 +96,16 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 
 ## Execution Plan (Mar 29 evening → Apr 2)
 
-### Tonight (Mar 29)
-- [ ] P0.5: Record MAE CAMUS results (minutes)
-- [ ] P0.1: Launch frame shuffling on GPUs 0, 2-5 (runs ~4h)
-- [ ] P0.2: Launch speckle generation on CPU (runs ~2h, parallel with P0.1)
-- [ ] P1.1: Launch MAE pt50 LVEF probe on cuda:1 (after CAMUS finishes)
-- [ ] P1.2: Resume JEPA RVSP 41K on cuda:6 (ep15→20, ~4h)
-- [ ] P1.3: Resume/monitor BYOL RVSP 41K on cuda:7
+### Tonight (Mar 29) — UPDATED
+- [x] P0.5: Record MAE CAMUS results — **Test Dice 0.822** ✓
+- [x] P1.1: Launched MAE pt50 LVEF retrain — HyperPod job 274, node 83 (6 HP heads, ~8h)
+- [x] Infrastructure: Migrated ALL 34 sbatch scripts from code.tar to deploy.sh `/opt/vjepa2` workflow
+- [x] Infrastructure: Updated deploy.sh to target both compute nodes by default
+- [ ] P1.4: MAE pt50 RVSP running (job 260, ep8/20) — monitor
+- [ ] P0.1: Launch frame shuffling (blocked — both HyperPod nodes busy)
+- [ ] P0.2: Launch speckle generation on CPU (runs ~2h, can run independently)
+- [ ] P1.2: Resume JEPA RVSP 41K (blocked — need GPU)
+- [ ] P1.3: Resume BYOL RVSP 41K (blocked — need GPU)
 
 ### Mar 30
 - [ ] P0.3: Launch CKA (after P0.2 finishes, morning)

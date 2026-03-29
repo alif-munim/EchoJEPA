@@ -6,6 +6,42 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-03-29 (Session 37)
+
+### Bug 017c: Single-view LVEF probe z-score mismatch
+
+**Problem:** EchoMAE-L pt50 LVEF probe (HyperPod job 247) was trained on pre-March-14 code that lacked z-score normalization in `evals/video_classification_frozen/eval.py`. The probe predicted raw LVEF values (~60%). Test inference (job 264) with current code — which z-scores labels to ~0 at runtime — produced MAE 719 (expected ~7).
+
+**Root cause:** `git blame` shows z-score normalization (lines 933-936) was added on March 14 (commit `531ae49e`). Job 247 trained on stale code.tar that predated this fix. During training, metrics were consistent (both raw), so val MAE looked correct (~7.15). The mismatch only appeared at test inference with current code.
+
+**Fix:** Retrained probe with z-score normalization. Added `target_mean: 57.0569` / `target_std: 11.2817` to `configs/eval/vitb/icml/echomae_l_pt50_lvef_d4.yaml`. HyperPod job 274 (node 83), head 1/6 complete: val MAE 7.17.
+
+### Migrated all 34 sbatch scripts from code.tar to deploy.sh
+
+**Problem:** All sbatch scripts downloaded `code.tar` from S3, which was the root cause of stale code deployments (Bugs 017a, 017c). The code.tar had to be manually rebuilt and re-uploaded after every fix.
+
+**Fix:** Replaced the code.tar extraction block in all 34 scripts with:
+```bash
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
+export PYTHONPATH="$PWD:${PYTHONPATH:-}"
+```
+
+Scripts now use code deployed by `~/deploy.sh` to `/opt/vjepa2` on compute nodes via `srun`. This eliminates the S3 code.tar as a stale-code vector.
+
+**Files modified:** All `scripts/*.sbatch` (34 files). Commit `238e027`.
+
+### Updated deploy.sh to target both compute nodes
+
+`~/deploy.sh` now deploys to both nodes (ip-10-0-50-83, ip-10-0-50-184) by default. Pass a node name to deploy to just one: `~/deploy.sh ip-10-0-50-83`.
+
+### Updated CLAUDE.md with HyperPod deploy workflow
+
+Added `deploy.sh` documentation and bold warning to always run it before `sbatch`. Commit `082ab16`.
+
+---
+
 ## 2026-03-28 (Session 36)
 
 ### BYOL-Video v2 learning curve: representations improving
