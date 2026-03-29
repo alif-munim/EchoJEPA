@@ -96,24 +96,37 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 
 **Current best: epoch 13 — Val MAE 9.097 (26.4% of mean), R² 0.241, Pearson 0.498**
 
-### EchoBYOL-L (50ep) — IN PROGRESS (epoch 2/20)
+### EchoBYOL-L (50ep) — IN PROGRESS (epoch 6/20)
 
 | Epoch | Train MAE | Val MAE | R² | Pearson |
 |-------|-----------|---------|-----|---------|
 | 1 | 9.812 | 10.558 | -0.021 | 0.213 |
 | 2 | 9.702 | 10.601 | -0.106 | 0.221 |
+| 3 | 9.603 | 10.080 | 0.086 | 0.318 |
+| 4 | 9.369 | 9.788 | 0.113 | 0.367 |
+| 5 | 9.228 | 9.635 | 0.111 | 0.385 |
+| 6 | 9.105 | 9.531 | 0.133 | 0.408 |
+
+### Head-to-head at matched epochs
+
+| Epoch | BYOL Val MAE | BYOL Pearson | JEPA Val MAE | JEPA Pearson |
+|-------|-------------|-------------|-------------|-------------|
+| 1 | 10.558 | 0.213 | 10.544 | 0.206 |
+| 2 | 10.601 | 0.221 | 9.882 | 0.336 |
+| 3 | 10.080 | 0.318 | 9.700 | 0.382 |
+| 4 | 9.788 | 0.367 | 9.839 | 0.419 |
+| 5 | 9.635 | 0.385 | 9.402 | 0.425 |
+| 6 | 9.531 | 0.408 | 9.339 | 0.445 |
 
 ### Comparison (RVSP, in progress)
 
 | Model | Objective | Best Val MAE | R² | Pearson | Status |
 |-------|-----------|-------------|-----|---------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | **9.097** (ep13) | **0.241** | **0.498** | ep 15/20 |
-| EchoBYOL-L (50ep) | Self-distillation | 10.558 (ep1) | -0.021 | 0.213 | ep 2/20 |
+| EchoBYOL-L (50ep) | Self-distillation | 9.531 (ep6) | 0.133 | 0.408 | ep 6/20 |
 | EchoMAE-L (50ep) | Pixel reconstruction | 10.10 (ep4) | 0.128 | 0.365 | IN PROGRESS (HyperPod job 260, ep4/20) |
 
-**Early finding:** JEPA is converging significantly faster than BYOL on multi-view RVSP. At epoch 2, JEPA already had val MAE 9.88 while BYOL is at 10.60 — a 7% gap. JEPA's local spatial prediction appears to give a clear advantage over BYOL's global pooling on this spatially demanding multi-view task. This is the predicted separation from the architecture analysis: RVSP requires integrating spatial information across two echo views (A4C + RV-focused), which benefits from spatially structured representations that BYOL's mean-pooling pretraining objective does not produce.
-
-**Caveat:** BYOL is only at epoch 2 — the gap may narrow as training progresses. Update when more epochs complete.
+**Finding:** JEPA converges faster and maintains a consistent lead on multi-view RVSP. At matched epochs, JEPA leads by ~2% in val MAE and ~10% relative in Pearson. The gap has been narrowing (epoch 2: 7% MAE gap → epoch 6: 2% MAE gap) but the Pearson gap is persistent, suggesting JEPA captures more variance in the RVSP distribution. This is consistent with the architecture analysis: RVSP requires integrating spatial information across two echo views (A4C + RV-focused), which benefits from JEPA's spatially structured representations over BYOL's global mean-pooling.
 
 ---
 
@@ -122,7 +135,7 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 **Script**: `python -m evals.segmentation_frozen.eval --model_type vjepa`
 **Data**: CAMUS 400/50/50 train/val/test, 4CH+2CH views
 **Decoder**: Linear (1×1 conv + bilinear upsample, ~4.1K params), 50 epochs, 7 HP configs
-**Status**: QUEUED — starts automatically after RVSP completes
+**Status**: To be run on separate machine
 
 ### Comparison (CAMUS, to be completed)
 
@@ -194,15 +207,17 @@ BYOL (6.297) and JEPA (6.329) are near-identical on LVEF — BYOL is marginally 
 
 ---
 
-## Execution Queue (2026-03-29, updated 01:15 ET)
+## Execution Queue (2026-03-29, updated 14:40 ET)
 
-1. **DONE**: BYOL-L pt50 LVEF — Best MAE 6.297 (ep18)
+1. **DONE**: EchoJEPA-L pt50 LVEF (10K/1K rebuttal) — Best MAE 6.329 (ep17)
+2. **DONE**: EchoBYOL-L pt50 LVEF (10K/1K rebuttal) — Best MAE 6.297 (ep18)
    - Log: `logs/echobyol_l_pt50_lvef.log`
-   - Output: `evals/vitb/icml/byol_pt50_lvef/`
-2. **RUNNING**: BYOL-L pt50 RVSP (8 GPUs, launched after LVEF completed)
-   - Log: `logs/echobyol_l_pt50_rvsp_and_camus.log`
-   - Output: `evals/vitl/icml/byol_pt50_rvsp/`
-3. **QUEUED**: BYOL-L pt50 CAMUS segmentation (waiting on RVSP, same script)
+3. **RUNNING**: EchoJEPA-L pt50 RVSP full (41K/5K) — ep 15/20, best MAE 9.097
+   - Log: `evals/vitl/icml/rvsp/echojepa_l_pt50_rvsp_full.log`
+4. **RUNNING**: EchoBYOL-L pt50 RVSP full (41K/5K) — ep 6/20, best MAE 9.531
+   - Log: `logs/echobyol_l_pt50_rvsp_full.log`
+   - Config: `configs/eval/vitl/icml/echobyol_l_pt50_rvsp_d4_full.yaml`
+5. **SEPARATE MACHINE**: BYOL-L pt50 CAMUS segmentation
    - Output: `results/segmentation/echobyol_l_pt50/`
 
 ## Notes

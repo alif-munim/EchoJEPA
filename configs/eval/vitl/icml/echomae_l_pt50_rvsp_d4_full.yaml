@@ -1,16 +1,17 @@
-# EchoJEPA-L (pt50, 50 JEPA epochs on MIMIC) RVSP multi-view regression, d=4 attentive probe
-# Full 41K/5K dataset (not the 5K/1K rebuttal subset)
+# EchoMAE-L (pt50) RVSP multi-view regression, d=4 attentive probe (ICML rebuttal)
+# VideoMAE ViT-L pretrained on MIMIC-IV-Echo for 50 epochs
+# Data: Full RVSP (~41K train / ~5K val)
 app: vjepa
 cpus_per_task: 32
-folder: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitl/icml/rvsp
+folder: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitl/icml/echomae_pt50_rvsp_full
 mem_per_gpu: 80G
 nodes: 1
 tasks_per_node: 8
 num_workers: 8
 
 eval_name: video_classification_frozen_multi
-resume_checkpoint: true
-tag: icml-echojepa-l-pt50-rvsp-d4-full
+resume_checkpoint: false
+tag: icml-echomae-l-pt50-rvsp-d4-full
 
 experiment:
   classifier:
@@ -85,18 +86,11 @@ experiment:
       weight_decay: 0.4
 
 model_kwargs:
-  checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/echojepa-l-pt50.pt
-  module_name: evals.video_classification_frozen_multi.modelcustom.vit_encoder_multiclip
+  checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/videomae_l_mimic_ep50.pth
+  module_name: evals.video_classification_frozen_multi.modelcustom.videomae_encoder
   pretrain_kwargs:
     encoder:
-      checkpoint_key: target_encoder
-      img_temporal_dim_size: null
-      model_name: vit_large
-      patch_size: 16
+      model_name: vit_large_patch16_224
       tubelet_size: 2
-      uniform_power: true
-      use_rope: true
   wrapper_kwargs:
-    max_frames: 128
-    use_pos_embed: false
     return_per_clip: true
