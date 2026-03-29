@@ -59,6 +59,7 @@ from evals.segmentation_frozen.eval import (
 from scripts.rebuttal.echo_perturbations import (
     PERTURBATIONS,
     SEVERITY_LEVELS,
+    TRANSDUCER_PRESETS,
     apply_perturbation,
     create_scan_mask,
 )
@@ -171,7 +172,10 @@ def apply_perturbation_to_video(video, perturbation_type, severity, patient_id):
     # Apply perturbation in pixel space
     seed = int(hashlib.md5(patient_id.encode()).hexdigest()[:8], 16)
     mask = create_scan_mask(pixel[:, 0, :, :])
-    perturbed = apply_perturbation(pixel, perturbation_type, severity, scan_mask=mask, seed=seed)
+    perturbed = apply_perturbation(
+        pixel, perturbation_type, severity, scan_mask=mask, seed=seed,
+        transducer_pos=TRANSDUCER_PRESETS["camus"],
+    )
 
     # Re-normalize
     return (perturbed - mean) / std

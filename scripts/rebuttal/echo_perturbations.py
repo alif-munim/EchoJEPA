@@ -60,6 +60,12 @@ PERTURBATIONS = {
 
 SEVERITY_LEVELS = ["mild", "moderate", "severe"]
 
+# Transducer position presets (normalized x, y coords)
+TRANSDUCER_PRESETS = {
+    "standard": (0.5, 0.0),   # top-center (EchoNet, UHN, most echo videos)
+    "camus": (0.0, 0.5),      # left-center (CAMUS NIfTI storage orientation)
+}
+
 
 def create_scan_mask(frame, threshold=10):
     """
@@ -82,36 +88,43 @@ def create_scan_mask(frame, threshold=10):
 
 # --- Depth Attenuation (Ostvik et al. 2021) ---
 
-def _depth_attenuation_map(height, width, attenuation_rate, max_attenuation, scan_mask):
+def _depth_attenuation_map(height, width, attenuation_rate, max_attenuation, scan_mask,
+                           transducer_pos=(0.5, 0.0)):
     """
     Generate depth attenuation map. Signal decays exponentially with distance
-    from the transducer (top-center of image).
+    from the transducer position.
+
+    Args:
+        transducer_pos: (x, y) normalized coords of transducer. Default (0.5, 0.0) = top-center.
 
     Returns: [H, W] float32 tensor, values in [max_attenuation, 1.0]
     """
+    tx, ty = transducer_pos
     y = torch.linspace(0, 1, height)
     x = torch.linspace(0, 1, width)
     yv, xv = torch.meshgrid(y, x, indexing="ij")
-    distances = torch.sqrt((xv - 0.5) ** 2 + yv ** 2)
+    distances = torch.sqrt((xv - tx) ** 2 + (yv - ty) ** 2)
 
     atten_map = (1 - max_attenuation) * torch.exp(-attenuation_rate * distances) + max_attenuation
     atten_map = torch.where(scan_mask > 0.5, atten_map, torch.ones_like(atten_map))
     return atten_map
 
 
-def apply_depth_attenuation(clip, attenuation_rate, max_attenuation, scan_mask):
+def apply_depth_attenuation(clip, attenuation_rate, max_attenuation, scan_mask,
+                            transducer_pos=(0.5, 0.0)):
     """
     Apply depth attenuation to a video clip.
 
     Args:
         clip: [C, T, H, W] float32 [0, 1]
         scan_mask: [H, W] float32
+        transducer_pos: (x, y) normalized coords of transducer
     Returns:
         [C, T, H, W] perturbed clip
     """
     _, _, H, W = clip.shape
-    atten_map = _depth_attenuation_map(H, W, attenuation_rate, max_attenuation, scan_mask)
-    # atten_map [H, W] -> [1, 1, H, W] for broadcasting
+    atten_map = _depth_attenuation_map(H, W, attenuation_rate, max_attenuation, scan_mask,
+                                       transducer_pos)
     return clip * atten_map.unsqueeze(0).unsqueeze(0)
 
 
@@ -164,20 +177,26 @@ def apply_gaussian_shadow(clip, strength, sigma_x, sigma_y, scan_mask, seed=0):
 
 # --- Haze Artifact (Ostvik et al. 2021) ---
 
-def _haze_maps(height, width, haze_intensity, radius, sigma, scan_mask, seed=0):
+def _haze_maps(height, width, haze_intensity, radius, sigma, scan_mask, seed=0,
+               transducer_pos=(0.5, 0.0)):
     """
     Generate haze maps for combined additive + contrast-reduction blending.
     Simulates reverberation artifacts: brightens dark regions (additive)
     AND washes out detail (contrast reduction), with textured spatial variation.
 
+    Args:
+        transducer_pos: (x, y) normalized coords of transducer. Haze is strongest
+            at `radius` distance from this point.
+
     Returns: (additive_map, blend_map) — both [H, W] float32 tensors
     """
     rng = np.random.RandomState(seed)
+    tx, ty = transducer_pos
 
     y = torch.linspace(0, 1, height)
     x = torch.linspace(0, 1, width)
     yv, xv = torch.meshgrid(y, x, indexing="ij")
-    r = torch.sqrt((xv - 0.5) ** 2 + yv ** 2)
+    r = torch.sqrt((xv - tx) ** 2 + (yv - ty) ** 2)
 
     # Spatial envelope — strongest near transducer, falls off with depth
     envelope = torch.exp(-((r - radius) ** 2) / (2 * sigma ** 2))
@@ -196,7 +215,8 @@ def _haze_maps(height, width, haze_intensity, radius, sigma, scan_mask, seed=0):
     return additive, blend
 
 
-def apply_haze_artifact(clip, haze_intensity, radius, sigma, scan_mask, seed=0):
+def apply_haze_artifact(clip, haze_intensity, radius, sigma, scan_mask, seed=0,
+                        transducer_pos=(0.5, 0.0)):
     """
     Apply haze artifact to a video clip.
     Combines additive brightness (textured, from USAugment) with contrast
@@ -209,11 +229,13 @@ def apply_haze_artifact(clip, haze_intensity, radius, sigma, scan_mask, seed=0):
         clip: [C, T, H, W] float32 [0, 1]
         scan_mask: [H, W] float32
         seed: RNG seed for haze texture
+        transducer_pos: (x, y) normalized coords of transducer
     Returns:
         [C, T, H, W] perturbed clip
     """
     _, _, H, W = clip.shape
-    additive, blend = _haze_maps(H, W, haze_intensity, radius, sigma, scan_mask, seed)
+    additive, blend = _haze_maps(H, W, haze_intensity, radius, sigma, scan_mask, seed,
+                                 transducer_pos)
 
     # [H, W] -> [1, 1, H, W] for broadcasting
     add_map = additive.unsqueeze(0).unsqueeze(0)
@@ -229,20 +251,34 @@ def apply_haze_artifact(clip, haze_intensity, radius, sigma, scan_mask, seed=0):
 
 # --- Unified interface ---
 
-_APPLY_FNS = {
-    "depth_attenuation": lambda clip, params, mask, seed: apply_depth_attenuation(
-        clip, params["attenuation_rate"], params["max_attenuation"], mask
-    ),
-    "gaussian_shadow": lambda clip, params, mask, seed: apply_gaussian_shadow(
+def _apply_depth_attenuation(clip, params, mask, seed, transducer_pos):
+    return apply_depth_attenuation(
+        clip, params["attenuation_rate"], params["max_attenuation"], mask, transducer_pos
+    )
+
+
+def _apply_gaussian_shadow(clip, params, mask, seed, transducer_pos):
+    return apply_gaussian_shadow(
         clip, params["strength"], params["sigma_x"], params["sigma_y"], mask, seed
-    ),
-    "haze_artifact": lambda clip, params, mask, seed: apply_haze_artifact(
-        clip, params["haze_intensity"], params["radius"], params["sigma"], mask, seed
-    ),
+    )
+
+
+def _apply_haze_artifact(clip, params, mask, seed, transducer_pos):
+    return apply_haze_artifact(
+        clip, params["haze_intensity"], params["radius"], params["sigma"], mask, seed,
+        transducer_pos
+    )
+
+
+_APPLY_FNS = {
+    "depth_attenuation": _apply_depth_attenuation,
+    "gaussian_shadow": _apply_gaussian_shadow,
+    "haze_artifact": _apply_haze_artifact,
 }
 
 
-def apply_perturbation(clip, perturbation_type, severity, scan_mask=None, seed=0):
+def apply_perturbation(clip, perturbation_type, severity, scan_mask=None, seed=0,
+                       transducer_pos=(0.5, 0.0)):
     """
     Apply an echo-specific perturbation to a video clip.
 
@@ -252,6 +288,9 @@ def apply_perturbation(clip, perturbation_type, severity, scan_mask=None, seed=0
         severity: one of "mild", "moderate", "severe"
         scan_mask: [H, W] float32 mask (auto-detected from first frame if None)
         seed: RNG seed for stochastic components (shadow position, haze texture)
+        transducer_pos: (x, y) normalized position of the transducer.
+            Use TRANSDUCER_PRESETS["standard"] = (0.5, 0.0) for standard echo orientation.
+            Use TRANSDUCER_PRESETS["camus"] = (0.0, 0.5) for CAMUS NIfTI orientation.
 
     Returns:
         [C, T, H, W] perturbed clip
@@ -265,4 +304,4 @@ def apply_perturbation(clip, perturbation_type, severity, scan_mask=None, seed=0
         scan_mask = create_scan_mask(clip[:, 0, :, :])  # first frame
 
     params = PERTURBATIONS[perturbation_type][severity]
-    return _APPLY_FNS[perturbation_type](clip, params, scan_mask, seed)
+    return _APPLY_FNS[perturbation_type](clip, params, scan_mask, seed, transducer_pos)

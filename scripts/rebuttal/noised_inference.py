@@ -60,6 +60,7 @@ import src.models.vision_transformer as vit
 from scripts.rebuttal.echo_perturbations import (
     PERTURBATIONS,
     SEVERITY_LEVELS,
+    TRANSDUCER_PRESETS,
     apply_perturbation,
     create_scan_mask,
 )
@@ -239,7 +240,8 @@ def extract_features(encoder, clip, device, is_videomae=False):
 @torch.no_grad()
 def run_condition(encoder, probe, paths, labels, device, is_videomae,
                   perturbation_type=None, severity=None,
-                  resolution=224, frames=16, frame_step=2):
+                  resolution=224, frames=16, frame_step=2,
+                  transducer_pos=(0.5, 0.0)):
     """
     Run inference for one condition (clean or a specific perturbation).
 
@@ -260,7 +262,8 @@ def run_condition(encoder, probe, paths, labels, device, is_videomae,
         if perturbation_type is not None:
             seed = path_seed(video_path)
             mask = create_scan_mask(clip[:, 0, :, :])
-            clip = apply_perturbation(clip, perturbation_type, severity, scan_mask=mask, seed=seed)
+            clip = apply_perturbation(clip, perturbation_type, severity, scan_mask=mask, seed=seed,
+                                     transducer_pos=transducer_pos)
 
         # Normalize and encode
         clip = normalize_clip(clip)
@@ -346,6 +349,9 @@ def main():
                              "Options: mild, moderate, severe")
     parser.add_argument("--skip_clean", action="store_true",
                         help="Skip clean baseline (useful if already computed)")
+    parser.add_argument("--transducer_pos", default="standard",
+                        help="Transducer position preset or 'x,y' coords. "
+                             "Presets: standard (top-center), camus (left-center). Default: standard")
     # Compute
     parser.add_argument("--device", default="cuda:0")
     # Output
@@ -354,6 +360,18 @@ def main():
     args = parser.parse_args()
 
     device = torch.device(args.device)
+
+    # Parse transducer position
+    if args.transducer_pos in TRANSDUCER_PRESETS:
+        transducer_pos = TRANSDUCER_PRESETS[args.transducer_pos]
+    else:
+        try:
+            parts = args.transducer_pos.split(",")
+            transducer_pos = (float(parts[0]), float(parts[1]))
+        except (ValueError, IndexError):
+            parser.error(f"Invalid transducer_pos: {args.transducer_pos}. "
+                         f"Use a preset ({list(TRANSDUCER_PRESETS)}) or 'x,y' coords.")
+    print(f"Transducer position: {transducer_pos}")
 
     # --- Load encoder ---
     print(f"Loading encoder: {args.encoder_type} from {args.encoder_checkpoint}")
@@ -406,6 +424,7 @@ def main():
         preds, labs, skipped = run_condition(
             encoder, probe, paths, labels, device, is_videomae,
             ptype, severity, args.resolution, args.frames, args.frame_step,
+            transducer_pos,
         )
         metrics = compute_metrics(preds, labs, args.task_type,
                                   metadata.get("target_mean"), metadata.get("target_std"))
