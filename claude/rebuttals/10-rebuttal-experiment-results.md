@@ -300,7 +300,6 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 | EchoJEPA-L pt50 CAMUS (50ep, 7 HP) | Test Dice=0.815, Val Dice=0.818 (ep48) | 2026-03-29 |
 | EchoBYOL-L pt50 CAMUS (50ep, 7 HP) | Test Dice=0.821, Val Dice=0.821 (ep48) | 2026-03-29 |
 | **EchoMAE-L pt50 CAMUS (50ep, 7 HP)** | **Test Dice=0.822**, Val Dice=0.834 (ep49) | 2026-03-29 |
-| **EchoMAE-L pt50 LVEF (10K, 20ep)** | **Val MAE=7.155** (ep16) — ⚠️ job 247 probe invalid for inference (Bug 017c), retrain job 274 in progress | 2026-03-29 |
 | EchoJEPA-L pt50 LVEF test (53K clips) | R²=0.409, Pearson=0.650, MAE=6.508 (head 4) | 2026-03-29 |
 | EchoBYOL-L pt50 LVEF test (53K clips) | R²=0.384, Pearson=0.625, MAE=6.656 (head 0) | 2026-03-29 |
 
