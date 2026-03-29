@@ -106,7 +106,7 @@ Z-score: mean=34.465, std=14.013.
 | EchoJEPA-L (50ep) | Latent prediction | Full 41K/5K | **9.044** (ep16) | **0.241** (ep20) | **0.504** (ep19) | DONE (20/20) |
 | EchoBYOL-L (50ep) | Self-distillation | Full 41K/5K | — | — | — | KILLED (ep1, restart needed) |
 | EchoMAE-L (ep163) | Pixel reconstruction | Full 41K/5K | 10.529 (ep1) | -0.031 | 0.124 | PAUSED (ep2) |
-| EchoMAE-L (50ep) | Pixel reconstruction | Full 41K/5K | 9.346 (ep13) | 0.185 | 0.441 | IN PROGRESS (HyperPod job 260, ep14/20) |
+| EchoMAE-L (50ep) | Pixel reconstruction | Full 41K/5K | 9.346 (ep13) | 0.185 | 0.446 | IN PROGRESS (HyperPod job 260, ep15/20) |
 
 **Finding (5K subset):** Insufficient data for multi-view RVSP. Pearson plateaued at 0.376, R² peaked at 0.092. All three models should use full 41K.
 
@@ -277,7 +277,8 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 
 | Experiment | Node | Job/PID | Epoch | ETA |
 |-----------|------|---------|-------|-----|
-| EchoMAE-L pt50 RVSP 41K | HyperPod ip-10-0-50-184 | Job 260 | 12/20 | ~4h |
+| EchoMAE-L pt50 RVSP 41K | HyperPod ip-10-0-50-184 | Job 260 | 15/20 | ~2.5h |
+| EchoJEPA-L pt50 EchoNet-Dynamic LVEF | HyperPod ip-10-0-50-83 | Job 282 | 4/20 | ~2h |
 
 ### Queued
 

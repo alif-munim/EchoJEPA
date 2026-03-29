@@ -84,9 +84,9 @@ S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 
 | Model | Probe Location | Best Result |
 |-------|---------------|-------------|
-| **EchoJEPA-L pt50** | **S3**: `s3://.../runs/echojepa_pt50_end_lvef_282/.../best.pt` | **IN PROGRESS** (HyperPod job 282) |
-| EchoBYOL-L pt50 | — | NOT STARTED |
-| EchoMAE-L pt50 | — | NOT STARTED |
+| **EchoJEPA-L pt50** | **S3**: `s3://.../runs/echojepa_pt50_end_lvef_282/.../best.pt` | **IN PROGRESS** (job 282, ep4, R²=0.363) |
+| **EchoBYOL-L pt50** | **S3**: `s3://.../runs/echobyol_pt50_end_lvef_284/.../best.pt` | **QUEUED** (job 284) |
+| **EchoMAE-L pt50** | **S3**: `s3://.../runs/echomae_pt50_end_lvef_285/.../best.pt` | **QUEUED** (job 285) |
 
 ### RVSP Probes (Multi-View, d=4 attentive)
 
@@ -230,6 +230,8 @@ All rebuttal configs in `configs/eval/vit{b,l}/icml/`. See `10-rebuttal-experime
 | Task | Config |
 |------|--------|
 | JEPA pt50 EchoNet-Dynamic LVEF | `configs/eval/vitl/icml/echojepa_l_pt50_end_lvef_d4.yaml` |
+| BYOL pt50 EchoNet-Dynamic LVEF | `configs/eval/vitl/icml/echobyol_l_pt50_end_lvef_d4.yaml` |
+| MAE pt50 EchoNet-Dynamic LVEF | `configs/eval/vitl/icml/echomae_l_pt50_end_lvef_d4.yaml` |
 | JEPA pt50 EchoNet-Pediatric LVEF | `configs/eval/vitl/icml/echojepa_l_pt50_enp_lvef_d4.yaml` |
 
 ### HyperPod Data CSVs (S3)
@@ -254,6 +256,8 @@ All at `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/dat
 | Script | Task | Node |
 |--------|------|------|
 | `scripts/echojepa_pt50_end_lvef_probe.sbatch` | JEPA pt50 EchoNet-Dynamic LVEF | node 83 |
+| `scripts/echobyol_pt50_end_lvef_probe.sbatch` | BYOL pt50 EchoNet-Dynamic LVEF | node 83 |
+| `scripts/echomae_pt50_end_lvef_probe.sbatch` | MAE pt50 EchoNet-Dynamic LVEF | node 83 |
 | `scripts/echomae_pt50_lvef_probe.sbatch` | MAE pt50 UHN LVEF | node 83 |
 | `scripts/echomae_pt50_rvsp_probe.sbatch` | MAE pt50 UHN RVSP | node 184 |
 | `scripts/echomae_pt50_lvef_test.sbatch` | MAE pt50 LVEF test inference | node 83 |
