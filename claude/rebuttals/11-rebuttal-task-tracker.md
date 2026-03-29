@@ -44,7 +44,7 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
 | P2.1 | **Train pt50 EchoNet-Dynamic LVEF probes** (×3 models) | **1/3 DONE, 1/3 RUNNING, 1/3 QUEUED** | 6t2T, hfQ1, ncQn | ~4 GPU-h remaining | All 3 configs + sbatch ready | JEPA **DONE** (job 282: R²=0.548, Pearson=0.745, MAE=5.991). BYOL running (job 284, ep4). MAE queued (job 285). |
-| P2.2 | **Train pt50 EchoNet-Pediatric LVEF probes** (×3 models) | NOT STARTED | 6t2T, hfQ1 | ~6 GPU-h | Configs needed | Domain-shift evaluation (adult→pediatric) |
+| P2.2 | **Train pt50 EchoNet-Pediatric LVEF probes** (×3 models) | **DONE** (all 3) | 6t2T, hfQ1 | — | — | BYOL **5.764**, JEPA 6.016, MAE 6.200. Trained on local 8× A100 with raw-label S3 CSVs from FileList.csv. |
 | P2.3 | **Generate perturbed EchoNet-Dynamic test videos** | NOT STARTED | ncQn | ~2h | Pipeline exists | 7 perturbation types × 3 levels |
 | P2.4 | **Run perturbation matrix** (fully-trained + pt50) | NOT STARTED | ALL | ~8h | P2.1-P2.3 | Probes for 5 fully-trained models already exist |
 | P2.5 | **Package EchoBench** (scripts + README) | NOT STARTED | 6t2T (novelty) | ~4h writing | P2.4 | Open-source release artifact |

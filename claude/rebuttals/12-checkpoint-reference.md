@@ -110,6 +110,16 @@ S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 | EchoJEPA-L v2 | `evals/vitl/icml/rvsp/.../icml-echojepa-l-mimic-v2-rvsp-d4/best.pt` | — |
 | EchoJEPA-L-K | `evals/vitl/icml/lvef/.../icml-echojepa-l-k-lvef-d4/best.pt` | — |
 
+### EchoNet-Pediatric LVEF Probes (pt50 3-Way, Rebuttal)
+
+All d=4 attentive, 6 HP heads, 20 epochs, raw-label S3 CSVs (mean=61.03, std=10.44).
+
+| Model | Config | Probe Location | Best Val MAE |
+|-------|--------|---------------|-------------|
+| EchoJEPA-L pt50 | `configs/eval/vitl/icml/echojepa_l_pt50_enp_lvef_d4.yaml` | `evals/vitl/icml/enp_lvef/.../icml-echojepa-l-pt50-enp-lvef-d4/best.pt` | 6.016 (ep20) |
+| EchoBYOL-L pt50 | `configs/eval/vitl/icml/echobyol_l_pt50_enp_lvef_d4.yaml` | `evals/vitl/icml/enp_lvef/.../icml-echobyol-l-pt50-enp-lvef-d4/best.pt` | **5.764** (ep19) |
+| EchoMAE-L pt50 | `configs/eval/vitl/icml/echomae_l_pt50_enp_lvef_d4.yaml` | `evals/vitl/icml/enp_lvef/.../icml-echomae-l-pt50-enp-lvef-d4/best.pt` | 6.200 (ep15) |
+
 ### View Classification Probes
 
 | Model | Probe Location |
@@ -224,6 +234,7 @@ All rebuttal configs in `configs/eval/vit{b,l}/icml/`. See `10-rebuttal-experime
 | JEPA pt50 RVSP (41K) | `configs/eval/vitl/icml/echojepa_l_pt50_rvsp_d4_full.yaml` |
 | BYOL pt50 RVSP (41K) | `configs/eval/vitl/icml/echobyol_l_pt50_rvsp_d4_full.yaml` |
 | MAE pt50 RVSP (41K) | `configs/eval/vitl/icml/echomae_l_pt50_rvsp_d4_full.yaml` |
+| **JEPA pt50 RVSP test inference** | `configs/inference/vitl/icml/echojepa_l_pt50_rvsp_test.yaml` |
 
 ### Key Configs (EchoBench — EchoNet-Dynamic/Pediatric)
 
@@ -233,6 +244,8 @@ All rebuttal configs in `configs/eval/vit{b,l}/icml/`. See `10-rebuttal-experime
 | BYOL pt50 EchoNet-Dynamic LVEF | `configs/eval/vitl/icml/echobyol_l_pt50_end_lvef_d4.yaml` |
 | MAE pt50 EchoNet-Dynamic LVEF | `configs/eval/vitl/icml/echomae_l_pt50_end_lvef_d4.yaml` |
 | JEPA pt50 EchoNet-Pediatric LVEF | `configs/eval/vitl/icml/echojepa_l_pt50_enp_lvef_d4.yaml` |
+| BYOL pt50 EchoNet-Pediatric LVEF | `configs/eval/vitl/icml/echobyol_l_pt50_enp_lvef_d4.yaml` |
+| MAE pt50 EchoNet-Pediatric LVEF | `configs/eval/vitl/icml/echomae_l_pt50_enp_lvef_d4.yaml` |
 
 ### HyperPod Data CSVs (S3)
 
@@ -243,9 +256,9 @@ All at `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/dat
 | `echonet_dynamic_train_s3_raw.csv` | Raw LVEF (mean=55.78, std=12.41) | 7,465 videos, S3 paths |
 | `echonet_dynamic_val_s3_raw.csv` | Raw LVEF | 1,288 videos |
 | `echonet_dynamic_test_s3_raw.csv` | Raw LVEF | 1,277 videos |
-| `echonet_pediatric_train_s3_raw.csv` | Raw LVEF (mean TBD) | 2,580 videos |
-| `echonet_pediatric_val_s3_raw.csv` | Raw LVEF | 336 videos |
-| `echonet_pediatric_test_s3_raw.csv` | Raw LVEF | 368 videos |
+| `echonet_pediatric_train_s3_raw.csv` | Raw LVEF (mean=61.03, std=10.44) | 2,580 videos, folds 0-7 |
+| `echonet_pediatric_val_s3_raw.csv` | Raw LVEF | 336 videos, fold 8 |
+| `echonet_pediatric_test_s3_raw.csv` | Raw LVEF | 368 videos, fold 9 |
 | `echonet_dynamic_train_s3.csv` | Pre-z-scored | Legacy, do not use |
 | `rebuttal/lvef/lvef_train_10k.csv` | Raw LVEF (mean=57.06, std=11.28) | UHN 10K rebuttal subset |
 | `rebuttal/lvef/lvef_val_1k.csv` | Raw LVEF | UHN 1K rebuttal subset |
@@ -261,3 +274,26 @@ All at `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/dat
 | `scripts/echomae_pt50_lvef_probe.sbatch` | MAE pt50 UHN LVEF | node 83 |
 | `scripts/echomae_pt50_rvsp_probe.sbatch` | MAE pt50 UHN RVSP | node 184 |
 | `scripts/echomae_pt50_lvef_test.sbatch` | MAE pt50 LVEF test inference | node 83 |
+
+### EchoNet Dataset Sources
+
+| Dataset | Videos (S3) | FileList.csv (S3) | Archive (GDrive) |
+|---------|-------------|-------------------|------------------|
+| EchoNet-Dynamic | `.../data/EchoNet-Dynamic/Videos/` (10,031) | `.../data/EchoNet-Dynamic/FileList.csv` | `echo_foundation/nature_medicine/datasets/echonet_data.zip` (6.6GB) |
+| EchoNet-Pediatric (A4C) | `.../data/echonetpediatric/.../A4C/Videos/` (3,284) | `.../data/echonetpediatric/.../A4C/FileList.csv` | `echo_foundation/nature_medicine/datasets/echonet_pediatric.tar.gz` (2.1GB) |
+
+**Raw-label CSVs** (built from FileList.csv, uploaded to S3 `data/csv/`): `echonet_{dynamic,pediatric}_{train,val,test}_s3_raw.csv`. Z-scored legacy versions (`*_s3.csv`) also exist but should not be used — the code computes z-score at runtime from raw labels.
+
+**Z-score params:** Dynamic mean=55.78, std=12.41. Pediatric mean=61.03, std=10.44. UHN LVEF mean=57.06, std=11.28.
+
+**Pediatric split mapping:** FileList.csv folds 0-7 = train (2,580), fold 8 = val (336), fold 9 = test (368).
+
+### pt50 Encoder Checkpoints on S3
+
+All at `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/`:
+
+| S3 Key | Local Path | Model |
+|--------|-----------|-------|
+| `echojepa_l_mimic_ep50.pt` | `checkpoints/echojepa-l-pt50.pt` | EchoJEPA-L (V-JEPA 2.0, 50ep) |
+| `echobyol_l_mimic_ep50.pt` | `checkpoints/byol_vitl_imagenet_v2_e50.pt` | EchoBYOL-L (BYOL-Video v2, 50ep, ImageNet init) |
+| `echomae_l_mimic_ep50.pth` | `checkpoints/videomae_l_mimic_ep50.pth` | EchoMAE-L (VideoMAE, 50ep) |
