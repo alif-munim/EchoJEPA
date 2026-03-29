@@ -12,12 +12,12 @@ num_workers: 8
 eval_name: video_classification_frozen
 resume_checkpoint: true # <--- CHANGE THIS TO TRUE, OTHERWISE RANDOM WEIGHTS
 # Use a new tag for inference results
-tag: echojepa-l-echonet-pediatric-lvef-test
+tag: echojepa-l-echonet-pediatric-lvef-zeroshot
 
 # --- CRITICAL INFERENCE SETTINGS ---
 val_only: true
 # Path where the predictions CSV will be saved
-predictions_save_path: /home/sagemaker-user/user-default-efs/vjepa2/predictions/echojepa-l-echonet-pediatric-lvef-test.csv
+predictions_save_path: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/predictions/echojepa-l-echonet-pediatric-lvef-zeroshot.csv
 
 # POINT THIS TO YOUR TRAINED PROBE CHECKPOINT
 # Based on your previous config, it should be here:
@@ -27,7 +27,7 @@ experiment:
   classifier:
     task_type: regression
     num_heads: 16
-    num_probe_blocks: 1
+    num_probe_blocks: 4
     num_targets: 1
 
   data:
@@ -36,8 +36,8 @@ experiment:
     # dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test.csv
     # dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test.csv
 
-    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test_da215.csv
-    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_dynamic_test_da215.csv
+    dataset_val:   /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_pediatric_test_s3_raw.csv
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_pediatric_test_s3_raw.csv
     
     resolution: 112  
     frames_per_clip: 16  
@@ -55,12 +55,43 @@ experiment:
     
     # Zero out learning rates for safety (though val_only prevents updates anyway)
     multihead_kwargs:
+    # Must match training config (6 heads) for probe checkpoint loading
     - final_lr: 0.0
-      final_weight_decay: 0.0
+      final_weight_decay: 0.01
       lr: 0.0
       start_lr: 0.0
       warmup: 0.0
-      weight_decay: 0.0
+      weight_decay: 0.01
+    - final_lr: 0.0
+      final_weight_decay: 0.1
+      lr: 0.0
+      start_lr: 0.0
+      warmup: 0.0
+      weight_decay: 0.1
+    - final_lr: 0.0
+      final_weight_decay: 0.4
+      lr: 0.0
+      start_lr: 0.0
+      warmup: 0.0
+      weight_decay: 0.4
+    - final_lr: 0.0
+      final_weight_decay: 0.01
+      lr: 0.0
+      start_lr: 0.0
+      warmup: 0.0
+      weight_decay: 0.01
+    - final_lr: 0.0
+      final_weight_decay: 0.1
+      lr: 0.0
+      start_lr: 0.0
+      warmup: 0.0
+      weight_decay: 0.1
+    - final_lr: 0.0
+      final_weight_decay: 0.4
+      lr: 0.0
+      start_lr: 0.0
+      warmup: 0.0
+      weight_decay: 0.4
 
     num_epochs: 1 # Run once
     use_bfloat16: true
