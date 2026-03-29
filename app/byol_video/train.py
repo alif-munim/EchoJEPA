@@ -441,9 +441,13 @@ def main(args, resume_preempt=False):
                     wd_scheduler.step()
 
     # -- torch.compile: fuse ops and reduce kernel launch overhead
-    logger.info("Compiling encoder and target_encoder with torch.compile...")
-    encoder = torch.compile(encoder)
-    target_encoder = torch.compile(target_encoder)
+    # Disabled: networkx import fails during min_cut_rematerialization_partition
+    # on some environments (missing entry_points), causing Bus error cascade.
+    # Re-enable when networkx is fixed or use TORCH_COMPILE_BACKEND=eager.
+    # logger.info("Compiling encoder and target_encoder with torch.compile...")
+    # encoder = torch.compile(encoder)
+    # target_encoder = torch.compile(target_encoder)
+    logger.info("torch.compile disabled — using eager mode")
 
     # -- DDP: wrap online branch only (targets have no gradients)
     if dist.is_available() and dist.is_initialized():

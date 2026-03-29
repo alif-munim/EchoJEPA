@@ -22,7 +22,10 @@ experiment:
     dataset_type: VideoDataset
     dataset_train: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/data/csv/rebuttal/lvef/lvef_train_10k.csv
     dataset_val: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/data/csv/rebuttal/lvef/lvef_val_1k.csv
+    num_classes: 1
     resolution: 224
+    target_mean: 57.0686
+    target_std: 11.2794
     frames_per_clip: 16
     frame_step: 2
     num_segments: 2

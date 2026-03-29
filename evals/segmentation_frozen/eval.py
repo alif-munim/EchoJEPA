@@ -364,7 +364,7 @@ def load_panecho_encoder(checkpoint_path, device="cpu"):
 
 def load_encoder(model_type, checkpoint_path, device="cpu", model_name=None, resolution=224):
     """Load frozen encoder. Returns (encoder, embed_dim)."""
-    if model_type == "vjepa":
+    if model_type in ("vjepa", "byol"):
         return load_vjepa_encoder(checkpoint_path, model_name=model_name, device=device, resolution=resolution)
     elif model_type == "videomae":
         return load_videomae_encoder(checkpoint_path, device=device)
@@ -582,7 +582,7 @@ DEFAULT_GRID = [
 
 def main():
     parser = argparse.ArgumentParser(description="Frozen encoder segmentation on CAMUS")
-    parser.add_argument("--model_type", choices=["vjepa", "videomae", "echoprime", "panecho"], required=True)
+    parser.add_argument("--model_type", choices=["vjepa", "byol", "videomae", "echoprime", "panecho"], required=True)
     parser.add_argument("--checkpoint", required=True, help="Path to encoder checkpoint")
     parser.add_argument("--camus_root", default="data/camus/CAMUS_public")
     parser.add_argument("--output_dir", required=True)
