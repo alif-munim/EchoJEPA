@@ -1,4 +1,4 @@
-# ICML Rebuttal — Experiment Results Tracker (2026-03-29, updated 23:30 UTC)
+# ICML Rebuttal — Experiment Results Tracker (2026-03-30, updated 00:10 UTC)
 
 Consolidated results from all rebuttal experiments. **Single source of truth** for run status and numbers.
 See `08-rebuttal-v2.md` for reviewer concerns, narrative framing, and contingency plans.
@@ -105,7 +105,7 @@ Z-score: mean=34.465, std=14.013.
 | Model | Objective | Dataset | Best Val MAE | Val R² | Val Pearson | Status |
 |-------|-----------|---------|-------------|--------|-------------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | 5K/1K subset | 9.771 (ep20) | 0.092 | 0.376 | DONE (insufficient) |
-| EchoJEPA-L (50ep) | Latent prediction | Full 41K/5K | 9.044 (ep16) | 0.237 | **0.503** | PAUSED (ep17/20, killed) |
+| EchoJEPA-L (50ep) | Latent prediction | Full 41K/5K | 9.044 (ep16) | 0.237 | **0.503** | RUNNING (ep19/20, 8 GPUs on local node) |
 | EchoBYOL-L (50ep) | Self-distillation | Full 41K/5K | — | — | — | KILLED (ep1, restart needed) |
 | EchoMAE-L (ep163) | Pixel reconstruction | Full 41K/5K | 10.529 (ep1) | -0.031 | 0.124 | PAUSED (ep2) |
 | EchoMAE-L (50ep) | Pixel reconstruction | Full 41K/5K | 9.482 (ep6) | 0.163 | 0.406 | IN PROGRESS (HyperPod job 260, ep8/20) |
@@ -130,6 +130,7 @@ Z-score: mean=34.465, std=14.013.
 | 15 | 8.618 | 9.139 | 0.241 | 0.498 |
 | 16 | 8.599 | **9.044** | 0.232 | **0.503** |
 | 17 | 8.588 | 9.051 | 0.237 | 0.503 |
+| 18 | 8.547 | 9.077 | 0.240 | 0.503 |
 
 </details>
 
@@ -274,16 +275,16 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 
 ### Currently Running
 
-| Experiment | Node | Job | Epoch | ETA |
-|-----------|------|-----|-------|-----|
-| EchoMAE-L pt50 RVSP 41K | HyperPod ip-10-0-50-184 | 260 | 8/20 | ~5h |
-| EchoMAE-L pt50 LVEF 10K (retrain) | HyperPod ip-10-0-50-83 | 274 | head 2 ep4/20 (head 1 done) | ~8h (6 heads total) |
+| Experiment | Node | Job/PID | Epoch | ETA |
+|-----------|------|---------|-------|-----|
+| EchoJEPA-L pt50 RVSP 41K | Local (8× A100) | PID 665767 | 19/20 | ~20 min |
+| EchoMAE-L pt50 RVSP 41K | HyperPod ip-10-0-50-184 | Job 260 | 8/20 | ~5h |
+| EchoMAE-L pt50 LVEF 10K (retrain) | HyperPod ip-10-0-50-83 | Job 274 | head 2 ep4/20 (head 1 done) | ~8h (6 heads total) |
 
 ### Queued
 
 | Experiment | Waiting For | Config |
 |-----------|-------------|--------|
-| EchoJEPA-L pt50 RVSP 41K resume (ep17→20) | GPU + relaunch | `resume_checkpoint: true` on existing config |
 | EchoBYOL-L pt50 RVSP (full 41K) | GPU availability | Config exists (`echobyol_l_pt50_rvsp_d4_full.yaml`) — restart from ep0 |
 
 ### Completed
@@ -307,7 +308,6 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 
 | Experiment | Reason | How to Resume |
 |-----------|--------|---------------|
-| EchoJEPA-L pt50 RVSP 41K | Killed at ep17/20 | `resume_checkpoint: true`, relaunch — only 3 ep left |
 | EchoBYOL-L pt50 RVSP 41K | Killed in ep1 | Restart from scratch — no completed epochs saved |
 | EchoMAE-L ep163 RVSP (full 41K) | GPU priority | Set `resume_checkpoint: true`, relaunch |
 
@@ -458,8 +458,9 @@ Existing infrastructure for EchoNet-Dynamic/Pediatric noise experiments:
 
 ### What's running
 
-| Experiment | Node | Job | Progress |
-|-----------|------|-----|----------|
+| Experiment | Node | Job/PID | Progress |
+|-----------|------|---------|----------|
+| EchoJEPA-L pt50 RVSP 41K | Local (8× A100) | PID 665767 | ep19/20, Pearson 0.503 |
 | EchoMAE-L pt50 RVSP 41K | ip-10-0-50-184 | 260 | ep8/20, val MAE 9.48, Pearson 0.406 |
 | EchoMAE-L pt50 LVEF 10K (retrain) | ip-10-0-50-83 | 274 | head 2/6 ep4, head 1 done (MAE 7.17) |
 
@@ -480,9 +481,9 @@ These three together provide mechanistic evidence for WHY latent prediction filt
 | # | Experiment | Addresses | Effort | Depends On |
 |---|-----------|-----------|--------|-----------|
 | 2a | EchoMAE-L pt50 LVEF | 3-way completion | ~8h remaining | IN PROGRESS (HyperPod job 274, 6 heads) |
-| 2b | Finish JEPA pt50 RVSP 41K (ep 12→20) | 3-way completion | ~4h | GPU availability |
-| 2c | BYOL pt50 RVSP 41K (20ep) | 3-way completion | ~10h | Config creation |
-| 2d | MAE pt50 RVSP 41K (20ep) | 3-way completion | ~10h | Config creation |
+| 2b | ~~Finish JEPA pt50 RVSP 41K~~ | ~~3-way completion~~ | — | **RUNNING** (ep19/20, local 8× A100) |
+| 2c | BYOL pt50 RVSP 41K (20ep) | 3-way completion | ~10h | Config exists — restart from ep0 |
+| 2d | ~~MAE pt50 RVSP 41K~~ | ~~3-way completion~~ | — | **RUNNING** (HyperPod job 260, ep8/20) |
 
 Completes the controlled comparison table across all tasks. Without 2a, the 3-way LVEF comparison lacks the MAE pt50 data point (only have ep99 which shows no signal — need pt50 to confirm it's not just overtraining).
 

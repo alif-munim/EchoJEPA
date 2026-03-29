@@ -28,7 +28,7 @@ Without these, the controlled comparison only covers LVEF and CAMUS. RVSP adds t
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
 | P1.1 | **EchoMAE-L pt50 LVEF probe** | **RETRAIN IN PROGRESS** (HyperPod job 274) | hfQ1, ncQn | ~8h remaining | — | ⚠️ Job 247 probe trained without z-score normalization (Bug 017c) — invalid for inference (test MAE 719). Job 274 retraining: head 1/6 done (val MAE 7.17), head 2/6 in progress. |
-| P1.2 | **Resume JEPA pt50 RVSP 41K** (ep17→20) | PAUSED (ep17) | ALL | ~2h | GPU | Pearson=0.503 at ep16 (matches pt210-an25). Only 3 ep left. |
+| P1.2 | **Resume JEPA pt50 RVSP 41K** (ep18→20) | **RUNNING** (ep19/20, 8× A100, PID 665767) | ALL | ~20 min | — | Pearson=0.503 at ep16 (matches pt210-an25). Resumed from ep18 checkpoint. |
 | P1.3 | **BYOL pt50 RVSP 41K** (20ep) | KILLED (ep0) | hfQ1 | ~10h | Config exists | Killed mid-epoch-1, no checkpoint. Full restart needed. |
 | P1.4 | **MAE pt50 RVSP 41K** (20ep) | **IN PROGRESS** (HyperPod job 260, ep8/20) | ALL | ~5h remaining | — | Val MAE 9.48 (ep6), R²=0.163 (ep7), Pearson=0.406 (ep8). Running on node ip-10-0-50-184. |
 
