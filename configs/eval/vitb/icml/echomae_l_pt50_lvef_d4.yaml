@@ -24,6 +24,8 @@ experiment:
     dataset_type: VideoDataset
     dataset_train: /opt/dlami/nvme/data/csv/rebuttal/lvef/lvef_train_10k.csv
     dataset_val: /opt/dlami/nvme/data/csv/rebuttal/lvef/lvef_val_1k.csv
+    target_mean: 57.0569
+    target_std: 11.2817
     resolution: 224
     frames_per_clip: 16
     frame_step: 2

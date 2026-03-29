@@ -26,11 +26,11 @@ All models: ViT-L (304M), MIMIC 525K, 50 pretraining epochs. Probes: d=4 attenti
 | EchoJEPA-L (50ep) | Latent prediction | 6.329 (ep17) | **0.436** (ep18) | **0.667** (ep17) | DONE |
 | EchoBYOL-L (50ep) | Self-distillation | **6.297** (ep18) | 0.421 (post-hoc) | 0.652 (post-hoc) | DONE |
 | EchoMAE-L (ep99) | Pixel reconstruction | 8.05 | ~0 | ~0 | DONE (no signal) |
-| EchoMAE-L (50ep) | Pixel reconstruction | — | — | — | NOT STARTED |
+| EchoMAE-L (50ep) | Pixel reconstruction | 7.155 (ep16) | — | — | DONE (HyperPod job 247) |
 
 **Predict-mean baseline MAE:** ~9.0. Z-score: mean=57.07, std=11.28.
 
-**Finding:** JEPA and BYOL near-identical on LVEF (R² 0.436 vs 0.421, Pearson 0.667 vs 0.652). MAE shows zero signal at ep99 (2x more training). Matches "BYOL ~80%+" contingency framing: EMA-based methods both succeed; the shared ingredient is the momentum teacher filtering noise.
+**Finding:** JEPA and BYOL near-identical on LVEF (R² 0.436 vs 0.421, Pearson 0.667 vs 0.652). **MAE pt50 shows signal (7.155 MAE) unlike MAE ep99 (8.05, R²~0)** — confirming the ep99 failure was not inherent to MAE but likely due to the inverted LR bug (170× too low peak LR). However, MAE pt50 still trails both EMA methods (7.16 vs 6.30-6.33), consistent with the "EMA targets filter noise" thesis.
 
 **BYOL R²/Pearson:** Originally NaN due to scipy libstdc++ mismatch at runtime. Computed post-hoc via `val_only` inference on best checkpoint (ep18). R² 0.421, Pearson 0.652, best head 1.
 
@@ -76,6 +76,24 @@ Predictions saved: `predictions/icml/echojepa_l_pt50_lvef_test.csv`, `prediction
 
 </details>
 
+<details>
+<summary>EchoMAE-L pt50 LVEF epoch table (HyperPod job 247)</summary>
+
+| Epoch | Train MAE | Val MAE |
+|-------|-----------|---------|
+| 1 | 8.683 | 8.401 |
+| 2 | 8.051 | 8.082 |
+| 5 | 7.885 | 8.063 |
+| 7 | 7.838 | 7.939 |
+| 10 | 7.702 | 7.681 |
+| 13 | 7.566 | 7.347 |
+| 15 | 7.495 | 7.331 |
+| 16 | 7.469 | **7.155** |
+| 18 | 7.434 | 7.181 |
+| 20 | 7.378 | 7.168 |
+
+</details>
+
 ### 1b. RVSP Regression (Multi-View, d=4 factorized, Color-A4C + Color-PSAX-AV)
 
 **Multi-view data audit (2026-03-29):** Confirmed that RVSP data is **truly multi-view** despite both clips sharing the same DICOM series UID. UHN stores all clips from an entire echo study in a single DICOM series (non-standard but common for ultrasound vendors). View classifier confirms 96.7% of rows are genuine A4C + PSAX-AV pairs (different anatomical views), 2.4% A4C-only, 0.9% PSAX-AV-only, 3 misclassified rows. The preprint's claim of cross-view integration is correct.
@@ -88,7 +106,7 @@ Z-score: mean=34.465, std=14.013.
 | EchoJEPA-L (50ep) | Latent prediction | Full 41K/5K | 9.044 (ep16) | 0.237 | **0.503** | PAUSED (ep17/20, killed) |
 | EchoBYOL-L (50ep) | Self-distillation | Full 41K/5K | — | — | — | KILLED (ep1, restart needed) |
 | EchoMAE-L (ep163) | Pixel reconstruction | Full 41K/5K | 10.529 (ep1) | -0.031 | 0.124 | PAUSED (ep2) |
-| EchoMAE-L (50ep) | Pixel reconstruction | — | — | — | — | NOT STARTED |
+| EchoMAE-L (50ep) | Pixel reconstruction | Full 41K/5K | 10.10 (ep4) | 0.128 | 0.365 | IN PROGRESS (HyperPod job 260, ep4/20) |
 
 **Finding (5K subset):** Insufficient data for multi-view RVSP. Pearson plateaued at 0.376, R² peaked at 0.092. All three models should use full 41K.
 
@@ -254,7 +272,9 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 
 ### Currently Running
 
-_None — all GPUs idle._
+| Experiment | Node | Job | Epoch | ETA |
+|-----------|------|-----|-------|-----|
+| EchoMAE-L pt50 RVSP 41K | HyperPod ip-10-0-50-184 | 260 | 4/20 | ~6h |
 
 ### Queued
 
@@ -262,8 +282,7 @@ _None — all GPUs idle._
 |-----------|-------------|--------|
 | EchoJEPA-L pt50 RVSP 41K resume (ep17→20) | GPU + relaunch | `resume_checkpoint: true` on existing config |
 | EchoBYOL-L pt50 RVSP (full 41K) | GPU availability | Config exists (`echobyol_l_pt50_rvsp_d4_full.yaml`) — restart from ep0 |
-| EchoMAE-L pt50 RVSP (full 41K) | GPU availability | To be created |
-| EchoMAE-L pt50 LVEF (10K) | GPU availability | To be created |
+| EchoMAE-L pt50 LVEF (10K) | **DONE** (HyperPod job 247) | Val MAE 7.155 (ep16) |
 
 ### Completed
 
@@ -279,6 +298,7 @@ _None — all GPUs idle._
 | EchoJEPA-L pt50 CAMUS (50ep, 7 HP) | Test Dice=0.815, Val Dice=0.818 (ep48) | 2026-03-29 |
 | EchoBYOL-L pt50 CAMUS (50ep, 7 HP) | Test Dice=0.821, Val Dice=0.821 (ep48) | 2026-03-29 |
 | **EchoMAE-L pt50 CAMUS (50ep, 7 HP)** | **Test Dice=0.822**, Val Dice=0.834 (ep49) | 2026-03-29 |
+| **EchoMAE-L pt50 LVEF (10K, 20ep)** | **Val MAE=7.155** (ep16), Train MAE=7.378 (HyperPod job 247) | 2026-03-29 |
 | EchoJEPA-L pt50 LVEF test (53K clips) | R²=0.409, Pearson=0.650, MAE=6.508 (head 4) | 2026-03-29 |
 | EchoBYOL-L pt50 LVEF test (53K clips) | R²=0.384, Pearson=0.625, MAE=6.656 (head 0) | 2026-03-29 |
 

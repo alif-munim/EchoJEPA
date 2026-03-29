@@ -34,7 +34,6 @@ S3_BASE="s3://${ART_BUCKET}/${ART_PREFIX}"
 
 # Artifacts
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
-CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # Data CSVs
@@ -43,7 +42,7 @@ VAL_NAME="echonet_dynamic_val_s3.csv"
 TRAIN_FULL_S3="${S3_BASE}/data/csv/${TRAIN_FULL_NAME}"
 VAL_S3="${S3_BASE}/data/csv/${VAL_NAME}"
 
-# Base Config (Relative path inside code.tar)
+# Base Config (Relative path inside repo)
 BASE_CFG_REL="configs/eval/vitg-384/lvef/end_echoprime_lvef.yaml"
 
 # Video Dataset Location (S3 -> Local NVMe)
@@ -94,56 +93,18 @@ mkdir -p wheelhouse
 tar -xf boto3-wheelhouse.tar -C wheelhouse
 python -m pip install --no-index --find-links wheelhouse boto3
 
-# Code Download & Extraction
-aws s3 cp "$CODE_S3" code.tar
-tar -xf code.tar
+# =========================
+# CODE (use deploy.sh-deployed code at /opt/vjepa2)
+# =========================
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
 
-# Verify Base Config Exists
 if [ ! -f "$BASE_CFG_REL" ]; then
-    echo "[ERROR] Base config not found at $BASE_CFG_REL inside code.tar"
+    echo "[FATAL] Config $BASE_CFG_REL not found in $REPO_DIR"
     exit 1
 fi
 
-# Path Patching (Studio -> Cluster) + PyTorch 2.6 Fix
-python - <<'PY'
-from pathlib import Path
-import os, re
-repo = os.getcwd()
-studio = "/home/sagemaker-user/user-default-efs/vjepa2"
-efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
-
-roots = ["src", "configs", "evals"]
-
-for r in roots:
-    p = Path(r)
-    if not p.exists(): continue
-    for f in p.rglob("*"):
-        if f.suffix in {".yaml", ".py"} and f.is_file():
-            try:
-                t = f.read_text()
-                
-                # 1. Standard Path Fixes
-                t2 = t.replace(studio, repo)
-                t2 = efs_pat.sub(repo, t2)
-                
-                # 2. PyTorch 2.6 Fix: Disable weights_only for trusted checkpoints
-                if 'torch.load' in t2 and 'weights_only' not in t2:
-                    t2 = t2.replace('torch.load(checkpoint, map_location="cpu")', 
-                                    'torch.load(checkpoint, map_location="cpu", weights_only=False)')
-                    # Catch cases where map_location isn't specified exactly like above
-                    t2 = t2.replace('torch.load(f, map_location=map_location)', 
-                                    'torch.load(f, map_location=map_location, weights_only=False)')
-                    # Specific to EchoPrime loader
-                    t2 = t2.replace('torch.load(encoder_ckpt, map_location="cpu")', 
-                                    'torch.load(encoder_ckpt, map_location="cpu", weights_only=False)')
-
-                if t2 != t:
-                    f.write_text(t2)
-            except: pass
-PY
-
-# Install Code
-pip install -e . --no-deps --no-build-isolation || true
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # ==============================================================================

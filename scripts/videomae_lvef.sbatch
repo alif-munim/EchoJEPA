@@ -20,12 +20,10 @@ S3_BASE="s3://${ART_BUCKET}/${ART_PREFIX}"
 
 # --- Artifacts ---
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
-CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # --- Training Config ---
 CFG_REL="configs/eval/vitg-384/videomae_lvef.yaml"
-CFG_S3="${S3_BASE}/${CFG_REL}"
 
 # --- Data ---
 TRAIN_CSV_REL="${TRAIN_CSV_REL:-data/csv/a4c_b_lvef_train_224px.csv}"
@@ -85,48 +83,18 @@ python -m pip install --no-index --find-links wheelhouse boto3
 # Install gdown for Google Drive downloads
 pip install gdown --quiet
 
-# --- Setup Code ---
-aws s3 cp "$CODE_S3" code.tar
-tar -xf code.tar
-REPO_DIR=$(find . -maxdepth 10 -type f -name run_inf.sh -print -quit | xargs -r dirname)
-cd "${REPO_DIR}"
+# =========================
+# CODE (use deploy.sh-deployed code at /opt/vjepa2)
+# =========================
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
 
-# Ensure config exists
 if [ ! -f "$CFG_REL" ]; then
-  echo "[WARN] ${CFG_REL} not found in code.tar; trying S3: ${CFG_S3}"
-  mkdir -p "$(dirname "$CFG_REL")"
-  aws s3 cp "$CFG_S3" "$CFG_REL"
+    echo "[FATAL] Config $CFG_REL not found in $REPO_DIR"
+    exit 1
 fi
 
-# --- Patch Paths ---
-python - <<'PY'
-from pathlib import Path
-import os, re
-
-repo = os.getcwd()
-studio = "/home/sagemaker-user/user-default-efs/vjepa2"
-efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
-
-roots = ["configs", "app", "evals", "src"]
-exts  = {".yaml", ".py"}
-
-for r in roots:
-    p = Path(r)
-    if not p.exists(): continue
-    for f in p.rglob("*"):
-        if f.suffix in exts and f.is_file():
-            try:
-                t = f.read_text()
-                t2 = t.replace(studio, repo)
-                t2 = efs_pat.sub(repo, t2)
-                if t2 != t:
-                    f.write_text(t2)
-                    print(f"Patched {f}")
-            except: pass
-PY
-
-# Make code importable
-pip install -e . --no-deps --no-build-isolation || true
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # --- Download Inputs ---

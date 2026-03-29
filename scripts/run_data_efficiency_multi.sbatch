@@ -23,12 +23,10 @@ S3_BASE="s3://${ART_BUCKET}/${ART_PREFIX}"
 
 # Artifacts
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
-CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # Base Config (We will modify this on the fly)
 BASE_CFG_REL="configs/eval/vitg-384/view/echojepa_view_classification_224px_multi.yaml"
-BASE_CFG_S3="${S3_BASE}/${BASE_CFG_REL}"
 
 # Data
 TRAIN_FULL_NAME="uhn_views_22k_train.csv"
@@ -86,44 +84,20 @@ mkdir -p wheelhouse
 tar -xf boto3-wheelhouse.tar -C wheelhouse
 python -m pip install --no-index --find-links wheelhouse boto3
 
-# 4. Code Download
-aws s3 cp "$CODE_S3" code.tar
-tar -xf code.tar
+# =========================
+# CODE (use deploy.sh-deployed code at /opt/vjepa2)
+# =========================
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
 
-# 5. Config Download
 if [ ! -f "$BASE_CFG_REL" ]; then
-  mkdir -p "$(dirname "$BASE_CFG_REL")"
-  aws s3 cp "$BASE_CFG_S3" "$BASE_CFG_REL"
+    echo "[FATAL] Config $BASE_CFG_REL not found in $REPO_DIR"
+    exit 1
 fi
 
-# 6. Path Patching (Studio -> Cluster)
-python - <<'PY'
-from pathlib import Path
-import os, re
-repo = os.getcwd()
-studio = "/home/sagemaker-user/user-default-efs/vjepa2"
-efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
-roots = ["configs", "app", "evals", "src"]
-for r in roots:
-    p = Path(r)
-    if not p.exists(): continue
-    for f in p.rglob("*"):
-        if f.suffix in {".yaml", ".py"} and f.is_file():
-            try:
-                t = f.read_text()
-                t2 = t.replace(studio, repo)
-                t2 = efs_pat.sub(repo, t2)
-                if t2 != t:
-                    f.write_text(t2)
-                    print(f"Patched {f}")
-            except: pass
-PY
-
-# 7. Install Code
-pip install -e . --no-deps --no-build-isolation || true
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
-# 8. Download Data & Checkpoint
 # 8. Download Data & Checkpoint
 mkdir -p data/csv
 aws s3 cp "$TRAIN_FULL_S3" "data/csv/${TRAIN_FULL_NAME}"

@@ -33,7 +33,6 @@ S3_BASE="s3://${ART_BUCKET}/${ART_PREFIX}"
 
 # Artifacts
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
-CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # Data CSVs
@@ -44,8 +43,6 @@ VAL_S3="${S3_BASE}/data/csv/${VAL_NAME}"
 
 # Base Config
 BASE_CFG_REL="configs/eval/vitg-384/lvef/end_panecho_lvef.yaml"
-BASE_CFG_S3="${S3_BASE}/${BASE_CFG_REL}"
-
 # Video Dataset Location
 VIDEO_S3_PREFIX="${S3_BASE}/data/EchoNet-Dynamic/Videos"
 
@@ -90,55 +87,18 @@ mkdir -p wheelhouse
 tar -xf boto3-wheelhouse.tar -C wheelhouse
 python -m pip install --no-index --find-links wheelhouse boto3
 
-# Code
-aws s3 cp "$CODE_S3" code.tar --region us-west-2
-tar -xf code.tar
+# =========================
+# CODE (use deploy.sh-deployed code at /opt/vjepa2)
+# =========================
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
 
-# Auto-detect Repo Root
-REPO_DIR=$(find . -maxdepth 4 -type f -name setup.py -print -quit | xargs -r dirname)
-if [ -n "$REPO_DIR" ] && [ "$REPO_DIR" != "." ]; then
-    echo "[INFO] Changing directory to detected repo root: $REPO_DIR"
-    cd "$REPO_DIR"
-fi
-
-# Config Fallback
 if [ ! -f "$BASE_CFG_REL" ]; then
-    echo "[WARN] Config not found in tarball. Downloading from S3..."
-    mkdir -p "$(dirname "$BASE_CFG_REL")"
-    aws s3 cp "$BASE_CFG_S3" "$BASE_CFG_REL" --region us-west-2
+    echo "[FATAL] Config $BASE_CFG_REL not found in $REPO_DIR"
+    exit 1
 fi
 
-# Path Patching
-python - <<'PY'
-from pathlib import Path
-import os, re
-repo = os.getcwd()
-studio = "/home/sagemaker-user/user-default-efs/vjepa2"
-efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
-roots = ["src", "configs", "evals"]
-for r in roots:
-    p = Path(r)
-    if not p.exists(): continue
-    for f in p.rglob("*"):
-        if f.suffix in {".yaml", ".py"} and f.is_file():
-            try:
-                t = f.read_text()
-                t2 = t.replace(studio, repo)
-                t2 = efs_pat.sub(repo, t2)
-                # PyTorch 2.6 Fix
-                if 'torch.load' in t2 and 'weights_only' not in t2:
-                    t2 = t2.replace('torch.load(checkpoint, map_location="cpu")', 
-                                    'torch.load(checkpoint, map_location="cpu", weights_only=False)')
-                    t2 = t2.replace('torch.load(f, map_location=map_location)', 
-                                    'torch.load(f, map_location=map_location, weights_only=False)')
-                    t2 = t2.replace('torch.load(ckpt_path, map_location="cpu")', 
-                                    'torch.load(ckpt_path, map_location="cpu", weights_only=False)')
-                if t2 != t:
-                    f.write_text(t2)
-            except: pass
-PY
-
-pip install -e . --no-deps --no-build-isolation || true
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # ==============================================================================

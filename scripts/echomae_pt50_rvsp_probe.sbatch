@@ -36,7 +36,6 @@ ART_BUCKET="sagemaker-hyperpod-lifecycle-495467399120-usw2"
 S3_BASE="s3://${ART_BUCKET}/vjepa2-artifacts"
 
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
-CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 
 # Config
 CFG_REL="configs/eval/vitb/icml/echomae_l_pt50_rvsp_d4.yaml"
@@ -89,56 +88,16 @@ else
 fi
 
 # =========================
-# CODE
+# CODE (use deploy.sh-deployed code at /opt/vjepa2)
 # =========================
-echo "[INFO] Setting up code..."
-aws s3 cp "$CODE_S3" code.tar
-tar -xf code.tar
-rm -f code.tar
-
-# Find repo root (pyproject.toml lives at repo root)
-REPO_DIR=$(find . -maxdepth 3 -type f -name "pyproject.toml" -print -quit | xargs -r dirname)
-if [ -z "$REPO_DIR" ]; then
-    echo "[FATAL] Could not find repo root in code.tar"
-    exit 1
-fi
+REPO_DIR="/opt/vjepa2"
 cd "$REPO_DIR"
 
-# Download config (may be newer than code.tar)
-mkdir -p "$(dirname "$CFG_REL")"
-aws s3 cp "${S3_BASE}/configs/echomae_l_pt50_rvsp_d4.yaml" "$CFG_REL"
-
 if [ ! -f "$CFG_REL" ]; then
-    echo "[FATAL] Config $CFG_REL not found"
+    echo "[FATAL] Config $CFG_REL not found in $REPO_DIR"
     exit 1
 fi
 
-# Patch EFS/Studio paths to local scratch
-python - <<'PY'
-from pathlib import Path
-import os, re
-
-repo = os.getcwd()
-studio = "/home/sagemaker-user/user-default-efs/vjepa2"
-efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
-
-for r in ["configs", "app", "evals", "src"]:
-    p = Path(r)
-    if not p.exists(): continue
-    for f in p.rglob("*"):
-        if f.suffix in {".yaml", ".py"} and f.is_file():
-            try:
-                t = f.read_text()
-                t2 = t.replace(studio, repo)
-                t2 = efs_pat.sub(repo, t2)
-                if t2 != t:
-                    f.write_text(t2)
-                    print(f"Patched {f}")
-            except Exception as e:
-                print(f"Skipping {f}: {e}")
-PY
-
-# Make code importable
 pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 

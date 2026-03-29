@@ -1,0 +1,59 @@
+# EchoMAE-L pt50 LVEF test inference (ICML rebuttal)
+# Runs best d=4 probe on held-out test set (53K clips)
+app: vjepa
+cpus_per_task: 32
+folder: /opt/dlami/nvme/evals/icml/echomae_l_pt50_lvef_test
+mem_per_gpu: 80G
+nodes: 1
+tasks_per_node: 8
+num_workers: 8
+
+eval_name: video_classification_frozen
+resume_checkpoint: true
+tag: icml-echomae-l-pt50-lvef-d4-test
+val_only: true
+
+probe_checkpoint: /opt/dlami/nvme/evals/icml/echomae_pt50_lvef/video_classification_frozen/icml-echomae-l-pt50-lvef-d4/best.pt
+predictions_save_path: /opt/dlami/nvme/predictions/icml/echomae_l_pt50_lvef_test.csv
+
+experiment:
+  classifier:
+    task_type: regression
+    num_heads: 16
+    num_probe_blocks: 4
+    num_targets: 1
+
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /opt/dlami/nvme/data/csv/a4c_b_lvef_test_224px.csv
+    dataset_val: /opt/dlami/nvme/data/csv/a4c_b_lvef_test_224px.csv
+    # NOTE: No target_mean/target_std — this probe was trained on old code
+    # (pre-Mar 14) without z-score normalization. It predicts raw LVEF values.
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 2
+    num_segments: 2
+    num_views_per_segment: 1
+
+  optimization:
+    batch_size: 16
+    num_epochs: 1
+    use_bfloat16: true
+    use_pos_embed: false
+    multihead_kwargs:
+    # Must match training grid (6 heads) so checkpoint loads correctly
+    - {lr: 0.0, start_lr: 0.0, final_lr: 0.0, weight_decay: 0.01, final_weight_decay: 0.01, warmup: 0.0}
+    - {lr: 0.0, start_lr: 0.0, final_lr: 0.0, weight_decay: 0.1, final_weight_decay: 0.1, warmup: 0.0}
+    - {lr: 0.0, start_lr: 0.0, final_lr: 0.0, weight_decay: 0.4, final_weight_decay: 0.4, warmup: 0.0}
+    - {lr: 0.0, start_lr: 0.0, final_lr: 0.0, weight_decay: 0.01, final_weight_decay: 0.01, warmup: 0.0}
+    - {lr: 0.0, start_lr: 0.0, final_lr: 0.0, weight_decay: 0.1, final_weight_decay: 0.1, warmup: 0.0}
+    - {lr: 0.0, start_lr: 0.0, final_lr: 0.0, weight_decay: 0.4, final_weight_decay: 0.4, warmup: 0.0}
+
+model_kwargs:
+  checkpoint: /opt/dlami/nvme/checkpoints/echomae_l_pt50.pth
+  module_name: evals.video_classification_frozen.modelcustom.videomae_encoder
+  pretrain_kwargs:
+    encoder:
+      model_name: vit_large_patch16_224
+      tubelet_size: 2
+  wrapper_kwargs: {}

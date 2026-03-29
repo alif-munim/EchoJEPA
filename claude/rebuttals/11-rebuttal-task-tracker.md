@@ -27,10 +27,10 @@ Without these, the controlled comparison only covers LVEF and CAMUS. RVSP adds t
 
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
-| P1.1 | **EchoMAE-L pt50 LVEF probe** | NOT STARTED | hfQ1, ncQn | ~2h train | Config needed | Completes 3-way LVEF (confirms MAE=0 at pt50 too) |
+| P1.1 | **EchoMAE-L pt50 LVEF probe** | **DONE** (HyperPod job 247) | hfQ1, ncQn | — | — | Val MAE **7.155** (ep16). MAE pt50 shows signal (unlike ep99), but trails EMA methods (7.16 vs 6.30). |
 | P1.2 | **Resume JEPA pt50 RVSP 41K** (ep17→20) | PAUSED (ep17) | ALL | ~2h | GPU | Pearson=0.503 at ep16 (matches pt210-an25). Only 3 ep left. |
 | P1.3 | **BYOL pt50 RVSP 41K** (20ep) | KILLED (ep0) | hfQ1 | ~10h | Config exists | Killed mid-epoch-1, no checkpoint. Full restart needed. |
-| P1.4 | **MAE pt50 RVSP 41K** (20ep) | NOT STARTED | ALL | ~10h | Config needed | Expecting poor performance (confirms thesis) |
+| P1.4 | **MAE pt50 RVSP 41K** (20ep) | **IN PROGRESS** (HyperPod job 260, ep4/20) | ALL | ~6h remaining | — | Val MAE 10.10, R²=0.128, Pearson=0.365 at ep4. Running on node ip-10-0-50-184. |
 
 **Why P1:** The rebuttal tex claims "converging evidence across LVEF, CAMUS, and RVSP." Without RVSP results for all 3 models, this is only partially supported.
 

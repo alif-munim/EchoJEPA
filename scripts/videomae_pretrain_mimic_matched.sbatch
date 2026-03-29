@@ -117,7 +117,6 @@ NUM_FRAMES=16
 # S3 Config
 ART_BUCKET="sagemaker-hyperpod-lifecycle-495467399120-usw2"
 S3_BASE="s3://${ART_BUCKET}/vjepa2-artifacts"
-CODE_S3="${S3_BASE}/code/videomae-code.tar"
 CSV_S3="${S3_BASE}/data/csv/mimic_annotations_s3.csv"
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
 VITL_RAW_S3="${S3_BASE}/checkpoints/vitl_raw.pth"
@@ -173,10 +172,14 @@ set +u && source env/bin/activate && set -u
 env/bin/conda-unpack || true
 pip install "numpy<2.0" timm==0.4.12 boto3 tensorboardX decord --no-cache-dir
 
-# Code
-echo "[INFO] Downloading code..."
-aws s3 cp "$CODE_S3" code.tar
-tar -xf code.tar
+# =========================
+# CODE (use deploy.sh-deployed code at /opt/vjepa2)
+# =========================
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
+
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
+export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # Data
 mkdir -p data

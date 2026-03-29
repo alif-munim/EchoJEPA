@@ -20,13 +20,10 @@ S3_BASE="s3://${ART_BUCKET}/${ART_PREFIX}"
 
 # --- Artifacts ---
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
-CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # --- Training Config ---
 CFG_REL="configs/eval/vitg-384/rvsp/echojepa_224px_multi.yaml"
-CFG_S3="${S3_BASE}/${CFG_REL}"
-
 # --- Data (override-friendly) ---
 TRAIN_CSV_REL="${TRAIN_CSV_REL:-data/csv/rvsp_train.csv}"
 VAL_CSV_REL="${VAL_CSV_REL:-data/csv/rvsp_val.csv}"
@@ -84,48 +81,18 @@ mkdir -p wheelhouse
 tar -xf boto3-wheelhouse.tar -C wheelhouse
 python -m pip install --no-index --find-links wheelhouse boto3
 
-# --- Setup Code ---
-aws s3 cp "$CODE_S3" code.tar --region us-west-2
-tar -xf code.tar
-REPO_DIR=$(find . -maxdepth 10 -type f -name run_inf.sh -print -quit | xargs -r dirname)
-cd "${REPO_DIR}"
+# =========================
+# CODE (use deploy.sh-deployed code at /opt/vjepa2)
+# =========================
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
 
-# Ensure config exists
 if [ ! -f "$CFG_REL" ]; then
-  echo "[WARN] ${CFG_REL} not found in code.tar; trying S3: ${CFG_S3}"
-  mkdir -p "$(dirname "$CFG_REL")"
-  aws s3 cp "$CFG_S3" "$CFG_REL" --region us-west-2
+    echo "[FATAL] Config $CFG_REL not found in $REPO_DIR"
+    exit 1
 fi
 
-# --- Patch Paths ---
-python - <<'PY'
-from pathlib import Path
-import os, re
-
-repo = os.getcwd()
-studio = "/home/sagemaker-user/user-default-efs/vjepa2"
-efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
-
-roots = ["configs", "app", "evals", "src"]
-exts  = {".yaml", ".py"}
-
-for r in roots:
-    p = Path(r)
-    if not p.exists(): continue
-    for f in p.rglob("*"):
-        if f.suffix in exts and f.is_file():
-            try:
-                t = f.read_text()
-                t2 = t.replace(studio, repo)
-                t2 = efs_pat.sub(repo, t2)
-                if t2 != t:
-                    f.write_text(t2)
-                    print(f"Patched {f}")
-            except: pass
-PY
-
-# Make code importable
-pip install -e . --no-deps --no-build-isolation || true
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # --- Download Inputs ---

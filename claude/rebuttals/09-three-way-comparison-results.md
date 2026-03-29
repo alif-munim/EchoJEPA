@@ -66,9 +66,9 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 |-------|-----------|-------------|-----------|-----|---------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | 6.329 (ep17) | 11.1% | 0.436 | 0.667 | DONE |
 | EchoBYOL-L (50ep) | Self-distillation | **6.297** (ep18) | **11.0%** | — | — | DONE |
-| EchoMAE-L (50ep) | Pixel reconstruction | — | — | — | — | NOT STARTED |
+| EchoMAE-L (50ep) | Pixel reconstruction | **7.155** (ep16) | **12.5%** | — | — | DONE (HyperPod job 247) |
 
-**Finding:** BYOL slightly *outperforms* JEPA on LVEF (6.297 vs 6.329, 0.5% gap). See architecture analysis below for interpretation.
+**Finding:** BYOL and JEPA near-identical on LVEF (6.297 vs 6.329, 0.5% gap). MAE pt50 shows signal (7.155) unlike MAE ep99 (8.05, R²~0) — the ep99 failure was due to the inverted LR bug, not inherent to MAE. However, MAE still trails both EMA methods by ~13% (7.16 vs 6.30), supporting the "EMA targets filter noise" thesis. See architecture analysis below for interpretation.
 
 ---
 
@@ -109,7 +109,7 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 |-------|-----------|-------------|-----|---------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | **9.097** (ep13) | **0.241** | **0.498** | ep 15/20 |
 | EchoBYOL-L (50ep) | Self-distillation | 10.558 (ep1) | -0.021 | 0.213 | ep 2/20 |
-| EchoMAE-L (50ep) | Pixel reconstruction | — | — | — | NOT STARTED |
+| EchoMAE-L (50ep) | Pixel reconstruction | 10.10 (ep4) | 0.128 | 0.365 | IN PROGRESS (HyperPod job 260, ep4/20) |
 
 **Early finding:** JEPA is converging significantly faster than BYOL on multi-view RVSP. At epoch 2, JEPA already had val MAE 9.88 while BYOL is at 10.60 — a 7% gap. JEPA's local spatial prediction appears to give a clear advantage over BYOL's global pooling on this spatially demanding multi-view task. This is the predicted separation from the architecture analysis: RVSP requires integrating spatial information across two echo views (A4C + RV-focused), which benefits from spatially structured representations that BYOL's mean-pooling pretraining objective does not produce.
 

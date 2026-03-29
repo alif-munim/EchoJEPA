@@ -128,7 +128,6 @@ NUM_FRAMES=16
 # S3 Config
 ART_BUCKET="sagemaker-hyperpod-lifecycle-495467399120-usw2"
 S3_BASE="s3://${ART_BUCKET}/vjepa2-artifacts"
-export CODE_S3="${S3_BASE}/code/videomae-code.tar"
 export CSV_S3="${S3_BASE}/data/csv/mimic_annotations_s3.csv"
 export ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
 export VITL_RAW_S3="${S3_BASE}/checkpoints/vitl_raw.pth"
@@ -202,15 +201,12 @@ else
     echo "[$(hostname)] Environment already exists, skipping"
 fi
 
-# --- Code ---
-if [ ! -f "run_mae_pretraining.py" ]; then
-    echo "[$(hostname)] Downloading code..."
-    aws s3 cp "$CODE_S3" code.tar
-    tar -xf code.tar
-    rm -f code.tar
-else
-    echo "[$(hostname)] Code already exists, skipping"
-fi
+# --- Code (use deploy.sh-deployed code at /opt/vjepa2) ---
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
+
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
+export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # --- Data ---
 if [ ! -f "data/train.csv" ]; then

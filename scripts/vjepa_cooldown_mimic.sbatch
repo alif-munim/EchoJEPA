@@ -35,7 +35,6 @@ S3_BASE="s3://${ART_BUCKET}/vjepa2-artifacts"
 
 # Artifact Locations
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
-CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # New Run ID folder
@@ -112,21 +111,19 @@ mkdir -p wheelhouse
 tar -xf boto3-wheelhouse.tar -C wheelhouse
 python -m pip install --no-index --find-links wheelhouse boto3
 
-# === 2. SETUP CODE ===
-echo "[INFO] Downloading Code..."
-aws s3 cp "$CODE_S3" code.tar
-tar -xf code.tar
-REPO_DIR=$(find . -maxdepth 10 -type f -name run_inf.sh -print -quit | xargs -r dirname)
-cd "${REPO_DIR}"
-pip install -e . --no-deps --no-build-isolation || true
-export PYTHONPATH="$PWD:${PYTHONPATH:-}"
+# =========================
+# CODE (use deploy.sh-deployed code at /opt/vjepa2)
+# =========================
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
 
-# Ensure config exists
 if [ ! -f "$CFG_REL" ]; then
-  echo "[WARN] Config not found in code.tar, fetching from S3..."
-  mkdir -p "$(dirname "$CFG_REL")"
-  aws s3 cp "$CFG_S3" "$CFG_REL"
+    echo "[FATAL] Config $CFG_REL not found in $REPO_DIR"
+    exit 1
 fi
+
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
+export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # === 3. PREPARE INPUTS ===
 echo "[INFO] Downloading Inputs..."

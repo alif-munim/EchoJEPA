@@ -31,10 +31,9 @@ S3_BASE="s3://${ART_BUCKET}/${ART_PREFIX}"
 
 # Artifacts
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
-CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
-# Inference config (now included in code tar)
+# Inference config
 CFG_REL="configs/inference/vitg-384/lvef.yaml"
 CFG_S3="${S3_BASE}/${CFG_REL}"   # fallback if needed
 
@@ -75,7 +74,6 @@ echo "[INFO] WORKDIR=$WORKDIR"
 
 # Sanity: required artifacts exist in S3
 aws s3 ls "$ENV_S3" >/dev/null
-aws s3 ls "$CODE_S3" >/dev/null
 aws s3 ls "$BOTO3_WHL_S3" >/dev/null
 aws s3 ls "$TEST_CSV_S3" >/dev/null
 aws s3 ls "$PROBE_S3" >/dev/null
@@ -101,81 +99,18 @@ tar -xf boto3-wheelhouse.tar -C wheelhouse
 python -m pip install --no-index --find-links wheelhouse boto3
 python -c "import boto3; print('[INFO] boto3', boto3.__version__)"
 
-# ---- Unpack code ----
-aws s3 cp "$CODE_S3" code.tar
-tar -xf code.tar
-echo "[INFO] Locating repo root after extracting code.tar..."
-REPO_DIR=$(find . -maxdepth 10 -type f -name run_inf.sh -print -quit | xargs -r dirname)
-if [ -z "${REPO_DIR}" ]; then
-  echo "[ERROR] Could not find run_inf.sh after extracting code.tar"
-  echo "[DEBUG] Top-level dirs:"; find . -maxdepth 2 -type d -print
-  echo "[DEBUG] First tar entries:"; tar -tf code.tar | head -n 50
-  exit 2
-fi
-cd "${REPO_DIR}"
-echo "[INFO] repo_dir=${REPO_DIR}"
+# =========================
+# CODE (use deploy.sh-deployed code at /opt/vjepa2)
+# =========================
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
 
-# Ensure config exists (prefer from code.tar; fallback to S3 if missing)
 if [ ! -f "$CFG_REL" ]; then
-  echo "[WARN] ${CFG_REL} not found in code.tar; trying S3: ${CFG_S3}"
-  mkdir -p "$(dirname "$CFG_REL")"
-  aws s3 cp "$CFG_S3" "$CFG_REL"
-fi
-test -f "$CFG_REL" || {
-  echo "[ERROR] Missing inference config: $CFG_REL"
-  echo "[DEBUG] Available inference configs:"; find configs/inference/vitg-384 -maxdepth 3 -type f -name '*.yaml' -print || true
-  exit 3
-}
-
-# ---- Patch hardcoded Studio/EFS paths -> local repo path (compute node) ----
-python - <<'PY'
-from pathlib import Path
-import os, re
-
-repo = os.getcwd()
-studio = "/home/sagemaker-user/user-default-efs/vjepa2"
-efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
-
-roots = ["run_inf.sh", "configs", "app", "evals", "src", "classifier", "data"]
-# Do NOT rewrite CSV contents
-exts  = {".py",".sh",".yaml",".yml",".json",".toml",".txt",".md"}
-
-patched = 0
-for r in roots:
-    p = Path(r)
-    if not p.exists():
-        continue
-    it = [p] if p.is_file() else p.rglob("*")
-    for f in it:
-        if not f.is_file():
-            continue
-        if f.suffix.lower() not in exts and f.name != "run_inf.sh":
-            continue
-        try:
-            t = f.read_text()
-        except Exception:
-            continue
-
-        t2 = t.replace(studio, repo)
-        t2 = efs_pat.sub(repo, t2)
-
-        if t2 != t:
-            f.write_text(t2)
-            patched += 1
-
-print(f"[INFO] patched hardcoded paths in {patched} files -> repo={repo}")
-PY
-
-# Fail fast if any hardcoded base paths remain in runtime files
-if grep -R -n -E "/home/sagemaker-user/user-default-efs/vjepa2|/mnt/custom-file-systems/efs/.*/vjepa2" \
-    --include='*.py' --include='*.sh' --include='*.yaml' --include='*.yml' --include='*.json' --include='*.toml' --include='*.txt' --include='*.md' \
-    run_inf.sh configs app evals src classifier 2>/dev/null | head -n 1; then
-  echo "[ERROR] Still found hardcoded Studio/EFS paths after patch (runtime files)"
-  exit 4
+    echo "[FATAL] Config $CFG_REL not found in $REPO_DIR"
+    exit 1
 fi
 
-# Make code importable
-pip install -e . --no-deps --no-build-isolation || true
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # ---- Materialize inputs required by lvef.yaml (after patch these paths point inside $PWD) ----

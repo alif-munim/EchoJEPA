@@ -29,11 +29,10 @@ S3_BASE="s3://${ART_BUCKET}/${ART_PREFIX}"
 
 # Environment & Code Artifacts
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
-CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # === TRAINING CONFIGURATION ===
-# 1. Config Path (Expected inside code.tar)
+# 1. Config Path (Expected inside /opt/vjepa2)
 CFG_REL="configs/eval/vitg-384/lvef/videomae_lvef.yaml"
 
 # 2. Data Paths
@@ -84,52 +83,18 @@ mkdir -p wheelhouse
 tar -xf boto3-wheelhouse.tar -C wheelhouse
 python -m pip install --no-index --find-links wheelhouse boto3
 
-# === SETUP CODE ===
-echo "[INFO] Setting up Code..."
-aws s3 cp "$CODE_S3" code.tar --region us-west-2
-tar -xf code.tar
-REPO_DIR=$(find . -maxdepth 10 -type f -name run_inf.sh -print -quit | xargs -r dirname)
-cd "${REPO_DIR}"
+# =========================
+# CODE (use deploy.sh-deployed code at /opt/vjepa2)
+# =========================
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
 
-# Verify Config Exists in Tar
 if [ ! -f "$CFG_REL" ]; then
-    echo "[ERROR] Config file $CFG_REL not found in code.tar!"
-    echo "Current directory contents:"
-    find . -maxdepth 4 -not -path '*/.*'
+    echo "[FATAL] Config $CFG_REL not found in $REPO_DIR"
     exit 1
 fi
 
-# === PATCH PATHS ===
-# Patches absolute paths in your YAMLs to match the current worker node
-python - <<'PY'
-from pathlib import Path
-import os, re
-
-repo = os.getcwd()
-studio = "/home/sagemaker-user/user-default-efs/vjepa2"
-efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
-
-roots = ["configs", "app", "evals", "src"]
-exts  = {".yaml", ".py"}
-
-for r in roots:
-    p = Path(r)
-    if not p.exists(): continue
-    for f in p.rglob("*"):
-        if f.suffix in exts and f.is_file():
-            try:
-                t = f.read_text()
-                t2 = t.replace(studio, repo)
-                t2 = efs_pat.sub(repo, t2)
-                if t2 != t:
-                    f.write_text(t2)
-                    print(f"Patched {f}")
-            except Exception as e:
-                print(f"Skipping {f}: {e}")
-PY
-
-# Make code importable
-pip install -e . --no-deps --no-build-isolation || true
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # === DOWNLOAD INPUTS ===

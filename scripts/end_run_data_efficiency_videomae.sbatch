@@ -34,7 +34,6 @@ S3_BASE="s3://${ART_BUCKET}/${ART_PREFIX}"
 
 # Artifacts
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
-CODE_S3="${S3_BASE}/code/vjepa2-code.tar"
 BOTO3_WHL_S3="${S3_BASE}/wheels/boto3-wheelhouse.tar"
 
 # Data CSVs (Using the S3 versions you created)
@@ -47,7 +46,7 @@ VAL_S3="${S3_BASE}/data/csv/${VAL_NAME}"
 ENC_CKPT_S3="${S3_BASE}/runs/videomae_115/training_folder/checkpoint-163.pth" 
 ENC_CKPT_LOCAL="/opt/dlami/nvme/checkpoints/videomae_vitl_pretrain.pth"
 
-# Base Config (Relative path inside code.tar)
+# Base Config (Relative path inside repo)
 BASE_CFG_REL="configs/eval/vitg-384/lvef/end_videomae_lvef.yaml"
 
 # Video Dataset Location (S3 -> Local NVMe)
@@ -98,50 +97,18 @@ mkdir -p wheelhouse
 tar -xf boto3-wheelhouse.tar -C wheelhouse
 python -m pip install --no-index --find-links wheelhouse boto3
 
-# Code Download & Extraction
-aws s3 cp "$CODE_S3" code.tar
-tar -xf code.tar
+# =========================
+# CODE (use deploy.sh-deployed code at /opt/vjepa2)
+# =========================
+REPO_DIR="/opt/vjepa2"
+cd "$REPO_DIR"
 
-# Verify Base Config Exists
 if [ ! -f "$BASE_CFG_REL" ]; then
-    echo "[ERROR] Base config not found at $BASE_CFG_REL inside code.tar"
+    echo "[FATAL] Config $BASE_CFG_REL not found in $REPO_DIR"
     exit 1
 fi
 
-# Path Patching (Studio -> Cluster) AND FIX FOR PYTORCH 2.6
-python - <<'PY'
-from pathlib import Path
-import os, re
-repo = os.getcwd()
-studio = "/home/sagemaker-user/user-default-efs/vjepa2"
-efs_pat = re.compile(r"/mnt/custom-file-systems/efs/[^ \n\"']+/vjepa2")
-
-# ADDED "evals" to roots so it finds the file causing the error
-roots = ["src", "configs", "evals"]
-
-for r in roots:
-    p = Path(r)
-    if not p.exists(): continue
-    for f in p.rglob("*"):
-        if f.suffix in {".yaml", ".py"} and f.is_file():
-            try:
-                t = f.read_text()
-                # 1. Path Fixes
-                t2 = t.replace(studio, repo)
-                t2 = efs_pat.sub(repo, t2)
-                
-                # 2. PyTorch 2.6 Fix: Disable weights_only for trusted checkpoints
-                if 'torch.load(checkpoint, map_location="cpu")' in t2:
-                    print(f"Patching torch.load in {f}")
-                    t2 = t2.replace('torch.load(checkpoint, map_location="cpu")', 'torch.load(checkpoint, map_location="cpu", weights_only=False)')
-                
-                if t2 != t:
-                    f.write_text(t2)
-            except: pass
-PY
-
-# Install Code
-pip install -e . --no-deps --no-build-isolation || true
+pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # ==============================================================================
