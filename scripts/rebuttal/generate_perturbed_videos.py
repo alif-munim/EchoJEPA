@@ -1,8 +1,14 @@
 """
-Generate perturbed video tensors with synthetic Rayleigh speckle noise.
+Generate perturbed video tensors with echo-specific perturbations (USAugment).
 
-Loads N validation videos, applies speckle at 5 intensity levels, and saves
-as a tensor cache (.pt) for reuse by CKA and noise-level probe scripts.
+Loads N validation videos, applies three perturbation types (depth attenuation,
+acoustic shadow, haze) at three severity levels each, and saves as a tensor
+cache (.pt) for reuse by CKA and noise-level probe scripts.
+
+Perturbations model real clinical degradation modes:
+  - Depth attenuation: signal falls off with depth (obese patients, poor windows)
+  - Acoustic shadow: localized signal dropout (ribs, calcification)
+  - Haze artifact: reverberation haze (poor acoustic windows)
 
 Usage:
     python scripts/rebuttal/generate_perturbed_videos.py \
@@ -14,14 +20,22 @@ Usage:
 
 import argparse
 import random
+import sys
 
 import decord
 import torch
 import torchvision.transforms.functional as TF
 
-decord.bridge.set_bridge("torch")
+# Add repo root to path for imports
+sys.path.insert(0, ".")
+from scripts.rebuttal.echo_perturbations import (
+    PERTURBATIONS,
+    SEVERITY_LEVELS,
+    apply_perturbation,
+    create_scan_mask,
+)
 
-SIGMA_LEVELS = [0.05, 0.1, 0.2, 0.4, 0.8]
+decord.bridge.set_bridge("torch")
 
 
 def load_clip(video_path, frames=16, frame_step=2, resolution=224):
@@ -31,7 +45,6 @@ def load_clip(video_path, frames=16, frame_step=2, resolution=224):
     needed = frames * frame_step
     start = max(0, (total - needed) // 2)
     indices = list(range(start, min(start + needed, total), frame_step))
-    # Pad if too short
     while len(indices) < frames:
         indices.append(indices[-1])
     indices = indices[:frames]
@@ -39,16 +52,6 @@ def load_clip(video_path, frames=16, frame_step=2, resolution=224):
     clip = clip.permute(3, 0, 1, 2).float() / 255.0  # [C, T, H, W]
     clip = TF.resize(clip, [resolution, resolution], antialias=True)
     return clip
-
-
-def apply_rayleigh_speckle(clip, sigma):
-    """Multiply clip by Rayleigh noise: x_noisy = x * noise, noise ~ Rayleigh(sigma)."""
-    noise = torch.zeros_like(clip)
-    # Rayleigh = sqrt(X^2 + Y^2) where X, Y ~ N(0, sigma^2)
-    x = torch.randn_like(clip) * sigma
-    y = torch.randn_like(clip) * sigma
-    noise = torch.sqrt(x**2 + y**2)
-    return torch.clamp(clip * noise, 0.0, 1.0)
 
 
 def main():
@@ -92,21 +95,40 @@ def main():
     clean_tensor = torch.stack(clean_clips)  # [N, C, T, H, W]
     print(f"Clean tensor: {clean_tensor.shape}")
 
-    # Generate perturbed versions
+    # Pre-compute scan masks (one per video, from first frame)
+    scan_masks = [create_scan_mask(c[:, 0, :, :]) for c in clean_clips]
+
+    # Generate perturbed versions for each perturbation type × severity
     perturbed = {}
-    for sigma in SIGMA_LEVELS:
-        print(f"Generating speckle sigma={sigma}...")
-        noisy = torch.stack([apply_rayleigh_speckle(c, sigma) for c in clean_clips])
-        perturbed[sigma] = noisy
+    perturbation_types = list(PERTURBATIONS.keys())
+
+    for ptype in perturbation_types:
+        perturbed[ptype] = {}
+        for severity in SEVERITY_LEVELS:
+            print(f"Generating {ptype} / {severity}...")
+            noisy_clips = []
+            for idx, (clip, mask) in enumerate(zip(clean_clips, scan_masks)):
+                # Use video index as seed for reproducible shadow/haze position
+                p_clip = apply_perturbation(clip, ptype, severity, scan_mask=mask, seed=idx)
+                noisy_clips.append(p_clip)
+            perturbed[ptype][severity] = torch.stack(noisy_clips)
+            print(f"  {perturbed[ptype][severity].shape}")
 
     cache = {
         "clean": clean_tensor,
         "perturbed": perturbed,
-        "sigma_levels": SIGMA_LEVELS,
+        "perturbation_types": perturbation_types,
+        "severity_levels": SEVERITY_LEVELS,
         "paths": valid_paths,
     }
     torch.save(cache, args.output)
-    print(f"Saved cache to {args.output} ({len(valid_paths)} videos, {len(SIGMA_LEVELS)} noise levels)")
+
+    n_conditions = len(perturbation_types) * len(SEVERITY_LEVELS)
+    print(
+        f"Saved cache to {args.output} "
+        f"({len(valid_paths)} videos, {len(perturbation_types)} perturbation types, "
+        f"{len(SEVERITY_LEVELS)} severity levels, {n_conditions} conditions total)"
+    )
 
 
 if __name__ == "__main__":

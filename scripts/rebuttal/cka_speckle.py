@@ -1,9 +1,12 @@
 """
-CKA speckle invariance analysis for ICML rebuttal.
+CKA perturbation invariance analysis for ICML rebuttal.
 
-Measures representational stability under speckle noise perturbation using
-linear CKA (Kornblith et al. 2019). EchoJEPA should maintain high CKA (noise-
-invariant latent space) while EchoMAE CKA drops (pixel reconstruction encodes noise).
+Measures representational stability under echo-specific perturbations using
+linear CKA (Kornblith et al. 2019). EchoJEPA should maintain high CKA
+(perturbation-invariant representations) while EchoMAE CKA drops.
+
+Perturbation types: depth attenuation, acoustic shadow, haze artifact.
+Each at three severity levels (mild, moderate, severe).
 
 Requires perturbed_cache.pt from generate_perturbed_videos.py.
 
@@ -16,7 +19,6 @@ Usage:
 import argparse
 
 import torch
-import torch.nn.functional as F
 
 import src.models.vision_transformer as vit
 
@@ -121,15 +123,19 @@ def main():
     print("Loading perturbed cache...")
     cache = torch.load(args.cache, map_location="cpu", weights_only=False)
     clean = cache["clean"]  # [N, C, T, H, W]
-    perturbed = cache["perturbed"]  # dict: sigma -> [N, C, T, H, W]
-    sigma_levels = cache["sigma_levels"]
-    print(f"  {clean.shape[0]} videos, {len(sigma_levels)} noise levels: {sigma_levels}")
+    perturbed = cache["perturbed"]  # dict: ptype -> severity -> [N, C, T, H, W]
+    perturbation_types = cache["perturbation_types"]
+    severity_levels = cache["severity_levels"]
+    print(f"  {clean.shape[0]} videos, {len(perturbation_types)} perturbation types, "
+          f"{len(severity_levels)} severity levels")
 
+    # results[model][ptype][severity] = cka_value
     results = {}
+
     for model_name, cfg in MODELS.items():
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Model: {model_name}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         is_videomae = model_name == "EchoMAE-L"
         if is_videomae:
@@ -142,43 +148,54 @@ def main():
         feat_clean = extract_batch_features(model, clean, device, is_videomae, args.batch_size)
         print(f"  Clean features: {feat_clean.shape}")
 
-        # Extract features at each noise level and compute CKA
-        cka_values = {}
-        for sigma in sigma_levels:
-            print(f"  Extracting features at sigma={sigma}...")
-            feat_noisy = extract_batch_features(
-                model, perturbed[sigma], device, is_videomae, args.batch_size
-            )
-            cka = linear_cka(feat_clean, feat_noisy)
-            cka_values[sigma] = cka
-            print(f"    CKA(clean, sigma={sigma}) = {cka:.4f}")
+        results[model_name] = {}
+        for ptype in perturbation_types:
+            results[model_name][ptype] = {}
+            for severity in severity_levels:
+                print(f"  Extracting features: {ptype} / {severity}...")
+                feat_noisy = extract_batch_features(
+                    model, perturbed[ptype][severity], device, is_videomae, args.batch_size
+                )
+                cka = linear_cka(feat_clean, feat_noisy)
+                results[model_name][ptype][severity] = cka
+                print(f"    CKA = {cka:.4f}")
 
-        results[model_name] = cka_values
         del model
         torch.cuda.empty_cache()
 
-    # Summary table
-    print(f"\n{'='*70}")
-    print("SUMMARY: CKA Speckle Invariance")
-    print(f"{'='*70}")
-    header = f"{'Model':<20}" + "".join([f"{'σ='+str(s):<12}" for s in sigma_levels])
-    print(header)
-    print("-" * 70)
-    for model_name, cka_vals in results.items():
-        row = f"{model_name:<20}"
-        for sigma in sigma_levels:
-            row += f"{cka_vals[sigma]:<12.4f}"
-        print(row)
+    # Summary tables (one per perturbation type)
+    for ptype in perturbation_types:
+        print(f"\n{'=' * 60}")
+        print(f"CKA: {ptype}")
+        print(f"{'=' * 60}")
+        header = f"{'Model':<20}" + "".join([f"{s:<12}" for s in severity_levels])
+        print(header)
+        print("-" * 56)
+        for model_name in results:
+            row = f"{model_name:<20}"
+            for severity in severity_levels:
+                row += f"{results[model_name][ptype][severity]:<12.4f}"
+            print(row)
 
-    # Interpretation
-    print(f"\n{'='*70}")
-    print("INTERPRETATION")
-    print(f"{'='*70}")
-    for model_name, cka_vals in results.items():
-        min_cka = min(cka_vals.values())
-        max_cka = max(cka_vals.values())
-        drop = max_cka - min_cka
-        print(f"  {model_name}: CKA range [{min_cka:.3f}, {max_cka:.3f}], drop = {drop:.3f}")
+    # Combined summary (mean CKA across perturbation types per severity)
+    print(f"\n{'=' * 60}")
+    print("MEAN CKA (averaged across perturbation types)")
+    print(f"{'=' * 60}")
+    header = f"{'Model':<20}" + "".join([f"{s:<12}" for s in severity_levels]) + "drop"
+    print(header)
+    print("-" * 68)
+    for model_name in results:
+        row = f"{model_name:<20}"
+        mean_ckas = []
+        for severity in severity_levels:
+            mean_cka = sum(
+                results[model_name][p][severity] for p in perturbation_types
+            ) / len(perturbation_types)
+            mean_ckas.append(mean_cka)
+            row += f"{mean_cka:<12.4f}"
+        drop = mean_ckas[0] - mean_ckas[-1]
+        row += f"{drop:.4f}"
+        print(row)
 
 
 if __name__ == "__main__":

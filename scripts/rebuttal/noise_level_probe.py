@@ -1,10 +1,12 @@
 """
-Noise-level linear probe for ICML rebuttal.
+Perturbation severity probe for ICML rebuttal.
 
-Can the model predict which speckle noise level was applied? If yes, it encodes
-noise information. If no, noise is filtered out by the representation.
+Can the model predict which perturbation severity was applied? If yes, it
+encodes degradation information. If no, the representation is invariant.
 
-Expected: EchoMAE high accuracy (>80%, encodes noise). EchoJEPA near chance (~20%).
+Runs one probe per perturbation type (3-class: mild/moderate/severe).
+
+Expected: EchoMAE high accuracy (encodes degradation). EchoJEPA near chance (~33%).
 
 Requires perturbed_cache.pt from generate_perturbed_videos.py.
 
@@ -111,24 +113,27 @@ def main():
 
     print("Loading perturbed cache...")
     cache = torch.load(args.cache, map_location="cpu", weights_only=False)
-    clean = cache["clean"]
     perturbed = cache["perturbed"]
-    sigma_levels = cache["sigma_levels"]
-    N = clean.shape[0]
-    print(f"  {N} videos, {len(sigma_levels)} noise levels")
+    perturbation_types = cache["perturbation_types"]
+    severity_levels = cache["severity_levels"]
+    N = cache["clean"].shape[0]
+    n_classes = len(severity_levels)
+    print(f"  {N} videos, {len(perturbation_types)} perturbation types, {n_classes} severity levels")
 
-    # Train/test split (by video index, not by sample)
+    # Train/test split (by video index)
     n_test = max(1, int(N * args.test_frac))
     indices = rng.permutation(N)
     test_idx = indices[:n_test]
     train_idx = indices[n_test:]
     print(f"  Train: {len(train_idx)} videos, Test: {len(test_idx)} videos")
 
+    # results[model][ptype] = {"train_acc": ..., "test_acc": ...}
     results = {}
+
     for model_name, cfg in MODELS.items():
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Model: {model_name}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         is_videomae = model_name == "EchoMAE-L"
         if is_videomae:
@@ -136,54 +141,78 @@ def main():
         else:
             model = load_vjepa_encoder(cfg, device)
 
-        # Extract features for all noise levels
-        # Labels: 0=level0 (sigma_levels[0]), 1=level1, ..., 4=level4
-        all_features = []
-        all_labels = []
-        for level_idx, sigma in enumerate(sigma_levels):
-            print(f"  Extracting features for sigma={sigma}...")
-            feats = extract_batch_features(model, perturbed[sigma], device, is_videomae, args.batch_size)
-            all_features.append(feats.numpy())
-            all_labels.append(np.full(N, level_idx))
+        results[model_name] = {}
 
-        X = np.concatenate(all_features, axis=0)  # [N*5, D]
-        y = np.concatenate(all_labels, axis=0)  # [N*5]
+        for ptype in perturbation_types:
+            print(f"\n  Perturbation: {ptype}")
+            print(f"  {'-' * 40}")
 
-        # Split using video indices (same video can't be in train and test)
-        train_mask = np.concatenate([train_idx + i * N for i in range(len(sigma_levels))])
-        test_mask = np.concatenate([test_idx + i * N for i in range(len(sigma_levels))])
-        X_train, y_train = X[train_mask], y[train_mask]
-        X_test, y_test = X[test_mask], y[test_mask]
+            # Extract features for each severity level
+            all_features = []
+            all_labels = []
+            for level_idx, severity in enumerate(severity_levels):
+                print(f"    Extracting features: {severity}...")
+                feats = extract_batch_features(
+                    model, perturbed[ptype][severity], device, is_videomae, args.batch_size
+                )
+                all_features.append(feats.numpy())
+                all_labels.append(np.full(N, level_idx))
 
-        print(f"  Train samples: {len(X_train)}, Test samples: {len(X_test)}")
-        print(f"  Feature dim: {X_train.shape[1]}")
+            X = np.concatenate(all_features, axis=0)  # [N*3, D]
+            y = np.concatenate(all_labels, axis=0)  # [N*3]
 
-        # Logistic regression
-        print("  Training logistic regression...")
-        clf = LogisticRegression(max_iter=1000, C=1.0, random_state=args.seed)
-        clf.fit(X_train, y_train)
+            # Split using video indices (same video can't be in train and test)
+            train_mask = np.concatenate([train_idx + i * N for i in range(n_classes)])
+            test_mask = np.concatenate([test_idx + i * N for i in range(n_classes)])
+            X_train, y_train = X[train_mask], y[train_mask]
+            X_test, y_test = X[test_mask], y[test_mask]
 
-        train_acc = accuracy_score(y_train, clf.predict(X_train))
-        test_acc = accuracy_score(y_test, clf.predict(X_test))
+            print(f"    Samples: {len(X_train)} train, {len(X_test)} test, dim={X_train.shape[1]}")
 
-        results[model_name] = {"train_acc": train_acc, "test_acc": test_acc}
-        print(f"  Train accuracy: {train_acc:.4f}")
-        print(f"  Test accuracy:  {test_acc:.4f}")
-        print(f"  Chance level:   {1.0/len(sigma_levels):.4f}")
+            # Logistic regression
+            clf = LogisticRegression(max_iter=1000, C=1.0, random_state=args.seed)
+            clf.fit(X_train, y_train)
+
+            train_acc = accuracy_score(y_train, clf.predict(X_train))
+            test_acc = accuracy_score(y_test, clf.predict(X_test))
+
+            results[model_name][ptype] = {"train_acc": train_acc, "test_acc": test_acc}
+            print(f"    Train acc: {train_acc:.4f}, Test acc: {test_acc:.4f} (chance: {1.0/n_classes:.3f})")
 
         del model
         torch.cuda.empty_cache()
 
-    # Summary
-    print(f"\n{'='*60}")
-    print("SUMMARY: Noise-Level Linear Probe (5-class)")
-    print(f"{'='*60}")
-    print(f"{'Model':<20} {'Train Acc':<12} {'Test Acc':<12} {'vs Chance (20%)'}")
-    print("-" * 60)
-    chance = 1.0 / len(sigma_levels)
-    for model_name, r in results.items():
-        above_chance = "ENCODES NOISE" if r["test_acc"] > chance + 0.1 else "FILTERS NOISE"
-        print(f"{model_name:<20} {r['train_acc']:<12.4f} {r['test_acc']:<12.4f} {above_chance}")
+    # Summary tables
+    chance = 1.0 / n_classes
+    for ptype in perturbation_types:
+        print(f"\n{'=' * 60}")
+        print(f"SEVERITY PROBE: {ptype} ({n_classes}-class, chance={chance:.1%})")
+        print(f"{'=' * 60}")
+        print(f"{'Model':<20} {'Train Acc':<12} {'Test Acc':<12} {'Interpretation'}")
+        print("-" * 64)
+        for model_name in results:
+            r = results[model_name][ptype]
+            interp = "ENCODES DEGRADATION" if r["test_acc"] > chance + 0.1 else "INVARIANT"
+            print(f"{model_name:<20} {r['train_acc']:<12.4f} {r['test_acc']:<12.4f} {interp}")
+
+    # Mean across perturbation types
+    print(f"\n{'=' * 60}")
+    print(f"MEAN TEST ACCURACY (across perturbation types)")
+    print(f"{'=' * 60}")
+    print(f"{'Model':<20} ", end="")
+    for ptype in perturbation_types:
+        short = ptype[:12]
+        print(f"{short:<14}", end="")
+    print("Mean")
+    print("-" * 68)
+    for model_name in results:
+        print(f"{model_name:<20} ", end="")
+        accs = []
+        for ptype in perturbation_types:
+            acc = results[model_name][ptype]["test_acc"]
+            accs.append(acc)
+            print(f"{acc:<14.4f}", end="")
+        print(f"{np.mean(accs):.4f}")
 
 
 if __name__ == "__main__":
