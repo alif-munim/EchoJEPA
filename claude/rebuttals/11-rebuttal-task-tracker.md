@@ -31,7 +31,7 @@ Without these, the controlled comparison only covers LVEF and CAMUS. RVSP adds t
 | P1.1 | **EchoMAE-L pt50 LVEF probe** | **DONE** (HyperPod job 274) | hfQ1, ncQn | — | — | R²=0.325, Pearson=0.584, MAE=6.866 (ep18). Retrained with z-score normalization after Bug 017c. MAE trails JEPA (0.436) and BYOL (0.421) on R², confirming EMA advantage. |
 | P1.2 | **Resume JEPA pt50 RVSP 41K** (ep18→20) | **DONE** (20/20) | ALL | — | — | **Pearson=0.504** (ep19), R²=0.241 (ep20), Val MAE=9.044 (ep16). Matches pt210-an25. |
 | P1.3 | **BYOL pt50 RVSP 41K** (20ep) | KILLED (ep0) | hfQ1 | ~10h | Config exists | Killed mid-epoch-1, no checkpoint. Full restart needed. |
-| P1.4 | **MAE pt50 RVSP 41K** (20ep) | **IN PROGRESS** (HyperPod job 260, ep15/20) | ALL | ~2.5h remaining | — | Val MAE 9.35 (ep13), R²=0.185 (ep14), Pearson=0.446 (ep15). Running on node ip-10-0-50-184. |
+| P1.4 | **MAE pt50 RVSP 41K** (20ep) | **IN PROGRESS** (HyperPod job 260, ep19/20) | ALL | ~30min remaining | — | Val MAE 9.29 (ep17), R²=0.198 (ep19), Pearson=0.453 (ep19). Running on node ip-10-0-50-184. |
 
 **Why P1:** The rebuttal tex claims "converging evidence across LVEF, CAMUS, and RVSP." Without RVSP results for all 3 models, this is only partially supported.
 
@@ -43,7 +43,7 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
-| P2.1 | **Train pt50 EchoNet-Dynamic LVEF probes** (×3 models) | **1/3 RUNNING, 2/3 QUEUED** | 6t2T, hfQ1, ncQn | ~6 GPU-h remaining | All 3 configs + sbatch ready | JEPA running (job 282 ep4, R²=0.363). BYOL queued (job 284). MAE queued (job 285). |
+| P2.1 | **Train pt50 EchoNet-Dynamic LVEF probes** (×3 models) | **1/3 DONE, 1/3 RUNNING, 1/3 QUEUED** | 6t2T, hfQ1, ncQn | ~4 GPU-h remaining | All 3 configs + sbatch ready | JEPA **DONE** (job 282: R²=0.548, Pearson=0.745, MAE=5.991). BYOL running (job 284, ep4). MAE queued (job 285). |
 | P2.2 | **Train pt50 EchoNet-Pediatric LVEF probes** (×3 models) | NOT STARTED | 6t2T, hfQ1 | ~6 GPU-h | Configs needed | Domain-shift evaluation (adult→pediatric) |
 | P2.3 | **Generate perturbed EchoNet-Dynamic test videos** | NOT STARTED | ncQn | ~2h | Pipeline exists | 7 perturbation types × 3 levels |
 | P2.4 | **Run perturbation matrix** (fully-trained + pt50) | NOT STARTED | ALL | ~8h | P2.1-P2.3 | Probes for 5 fully-trained models already exist |

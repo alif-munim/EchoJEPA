@@ -131,7 +131,7 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 |-------|-----------|-------------|-----|---------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | **9.044** (ep16) | **0.241** | **0.504** | DONE (20/20) |
 | EchoBYOL-L (50ep) | Self-distillation | 9.531 (ep6) | 0.133 | 0.408 | KILLED (ep1, restart needed) |
-| EchoMAE-L (50ep) | Pixel reconstruction | 9.346 (ep13) | 0.185 | 0.446 | IN PROGRESS (HyperPod job 260, ep15/20) |
+| EchoMAE-L (50ep) | Pixel reconstruction | 9.287 (ep17) | 0.198 | 0.453 | IN PROGRESS (HyperPod job 260, ep19/20) |
 
 **Finding:** JEPA converges faster and maintains a consistent lead on multi-view RVSP. Final Pearson **0.504** (ep19) matches the fully-trained pt210-an25 (0.504 at ep9), confirming pt50 captures essentially all RVSP-relevant information. Metrics plateaued ep16-20. RVSP requires integrating spatial information across two echo views (A4C + RV-focused), which benefits from JEPA's spatially structured representations over BYOL's global mean-pooling.
 
@@ -225,9 +225,9 @@ BYOL (6.297) and JEPA (6.329) are near-identical on LVEF — BYOL is marginally 
 5. **DONE**: EchoMAE-L pt50 CAMUS — Test Dice 0.822
 6. **DONE**: EchoJEPA-L pt50 RVSP full (41K/5K) — 20/20, Pearson 0.504, MAE 9.044
 7. **DONE (HyperPod job 274)**: EchoMAE-L pt50 LVEF (10K/1K) — R²=0.325, Pearson=0.584, MAE=6.866
-8. **RUNNING (HyperPod job 260, node 184)**: EchoMAE-L pt50 RVSP full (41K/5K) — ep15/20, best MAE 9.35, Pearson 0.446
-9. **RUNNING (HyperPod job 282, node 83)**: EchoJEPA-L pt50 EchoNet-Dynamic LVEF — ep4/20, R²=0.363, Pearson=0.655
-10. **QUEUED (job 284)**: EchoBYOL-L pt50 EchoNet-Dynamic LVEF — waiting for node 83
+8. **RUNNING (HyperPod job 260, node 184)**: EchoMAE-L pt50 RVSP full (41K/5K) — ep19/20, best MAE 9.29, Pearson 0.453
+9. **DONE (HyperPod job 282)**: EchoJEPA-L pt50 EchoNet-Dynamic LVEF — **R²=0.548, Pearson=0.745, MAE=5.991**
+10. **RUNNING (job 284, node 83)**: EchoBYOL-L pt50 EchoNet-Dynamic LVEF — ep4/20, R²=0.272, Pearson=0.601
 11. **QUEUED (job 285)**: EchoMAE-L pt50 EchoNet-Dynamic LVEF — waiting for node 83
 9. **KILLED**: EchoBYOL-L pt50 RVSP full (41K/5K) — killed ep1, needs restart
 
