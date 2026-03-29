@@ -278,7 +278,7 @@ class VideoGroupDataset(Dataset):
             index = np.random.randint(len(self))
 
     def _get_item_row(self, row):
-        label = int(row["label"])
+        label = float(row["label"])
     
         # ---- collect URIs and initial presence flags from CSV ----
         uris, present = [], []

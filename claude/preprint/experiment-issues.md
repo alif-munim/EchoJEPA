@@ -127,23 +127,112 @@ Roughly ~1 failure per epoch regardless of batch size. The substitution doesn't 
 
 ---
 
-## 7. Multi-View RVSP: Missing Z-Score Normalization (discovered Mar 2026)
+## 7. EchoMAE-L Pretraining LR ~170x Too Low (confirmed Mar 2026)
+
+### The Claim
+
+EchoMAE-L (VideoMAE ViT-L pretrained on MIMIC echos) used a learning rate ~170x below the standard VideoMAE LR. This was identified in the pre-review audit (`claude/archive/rebuttals/01-paper-audit.md`) and is the reason EchoMAE was dropped from the Nature Medicine manuscript.
+
+### Evidence: Commit History
+
+The LR was reduced across 4 commits, compounding from 6x to 171x below standard:
+
+| Commit | Base `--lr` | Eff BS | Scaled LR | Standard | Ratio |
+|--------|-------------|--------|-----------|----------|-------|
+| `938fc40` Initial | 2.50e-5 | 512 | 5.00e-5 | 3.00e-4 | 6x low |
+| `c95382c` Revised | 1.87e-5 | 384 | 2.81e-5 | 2.25e-4 | 8x low |
+| `fbadf2b` Compute-matched | 7.03e-6 | 1024 | 2.81e-5 | 6.00e-4 | 21x low |
+| `d91b4d4` Final (ep163 ckpt) | 8.79e-7 | 1024 | 3.52e-6 | 6.00e-4 | **171x low** |
+
+Standard VideoMAE base LR is `1.5e-4` for BS=256 (the default in `run_mae_pretraining.py:77`). Linear scaling (`lr * eff_bs / 256`) is applied in the pretraining script at line 251.
+
+The commit `d91b4d4` ("Fix videomae recursive calls, s3 credential expiry") set `LR_VAL="8.7890625e-7"` with the comment "Half of previous" — but `7.03125e-6 / 8 = 8.7890625e-7` is actually /8, not /2. The progressive reductions appear to have been reactive fixes for NaN losses during training (commit `85e7c89`: "Make VideoMAE training robust to NaN losses / corrupted videos"), rather than principled LR tuning.
+
+### Worse Than 170x: Inverted Cosine Schedule
+
+The checkpoint (`videomae-ep163.pth`) records the post-scaling training args:
+
+```
+peak_lr:   3.52e-6
+min_lr:    4.00e-6   ← HIGHER than peak
+warmup_lr: 4.00e-6
+```
+
+The `--min_lr 1.0e-6` from the sbatch was also linearly scaled: `1e-6 * 1024/256 = 4e-6`. Since `min_lr > peak_lr`, the cosine schedule was **inverted** — the LR was effectively clamped at a constant `4e-6` for the entire run. The true ratio vs standard peak (`6e-4`) is **150x**.
+
+### How This Was Checked
+
+1. **Sbatch file** (`scripts/videomae_pretrain_mimic.sbatch`): `LR_VAL="8.7890625e-7"`, `TARGET_EFF_BS=1024`
+2. **Pretraining script** (`run_mae_pretraining.py:251`): `args.lr = args.lr * effective_global_batch / 256`
+3. **Checkpoint metadata** (`videomae-ep163.pth`): `args.lr=3.515625e-06`, `args.min_lr=4e-06`
+4. **Git history**: `git show {commit}:scripts/videomae_pretrain_mimic.sbatch` for each LR change
+
+### Did the Model Learn?
+
+Despite the severely low LR, EchoMAE-L converged (loss 0.87 → 0.27) and produced non-degenerate representations:
+- RVSP MAE: 5.36 mmHg (vs EchoJEPA-L's 5.01) — **but see §8: both numbers are artifacts of label quantization, not real RVSP estimation**
+- View classification: 40.4% attentive / 59.2% linear (inverted due to d=4 probe issue, see §2)
+
+The model learned *something*, but almost certainly far below its potential given a proper LR.
+
+### Impact on Preprint
+
+The JEPA-vs-MAE controlled comparison (same ViT-L, same data, same probes) is the cleanest comparison in the preprint. However, the 171x LR gap means EchoMAE was handicapped at pretraining time, not just at probe time. The comparison shows JEPA > undertrained-MAE, which is not the same as JEPA > properly-trained-MAE.
+
+This is why EchoMAE was dropped from Nature Medicine. A fair JEPA-vs-MAE comparison would require retraining with the standard `1.5e-4` base LR and proper schedule.
+
+### Files
+
+- `scripts/videomae_pretrain_mimic.sbatch` — final sbatch with `LR_VAL="8.7890625e-7"`
+- `evals/video_classification_frozen/modelcustom/VideoMAE/run_mae_pretraining.py` — pretraining script with linear LR scaling
+- `checkpoints/videomae-ep163.pth` — the checkpoint used for all ICML probes (epoch 163, `args.lr=3.52e-6`)
+
+---
+
+## 8. Multi-View RVSP: Missing Z-Score Normalization (discovered Mar 2026)
 
 ### Issue
 
 The multi-view eval module (`video_classification_frozen_multi`) never z-score normalized regression labels at runtime, unlike the single-view module. See `claude/dev/bugs/017-multiview-rvsp-no-zscore.md` for full details.
 
-### How the Preprint Worked Despite the Bug
+### How the Preprint Appeared to Work (But Didn't)
 
 The ICML preprint CSVs were **pre-z-scored** using `sklearn.StandardScaler` (saved as `data/scalers/rvsp_scaler.pkl`, mean=34.465, std=14.013). With pre-normalized labels:
 - `VideoGroupDataset` read z-scored floats but cast to `int()`, quantizing to ~5-6 bins (-2 through 3)
-- Model learned to output z-scored values (confirmed: regressor biases ~0.02-0.04 in saved checkpoint)
-- `F.l1_loss(z_pred, z_label)` gave z-MAE, then `* target_std` converted to mmHg
-- **Reported 4.54 MAE mmHg for EchoJEPA-G is valid** (on 41K UHN multi-view studies)
+- **78% of z-scored labels rounded to 0** (raw RVSP ~20-48 mmHg → z ∈ [-1.0, 1.0] → `int()` = 0)
+- Model learned to output ~0 in z-space (≈35 mmHg after un-z-scoring)
+- Reported MAE looked reasonable (4.54-5.65) only because **most labels were the mean**
 
-The `int()` truncation of z-scores was a secondary issue — coarse (3 bins for 20-50 mmHg range) but didn't prevent learning.
+### Forensic Analysis: ICML RVSP Numbers Were Artifacts (confirmed Mar 2026)
 
-### What Broke Later
+Examining the saved prediction CSV (`predictions/echojepa_L_rvsp_test_predictions.csv`) reveals the EchoJEPA-L RVSP "5.01 MAE" was meaningless:
+
+| Statistic | Value |
+|-----------|-------|
+| N (test predictions) | 636 |
+| Label range | [20.45, 132.56] mmHg |
+| **Prediction range** | **[34.89, 35.09] mmHg** |
+| Prediction std | **0.03 mmHg** |
+| Labels = 34.465 (target mean) | **494/636 (77.7%)** |
+| Unique label values | **9** |
+| MAE | 5.22 |
+| R² | **-0.047** (worse than predicting mean) |
+| Pearson | 0.196 |
+
+**The model learned nothing about RVSP.** It predicted ~35 mmHg for every input. The MAE of 5.22 is simply the average distance from the mean to the 22% of labels that weren't quantized to the mean.
+
+The `int()` cast was more destructive than previously understood. For RVSP (mean=34.465, std=14.013):
+- Raw 20 mmHg → z = (20-34.465)/14.013 = -1.03 → `int()` = **-1**
+- Raw 30 mmHg → z = (30-34.465)/14.013 = -0.32 → `int()` = **0**
+- Raw 35 mmHg → z = (35-34.465)/14.013 = +0.04 → `int()` = **0**
+- Raw 48 mmHg → z = (48-34.465)/14.013 = +0.97 → `int()` = **0**
+- Raw 62 mmHg → z = (62-34.465)/14.013 = +1.97 → `int()` = **1**
+
+The entire clinically relevant range (20-48 mmHg, covering normal through moderate pulmonary hypertension) maps to just two bins: 0 and -1. The model learned "predict 0" and got rewarded for it because 78% of labels were 0.
+
+**This affects ALL models in ICML Table 4** (RVSP), not just EchoJEPA-L. The preprint's EchoJEPA-G 4.54, EchoPrime 5.65, PanEcho 5.49, and EchoMAE-L 5.36 are all artifacts of the same quantization. The tight spread (4.54-5.65) across models with very different representations is itself a red flag — they all learned the same trivial solution.
+
+### What Broke Later (Pre-Fix Runs)
 
 Post-preprint, the RVSP CSVs were rebuilt with raw mmHg values (19, 31, 30...) for the NatMed pipeline, which uses the single-view module with proper runtime z-scoring. The multi-view module was never updated. ICML rebuttal runs on raw CSVs produced catastrophic MAE (~145-176 logged scale) because:
 1. Labels were raw (~34 mmHg mean)
@@ -162,15 +251,46 @@ RVSP labels (~34 mmHg) were z-scored as `(34 - 57.06) / 11.33 = -2.03`, producin
 
 **Fix**: Added explicit `target_mean: 34.4650` / `target_std: 14.0130` to all 9 RVSP ICML configs. Deleted the stale `zscore_params.json`. **Lesson**: never rely on auto-detection when multiple tasks share a CSV directory — always specify z-score params in the YAML.
 
+### Current RVSP Run: First Real Multi-View RVSP Probe (started 2026-03-28)
+
+With all bugs fixed (017a: runtime z-scoring, 017b: explicit params in YAML), EchoJEPA-L is being retrained on the full UHN 41K multi-view RVSP dataset. This is the first run that produces genuine RVSP estimation.
+
+**Config:** `configs/eval/vitl/icml/echojepa_l_mimic_full_rvsp_d4_uhn.yaml`
+- Checkpoint: `vitl-pt-210-an25.pt` (MIMIC pt210 + 25ep anneal)
+- Multi-view: 2 views, 2 clips/view, VideoGroupDataset
+- d=4 attentive probe, 6-head HP grid, 20 epochs, BS=1
+- Z-score: target_mean=34.465, target_std=14.013 (explicit in YAML)
+- 8× A100, confirmed running `video_classification_frozen_multi`
+
+**Training progress (epoch 1-8, as of 2026-03-29):**
+
+| Epoch | Train MAE | Val MAE | Val R² | Val Pearson |
+|-------|-----------|---------|--------|-------------|
+| 1 | 9.825 | 10.525 | -0.034 | 0.167 |
+| 2 | 9.540 | 9.788 | 0.082 | 0.347 |
+| 3 | 9.199 | 9.782 | 0.160 | 0.401 |
+| 4 | 9.010 | 9.542 | 0.195 | 0.442 |
+| 5 | 8.927 | 9.284 | 0.199 | 0.459 |
+| 6 | 8.861 | 9.148 | 0.187 | 0.477 |
+| 7 | 8.766 | 9.343 | 0.236 | 0.486 |
+| 8 | 8.729 | 9.163 | 0.196 | 0.497 |
+
+Key observations:
+- **Genuine learning**: Pearson climbing steadily (0.167 → 0.497), R² positive and increasing
+- **Val MAE ~9.2 mmHg** at epoch 8 — higher than preprint's "5.01" but that was fake
+- **R² ~0.2** vs preprint's effective R²=-0.05 — the current run actually predicts RVSP, not just the mean
+- 12 epochs remaining, ~8-9 hours to completion
+- For context: Nature Medicine d=1 single-view RVSP was R²=0.168 for L. Current d=4 multi-view already exceeds this.
+
 ### Impact
 
 | Context | Affected? | Notes |
 |---------|-----------|-------|
-| ICML preprint RVSP (Table 4) | **No** | Pre-z-scored CSVs made Bug 017a dormant; no auto-detection used |
-| ICML rebuttal EchoJEPA-L RVSP (41K UHN) | **No** | Config had explicit `target_mean`/`target_std` from creation |
+| ICML preprint RVSP (Table 4) | **YES — ALL NUMBERS INVALID** | `int()` cast quantized 78% of z-scored labels to 0. All models predicted the mean (~35 mmHg). Reported MAEs (4.54-5.65) are artifacts of label quantization, not RVSP estimation. See forensic analysis above. |
+| ICML rebuttal EchoJEPA-L RVSP (41K UHN) | **Fixed & running** | Bug 017a + 017b fixed. First genuine RVSP probe. Epoch 8: R²=0.196, Pearson=0.497. |
 | ICML rebuttal EchoMAE-L RVSP (all runs) | **Yes** | Bug 017a (pre-fix runs on 5K) + Bug 017b (post-fix ep163 run on 41K). All invalid. |
 | ICML rebuttal EchoJEPA-B/L-K/BYOL RVSP | **Fixed** | Configs now have explicit params. Not yet run. |
-| Nature Medicine RVSP | **No** | Uses single-view module with correct z-scoring |
+| Nature Medicine RVSP | **No** | Uses single-view module with correct z-scoring + raw labels |
 
 ---
 
@@ -178,13 +298,13 @@ RVSP labels (~34 mmHg) were z-scored as `(34 - 57.06) / 11.33 = -2.03`, producin
 
 | Finding | Survived to Nature Medicine? | Notes |
 |---------|------|-------|
-| JEPA > MAE controlled comparison | Yes | Unaffected by any bugs (same encoder, same probe) |
+| JEPA > MAE controlled comparison | **Partially** | EchoMAE pretrained at 170x-low LR with inverted schedule — comparison is JEPA vs undertrained-MAE, not a fair objective comparison. Dropped from NatMed. |
 | EchoJEPA-G dominance over baselines | Partially | Magnitudes inflated by d=4 inversion + normalization bugs. Re-evaluated with d=1 |
 | Attentive probe as primary eval | No | Replaced by d=1 attentive (Strategy E) after discovering d=4 degeneration |
 | Batch size scaling | No | Specific to tiny dev dataset. NM uses BS1 on large datasets |
 | Sample efficiency (1% labels) | Yes | Controlled comparison, probe mismatch constant across fractions |
 | Pediatric transfer | Yes | Tests representation directly, not probe design |
-| Multi-view RVSP (4.54 MAE) | Yes | Pre-z-scored CSVs made missing runtime norm a no-op. Bug dormant. |
+| Multi-view RVSP (4.54 MAE) | **No — artifact** | All RVSP MAEs in Table 4 were artifacts of `int()` quantization of z-scored labels. 78% of labels mapped to the mean; all models predicted ~35 mmHg. First real run in progress (epoch 8: R²=0.196). |
 
 ## Related Documents
 
