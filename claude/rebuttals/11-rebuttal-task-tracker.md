@@ -43,8 +43,8 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
-| P2.1 | **Train pt50 EchoNet-Dynamic LVEF probes** (×3 models) | **1/3 DONE, 1/3 RUNNING, 1/3 QUEUED** | 6t2T, hfQ1, ncQn | ~4 GPU-h remaining | All 3 configs + sbatch ready | JEPA **DONE** (job 282: R²=0.548, Pearson=0.745, MAE=5.991). BYOL running (job 284, ep4). MAE queued (job 285). |
-| P2.2 | **Train pt50 EchoNet-Pediatric LVEF probes** (×3 models) | **DONE** (all 3) | 6t2T, hfQ1 | — | — | BYOL **5.764**, JEPA 6.016, MAE 6.200. Trained on local 8× A100 with raw-label S3 CSVs from FileList.csv. |
+| P2.1 | **Train pt50 EchoNet-Dynamic LVEF probes (224px)** (×3 models) | **1/3 DONE, 2/3 RUNNING** | 6t2T, hfQ1, ncQn | ~3 GPU-h remaining | All 3 configs ready | JEPA **DONE** (job 294, 224px: R²=0.621, Pearson=0.793, MAE=5.506). MAE running (job 296 ep14). BYOL running (A100 ep4). Previous 112px runs invalid. |
+| P2.2 | **Train pt50 EchoNet-Pediatric LVEF probes (224px)** (×3 models) | **IN PROGRESS** (retraining at 224px) | 6t2T, hfQ1 | ~2h remaining | — | 112px results invalid (resolution artifact). 224px retrain: MAE 6.081, JEPA 6.130, BYOL 6.184 — all converging. Running on A100. |
 | P2.3 | **Generate perturbed EchoNet-Dynamic test videos** | NOT STARTED | ncQn | ~2h | Pipeline exists | 7 perturbation types × 3 levels |
 | P2.4 | **Run perturbation matrix** (fully-trained + pt50) | NOT STARTED | ALL | ~8h | P2.1-P2.3 | Probes for 5 fully-trained models already exist |
 | P2.5 | **Package EchoBench** (scripts + README) | NOT STARTED | 6t2T (novelty) | ~4h writing | P2.4 | Open-source release artifact |
@@ -114,7 +114,8 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 - [ ] P1.2: Check JEPA pt50 RVSP 41K final result (was ep19/20)
 - [x] P1.1: MAE pt50 LVEF retrain **DONE** — R²=0.325, Pearson=0.584, MAE=6.866
 - [ ] P1.4: Check MAE pt50 RVSP 41K (HyperPod job 260, ep14/20)
-- [ ] P2.1: EchoJEPA-L pt50 EchoNet-Dynamic LVEF probe launched (job 282, node 83)
+- [x] P2.1: JEPA EchoNet-Dynamic DONE at 224px (job 294, R²=0.621). MAE (job 296) + BYOL (A100) running
+- [ ] P2.2: EchoNet-Pediatric 224px retrain in progress (all 3 on A100, ep12-14)
 - [ ] P1.3: Restart BYOL pt50 RVSP 41K (if GPU available)
 
 ### Mar 31 — Task-level degradation + EchoBench

@@ -226,9 +226,10 @@ BYOL (6.297) and JEPA (6.329) are near-identical on LVEF — BYOL is marginally 
 6. **DONE**: EchoJEPA-L pt50 RVSP full (41K/5K) — 20/20, Pearson 0.504, MAE 9.044
 7. **DONE (HyperPod job 274)**: EchoMAE-L pt50 LVEF (10K/1K) — R²=0.325, Pearson=0.584, MAE=6.866
 8. **DONE (HyperPod job 260)**: EchoMAE-L pt50 RVSP full (41K/5K) — **MAE=9.287, R²=0.198, Pearson=0.453**
-9. **DONE (HyperPod job 282)**: EchoJEPA-L pt50 EchoNet-Dynamic LVEF — **R²=0.548, Pearson=0.745, MAE=5.991**
-10. **RUNNING (job 284, node 83)**: EchoBYOL-L pt50 EchoNet-Dynamic LVEF — ep4/20, R²=0.272, Pearson=0.601
-11. **QUEUED (job 285)**: EchoMAE-L pt50 EchoNet-Dynamic LVEF — waiting for node 83
+9. **DONE (HyperPod job 294, 224px)**: EchoJEPA-L pt50 EchoNet-Dynamic LVEF — **R²=0.621, Pearson=0.793, MAE=5.506**
+10. **RUNNING (HyperPod job 296, 224px)**: EchoMAE-L pt50 EchoNet-Dynamic LVEF — ep14/20, MAE=6.811, R²=0.452
+11. **RUNNING (A100, 224px)**: EchoBYOL-L pt50 EchoNet-Dynamic LVEF — ep4/20
+12. **RUNNING (A100, 224px)**: All 3 pt50 EchoNet-Pediatric LVEF — ep12-14/20, converging (MAE 6.08, JEPA 6.13, BYOL 6.18)
 9. **KILLED**: EchoBYOL-L pt50 RVSP full (41K/5K) — killed ep1, needs restart
 
 ## Notes

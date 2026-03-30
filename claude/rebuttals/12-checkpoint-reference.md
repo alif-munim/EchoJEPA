@@ -84,9 +84,9 @@ S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 
 | Model | Probe Location | Best Result |
 |-------|---------------|-------------|
-| **EchoJEPA-L pt50** | **S3**: `s3://.../runs/echojepa_pt50_end_lvef_282/.../best.pt` | **DONE — R²=0.548, Pearson=0.745, MAE=5.991** |
-| **EchoBYOL-L pt50** | **S3**: `s3://.../runs/echobyol_pt50_end_lvef_284/.../best.pt` | **IN PROGRESS** (job 284, ep4) |
-| **EchoMAE-L pt50** | **S3**: `s3://.../runs/echomae_pt50_end_lvef_285/.../best.pt` | **QUEUED** (job 285) |
+| **EchoJEPA-L pt50** | **S3**: `s3://.../runs/echojepa_pt50_end_lvef_294/.../best.pt` | **DONE (224px) — R²=0.621, Pearson=0.793, MAE=5.506** |
+| **EchoBYOL-L pt50** | Running on A100 (224px) | **IN PROGRESS** ep4/20 |
+| **EchoMAE-L pt50** | **S3**: `s3://.../runs/echomae_pt50_end_lvef_296/.../best.pt` | **IN PROGRESS (224px)** job 296 ep14/20, MAE=6.811 |
 
 ### RVSP Probes (Multi-View, d=4 attentive)
 
@@ -116,9 +116,9 @@ All d=4 attentive, 6 HP heads, 20 epochs, raw-label S3 CSVs (mean=61.03, std=10.
 
 | Model | Config | Probe Location | Best Val MAE |
 |-------|--------|---------------|-------------|
-| EchoJEPA-L pt50 | `configs/eval/vitl/icml/echojepa_l_pt50_enp_lvef_d4.yaml` | `evals/vitl/icml/enp_lvef/.../icml-echojepa-l-pt50-enp-lvef-d4/best.pt` | 6.016 (ep20) |
-| EchoBYOL-L pt50 | `configs/eval/vitl/icml/echobyol_l_pt50_enp_lvef_d4.yaml` | `evals/vitl/icml/enp_lvef/.../icml-echobyol-l-pt50-enp-lvef-d4/best.pt` | **5.764** (ep19) |
-| EchoMAE-L pt50 | `configs/eval/vitl/icml/echomae_l_pt50_enp_lvef_d4.yaml` | `evals/vitl/icml/enp_lvef/.../icml-echomae-l-pt50-enp-lvef-d4/best.pt` | 6.200 (ep15) |
+| EchoJEPA-L pt50 | `configs/eval/vitl/icml/echojepa_l_pt50_enp_lvef_d4.yaml` | Retraining on A100 (224px) | 6.130 (ep11, 224px in progress) |
+| EchoBYOL-L pt50 | `configs/eval/vitl/icml/echobyol_l_pt50_enp_lvef_d4.yaml` | Retraining on A100 (224px) | 6.184 (ep14, 224px in progress) |
+| EchoMAE-L pt50 | `configs/eval/vitl/icml/echomae_l_pt50_enp_lvef_d4.yaml` | Retraining on A100 (224px) | **6.081** (ep11, 224px in progress) |
 
 ### View Classification Probes
 

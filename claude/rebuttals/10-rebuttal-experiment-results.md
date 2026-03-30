@@ -285,7 +285,9 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 
 | Experiment | Node | Job/PID | Epoch | ETA |
 |-----------|------|---------|-------|-----|
-| EchoBYOL-L pt50 EchoNet-Dynamic LVEF | HyperPod ip-10-0-50-83 | Job 284 | 12/20 | ~1h |
+| EchoMAE-L pt50 EchoNet-Dynamic LVEF (224px) | HyperPod ip-10-0-50-184 | Job 296 | 14/20 | ~1.5h |
+| EchoBYOL-L pt50 EchoNet-Dynamic LVEF (224px) | A100 (separate) | — | 4/20 | ~3h |
+| All 3 pt50 EchoNet-Pediatric LVEF (224px) | A100 (separate) | — | ep12-14 | ~2h |
 
 ### Queued
 
@@ -312,10 +314,7 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 | **EchoMAE-L pt50 LVEF (10K, 20ep)** | **R²=0.325, Pearson=0.584, MAE=6.866** (HyperPod job 274, retrained) | 2026-03-29 |
 | **EchoJEPA-L pt50 RVSP 41K (20ep)** | **Val MAE=9.044 (ep16), Pearson=0.504 (ep19), R²=0.241 (ep20)** | 2026-03-30 |
 | **EchoMAE-L pt50 RVSP 41K (20ep)** | **Val MAE=9.287 (ep17), R²=0.198 (ep19), Pearson=0.453 (ep20)** (HyperPod job 260) | 2026-03-30 |
-| **EchoJEPA-L pt50 EchoNet-Dynamic LVEF (20ep)** | **R²=0.548, Pearson=0.745, MAE=5.991** (HyperPod job 282) | 2026-03-30 |
-| **EchoJEPA-L pt50 EchoNet-Pediatric LVEF (20ep)** | **Val MAE=6.016 (ep20)** | 2026-03-30 |
-| **EchoBYOL-L pt50 EchoNet-Pediatric LVEF (20ep)** | **Val MAE=5.764 (ep19)** | 2026-03-30 |
-| **EchoMAE-L pt50 EchoNet-Pediatric LVEF (20ep)** | **Val MAE=6.200 (ep15)** | 2026-03-30 |
+| **EchoJEPA-L pt50 EchoNet-Dynamic LVEF (224px, 20ep)** | **R²=0.621, Pearson=0.793, MAE=5.506** (HyperPod job 294) | 2026-03-30 |
 | **EchoJEPA-L pt50 RVSP test (5.1K studies)** | **Test MAE=9.101, R²=0.220, Pearson=0.484 (head 5)** | 2026-03-30 |
 
 ### Paused
@@ -371,43 +370,22 @@ BYOL test Dice 0.821 vs JEPA 0.815 (+0.6pp). Advantage is consistent across stru
 
 ### 5k. EchoNet-Pediatric LVEF: Cross-Population Transfer (pt50 3-Way)
 
+**⚠️ RETRAINING AT 224px — previous 112px results were invalid (resolution artifact).**
+
+The original 112px probes showed BYOL (5.764) >> JEPA (6.016) > MAE (6.200), with dramatic variance attenuation for JEPA/MAE. However, the pt50 encoders were pretrained at 224px, so training probes at 112px was a resolution mismatch. At 224px, preliminary results show **all three models converging** (within 0.1 MAE):
+
+| Model | 112px Best (INVALID) | 224px Best (in progress) | Change |
+|-------|---------------------|-------------------------|--------|
+| EchoMAE-L pt50 | 6.200 | **6.081** (ep11) | Improved — was worst, now best |
+| EchoJEPA-L pt50 | 6.016 | 6.130 (ep11) | Similar |
+| EchoBYOL-L pt50 | **5.764** | 6.184 (ep14) | Lost advantage |
+
+The BYOL advantage at 112px was a resolution artifact — BYOL's global mean-pooled representations may have been more robust to the 112→224 mismatch than JEPA's spatially-structured features. At 224px, the three objectives are near-equivalent on pediatric transfer, consistent with the UHN LVEF pattern (JEPA ≈ BYOL ≈ MAE within noise).
+
 **Training:** 2,580 pediatric clips (folds 0-7), 336 val (fold 8), d=4 attentive, 6 HP heads, 20 epochs.
 **Data:** Raw LVEF labels from FileList.csv (mean=61.03, std=10.44), S3 paths, z-scored at runtime.
 
-| Model | Val MAE | Test MAE | Test R² | Test Pearson | Pred/Label std ratio |
-|-------|---------|----------|---------|-------------|---------------------|
-| **EchoBYOL-L pt50** | 5.764 | **5.618** | **0.415** | **0.668** | 0.50-0.66 (healthy) |
-| EchoJEPA-L pt50 | 6.016 | 6.598 | 0.157 | 0.489 | 0.16-0.28 (attenuated) |
-| EchoMAE-L pt50 | 6.200 | 6.776 | -0.065 | 0.195 | 0.02-0.03 (collapsed) |
-
-**Variance attenuation analysis:** The low R² for JEPA and MAE is not a pipeline bug — all configs, checkpoints, z-scores verified correct. The issue is **prediction variance collapse**: JEPA predictions have std=3.0 vs label std=11.6 (ratio 0.26), MAE is essentially predicting the mean (std=0.2). BYOL maintains healthy variance (std=6.9, ratio 0.59).
-
-**Controlled comparison:** All three models share the same architecture (ViT-L, 304M), initialization (ImageNet-pretrained), pretraining data (MIMIC 525K, 50 epochs), probe (d=4 attentive, 6 HP heads, 20 epochs), and training data (EchoNet-Pediatric, 2,580 clips). The ONLY variable is the pretraining objective.
-
-**Comparison with UHN LVEF (in-distribution):** On UHN, all models predict at 60-73% of label variance (well-calibrated, R²/Pearson² = 0.95-0.98). The attenuation is specific to pediatric, where population shift (adult→pediatric anatomy) causes JEPA and MAE predictions to collapse toward the mean. BYOL's global representations are more robust to this shift.
-
-**Training dynamics confirm the effect is real:** At epoch 1, all three models perform similarly (MAE within 0.25). By epoch 20, BYOL improves 2.2× more than JEPA (Δ0.801 vs Δ0.364). On UHN LVEF, the pattern reverses — JEPA improves 1.4× more than BYOL. This confirms the pediatric result reflects the pretraining objective, not initialization or probe training artifacts.
-
-**Calibration analysis (regression slope of pred vs label):**
-
-| Task | Model | Slope (perfect=1.0) | R²/Pearson² | Status |
-|------|-------|---------------------|-------------|--------|
-| UHN LVEF (17.9K studies) | JEPA | 0.456 | 0.935 | Well-calibrated |
-| UHN LVEF (17.9K studies) | BYOL | 0.428 | 0.984 | Well-calibrated |
-| UHN RVSP (5.1K studies) | JEPA | 0.201 | 0.905 | Well-calibrated (harder task) |
-| Pediatric (368 clips) | BYOL | 0.397 | 0.930 | Well-calibrated (slope ≈ UHN) |
-| Pediatric (368 clips) | JEPA | **0.119** | **0.578** | Miscalibrated (4× worse than UHN) |
-| Pediatric (368 clips) | MAE | **0.003** | **-2.16** | Collapsed |
-
-Note: Slopes < 0.5 are normal for frozen-probe regression — all probes show regression-to-mean. What matters is relative degradation under domain shift. BYOL's slope is preserved (0.43→0.40), JEPA's collapses (0.46→0.12).
-
-**Bootstrap significance test (10,000 resamples, paired):**
-- **UHN LVEF:** JEPA - BYOL Pearson diff = [-0.024, +0.006] (95% CI). P(JEPA > BYOL) = 0.114. **Not significant** — JEPA ≈ BYOL on in-distribution LVEF.
-- **Pediatric LVEF:** BYOL - JEPA Pearson diff = [+0.090, +0.299] (95% CI). P(BYOL > JEPA) = 0.9997. **Highly significant** — BYOL >> JEPA on cross-population transfer.
-
-**Interpretation:** The prediction target determines what transfers. BYOL's global self-distillation objective (mean-pooled, no spatial structure) learns population-invariant cardiac motion features. JEPA's local masked prediction learns spatially-structured features tied to adult cardiac anatomy (chamber sizes, wall positions) that don't generalize to pediatric hearts with different proportions. MAE's pixel reconstruction fails entirely — it neither filters noise (no EMA) nor learns transferable dynamics.
-
-**Preprint comparison (fully-trained models):** Preprint reports EchoJEPA-L fine-tuned MAE=5.12 on pediatric (reproduced: 5.122). Our pt50 JEPA (6.016 val) is worse than pt210-an25 (5.12), suggesting pediatric transfer benefits from more pretraining — unlike UHN tasks where pt50 ≈ pt210-an25.
+<!-- Previous 112px variance attenuation analysis removed — was based on invalid resolution mismatch data. The methodology (calibration slopes, bootstrap tests) can be reapplied once 224px results are final. -->
 
 ### 5e. Rebuttal Narrative: "EMA Targets Filter Noise" — CONFIRMED
 
@@ -418,12 +396,14 @@ The complete three-way comparison:
 | LVEF Pearson (UHN, in-dist) | 0.625 | 0.634 | 0.584 | JEPA ≈ BYOL (p=0.11, NS) |
 | CAMUS Dice | 0.815 | 0.821 | **0.822** | MAE (spatial only) |
 | RVSP Pearson (UHN, in-dist) | **0.484** (test) | TBD | 0.453 (ep20, val) | JEPA |
-| Pediatric Pearson (cross-pop) | 0.467 | **0.668** | 0.185 | BYOL (p<0.001) |
+| EchoNet-Dynamic R² (cross-dataset) | **0.621** | TBD | TBD | JEPA (so far) |
+| Pediatric MAE (cross-pop, 224px) | 6.130 | 6.184 | **6.081** | ≈ converging (in progress) |
 
-**Three-level hierarchy of SSL objectives for echocardiography:**
-1. **EMA-based methods >> pixel reconstruction** on hemodynamic tasks (LVEF, RVSP). MAE encodes spatial anatomy but not cardiac function.
-2. **JEPA ≈ BYOL in-distribution** (UHN LVEF p=0.11, NS). Both EMA methods capture hemodynamic function equally when evaluated on the pretraining population.
-3. **BYOL > JEPA on cross-population transfer** (Pediatric Pearson 0.668 vs 0.467, p<0.001). Global features (BYOL) are population-invariant; local spatial features (JEPA) overfit to adult anatomy.
+**Two-level hierarchy of SSL objectives for echocardiography:**
+1. **EMA-based methods >> pixel reconstruction** on hemodynamic tasks (LVEF, RVSP). MAE encodes spatial anatomy (CAMUS 0.822) but not cardiac function (LVEF R²=0.325 vs 0.436/0.421).
+2. **JEPA ≈ BYOL** on in-distribution hemodynamics (UHN LVEF p=0.11, NS) and cross-population transfer (pediatric 224px: all within 0.1 MAE). The shared EMA ingredient matters more than local vs global prediction target.
+
+Note: Previous "level 3" (BYOL >> JEPA on pediatric) was invalidated — it was a 112px resolution artifact. At correct 224px resolution, all three methods converge on pediatric LVEF.
 
 The prediction target determines the transfer regime: local prediction captures finer dynamics in-distribution, but global prediction transfers better across populations. The shared EMA ingredient is necessary but not sufficient — what you predict through the EMA teacher matters. Novel finding: "In stochastic imaging domains, the granularity of the prediction target trades off in-distribution precision against cross-population robustness."
 
@@ -470,17 +450,25 @@ Existing infrastructure for EchoNet-Dynamic/Pediatric noise experiments:
 | Frame shuffling script | Done — `scripts/rebuttal/frame_shuffling.py` |
 | Clean test predictions (fully-trained) | Partially done — some models in `predictions/` |
 
-**pt50 EchoNet-Pediatric LVEF probes (3-way, DONE):**
+**pt50 EchoNet-Pediatric LVEF probes (3-way, RETRAINING AT 224px):**
 
-| Model | Best Val MAE | % of Mean | Predict-Mean Baseline |
-|-------|-------------|-----------|----------------------|
-| EchoBYOL-L pt50 | **5.764** | 9.4% | 8.332 |
-| EchoJEPA-L pt50 | 6.016 | 9.9% | 8.332 |
-| EchoMAE-L pt50 | 6.200 | 10.2% | 8.332 |
+| Model | 112px Best (INVALID) | 224px Best (in progress) | Predict-Mean Baseline |
+|-------|---------------------|-------------------------|----------------------|
+| EchoMAE-L pt50 | 6.200 | **6.081** (ep11) | 8.332 |
+| EchoJEPA-L pt50 | 6.016 | 6.130 (ep11) | 8.332 |
+| EchoBYOL-L pt50 | **5.764** | 6.184 (ep14) | 8.332 |
 
-Configs: `configs/eval/vitl/icml/echo{jepa,byol,mae}_l_pt50_enp_lvef_d4.yaml`. Probes: `evals/vitl/icml/enp_lvef/video_classification_frozen/icml-echo{jepa,byol,mae}-l-pt50-enp-lvef-d4/best.pt`.
+All three converging at 224px — the 112px BYOL advantage was a resolution artifact.
 
-**For pt50 3-way on EchoNet-Dynamic:** Need 3 new LVEF probes (JEPA-L-pt50, BYOL-L-pt50, MAE-L-pt50). JEPA running on HyperPod (job 282). Then inference on clean + perturbed test sets is fast.
+**pt50 EchoNet-Dynamic LVEF probes (3-way, 1/3 DONE at 224px):**
+
+| Model | Best Val MAE | R² | Pearson | Status |
+|-------|-------------|-----|---------|--------|
+| **EchoJEPA-L pt50** | **5.506** (ep18) | **0.621** | **0.793** | DONE (job 294, 224px) |
+| EchoMAE-L pt50 | 6.811 (ep14) | 0.452 | 0.674 | IN PROGRESS (job 296, 224px) |
+| EchoBYOL-L pt50 | 7.979 (ep4) | — | — | IN PROGRESS (A100, 224px) |
+
+Then inference on clean + perturbed test sets is fast.
 
 ---
 
@@ -530,9 +518,9 @@ Configs: `configs/eval/vitl/icml/echo{jepa,byol,mae}_l_pt50_enp_lvef_d4.yaml`. P
 
 | Experiment | Node | Job/PID | Progress |
 |-----------|------|---------|----------|
-| ~~EchoJEPA-L pt50 RVSP 41K~~ | — | — | **DONE** (20/20, Pearson 0.504, MAE 9.044) |
-| EchoBYOL-L pt50 EchoNet-Dynamic LVEF | ip-10-0-50-83 | 284 | ep12/20, val MAE 6.28, Pearson 0.720 |
-| EchoJEPA-L pt50 EchoNet-Dynamic LVEF | ip-10-0-50-83 | 282 | just started | ~3h |
+| EchoMAE-L pt50 EchoNet-Dynamic LVEF (224px) | ip-10-0-50-184 | 296 | ep14/20, MAE 6.81, R²=0.452 |
+| EchoBYOL-L pt50 EchoNet-Dynamic LVEF (224px) | A100 | — | ep4/20 |
+| EchoNet-Pediatric LVEF × 3 (224px) | A100 | — | ep12-14/20, all within 0.1 MAE |
 
 ### Priority tiers — remaining experiments
 
@@ -563,7 +551,7 @@ Completes the controlled comparison table across all tasks. Without 2a, the 3-wa
 | # | Experiment | Addresses | Effort | Depends On |
 |---|-----------|-----------|--------|-----------|
 | 3a | Train pt50 EchoNet-Dynamic LVEF probes (×3 models) | EchoBench | ~6 GPU-h | Configs |
-| ~~3b~~ | ~~Train pt50 EchoNet-Pediatric LVEF probes (×3 models)~~ | ~~EchoBench~~ | — | **DONE** (JEPA 6.016, BYOL 5.764, MAE 6.200) |
+| 3b | Train pt50 EchoNet-Pediatric LVEF probes (×3 models) | EchoBench | ~2h remaining | **RETRAINING AT 224px** (112px was resolution artifact). All 3 converging: MAE 6.08, JEPA 6.13, BYOL 6.18 |
 | 3c | Generate perturbed EchoNet-Dynamic test videos | EchoBench | ~2h | Pipeline exists |
 | 3d | Run perturbation matrix (fully-trained + pt50 models) | EchoBench | ~8h | 3a-3c |
 | 3e | Package as benchmark with scripts + README | Novelty | ~4h | 3d |
