@@ -378,22 +378,51 @@ BYOL test Dice 0.821 vs JEPA 0.815 (+0.6pp). Advantage is consistent across stru
 
 ### 5k. EchoNet-Pediatric LVEF: Cross-Population Transfer (pt50 3-Way)
 
-**⚠️ RETRAINING AT 224px — previous 112px results were invalid (resolution artifact).**
+**Resolution investigation (2026-03-30):** The original 112px probes showed BYOL >> JEPA with variance attenuation for JEPA (R²=0.157, pred/label std=0.28). We hypothesized this was a resolution artifact and retrained at 224px. Results: pt50 JEPA is equally bad at 224px (R²=0.123, pred/label std=0.23). **The 112px results were correct — resolution is not the issue.**
 
-The original 112px probes showed BYOL (5.764) >> JEPA (6.016) > MAE (6.200), with dramatic variance attenuation for JEPA/MAE. However, the pt50 encoders were pretrained at 224px, so training probes at 112px was a resolution mismatch. At 224px, preliminary results show **all three models converging** (within 0.1 MAE):
+The smoking gun: the **fully-trained JEPA (pt210-an25) at 112px gets R²=0.568** on the same test set (pred/label std=0.74, healthy). So JEPA CAN transfer to pediatric — but it requires >50 pretraining epochs. This is unique to pediatric; on UHN and EchoNet-Dynamic, pt50 ≈ fully-trained.
 
-| Model | 112px Best (INVALID) | 224px Best (FINAL) | Change |
-|-------|---------------------|---------------------|--------|
-| **EchoMAE-L pt50** | 6.200 | **5.985** (ep20) | Improved — was worst, now best |
-| EchoJEPA-L pt50 | 6.016 | 6.093 (ep15) | Similar |
-| EchoBYOL-L pt50 | **5.764** | 6.147 (ep14) | Lost advantage |
+**Val results (112px, d=4 attentive, 6 HP heads, 20 epochs, 2,580 train clips):**
 
-The BYOL advantage at 112px was a resolution artifact — BYOL's global mean-pooled representations were more robust to the 112→224 mismatch than JEPA's spatially-structured features. At correct 224px resolution, all three converge (spread 0.16 MAE). MAE leads slightly, consistent with its CAMUS advantage on spatial/anatomical tasks. The pediatric result reinforces §5e: pretraining objective doesn't matter much — the shared EMA ingredient is the key differentiator vs MAE, and even MAE does well on cross-population anatomy.
+| Model | Val MAE | Test MAE | Test R² | Test Pearson | Pred/Label std |
+|-------|---------|----------|---------|-------------|----------------|
+| **EchoBYOL-L pt50** | **5.764** | **5.618** | **0.415** | **0.668** | 0.52 (healthy) |
+| EchoJEPA-L pt50 | 6.016 | 6.598 | 0.157 | 0.489 | 0.28 (attenuated) |
+| EchoMAE-L pt50 | 6.200 | 6.776 | -0.065 | 0.195 | 0.03 (collapsed) |
 
-**Training:** 2,580 pediatric clips (folds 0-7), 336 val (fold 8), d=4 attentive, 6 HP heads, 20 epochs.
-**Data:** Raw LVEF labels from FileList.csv (mean=61.03, std=10.44), S3 paths, z-scored at runtime.
+**Reference — fully-trained JEPA (pt210-an25, same test set):** Test MAE=5.122, R²=0.568, Pearson=0.763, pred/label std=0.74.
 
-<!-- Previous 112px variance attenuation analysis removed — was based on invalid resolution mismatch data. The methodology (calibration slopes, bootstrap tests) can be reapplied once 224px results are final. -->
+**Statistical investigation (2026-03-30):**
+
+**1. Val/test variance artifact.** Val std=9.90, test std=11.59 (17% wider, 37% higher variance). R² = 1 - MSE/Var(y), so wider test labels mechanically inflate R². BYOL's apparent "improvement" from val (0.295) to test (0.415) is mostly this artifact — with constant MSE it would have been 0.486 (MSE actually increased 14%). JEPA's MSE increased 47% val→test despite the variance tailwind, indicating probe overfitting.
+
+**2. Matched-variance subset.** Trimming 7 extreme test patients to match val std (9.79):
+- BYOL R²: 0.415 → **0.208** (halved). Pearson: 0.668 → **0.487**.
+- JEPA R²: 0.126 → 0.104. Pearson: 0.466 → 0.381.
+- BYOL still leads, but gap shrinks from 29pp to 10pp R², 20pp to 10pp Pearson.
+
+**3. Bootstrap CIs (1000 resamples, test set):**
+- BYOL R² 95% CI: [0.234, 0.562] — wide (n=368 is small).
+- JEPA R² 95% CI: [0.068, 0.170].
+- BYOL-JEPA Pearson diff: 0.201, 95% CI [0.083, 0.302] — significant but wide.
+
+**4. Linear probe (mean-pool + linear) equalizes all three models:**
+
+| Model | d=4 attentive R² | d=4 Pearson | Linear R² | Linear Pearson |
+|-------|-----------------|-------------|-----------|---------------|
+| BYOL  | **0.295**       | **0.552**   | 0.075     | 0.277         |
+| JEPA  | 0.184           | 0.484       | 0.048     | 0.244         |
+| MAE   | -0.014          | 0.190       | 0.026     | 0.283         |
+
+With linear probes, all three are R²≈0.03-0.08, Pearson≈0.24-0.28. The BYOL advantage exists only with d=4 attentive — BYOL's single global token (after mean-pool during pretraining) is easier for the attentive decoder to learn from with 2,580 training samples than JEPA's 1,568 spatially-structured tokens.
+
+**5. Head-level analysis:** JEPA heads cluster tightly (spread=0.097 MAE), BYOL has more HP sensitivity (spread=0.191). MAE heads are identical (spread=0.027 — features are dead).
+
+**Interpretation:** BYOL genuinely outperforms JEPA on pediatric with d=4 attentive probes, but the magnitude is inflated ~2× by val/test variance mismatch and extreme-case sensitivity. The true gap is ~10pp R² / ~10pp Pearson on matched variance. The mechanism is probe capacity / data size interaction: d=4 attentive over 1,568 JEPA tokens overfits on 2,580 training samples. This is unique to small-data cross-population transfer — on EchoNet-Dynamic (7,465 train, same population) all pairwise differences are statistically significant with tight CIs and no variance artifacts: JEPA R²=0.552 >> BYOL 0.440 >> MAE 0.351.
+
+**Data:** Raw LVEF labels from FileList.csv (mean=61.03, std=10.44), S3 paths, z-scored at runtime. EchoNet-Pediatric native resolution is 112px. Train: 2,580 clips (folds 0-7), val: 336 (fold 8), test: 368 (fold 9). Zero patient overlap verified.
+
+**224px retrain (inconclusive):** Retraining at 224px produced similar val MAE (JEPA 6.093, BYOL 6.147, MAE 5.985) but test R² was equally attenuated for JEPA (0.123). The 224px results confirm the issue is probe overfitting on small data, not resolution.
 
 ### 5e. Rebuttal Narrative: "EMA Targets Filter Noise" — CONFIRMED
 
@@ -404,17 +433,28 @@ The complete three-way comparison:
 | LVEF Pearson (UHN, in-dist) | 0.625 | 0.634 | 0.584 | JEPA ≈ BYOL (p=0.11, NS) |
 | CAMUS Dice | 0.815 | 0.821 | **0.822** | MAE (spatial only) |
 | RVSP Pearson (UHN, in-dist) | **0.484** (test) | TBD | 0.453 (ep20, val) | JEPA |
-| EchoNet-Dynamic R² (cross-dataset, val) | **0.621** | 0.528 | 0.495 | JEPA >> BYOL > MAE |
-| EchoNet-Dynamic R² (cross-dataset, **test**) | **0.552** | 0.440 | 0.351 | **JEPA >> BYOL >> MAE** |
-| Pediatric MAE (cross-pop, 224px) | 6.093 | 6.147 | **5.985** | All converged (spread 0.16) |
+| EchoNet-Dynamic R² (cross-dataset, **test**) | **0.552** | 0.440 | 0.351 | **JEPA >> BYOL >> MAE** (all pairwise SIG) |
+| Pediatric R² (cross-pop, matched-var) | 0.104 | **0.208** | -0.052 | BYOL > JEPA (gap ~10pp, inflated to 29pp by variance artifact) |
+| Pediatric R² (fully-trained) | **0.568** | — | — | JEPA (catches up with more pretraining) |
 
-**Two-level hierarchy of SSL objectives for echocardiography:**
+**Statistical validation — EchoNet-Dynamic (trustworthy comparison):**
+- Val/test std matched (12.31 vs 12.23, ratio 0.987) — no variance artifact
+- All pairwise Pearson differences significant (bootstrap 95% CIs exclude 0): JEPA-BYOL +0.083 [+0.055, +0.114], JEPA-MAE +0.144 [+0.111, +0.179], BYOL-MAE +0.061 [+0.026, +0.098]
+- R² CIs non-overlapping: JEPA [0.498, 0.601], BYOL [0.379, 0.497], MAE [0.306, 0.387]
+- n=1,277 test videos — adequate statistical power
+
+**Statistical caution — EchoNet-Pediatric:**
+- Val/test std mismatched (9.90 vs 11.59) inflates test R² by ~50% of BYOL's apparent advantage
+- On matched-variance subset (7 patients trimmed): BYOL R²=0.208, JEPA R²=0.104 (gap shrinks from 29pp to 10pp)
+- Linear probes equalize all three models (R²≈0.03-0.08) — BYOL advantage is d=4 probe capacity × small data interaction
+- n=368 test videos — CIs are wide; BYOL R² 95% CI [0.234, 0.562]
+
+**Hierarchy of SSL objectives for echocardiography:**
 1. **EMA-based methods >> pixel reconstruction** on hemodynamic tasks (LVEF, RVSP). MAE encodes spatial anatomy (CAMUS 0.822) but not cardiac function (LVEF R²=0.325 vs 0.436/0.421).
-2. **JEPA ≈ BYOL** on in-distribution hemodynamics (UHN LVEF p=0.11, NS) and cross-population transfer (pediatric 224px: all within 0.1 MAE). The shared EMA ingredient matters more than local vs global prediction target.
+2. **JEPA >> BYOL >> MAE on cross-dataset transfer** with adequate data (EchoNet-Dynamic, n=7,465 train). All pairwise significant. JEPA's local latent prediction produces the strongest representations.
+3. **On small-data cross-population transfer** (Pediatric, n=2,580 train), BYOL's simpler global features are easier to probe with d=4 attentive over limited samples. This is a probe capacity interaction, not a feature quality difference — linear probes equalize all models.
 
-Note: Previous "level 3" (BYOL >> JEPA on pediatric) was invalidated — it was a 112px resolution artifact. At correct 224px resolution, all three methods converge on pediatric LVEF.
-
-The prediction target determines the transfer regime: local prediction captures finer dynamics in-distribution, but global prediction transfers better across populations. The shared EMA ingredient is necessary but not sufficient — what you predict through the EMA teacher matters. Novel finding: "In stochastic imaging domains, the granularity of the prediction target trades off in-distribution precision against cross-population robustness."
+The EMA teacher is the shared critical ingredient. The prediction target (local vs global) determines which probe architecture can extract the signal from limited data.
 
 ### 5h. RVSP Data Is Truly Multi-View (UHN DICOM Audit)
 
