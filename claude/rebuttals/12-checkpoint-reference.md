@@ -152,6 +152,15 @@ All in `results/segmentation/<model>/<lr_wd>/best_decoder.pt` with `grid_summary
 | EchoJEPA-G (384px) | — | 0.729 | `results/segmentation/echojepa_g_384_fixed/*/best_decoder.pt` |
 | EchoPrime | — | 0.669 | `results/segmentation/echoprime/*/best_decoder.pt` |
 
+**⚠️ CAMUS Orientation Issue:** CAMUS A4C images have a ~45° clockwise-rotated sector scan (apex top-left, LV center-left, LA right). This differs from standard North American (UHN) A4C convention (sector pointing downward, apex top-center). The issue is a rotation, not just a horizontal flip. The frozen encoder (pretrained on UHN) has RoPE positional embeddings that encode absolute spatial position — rotated inputs produce different representations. Impact:
+- **G (384px)** most affected: higher spatial precision = more sensitive to orientation. Also has resolution mismatch (384px pretrain → 224px eval).
+- **L (224px)** partially compensated: random horizontal flip during probe training helps the decoder learn some spatial invariance, and lower spatial precision reduces sensitivity.
+- **Fix**: `--fix_orientation` flag in `evals/segmentation_frozen/eval.py` applies `rot270 + flipH`. Already implemented in `camus_dataset.py` line 124.
+- **Retraining**: G (384px) → `results/segmentation/echojepa_g_384_fixed_orient/`. L pt50 (224px) → `results/segmentation/echojepa_l_pt50_fixed_orient/`. Both in progress.
+- **Visual reference**: `scripts/rebuttal/samples/camus_orientation_fix_comparison.png` (left=original, right=fixed).
+
+**⚠️ Resolution Confound (general):** Comparing results across datasets at different resolutions is invalid. UHN probes train at 224px (1568 tokens); EchoNet-Pediatric native is 112px (392 tokens). All cross-dataset comparisons must use matched resolution. See §5k in doc 10 for the pediatric resolution confound and retraining at 224px.
+
 ---
 
 ## 4. Fully-Trained Probes (ICML Preprint / EchoBench)
@@ -250,11 +259,20 @@ Tracks which probes have been run on held-out test sets, with prediction CSV loc
 
 ### EchoNet-Pediatric LVEF Test (368 videos)
 
-| Model | Probe | Predictions CSV | Test R² | Test Pearson | Status |
-|-------|-------|----------------|---------|-------------|--------|
-| EchoJEPA-L pt50 (224px) | Retraining on A100 | — | — | — | **PROBE IN PROGRESS** (ep13/20) |
-| EchoBYOL-L pt50 (224px) | Retraining on A100 | — | — | — | **PROBE IN PROGRESS** (ep14/20) |
-| EchoMAE-L pt50 (224px) | Retraining on A100 | — | — | — | **PROBE IN PROGRESS** (ep12/20) |
+| Model | Probe | Predictions CSV | Test MAE | Test R² | Test Pearson | Status |
+|-------|-------|----------------|----------|---------|-------------|--------|
+| EchoJEPA-L (pt210-an25, fine-tuned) | `checkpoints/eval_probes/lvef/echonet-pediatric/echojepa-l.pt` | `predictions/echojepa-l-echonet-pediatric-lvef-test.csv` | 5.122 | 0.568 | 0.763 | DONE (reproduces preprint 5.12) |
+| EchoJEPA-L (pt210-an25, zero-shot) | `checkpoints/eval_probes/lvef/echonet-dynamic/echojepa-l.pt` | `predictions/echojepa-l-echonet-pediatric-lvef-zeroshot.csv` | 7.713 | — | 0.402 | DONE (preprint claims 6.31 — different eval pipeline) |
+| EchoJEPA-L pt50 (224px) | Retraining on A100 | — | — | — | — | **PROBE IN PROGRESS** (ep17/20) |
+| EchoBYOL-L pt50 (224px) | Retraining on A100 | — | — | — | — | **PROBE IN PROGRESS** (ep17/20) |
+| EchoMAE-L pt50 (224px) | Retraining on A100 | — | — | — | — | **PROBE IN PROGRESS** (ep14/20) |
+
+**⚠️ Invalid 112px runs** (resolution artifact — do not use):
+- `predictions/icml-echojepa-l-pt50-enp-lvef-test.csv` (112px, MAE=6.598)
+- `predictions/icml-echobyol-l-pt50-enp-lvef-test.csv` (112px, MAE=5.618)
+- `predictions/icml-echomae-l-pt50-enp-lvef-test.csv` (112px, MAE=6.776)
+- `predictions/icml-echojepa-l-pt50-enp-lvef-zeroshot.csv` (112px, UHN probe at wrong resolution)
+- `predictions/icml-echobyol-l-pt50-enp-lvef-zeroshot.csv` (112px, UHN probe at wrong resolution)
 
 ---
 

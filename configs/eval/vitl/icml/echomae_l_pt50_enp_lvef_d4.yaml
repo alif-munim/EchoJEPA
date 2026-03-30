@@ -10,7 +10,7 @@ num_workers: 8
 
 eval_name: video_classification_frozen
 resume_checkpoint: true
-tag: icml-echomae-l-pt50-enp-lvef-d4
+tag: icml-echomae-l-pt50-enp-lvef-d4-224px
 
 experiment:
   classifier:
@@ -23,14 +23,14 @@ experiment:
     dataset_type: VideoDataset
     dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_pediatric_train_s3_raw.csv
     dataset_val: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/echonet_pediatric_val_s3_raw.csv
-    resolution: 112
+    resolution: 224
     frames_per_clip: 16
     frame_step: 2
     num_segments: 2
     num_views_per_segment: 1
 
   optimization:
-    batch_size: 4
+    batch_size: 1
     num_epochs: 20
     use_bfloat16: true
     use_pos_embed: false

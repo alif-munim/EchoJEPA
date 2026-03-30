@@ -176,8 +176,10 @@ Predictions saved: `predictions/icml-echojepa-l-pt50-rvsp-test.csv` (5,103 studi
 | EchoMAE-L (163) | 163 | 0.852 | 0.735 | 0.783 | 0.790 |
 | EchoJEPA-L-K (220+55) | 275 | 0.811 | 0.687 | 0.739 | 0.746 |
 | PanEcho | — | 0.814 | 0.652 | 0.736 | 0.734 |
-| EchoJEPA-G 384px | 361 | 0.853 | 0.606 | 0.726 | 0.729 |
+| EchoJEPA-G 384px | 361 | 0.853 | 0.606 | 0.726 | 0.729 ⚠️ |
 | EchoPrime | — | 0.774 | 0.579 | 0.654 | 0.669 |
+
+**⚠️ CAMUS Orientation Issue (EchoJEPA-G):** CAMUS A4C images have a ~45° clockwise-rotated sector scan (apex top-left, LV center-left, LA right). This is NOT standard North American A4C orientation (sector pointing downward, apex top-center). The frozen encoder uses RoPE positional embeddings sensitive to absolute spatial position — rotated inputs produce different representations than what the encoder learned during pretraining on UHN data. G (384px pretrain → 224px eval) is doubly affected: orientation mismatch + resolution mismatch. L is partially compensated by random horizontal flip augmentation during decoder training. This likely explains the unexpected G < L gap (0.729 vs 0.818). See `scripts/rebuttal/samples/camus_orientation_fix_comparison.png` for a visual (left=original, right=fixed). Retraining with `--fix_orientation` in progress (G on GPU 6, L pt50 on GPU 7).
 
 **50-epoch controlled comparison:**
 
@@ -287,7 +289,9 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 |-----------|------|---------|-------|-----|
 | EchoMAE-L pt50 EchoNet-Dynamic LVEF (224px) | HyperPod ip-10-0-50-184 | Job 296 | 14/20 | ~1.5h |
 | EchoBYOL-L pt50 EchoNet-Dynamic LVEF (224px) | A100 (separate) | — | 4/20 | ~3h |
-| All 3 pt50 EchoNet-Pediatric LVEF (224px) | A100 (separate) | — | ep12-14 | ~2h |
+| All 3 pt50 EchoNet-Pediatric LVEF (224px) | Local A100 (GPUs 0-5) | — | ep14-17/20 | ~1h |
+| CAMUS G (384px) + fix_orientation | Local A100 (GPU 6) | — | ep20/50 | ~2h |
+| CAMUS L pt50 (224px) + fix_orientation | Local A100 (GPU 7) | — | ep27/50 | ~1h |
 
 ### Queued
 
