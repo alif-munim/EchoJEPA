@@ -40,6 +40,13 @@ class CAMUSSegDataset(Dataset):
     For each patient/view, loads the half_sequence (one cardiac cycle) and
     uniformly samples `num_frames` frames. Returns the video tensor and
     ground truth segmentation masks at ED and ES frames.
+
+    Orientation note: CAMUS NIfTI files store images with the sector rotated
+    ~45° (apex at top-left), which does not match the standard North American
+    A4C orientation used by UHN/MIMIC/EchoNet (transducer at top, sector
+    pointing down). Set fix_orientation=True to apply rot270+flipH, which
+    aligns CAMUS to the encoder's pretraining orientation. Both video frames
+    and GT masks are rotated consistently.
     """
 
     def __init__(
@@ -110,11 +117,12 @@ class CAMUSSegDataset(Dataset):
         gt_frames = torch.from_numpy(gt_frames.copy()).long().permute(2, 0, 1)
 
         # Fix CAMUS NIfTI orientation to match standard North American A4C:
-        # rot 90° CCW + horizontal flip → transducer at top, sector pointing down.
+        # rot 270° CCW (k=3) + horizontal flip → transducer at top, sector pointing down.
         # Without this, the sector is rotated ~45° with apex at top-left.
+        # Validated visually against EchoNet-Dynamic A4C images across multiple patients.
         if self.fix_orientation:
-            frames = torch.rot90(frames, 1, dims=(1, 2)).flip(-1)
-            gt_frames = torch.rot90(gt_frames, 1, dims=(1, 2)).flip(-1)
+            frames = torch.rot90(frames, 3, dims=(1, 2)).flip(-1)
+            gt_frames = torch.rot90(gt_frames, 3, dims=(1, 2)).flip(-1)
 
         # Normalize pixel values to [0, 1]
         fmax = frames.max()
