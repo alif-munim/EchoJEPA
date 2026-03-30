@@ -9,7 +9,7 @@
 #SBATCH -o /tmp/mae_end-%j.out
 #SBATCH -e /tmp/mae_end-%j.err
 #SBATCH --chdir=/tmp
-#SBATCH --nodelist=ip-10-0-50-83
+#SBATCH --nodelist=ip-10-0-50-184
 
 set -euxo pipefail
 

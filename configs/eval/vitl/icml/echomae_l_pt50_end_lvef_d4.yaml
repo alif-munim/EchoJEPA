@@ -26,7 +26,7 @@ experiment:
     dataset_val: /opt/dlami/nvme/data/csv/echonet_dynamic_val_s3_raw.csv
     target_mean: 55.7776
     target_std: 12.4072
-    resolution: 112
+    resolution: 224
     frames_per_clip: 16
     frame_step: 2
     num_segments: 2
