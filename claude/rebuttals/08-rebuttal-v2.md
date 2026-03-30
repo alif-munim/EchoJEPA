@@ -470,6 +470,8 @@ Priority informed by review simulation (Claude web app) and independent analysis
 
 **Experiment 5 rationale (cross-view similarity — NEW):** Extract features from both views (A4C + PSAX-AV) of the same RVSP study for all 3 pt50 models. Compute cosine similarity between view-pair representations. A model that encodes *cardiac state* (view-invariant) should produce similar representations from different anatomical views of the same heart at the same time; a model that encodes *image appearance* (view-specific) should not. Tests the "cardiac world model" claim directly — latent prediction should learn the underlying cardiac state, not the view-specific pixel pattern. ~30 min inference, no training. Uses existing RVSP multi-view data (41K studies, 96.7% verified genuine A4C+PSAX-AV pairs).
 
+**Experiment 6 rationale (cardiac phase reconstruction — NEW):** Extract features at 8 temporal positions from EchoNet-Dynamic clips. Train a linear classifier to predict ED vs ES using frame indices from EchoNet metadata. Tests whether the representation explicitly encodes *where in the cardiac cycle you are*. Distinct from frame shuffling: shuffling shows temporal *dependence* (destroy order → performance drops); phase reconstruction shows temporal *structure* (cardiac phase is linearly decodable from the feature space). If JEPA achieves high phase accuracy and MAE is near chance, the model has learned a structured temporal representation of the cardiac cycle — a prerequisite for a cardiac world model. ~15 min on cached features, trivial compute.
+
 ### Tier 2 — Scaling analysis + supporting evidence
 
 | # | Experiment | Target Reviewer | Effort | Include? |
