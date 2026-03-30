@@ -15,17 +15,33 @@ def main():
     eval_parser = subparsers.add_parser(
         "evaluate", help="Run robustness evaluation on a model"
     )
-    eval_parser.add_argument("--adapter", required=True, choices=["echojepa", "videomae"],
+    eval_parser.add_argument("--adapter", required=True,
+                             choices=["echojepa", "videomae", "echoprime", "panecho", "echofm"],
                              help="Encoder adapter name")
     eval_parser.add_argument("--checkpoint", required=True, help="Path to encoder checkpoint")
-    eval_parser.add_argument("--probe", required=True, help="Path to probe checkpoint")
-    eval_parser.add_argument("--task", default="lvef", choices=["lvef"],
+    eval_parser.add_argument("--probe", default=None,
+                             help="Path to probe checkpoint (required for lvef task)")
+    eval_parser.add_argument("--task", default="lvef", choices=["lvef", "camus"],
                              help="Evaluation task (default: lvef)")
     eval_parser.add_argument("--task-type", default="regression",
                              choices=["regression", "classification"],
-                             help="Task type (default: regression)")
-    eval_parser.add_argument("--data-csv", required=True,
-                             help="Path to test CSV (space-delimited: path label)")
+                             help="Task type for lvef (default: regression)")
+    eval_parser.add_argument("--data-csv", default=None,
+                             help="Path to test CSV for lvef (space-delimited: path label)")
+    # CAMUS-specific
+    eval_parser.add_argument("--camus-root", default=None,
+                             help="Path to CAMUS_public directory (for camus task)")
+    eval_parser.add_argument("--decoder-checkpoint", default=None,
+                             help="Path to decoder checkpoint (for camus task)")
+    eval_parser.add_argument("--decoder-type", default="linear", choices=["linear", "conv"],
+                             help="Decoder type for camus (default: linear)")
+    eval_parser.add_argument("--model-type", default="vjepa",
+                             choices=["vjepa", "videomae", "echoprime", "panecho", "echofm"],
+                             help="Model type for spatial feature extraction (default: vjepa)")
+    eval_parser.add_argument("--camus-split", default="testing",
+                             help="CAMUS split (default: testing)")
+    eval_parser.add_argument("--camus-views", nargs="+", default=["4CH"],
+                             help="CAMUS views (default: 4CH)")
     eval_parser.add_argument("--output", default=None, help="Output JSON path")
     eval_parser.add_argument("--device", default="cuda", help="Device (default: cuda)")
     eval_parser.add_argument("--max-cases", type=int, default=None,
@@ -78,7 +94,6 @@ def _run_evaluate(args):
 
     from echobench.adapters import get_adapter
     from echobench.evaluate import evaluate
-    from echobench.tasks.lvef import LVEFTask
 
     # Build adapter
     adapter_kwargs = dict(
@@ -96,6 +111,12 @@ def _run_evaluate(args):
 
     # Build task
     if args.task == "lvef":
+        from echobench.tasks.lvef import LVEFTask
+
+        if not args.data_csv:
+            raise ValueError("--data-csv is required for lvef task")
+        if not args.probe:
+            raise ValueError("--probe is required for lvef task")
         task = LVEFTask(
             data_csv=args.data_csv,
             probe_checkpoint=args.probe,
@@ -103,6 +124,23 @@ def _run_evaluate(args):
             resolution=args.resolution,
             frames=args.frames,
             frame_step=args.frame_step,
+        )
+    elif args.task == "camus":
+        from echobench.tasks.segmentation import CAMUSSegTask
+
+        if not args.camus_root:
+            raise ValueError("--camus-root is required for camus task")
+        if not args.decoder_checkpoint:
+            raise ValueError("--decoder-checkpoint is required for camus task")
+        task = CAMUSSegTask(
+            camus_root=args.camus_root,
+            decoder_checkpoint=args.decoder_checkpoint,
+            decoder_type=args.decoder_type,
+            model_type=args.model_type,
+            resolution=args.resolution,
+            num_frames=args.frames,
+            views=tuple(args.camus_views),
+            split=args.camus_split,
         )
 
     # Run

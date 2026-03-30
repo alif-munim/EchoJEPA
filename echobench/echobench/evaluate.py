@@ -110,9 +110,12 @@ def _compute_summary(results, clean_metrics):
         return {}
 
     # Pick the primary metric for degradation computation
-    if "mae" in clean_metrics:
+    if "mean_dice" in clean_metrics:
+        primary_metric = "mean_dice"
+        higher_is_worse = False  # lower dice = worse
+    elif "mae" in clean_metrics:
         primary_metric = "mae"
-        higher_is_worse = True
+        higher_is_worse = True  # higher mae = worse
     elif "r2" in clean_metrics:
         primary_metric = "r2"
         higher_is_worse = False
