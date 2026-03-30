@@ -106,7 +106,7 @@ Z-score: mean=34.465, std=14.013.
 | EchoJEPA-L (50ep) | Latent prediction | Full 41K/5K | **9.044** (ep16) | **0.241** (ep20) | **0.504** (ep19) | DONE (20/20) |
 | EchoBYOL-L (50ep) | Self-distillation | Full 41K/5K | — | — | — | KILLED (ep1, restart needed) |
 | EchoMAE-L (ep163) | Pixel reconstruction | Full 41K/5K | 10.529 (ep1) | -0.031 | 0.124 | PAUSED (ep2) |
-| EchoMAE-L (50ep) | Pixel reconstruction | Full 41K/5K | 9.287 (ep17) | 0.198 | 0.453 | IN PROGRESS (HyperPod job 260, ep19/20) |
+| EchoMAE-L (50ep) | Pixel reconstruction | Full 41K/5K | **9.287** (ep17) | **0.198** (ep19) | **0.453** (ep20) | DONE (HyperPod job 260, 20/20) |
 
 **Finding (5K subset):** Insufficient data for multi-view RVSP. Pearson plateaued at 0.376, R² peaked at 0.092. All three models should use full 41K.
 
@@ -285,8 +285,7 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 
 | Experiment | Node | Job/PID | Epoch | ETA |
 |-----------|------|---------|-------|-----|
-| EchoMAE-L pt50 RVSP 41K | HyperPod ip-10-0-50-184 | Job 260 | 19/20 | ~30min |
-| EchoBYOL-L pt50 EchoNet-Dynamic LVEF | HyperPod ip-10-0-50-83 | Job 284 | 4/20 | ~2h |
+| EchoBYOL-L pt50 EchoNet-Dynamic LVEF | HyperPod ip-10-0-50-83 | Job 284 | 12/20 | ~1h |
 
 ### Queued
 
@@ -312,6 +311,7 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 | EchoBYOL-L pt50 LVEF test (53K clips) | R²=0.384, Pearson=0.625, MAE=6.656 (head 0) | 2026-03-29 |
 | **EchoMAE-L pt50 LVEF (10K, 20ep)** | **R²=0.325, Pearson=0.584, MAE=6.866** (HyperPod job 274, retrained) | 2026-03-29 |
 | **EchoJEPA-L pt50 RVSP 41K (20ep)** | **Val MAE=9.044 (ep16), Pearson=0.504 (ep19), R²=0.241 (ep20)** | 2026-03-30 |
+| **EchoMAE-L pt50 RVSP 41K (20ep)** | **Val MAE=9.287 (ep17), R²=0.198 (ep19), Pearson=0.453 (ep20)** (HyperPod job 260) | 2026-03-30 |
 | **EchoJEPA-L pt50 EchoNet-Dynamic LVEF (20ep)** | **R²=0.548, Pearson=0.745, MAE=5.991** (HyperPod job 282) | 2026-03-30 |
 | **EchoJEPA-L pt50 EchoNet-Pediatric LVEF (20ep)** | **Val MAE=6.016 (ep20)** | 2026-03-30 |
 | **EchoBYOL-L pt50 EchoNet-Pediatric LVEF (20ep)** | **Val MAE=5.764 (ep19)** | 2026-03-30 |
@@ -417,7 +417,7 @@ The complete three-way comparison:
 |------|------|------|-----|--------|
 | LVEF Pearson (UHN, in-dist) | 0.625 | 0.634 | 0.584 | JEPA ≈ BYOL (p=0.11, NS) |
 | CAMUS Dice | 0.815 | 0.821 | **0.822** | MAE (spatial only) |
-| RVSP Pearson (UHN, in-dist) | **0.484** (test) | TBD | 0.406 (ep8, val) | JEPA |
+| RVSP Pearson (UHN, in-dist) | **0.484** (test) | TBD | 0.453 (ep20, val) | JEPA |
 | Pediatric Pearson (cross-pop) | 0.467 | **0.668** | 0.185 | BYOL (p<0.001) |
 
 **Three-level hierarchy of SSL objectives for echocardiography:**
@@ -531,8 +531,7 @@ Configs: `configs/eval/vitl/icml/echo{jepa,byol,mae}_l_pt50_enp_lvef_d4.yaml`. P
 | Experiment | Node | Job/PID | Progress |
 |-----------|------|---------|----------|
 | ~~EchoJEPA-L pt50 RVSP 41K~~ | — | — | **DONE** (20/20, Pearson 0.504, MAE 9.044) |
-| EchoMAE-L pt50 RVSP 41K | ip-10-0-50-184 | 260 | ep19/20, val MAE 9.29, Pearson 0.453 |
-| EchoBYOL-L pt50 EchoNet-Dynamic LVEF | ip-10-0-50-83 | 284 | ep4/20, val MAE 7.35, Pearson 0.601 |
+| EchoBYOL-L pt50 EchoNet-Dynamic LVEF | ip-10-0-50-83 | 284 | ep12/20, val MAE 6.28, Pearson 0.720 |
 | EchoJEPA-L pt50 EchoNet-Dynamic LVEF | ip-10-0-50-83 | 282 | just started | ~3h |
 
 ### Priority tiers — remaining experiments
@@ -555,7 +554,7 @@ Configs: `configs/eval/vitl/icml/echo{jepa,byol,mae}_l_pt50_enp_lvef_d4.yaml`. P
 | ~~2a~~ | ~~EchoMAE-L pt50 LVEF~~ | ~~3-way completion~~ | — | **DONE** (job 274: R²=0.325, Pearson=0.584, MAE=6.866) |
 | 2b | ~~Finish JEPA pt50 RVSP 41K~~ | ~~3-way completion~~ | — | **DONE** (20/20, Pearson 0.504) |
 | 2c | BYOL pt50 RVSP 41K (20ep) | 3-way completion | ~10h | Config exists — restart from ep0 |
-| 2d | ~~MAE pt50 RVSP 41K~~ | ~~3-way completion~~ | — | **RUNNING** (HyperPod job 260, ep19/20) |
+| ~~2d~~ | ~~MAE pt50 RVSP 41K~~ | ~~3-way completion~~ | — | **DONE** (job 260: MAE=9.287, R²=0.198, Pearson=0.453) |
 
 Completes the controlled comparison table across all tasks. Without 2a, the 3-way LVEF comparison lacks the MAE pt50 data point (only have ep99 which shows no signal — need pt50 to confirm it's not just overtraining).
 

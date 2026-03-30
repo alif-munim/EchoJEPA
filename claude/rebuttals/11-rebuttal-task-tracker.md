@@ -31,7 +31,7 @@ Without these, the controlled comparison only covers LVEF and CAMUS. RVSP adds t
 | P1.1 | **EchoMAE-L pt50 LVEF probe** | **DONE** (HyperPod job 274) | hfQ1, ncQn | — | — | R²=0.325, Pearson=0.584, MAE=6.866 (ep18). Retrained with z-score normalization after Bug 017c. MAE trails JEPA (0.436) and BYOL (0.421) on R², confirming EMA advantage. |
 | P1.2 | **Resume JEPA pt50 RVSP 41K** (ep18→20) | **DONE** (20/20) | ALL | — | — | **Pearson=0.504** (ep19), R²=0.241 (ep20), Val MAE=9.044 (ep16). Matches pt210-an25. |
 | P1.3 | **BYOL pt50 RVSP 41K** (20ep) | KILLED (ep0) | hfQ1 | ~10h | Config exists | Killed mid-epoch-1, no checkpoint. Full restart needed. |
-| P1.4 | **MAE pt50 RVSP 41K** (20ep) | **IN PROGRESS** (HyperPod job 260, ep19/20) | ALL | ~30min remaining | — | Val MAE 9.29 (ep17), R²=0.198 (ep19), Pearson=0.453 (ep19). Running on node ip-10-0-50-184. |
+| P1.4 | **MAE pt50 RVSP 41K** (20ep) | **DONE** (HyperPod job 260) | ALL | — | — | Val MAE **9.287** (ep17), R²=0.198 (ep19), Pearson=**0.453** (ep20). Trails JEPA (0.504) by 5.1pp Pearson. |
 
 **Why P1:** The rebuttal tex claims "converging evidence across LVEF, CAMUS, and RVSP." Without RVSP results for all 3 models, this is only partially supported.
 
@@ -94,6 +94,7 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 | ✓ | Update icml_rebuttal.tex with results | 3-way numbers, CAMUS, scaling, EMA finding | Mar 29 |
 | ✓ | **EchoMAE-L pt50 LVEF (10K, 20ep)** | **R²=0.325, Pearson=0.584, MAE=6.866** (job 274, retrained) | Mar 29 |
 | ✓ | EchoJEPA-L pt50 RVSP 41K (20ep) | Pearson=0.504, R²=0.241, MAE=9.044 | Mar 29 |
+| ✓ | **EchoMAE-L pt50 RVSP 41K (20ep)** | **Pearson=0.453, R²=0.198, MAE=9.287** (job 260) | Mar 30 |
 
 ---
 

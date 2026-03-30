@@ -96,7 +96,7 @@ S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 | **EchoJEPA-L pt50 (41K)** | `evals/vitl/icml/rvsp/.../icml-echojepa-l-pt50-rvsp-d4-full/best.pt` (EFS) | **DONE — Pearson=0.504, R²=0.241, MAE=9.044** |
 | EchoBYOL-L pt50 (5K) | `evals/vitl/icml/byol_pt50_rvsp/.../icml-echobyol-l-pt50-rvsp-d4/best.pt` (EFS) | — |
 | EchoBYOL-L pt50 (41K) | `evals/vitl/icml/byol_pt50_rvsp_full/.../icml-echobyol-l-pt50-rvsp-d4-full/best.pt` (EFS) | Killed ep1, needs restart |
-| **EchoMAE-L pt50 (41K)** | **S3**: `s3://.../runs/echomae_pt50_rvsp_260/.../icml-echomae-l-pt50-rvsp-d4/best.pt` | **IN PROGRESS** ep19/20, Pearson=0.453 (HyperPod job 260) |
+| **EchoMAE-L pt50 (41K)** | **S3**: `s3://.../runs/echomae_pt50_rvsp_260/.../icml-echomae-l-pt50-rvsp-d4/best.pt` | **DONE — Pearson=0.453, R²=0.198, MAE=9.287** |
 | EchoMAE-L ep99 (5K) | `evals/vitb/icml/echomae_rvsp/.../icml-echomae-l-rvsp-d4/best.pt` (EFS) | — |
 | EchoMAE-L ep163 (41K) | `evals/vitb/icml/echomae_rvsp_ep163/.../icml-echomae-l-rvsp-d4-ep163-full/best.pt` (EFS) | Paused ep2 |
 
