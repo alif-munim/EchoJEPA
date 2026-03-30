@@ -16,11 +16,16 @@ Three experiments for the mechanistic evidence section. CKA and noise probe drop
 | P0.6 | **Functional robustness under noise** | **RUNNING** | ncQn (direct ask) | ~3h | Trained probes | Frozen LVEF probes evaluated on EchoNet-Dynamic test set with USAugment perturbations (depth attenuation, shadow, haze) at 3 severity levels. **THE key experiment** — answers ncQn's ask with downstream task performance, not feature geometry. Running on GPUs 4-6. |
 | P0.9 | **Anatomy vs function dissociation** | **DONE** | ncQn | — | — | MAE best seg (0.822) but worst LVEF (R²=0.28). Already in hand — no new experiment needed. |
 
-**Dropped experiments (results didn't support narrative):**
+**Dropped (results didn't support narrative):**
 - ~~P0.3 CKA~~: pt50 showed MAE most stable, JEPA least stable (opposite of hypothesis). Fully-trained showed the expected pattern. Inconsistency across training durations makes CKA unreliable for the rebuttal.
 - ~~P0.4 Noise probe~~: All models encode perturbation info above chance, no clean separation. USAugment perturbations are deterministic spatial degradation, not stochastic noise — the probe is detecting spatial patterns, not noise.
-- ~~P0.7 Cross-view similarity~~: Deprioritized — not needed given the 6-task comparison table.
-- ~~P0.8 Cardiac phase reconstruction~~: Deprioritized — frame shuffling covers temporal dynamics.
+
+**If time permits (not in LaTeX yet, add only if results are clean):**
+
+| # | Task | Status | Effort | Notes |
+|---|------|--------|--------|-------|
+| P0.7 | **Cross-view representation similarity** | NOT STARTED | ~30min | Cosine similarity between A4C + PSAX-AV features of same study. Tests view-invariant cardiac state encoding. |
+| P0.8 | **Cardiac cycle phase reconstruction** | NOT STARTED | ~15min | Linear classifier on temporal features to predict ED vs ES. Tests structured temporal encoding. |
 
 **Why P0:** The rebuttal's mechanistic evidence is now: (1) functional robustness under noise — JEPA maintains clinical accuracy, (2) downstream frame shuffling — JEPA encodes dynamics, (3) anatomy vs function dissociation — the pretraining objective determines what clinical info is encoded. All three are directly clinically interpretable without requiring representational geometry claims.
 
