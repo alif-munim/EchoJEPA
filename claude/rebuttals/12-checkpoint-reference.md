@@ -85,7 +85,7 @@ S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 | Model | Probe Location | Best Result |
 |-------|---------------|-------------|
 | **EchoJEPA-L pt50** | **S3**: `s3://.../runs/echojepa_pt50_end_lvef_294/.../best.pt` | **DONE (224px) — R²=0.621, Pearson=0.793, MAE=5.506** |
-| **EchoBYOL-L pt50** | Running on A100 (224px) | **IN PROGRESS** ep11/20, R²=0.491, Pearson=0.706 |
+| **EchoBYOL-L pt50** | `evals/vitl/icml/echobyol_pt50_end_lvef_224/.../best.pt` (EFS) | **DONE (224px) — R²=0.528, Pearson=0.729, MAE=6.174** |
 | **EchoMAE-L pt50** | **S3**: `s3://.../runs/echomae_pt50_end_lvef_296/.../best.pt` | **DONE (224px) — R²=0.495, Pearson=0.706, MAE=6.410** |
 
 ### RVSP Probes (Multi-View, d=4 attentive)
@@ -263,9 +263,9 @@ Tracks which probes have been run on held-out test sets, with prediction CSV loc
 |-------|-------|----------------|----------|---------|-------------|--------|
 | EchoJEPA-L (pt210-an25, fine-tuned) | `checkpoints/eval_probes/lvef/echonet-pediatric/echojepa-l.pt` | `predictions/echojepa-l-echonet-pediatric-lvef-test.csv` | 5.122 | 0.568 | 0.763 | DONE (reproduces preprint 5.12) |
 | EchoJEPA-L (pt210-an25, zero-shot) | `checkpoints/eval_probes/lvef/echonet-dynamic/echojepa-l.pt` | `predictions/echojepa-l-echonet-pediatric-lvef-zeroshot.csv` | 7.713 | — | 0.402 | DONE (preprint claims 6.31 — different eval pipeline) |
-| EchoJEPA-L pt50 (224px) | Retraining on A100 | — | — | — | — | **PROBE IN PROGRESS** (ep17/20) |
-| EchoBYOL-L pt50 (224px) | Retraining on A100 | — | — | — | — | **PROBE IN PROGRESS** (ep17/20) |
-| EchoMAE-L pt50 (224px) | Retraining on A100 | — | — | — | — | **PROBE IN PROGRESS** (ep14/20) |
+| EchoJEPA-L pt50 (224px) | `evals/vitl/icml/enp_lvef/.../icml-echojepa-l-pt50-enp-lvef-d4-224px/best.pt` | — | — | — | — | **PROBE DONE** (val MAE 6.093). Test inference pending. |
+| EchoBYOL-L pt50 (224px) | `evals/vitl/icml/enp_lvef/.../icml-echobyol-l-pt50-enp-lvef-d4-224px/best.pt` | — | — | — | — | **PROBE DONE** (val MAE 6.147). Test inference pending. |
+| EchoMAE-L pt50 (224px) | `evals/vitl/icml/enp_lvef/.../icml-echomae-l-pt50-enp-lvef-d4-224px/best.pt` | — | — | — | — | **PROBE DONE** (val MAE 5.985). Test inference pending. |
 
 **⚠️ Invalid 112px runs** (resolution artifact — do not use):
 - `predictions/icml-echojepa-l-pt50-enp-lvef-test.csv` (112px, MAE=6.598)

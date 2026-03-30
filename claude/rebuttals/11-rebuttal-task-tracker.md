@@ -43,8 +43,8 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
-| P2.1 | **Train pt50 EchoNet-Dynamic LVEF probes (224px)** (×3 models) | **2/3 DONE, 1/3 RUNNING** | 6t2T, hfQ1, ncQn | ~1 GPU-h remaining | All 3 configs ready | JEPA **DONE** (R²=0.621, Pearson=0.793, MAE=5.506). MAE **DONE** (R²=0.495, Pearson=0.706, MAE=6.410). BYOL running (A100 ep11, R²=0.491). |
-| P2.2 | **Train pt50 EchoNet-Pediatric LVEF probes (224px)** (×3 models) | **IN PROGRESS** (retraining at 224px) | 6t2T, hfQ1 | ~2h remaining | — | 112px results invalid (resolution artifact). 224px retrain: MAE 6.081, JEPA 6.130, BYOL 6.184 — all converging. Running on A100. |
+| P2.1 | **Train pt50 EchoNet-Dynamic LVEF probes (224px)** (×3 models) | **DONE** (all 3) | 6t2T, hfQ1, ncQn | — | — | JEPA **R²=0.621**, Pearson=0.793, MAE=5.506. BYOL R²=0.528, Pearson=0.729, MAE=6.174. MAE R²=0.495, Pearson=0.706, MAE=6.410. **JEPA >> BYOL > MAE on cross-dataset transfer.** |
+| P2.2 | **Train pt50 EchoNet-Pediatric LVEF probes (224px)** (×3 models) | **DONE** (all 3) | 6t2T, hfQ1 | — | — | MAE **5.985**, JEPA 6.093, BYOL 6.147. All converged (spread 0.16). Test inference pending. |
 | P2.3 | **Generate perturbed EchoNet-Dynamic test videos** | NOT STARTED | ncQn | ~2h | Pipeline exists | 7 perturbation types × 3 levels |
 | P2.4 | **Run perturbation matrix** (fully-trained + pt50) | NOT STARTED | ALL | ~8h | P2.1-P2.3 | Probes for 5 fully-trained models already exist |
 | P2.5 | **Package EchoBench** (scripts + README) | NOT STARTED | 6t2T (novelty) | ~4h writing | P2.4 | Open-source release artifact |

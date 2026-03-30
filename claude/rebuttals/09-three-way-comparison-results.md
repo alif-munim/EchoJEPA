@@ -228,7 +228,7 @@ BYOL (6.297) and JEPA (6.329) are near-identical on LVEF — BYOL is marginally 
 8. **DONE (HyperPod job 260)**: EchoMAE-L pt50 RVSP full (41K/5K) — **MAE=9.287, R²=0.198, Pearson=0.453**
 9. **DONE (HyperPod job 294, 224px)**: EchoJEPA-L pt50 EchoNet-Dynamic LVEF — **R²=0.621, Pearson=0.793, MAE=5.506**
 10. **DONE (HyperPod job 296, 224px)**: EchoMAE-L pt50 EchoNet-Dynamic LVEF — **R²=0.495, Pearson=0.706, MAE=6.410**
-11. **RUNNING (A100, 224px)**: EchoBYOL-L pt50 EchoNet-Dynamic LVEF — ep11/20, R²=0.491, Pearson=0.706
+11. **DONE (A100, 224px)**: EchoBYOL-L pt50 EchoNet-Dynamic LVEF — **R²=0.528, Pearson=0.729, MAE=6.174**
 12. **RUNNING (A100, 224px)**: All 3 pt50 EchoNet-Pediatric LVEF — ep12-14/20, converging (MAE 6.08, JEPA 6.13, BYOL 6.18)
 9. **KILLED**: EchoBYOL-L pt50 RVSP full (41K/5K) — killed ep1, needs restart
 
