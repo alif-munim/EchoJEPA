@@ -43,6 +43,22 @@ def _worker_init_fn(_):
         pass
 
 
+class _PerturbationFn:
+    """Picklable perturbation callable for DataLoader workers."""
+    def __init__(self, ptype, severity, transducer_pos=(0.5, 0.0)):
+        self.ptype = ptype
+        self.severity = severity
+        self.transducer_pos = transducer_pos
+
+    def __call__(self, clip, video_path):
+        import hashlib
+        from scripts.rebuttal.echo_perturbations import apply_perturbation, create_scan_mask
+        seed = int(hashlib.md5(str(video_path).encode()).hexdigest()[:8], 16)
+        mask = create_scan_mask(clip[:, 0, :, :])
+        return apply_perturbation(clip, self.ptype, self.severity, scan_mask=mask,
+                                  seed=seed, transducer_pos=self.transducer_pos)
+
+
 def make_videodataset(
     data_paths,
     batch_size,
@@ -71,6 +87,19 @@ def make_videodataset(
     study_sampling=False,
     class_balance_ratio=None,
 ):
+    # Check for perturbation via environment variables (for noise robustness evaluation).
+    # Set PERTURBATION_TYPE and PERTURBATION_SEVERITY to enable.
+    # Example: PERTURBATION_TYPE=depth_attenuation PERTURBATION_SEVERITY=moderate python -m evals.main ...
+    perturbation_fn = None
+    ptype = os.environ.get("PERTURBATION_TYPE")
+    psev = os.environ.get("PERTURBATION_SEVERITY")
+    if ptype and psev:
+        transducer_pos = tuple(
+            float(x) for x in os.environ.get("TRANSDUCER_POS", "0.5,0.0").split(",")
+        )
+        perturbation_fn = _PerturbationFn(ptype, psev, transducer_pos)
+        logger.info(f"Perturbation enabled: {ptype}/{psev} (transducer_pos={transducer_pos})")
+
     dataset = VideoDataset(
         data_paths=data_paths,
         datasets_weights=datasets_weights,
@@ -86,6 +115,7 @@ def make_videodataset(
         filter_long_videos=filter_long_videos,
         shared_transform=shared_transform,
         transform=transform,
+        perturbation_fn=perturbation_fn,
     )
 
     log_dir = pathlib.Path(log_dir) if log_dir else None
@@ -162,6 +192,7 @@ class VideoDataset(torch.utils.data.Dataset):
         filter_short_videos=False,
         filter_long_videos=int(10**9),
         duration=None,  # duration in seconds
+        perturbation_fn=None,  # Optional: callable(clip_tensor, video_path) -> clip_tensor
     ):
         self.data_paths = data_paths
         self.datasets_weights = datasets_weights
@@ -175,6 +206,7 @@ class VideoDataset(torch.utils.data.Dataset):
         self.filter_long_videos = filter_long_videos
         self.duration = duration
         self.fps = fps
+        self.perturbation_fn = perturbation_fn
 
         # Initialize S3 client lazily per worker (avoid pickling/FD sharing)
         self.s3_client = None
@@ -291,6 +323,27 @@ class VideoDataset(torch.utils.data.Dataset):
         buffer = split_into_clips(buffer)
         if self.transform is not None:
             buffer = [self.transform(clip) for clip in buffer]
+
+        # Apply perturbation if set (for noise robustness evaluation).
+        # Operates on normalized tensors: un-normalize → perturb in [0,1] → re-normalize.
+        # Transform returns list-wrapped tensors: [[tensor], [tensor], ...].
+        if self.perturbation_fn is not None:
+            MEAN = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1, 1)
+            STD = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1, 1)
+            perturbed = []
+            for clip_or_list in buffer:
+                # Unwrap list if transform wrapped it (eval mode returns [tensor])
+                if isinstance(clip_or_list, (list, tuple)):
+                    clip = clip_or_list[0]
+                    pixel = (clip * STD + MEAN).clamp(0, 1)
+                    pixel = self.perturbation_fn(pixel, sample_uri)
+                    perturbed.append([(pixel - MEAN) / STD])
+                else:
+                    clip = clip_or_list
+                    pixel = (clip * STD + MEAN).clamp(0, 1)
+                    pixel = self.perturbation_fn(pixel, sample_uri)
+                    perturbed.append((pixel - MEAN) / STD)
+            buffer = perturbed
 
         return buffer, label, clip_indices, sample_uri
 

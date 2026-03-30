@@ -13,7 +13,7 @@ Three experiments for the mechanistic evidence section. CKA and noise probe drop
 |---|------|--------|----------|--------|-----------|-------|
 | P0.1 | **Downstream frame shuffling** | **RUNNING** | ALL | ~2h | Trained probes | Shuffle frame order, evaluate frozen LVEF probes on shuffled inputs, measure **R² degradation** (not cosine similarity — cosine was too insensitive). JEPA should degrade (encodes temporal dynamics), MAE should be invariant (static appearance). Uses `noised_inference.py` with shuffled test videos. |
 | P0.5 | **Record MAE pt50 CAMUS results** | **DONE** | hfQ1, 6t2T | — | — | Test Dice=0.822, Val Dice=0.834. MAE best on CAMUS despite R²=0.28 on LVEF. |
-| P0.6 | **Functional robustness under noise** | **RUNNING** | ncQn (direct ask) | ~3h | Trained probes | Frozen LVEF probes evaluated on EchoNet-Dynamic test set with USAugment perturbations (depth attenuation, shadow, haze) at 3 severity levels. **THE key experiment** — answers ncQn's ask with downstream task performance, not feature geometry. Running on GPUs 4-6. |
+| P0.6 | **Functional robustness under noise** | **DONE** | ncQn (direct ask) | — | — | JEPA most robust: avg R² drop 19% vs MAE 37%, BYOL 40%. JEPA maintains R²≥0.36 at severe on all 3 perturbation types. Via evals.main with VideoDataset perturbation hook (env vars PERTURBATION_TYPE/SEVERITY). |
 | P0.9 | **Anatomy vs function dissociation** | **DONE** | ncQn | — | — | MAE best seg (0.822) but worst LVEF (R²=0.28). Already in hand — no new experiment needed. |
 
 **Dropped (results didn't support narrative):**

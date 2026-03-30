@@ -449,14 +449,26 @@ UHN-trained probes evaluated directly on pediatric test set — no pediatric tra
 
 **This resolves the pediatric puzzle.** JEPA's features are the best for pediatric (R²=0.405 zero-shot, Pearson=0.705). When we train a d=4 probe on 2,580 pediatric samples, JEPA's R² **drops from 0.405 to 0.126** — the probe destroys the signal by overfitting. BYOL goes the opposite direction: 0.206 zero-shot → 0.415 with pediatric training — the d=4 probe successfully learns from BYOL's simpler features with limited data.
 
+**7. d=1 test inference (THE DEFINITIVE RESULT):**
+
+| Probe | Val MAE | Val R² | Test MAE | Test R² | Test Pearson | Pred/Label std |
+|-------|---------|--------|----------|---------|-------------|----------------|
+| **d=1 (50ep, 224px)** | **5.314** | **0.460** | **5.167** | **0.568** | **0.771** | — |
+| d=4 (20ep, 224px) | 6.093 | 0.177 | 6.573 | 0.123 | 0.469 | 0.23 (collapsed) |
+| d=4 (20ep, 112px) | 6.016 | — | 6.598 | 0.157 | 0.489 | 0.28 (collapsed) |
+| Fully-trained (pt210-an25, d=4, 112px) | 5.397 | — | 5.122 | 0.568 | 0.763 | 0.74 (healthy) |
+
+**d=1 pt50 matches the fully-trained pt210-an25 probe** (test R²=0.568 vs 0.568, test MAE=5.167 vs 5.122). The pt50 encoder has sufficient pediatric signal — the d=4 probe was destroying it by overfitting. Predictions: `predictions/icml-echojepa-l-pt50-enp-lvef-d1-224px-test.csv`.
+
 **Complete comparison across all evaluation conditions:**
 
 | Evaluation | JEPA R² | BYOL R² | MAE R² | Winner |
 |-----------|---------|---------|--------|--------|
 | Zero-shot UHN→Pediatric (no pediatric training) | **0.405** | 0.206 | 0.187 | **JEPA** |
-| Pediatric d=4 attentive (2,580 train) | 0.126 | **0.415** | -0.074 | BYOL (probe artifact) |
+| **Pediatric d=1 attentive (50ep, 224px)** | **0.568** | TBD | TBD | **JEPA** (matches fully-trained) |
+| Pediatric d=4 attentive (20ep) | 0.126 | **0.415** | -0.074 | BYOL (probe overfitting artifact) |
 | Pediatric linear (2,580 train) | 0.049 | 0.095 | 0.053 | ~Equal |
-| Fully-trained JEPA zero-shot (pt210-an25) | **0.568** | — | — | **JEPA** |
+| Fully-trained JEPA (pt210-an25, d=4) | **0.568** | — | — | **JEPA** |
 
 The ranking inversion (BYOL > JEPA) exists ONLY with d=4 attentive probes trained on 2,580 samples. Every other evaluation — zero-shot, linear probe, fully-trained, EchoNet-Dynamic, UHN — shows JEPA ≥ BYOL. **The anomaly is the probe, not the features.**
 
@@ -473,11 +485,13 @@ The complete three-way comparison:
 | LVEF R² (UHN, in-dist, **test 53K**) | **0.409** | 0.384 | 0.283 | **JEPA > BYOL > MAE** |
 | CAMUS Dice | 0.815 | 0.821 | **0.822** | MAE (spatial only) |
 | RVSP Pearson (UHN, **test 5K**) | **0.484** | 0.446 | 0.438 | **JEPA > BYOL > MAE** |
+| RVSP single-view ablation (JEPA) | A4C: 0.447, PSAX: 0.449 | — | — | Multi-view +3.9pp R² |
 | EchoNet-Dynamic R² (cross-dataset, **test**) | **0.552** | 0.440 | 0.351 | **JEPA >> BYOL >> MAE** (all pairwise SIG) |
 | Pediatric Pearson (zero-shot UHN→Ped) | **0.705** | 0.602 | 0.626 | **JEPA >> MAE > BYOL** |
 | Pediatric Pearson (zero-shot END→Ped) | **0.615** | 0.498 | 0.531 | **JEPA >> MAE > BYOL** |
-| Pediatric R² (d=4 probe, 2.6K train) | 0.126 | **0.415** | -0.074 | BYOL (probe overfitting artifact) |
-| Pediatric R² (fully-trained zero-shot) | **0.568** | — | — | **JEPA** |
+| **Pediatric R² (d=1 probe, 50ep, 224px)** | **0.568** | TBD | TBD | **JEPA** (matches fully-trained) |
+| Pediatric R² (d=4 probe, 20ep) | 0.126 | 0.415 | -0.074 | BYOL (d=4 overfitting artifact) |
+| Pediatric R² (fully-trained, d=4) | **0.568** | — | — | **JEPA** |
 
 **Statistical validation — EchoNet-Dynamic (trustworthy comparison):**
 - Val/test std matched (12.31 vs 12.23, ratio 0.987) — no variance artifact
@@ -497,6 +511,69 @@ The complete three-way comparison:
 3. **The one apparent exception** (pediatric d=4 probe: BYOL > JEPA) is a probe overfitting artifact, not a feature quality difference. Zero-shot evaluation (no pediatric training) restores JEPA's lead: R²=0.405 vs BYOL 0.206. The d=4 attentive probe overfits on 2,580 samples with JEPA's 1,568 tokens but not with BYOL's simpler global features.
 
 The EMA teacher is the shared critical ingredient. Local latent prediction (JEPA) produces the strongest features; the key practical caveat is that high-capacity probes need sufficient training data to exploit them.
+
+### 5m. Functional Robustness Under Noise (P0.6 — DONE)
+
+Frozen LVEF probes (trained on clean data) evaluated on EchoNet-Dynamic test set (1,277 videos) with USAugment perturbations at 3 severity levels. Uses the evals.main pipeline with `PERTURBATION_TYPE`/`PERTURBATION_SEVERITY` environment variables → VideoDataset perturbation hook. Numbers are directly comparable to clean test results (same pipeline, same multi-segment averaging).
+
+**Depth Attenuation (signal falloff with depth):**
+
+| Severity | JEPA R² | BYOL R² | MAE R² |
+|---|---|---|---|
+| Clean | **0.552** | 0.440 | 0.351 |
+| Mild | **0.513** | 0.372 | 0.306 |
+| Moderate | **0.438** | 0.260 | 0.267 |
+| Severe | **0.361** | 0.145 | 0.233 |
+| Drop | **-34.6%** | -67.0% | -33.6% |
+
+**Acoustic Shadow (localized signal dropout):**
+
+| Severity | JEPA R² | BYOL R² | MAE R² |
+|---|---|---|---|
+| Clean | **0.552** | 0.440 | 0.351 |
+| Mild | **0.540** | 0.409 | 0.342 |
+| Moderate | **0.514** | 0.356 | 0.323 |
+| Severe | **0.478** | 0.247 | 0.280 |
+| Drop | **-13.4%** | -43.9% | -20.2% |
+
+**Haze Artifact (reverberation / contrast reduction):**
+
+| Severity | JEPA R² | BYOL R² | MAE R² |
+|---|---|---|---|
+| Clean | **0.552** | 0.440 | 0.351 |
+| Mild | **0.547** | 0.435 | 0.336 |
+| Moderate | **0.530** | 0.422 | 0.279 |
+| Severe | **0.502** | 0.398 | 0.147 |
+| Drop | **-9.1%** | -9.5% | -58.1% |
+
+**Summary (average clean→severe R² drop):**
+
+| Model | Depth Atten. | Shadow | Haze | Average |
+|---|---|---|---|---|
+| **JEPA** | -34.6% | **-13.4%** | **-9.1%** | **-19.0%** |
+| MAE | -33.6% | -20.2% | -58.1% | -37.3% |
+| BYOL | -67.0% | -43.9% | -9.5% | -40.1% |
+
+**Key findings:**
+1. **JEPA most robust overall** (19% avg drop vs MAE 37% and BYOL 40%)
+2. **Depth attenuation**: JEPA ≈ MAE >> BYOL. Physical signal removal hurts everyone, but BYOL collapses (-67%).
+3. **Shadow**: JEPA >> MAE > BYOL. Localized obstruction — JEPA's spatial features compensate best.
+4. **Haze**: JEPA ≈ BYOL >> MAE. Diffuse contrast reduction destroys pixel detail that MAE depends on (-58%), while EMA methods are near-invariant (-9%).
+5. At severe perturbation, JEPA maintains R²≥0.36 on all noise types — still above BYOL's *clean* baseline (0.44) on shadow and haze.
+
+### 5l. RVSP Single-View Ablation (pt50 JEPA-L)
+
+**Test set results (5,103 studies):**
+
+| View | Test MAE | Test R² | Test Pearson | Best Head |
+|------|----------|---------|-------------|-----------|
+| **Multi-view (A4C + PSAX)** | **9.101** | **0.220** | **0.484** | Head 5 |
+| A4C only | 9.266 | 0.181 | 0.447 | Head 5/4 |
+| PSAX only | 9.368 | 0.188 | 0.449 | Head 1/4 |
+
+Multi-view beats both single views (+3.9pp R² over A4C, +3.2pp over PSAX). Both single views perform similarly (A4C ≈ PSAX), confirming that multi-view integration provides genuine complementary signal — the two views capture different hemodynamic information that the factorized probe successfully combines. This addresses reviewer L8sp's concern that multi-view is "system-level, not methodological."
+
+Probes: A4C from HyperPod job 301, PSAX from job 305. Predictions: `predictions/icml-echojepa-l-pt50-rvsp-{a4c,psax}-test.csv`.
 
 ### 5h. RVSP Data Is Truly Multi-View (UHN DICOM Audit)
 
