@@ -85,8 +85,8 @@ S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 | Model | Probe Location | Best Result |
 |-------|---------------|-------------|
 | **EchoJEPA-L pt50** | **S3**: `s3://.../runs/echojepa_pt50_end_lvef_294/.../best.pt` | **DONE (224px) — R²=0.621, Pearson=0.793, MAE=5.506** |
-| **EchoBYOL-L pt50** | Running on A100 (224px) | **IN PROGRESS** ep4/20 |
-| **EchoMAE-L pt50** | **S3**: `s3://.../runs/echomae_pt50_end_lvef_296/.../best.pt` | **IN PROGRESS (224px)** job 296 ep14/20, MAE=6.811 |
+| **EchoBYOL-L pt50** | Running on A100 (224px) | **IN PROGRESS** ep11/20, R²=0.491, Pearson=0.706 |
+| **EchoMAE-L pt50** | **S3**: `s3://.../runs/echomae_pt50_end_lvef_296/.../best.pt` | **DONE (224px) — R²=0.495, Pearson=0.706, MAE=6.410** |
 
 ### RVSP Probes (Multi-View, d=4 attentive)
 
@@ -254,8 +254,8 @@ Tracks which probes have been run on held-out test sets, with prediction CSV loc
 | Model | Probe | Predictions CSV | Test R² | Test Pearson | Status |
 |-------|-------|----------------|---------|-------------|--------|
 | EchoJEPA-L pt50 (224px) | S3: `.../echojepa_pt50_end_lvef_294/.../best.pt` | — | — | — | **NOT RUN** (probe done) |
-| EchoMAE-L pt50 (224px) | S3: `.../echomae_pt50_end_lvef_296/.../best.pt` | — | — | — | **PROBE IN PROGRESS** (ep14/20) |
-| EchoBYOL-L pt50 (224px) | Running on A100 | — | — | — | **PROBE IN PROGRESS** (ep4/20) |
+| EchoMAE-L pt50 (224px) | S3: `.../echomae_pt50_end_lvef_296/.../best.pt` | — | — | — | **NOT RUN** (probe done) |
+| EchoBYOL-L pt50 (224px) | Running on A100 | — | — | — | **PROBE IN PROGRESS** (ep11/20) |
 
 ### EchoNet-Pediatric LVEF Test (368 videos)
 

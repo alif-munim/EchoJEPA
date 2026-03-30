@@ -287,8 +287,7 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 
 | Experiment | Node | Job/PID | Epoch | ETA |
 |-----------|------|---------|-------|-----|
-| EchoMAE-L pt50 EchoNet-Dynamic LVEF (224px) | HyperPod ip-10-0-50-184 | Job 296 | 14/20 | ~1.5h |
-| EchoBYOL-L pt50 EchoNet-Dynamic LVEF (224px) | A100 (separate) | — | 4/20 | ~3h |
+| EchoBYOL-L pt50 EchoNet-Dynamic LVEF (224px) | A100 | — | 11/20, R²=0.491, Pearson=0.706 | ~1h |
 | All 3 pt50 EchoNet-Pediatric LVEF (224px) | Local A100 (GPUs 0-5) | — | ep14-17/20 | ~1h |
 | CAMUS G (384px) + fix_orientation | Local A100 (GPU 6) | — | ep20/50 | ~2h |
 | CAMUS L pt50 (224px) + fix_orientation | Local A100 (GPU 7) | — | ep27/50 | ~1h |
@@ -319,6 +318,7 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 | **EchoJEPA-L pt50 RVSP 41K (20ep)** | **Val MAE=9.044 (ep16), Pearson=0.504 (ep19), R²=0.241 (ep20)** | 2026-03-30 |
 | **EchoMAE-L pt50 RVSP 41K (20ep)** | **Val MAE=9.287 (ep17), R²=0.198 (ep19), Pearson=0.453 (ep20)** (HyperPod job 260) | 2026-03-30 |
 | **EchoJEPA-L pt50 EchoNet-Dynamic LVEF (224px, 20ep)** | **R²=0.621, Pearson=0.793, MAE=5.506** (HyperPod job 294) | 2026-03-30 |
+| **EchoMAE-L pt50 EchoNet-Dynamic LVEF (224px, 20ep)** | **R²=0.495, Pearson=0.706, MAE=6.410** (HyperPod job 296) | 2026-03-30 |
 | **EchoJEPA-L pt50 RVSP test (5.1K studies)** | **Test MAE=9.101, R²=0.220, Pearson=0.484 (head 5)** | 2026-03-30 |
 
 ### Paused
@@ -400,7 +400,7 @@ The complete three-way comparison:
 | LVEF Pearson (UHN, in-dist) | 0.625 | 0.634 | 0.584 | JEPA ≈ BYOL (p=0.11, NS) |
 | CAMUS Dice | 0.815 | 0.821 | **0.822** | MAE (spatial only) |
 | RVSP Pearson (UHN, in-dist) | **0.484** (test) | TBD | 0.453 (ep20, val) | JEPA |
-| EchoNet-Dynamic R² (cross-dataset) | **0.621** | TBD | TBD | JEPA (so far) |
+| EchoNet-Dynamic R² (cross-dataset) | **0.621** | TBD (ep11: 0.491) | 0.495 | JEPA > MAE ≈ BYOL |
 | Pediatric MAE (cross-pop, 224px) | 6.130 | 6.184 | **6.081** | ≈ converging (in progress) |
 
 **Two-level hierarchy of SSL objectives for echocardiography:**
@@ -469,8 +469,8 @@ All three converging at 224px — the 112px BYOL advantage was a resolution arti
 | Model | Best Val MAE | R² | Pearson | Status |
 |-------|-------------|-----|---------|--------|
 | **EchoJEPA-L pt50** | **5.506** (ep18) | **0.621** | **0.793** | DONE (job 294, 224px) |
-| EchoMAE-L pt50 | 6.811 (ep14) | 0.452 | 0.674 | IN PROGRESS (job 296, 224px) |
-| EchoBYOL-L pt50 | 7.979 (ep4) | — | — | IN PROGRESS (A100, 224px) |
+| EchoMAE-L pt50 | **6.410** (ep18) | **0.495** | **0.706** | DONE (job 296, 224px) |
+| EchoBYOL-L pt50 | 6.529 (ep11) | 0.491 | 0.706 | IN PROGRESS (A100, 224px, ep11/20) |
 
 Then inference on clean + perturbed test sets is fast.
 
@@ -522,8 +522,7 @@ Then inference on clean + perturbed test sets is fast.
 
 | Experiment | Node | Job/PID | Progress |
 |-----------|------|---------|----------|
-| EchoMAE-L pt50 EchoNet-Dynamic LVEF (224px) | ip-10-0-50-184 | 296 | ep14/20, MAE 6.81, R²=0.452 |
-| EchoBYOL-L pt50 EchoNet-Dynamic LVEF (224px) | A100 | — | ep4/20 |
+| EchoBYOL-L pt50 EchoNet-Dynamic LVEF (224px) | A100 | — | ep11/20, R²=0.491, Pearson=0.706 |
 | EchoNet-Pediatric LVEF × 3 (224px) | A100 | — | ep12-14/20, all within 0.1 MAE |
 
 ### Priority tiers — remaining experiments
