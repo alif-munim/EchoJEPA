@@ -462,9 +462,10 @@ The complete three-way comparison:
 |------|------|------|-----|--------|
 | LVEF R² (UHN, in-dist, **test 53K**) | **0.409** | 0.384 | 0.283 | **JEPA > BYOL > MAE** |
 | CAMUS Dice | 0.815 | 0.821 | **0.822** | MAE (spatial only) |
-| RVSP Pearson (UHN, in-dist) | **0.484** (test) | TBD | 0.453 (ep20, val) | JEPA |
+| RVSP Pearson (UHN, **test 5K**) | **0.484** | 0.446 | 0.438 | **JEPA > BYOL > MAE** |
 | EchoNet-Dynamic R² (cross-dataset, **test**) | **0.552** | 0.440 | 0.351 | **JEPA >> BYOL >> MAE** (all pairwise SIG) |
-| Pediatric R² (zero-shot UHN→Ped) | **0.405** | 0.206 | 0.187 | **JEPA >> BYOL ≈ MAE** |
+| Pediatric Pearson (zero-shot UHN→Ped) | **0.705** | 0.602 | 0.626 | **JEPA >> MAE > BYOL** |
+| Pediatric Pearson (zero-shot END→Ped) | **0.615** | 0.498 | 0.531 | **JEPA >> MAE > BYOL** |
 | Pediatric R² (d=4 probe, 2.6K train) | 0.126 | **0.415** | -0.074 | BYOL (probe overfitting artifact) |
 | Pediatric R² (fully-trained zero-shot) | **0.568** | — | — | **JEPA** |
 
