@@ -80,6 +80,17 @@ S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 | EchoMAE-L ep99 | `evals/vitb/icml/echomae_lvef/.../icml-echomae-l-lvef-d4/best.pt` (EFS) | R²≈0 (no signal) |
 | EchoJEPA-B | `evals/vitb/icml/lvef/.../icml-echojepa-b-lvef-d4/best.pt` (EFS) | R²=0.650 |
 
+### LVEF Probes — UHN Biplane (Multi-View A4C+A2C, d=4 attentive)
+
+| Model | Probe Location (S3) | Best Result |
+|-------|---------------------|-------------|
+| **EchoJEPA-L pt50** | `s3://.../runs/echojepa_pt50_biplane_lvef_310/.../best.pt` | **IN PROGRESS** (HyperPod job 310) |
+| **EchoBYOL-L pt50** | `s3://.../runs/echobyol_pt50_biplane_lvef_311/.../best.pt` | **IN PROGRESS** (HyperPod job 311) |
+
+Data: 9,990 train / 1,000 val (biplane A4C+A2C, matched to rebuttal subset). Configs: `configs/eval/vitl/icml/echo{jepa,byol}_l_pt50_biplane_lvef_d4.yaml`. Sbatch: `scripts/echo{jepa,byol}_pt50_biplane_lvef_probe.sbatch`.
+
+Single-view comparison: JEPA R²=0.436, BYOL R²=0.421 (same data, A4C only).
+
 ### LVEF Probes — EchoNet-Dynamic (pt50, d=4 attentive)
 
 | Model | Probe Location | Best Result |
@@ -99,6 +110,19 @@ S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 | **EchoMAE-L pt50 (41K)** | **S3**: `s3://.../runs/echomae_pt50_rvsp_260/.../icml-echomae-l-pt50-rvsp-d4/best.pt` | **DONE — Pearson=0.453, R²=0.198, MAE=9.287** |
 | EchoMAE-L ep99 (5K) | `evals/vitb/icml/echomae_rvsp/.../icml-echomae-l-rvsp-d4/best.pt` (EFS) | — |
 | EchoMAE-L ep163 (41K) | `evals/vitb/icml/echomae_rvsp_ep163/.../icml-echomae-l-rvsp-d4-ep163-full/best.pt` (EFS) | Paused ep2 |
+
+### RVSP Probes — Single-View Ablation (d=4 attentive, 41K train / 5K val)
+
+| Model | View | Probe Location (S3) | Best Val Pearson | Best Val R² | Best Val MAE |
+|-------|------|---------------------|-----------------|-------------|-------------|
+| EchoJEPA-L pt50 | A4C | `s3://.../runs/echojepa_pt50_rvsp_a4c_301/.../icml-echojepa-l-pt50-rvsp-a4c-d4/best.pt` | **0.492** (ep18) | 0.224 (ep17) | 9.173 (ep15) |
+| EchoJEPA-L pt50 | PSAX-AV | `s3://.../runs/echojepa_pt50_rvsp_psax_305/.../icml-echojepa-l-pt50-rvsp-psax-d4/best.pt` | **0.478** (ep16) | 0.212 (ep15) | 9.198 (ep17) |
+
+**Multi-view comparison (same encoder):** Pearson=0.504, R²=0.241, MAE=9.044. Multi-view advantage: +1.2pp Pearson, +1.7pp R² over A4C single-view.
+
+Configs: `configs/eval/vitl/icml/echojepa_l_pt50_rvsp_{a4c,psax}_d4.yaml`. Sbatch: `scripts/echojepa_pt50_rvsp_{a4c,psax}_probe.sbatch`.
+
+**Test inference pending** — need to build `rvsp_test_a4c.csv` / `rvsp_test_psax.csv` from `rvsp_multiview_test.csv`.
 
 ### RVSP Probes (Prior / Fully-Trained Encoders)
 
@@ -250,6 +274,13 @@ Tracks which probes have been run on held-out test sets, with prediction CSV loc
 | EchoMAE-L pt50 | S3: `.../echomae_pt50_rvsp_260/.../best.pt` | — | — | — | — | **NOT RUN** (probe done, needs inference config) |
 | EchoBYOL-L pt50 | — | — | — | — | — | **BLOCKED** (no probe — BYOL RVSP killed ep1) |
 
+### UHN RVSP Single-View Test (pending — test CSVs need building)
+
+| Model | View | Probe (S3) | Test CSV | Status |
+|-------|------|-----------|----------|--------|
+| EchoJEPA-L pt50 | A4C | `.../echojepa_pt50_rvsp_a4c_301/.../best.pt` | `rvsp_test_a4c.csv` (NOT BUILT) | **BLOCKED** (need test CSV) |
+| EchoJEPA-L pt50 | PSAX-AV | `.../echojepa_pt50_rvsp_psax_305/.../best.pt` | `rvsp_test_psax.csv` (NOT BUILT) | **BLOCKED** (need test CSV) |
+
 ### EchoNet-Dynamic LVEF Test (1,277 videos)
 
 | Model | Probe | Predictions CSV | Test R² | Test Pearson | Status |
@@ -294,6 +325,10 @@ All rebuttal configs in `configs/eval/vit{b,l}/icml/`. See `10-rebuttal-experime
 | BYOL pt50 RVSP (41K) | `configs/eval/vitl/icml/echobyol_l_pt50_rvsp_d4_full.yaml` |
 | MAE pt50 RVSP (41K) | `configs/eval/vitl/icml/echomae_l_pt50_rvsp_d4_full.yaml` |
 | **JEPA pt50 RVSP test inference** | `configs/inference/vitl/icml/echojepa_l_pt50_rvsp_test.yaml` |
+| JEPA pt50 RVSP A4C (single-view) | `configs/eval/vitl/icml/echojepa_l_pt50_rvsp_a4c_d4.yaml` |
+| JEPA pt50 RVSP PSAX (single-view) | `configs/eval/vitl/icml/echojepa_l_pt50_rvsp_psax_d4.yaml` |
+| JEPA pt50 Biplane LVEF (A4C+A2C) | `configs/eval/vitl/icml/echojepa_l_pt50_biplane_lvef_d4.yaml` |
+| BYOL pt50 Biplane LVEF (A4C+A2C) | `configs/eval/vitl/icml/echobyol_l_pt50_biplane_lvef_d4.yaml` |
 
 ### Key Configs (EchoBench — EchoNet-Dynamic/Pediatric)
 
