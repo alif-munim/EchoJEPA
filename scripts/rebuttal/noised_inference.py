@@ -187,9 +187,14 @@ def load_probe(probe_checkpoint, task_type, embed_dim, device):
     linear_key = "regressor.weight" if task_type == "regression" else "linear.weight"
     num_outputs = state_dict[linear_key].shape[0]
 
-    # Count depth (number of self-attention blocks)
-    sa_keys = [k for k in state_dict if "self_attention_blocks" in k and "norm1.weight" in k]
-    depth = len(sa_keys) + 1  # +1 for the cross-attention block
+    # Count depth (number of self-attention blocks + 1 cross-attention block)
+    # Self-attention blocks are pooler.blocks.0, pooler.blocks.1, etc.
+    sa_block_indices = set()
+    for k in state_dict:
+        if k.startswith("pooler.blocks."):
+            idx = int(k.split(".")[2])
+            sa_block_indices.add(idx)
+    depth = len(sa_block_indices) + 1  # +1 for the cross-attention block
 
     # Infer num_heads from cross-attention q weight
     q_weight = state_dict["pooler.cross_attention_block.xattn.q.weight"]
@@ -300,7 +305,7 @@ def compute_metrics(preds, labels, task_type, target_mean=None, target_std=None)
         r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
         mae = np.mean(np.abs(residuals))
         r, _ = pearsonr(labels, preds.squeeze()) if len(labels) > 2 else (0.0, 1.0)
-        return {"R²": r2, "MAE": mae, "Pearson": r}
+        return {"R2": r2, "MAE": mae, "Pearson": r}
     else:
         from sklearn.metrics import accuracy_score, roc_auc_score
         if preds.ndim == 1:
@@ -438,7 +443,7 @@ def main():
     print(f"{'=' * 80}")
 
     if args.task_type == "regression":
-        metric_keys = ["R²", "MAE", "Pearson"]
+        metric_keys = ["R2", "MAE", "Pearson"]
     else:
         metric_keys = ["Accuracy", "AUROC"]
 
@@ -454,7 +459,7 @@ def main():
     # Degradation summary (clean vs worst severity per type)
     if "clean" in results:
         clean_metrics = results["clean"]
-        primary_key = "R²" if args.task_type == "regression" else "AUROC"
+        primary_key = "R2" if args.task_type == "regression" else "AUROC"
         clean_val = clean_metrics[primary_key]
         worst_sev = severities[-1]  # last = most severe
 
