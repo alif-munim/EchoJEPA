@@ -24,28 +24,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 
 import src.models.vision_transformer as vit
-
-# Model configs (same as cka_speckle.py)
-MODELS = {
-    "EchoJEPA-G": {
-        "checkpoint": "checkpoints/anneal/keep/pt-280-an81.pt",
-        "model_name": "vit_giant_xformers",
-        "checkpoint_key": "target_encoder",
-        "kwargs": {"uniform_power": True, "use_rope": True},
-    },
-    "EchoJEPA-L": {
-        "checkpoint": "checkpoints/anneal/keep/vitl-pt-210-an25.pt",
-        "model_name": "vit_large",
-        "checkpoint_key": "target_encoder",
-        "kwargs": {"uniform_power": True, "use_rope": True},
-    },
-    "EchoMAE-L": {
-        "checkpoint": "checkpoints/videomae-ep163.pth",
-        "model_name": None,
-        "checkpoint_key": None,
-        "kwargs": {},
-    },
-}
+from scripts.rebuttal.model_registry import get_models, add_model_args
 
 
 def load_vjepa_encoder(cfg, device, resolution=224, frames=16):
@@ -106,6 +85,7 @@ def main():
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--test_frac", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=42)
+    add_model_args(parser)
     args = parser.parse_args()
 
     device = torch.device(args.device)
@@ -130,12 +110,13 @@ def main():
     # results[model][ptype] = {"train_acc": ..., "test_acc": ...}
     results = {}
 
-    for model_name, cfg in MODELS.items():
+    models = get_models(args.models)
+    for model_name, cfg in models.items():
         print(f"\n{'=' * 60}")
         print(f"Model: {model_name}")
         print(f"{'=' * 60}")
 
-        is_videomae = model_name == "EchoMAE-L"
+        is_videomae = cfg.get("type") == "videomae"
         if is_videomae:
             model = load_videomae_encoder(cfg, device)
         else:

@@ -21,28 +21,7 @@ import argparse
 import torch
 
 import src.models.vision_transformer as vit
-
-# Model configs
-MODELS = {
-    "EchoJEPA-G": {
-        "checkpoint": "checkpoints/anneal/keep/pt-280-an81.pt",
-        "model_name": "vit_giant_xformers",
-        "checkpoint_key": "target_encoder",
-        "kwargs": {"uniform_power": True, "use_rope": True},
-    },
-    "EchoJEPA-L": {
-        "checkpoint": "checkpoints/anneal/keep/vitl-pt-210-an25.pt",
-        "model_name": "vit_large",
-        "checkpoint_key": "target_encoder",
-        "kwargs": {"uniform_power": True, "use_rope": True},
-    },
-    "EchoMAE-L": {
-        "checkpoint": "checkpoints/videomae-ep163.pth",
-        "model_name": None,
-        "checkpoint_key": None,
-        "kwargs": {},
-    },
-}
+from scripts.rebuttal.model_registry import get_models, add_model_args
 
 
 def linear_cka(X, Y):
@@ -116,6 +95,7 @@ def main():
     parser.add_argument("--cache", required=True, help="Path to perturbed_cache.pt")
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--batch_size", type=int, default=4)
+    add_model_args(parser)
     args = parser.parse_args()
 
     device = torch.device(args.device)
@@ -132,12 +112,13 @@ def main():
     # results[model][ptype][severity] = cka_value
     results = {}
 
-    for model_name, cfg in MODELS.items():
+    models = get_models(args.models)
+    for model_name, cfg in models.items():
         print(f"\n{'=' * 60}")
         print(f"Model: {model_name}")
         print(f"{'=' * 60}")
 
-        is_videomae = model_name == "EchoMAE-L"
+        is_videomae = cfg.get("type") == "videomae"
         if is_videomae:
             model = load_videomae_encoder(cfg, device)
         else:

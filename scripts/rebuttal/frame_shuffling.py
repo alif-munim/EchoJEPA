@@ -27,30 +27,9 @@ import torch.nn.functional as F
 import torchvision.transforms.functional as TF
 
 import src.models.vision_transformer as vit
+from scripts.rebuttal.model_registry import get_models, add_model_args
 
 decord.bridge.set_bridge("torch")
-
-# Model configs: (checkpoint, model_name, checkpoint_key, extra_kwargs)
-MODELS = {
-    "EchoJEPA-G": {
-        "checkpoint": "checkpoints/anneal/keep/pt-280-an81.pt",
-        "model_name": "vit_giant_xformers",
-        "checkpoint_key": "target_encoder",
-        "kwargs": {"uniform_power": True, "use_rope": True},
-    },
-    "EchoJEPA-L": {
-        "checkpoint": "checkpoints/anneal/keep/vitl-pt-210-an25.pt",
-        "model_name": "vit_large",
-        "checkpoint_key": "target_encoder",
-        "kwargs": {"uniform_power": True, "use_rope": True},
-    },
-    "EchoMAE-L": {
-        "checkpoint": "checkpoints/videomae-ep163.pth",
-        "model_name": None,  # VideoMAE uses timm model
-        "checkpoint_key": None,
-        "kwargs": {},
-    },
-}
 
 
 def load_clip_frames(video_path, frames=16, frame_step=2, resolution=224):
@@ -142,6 +121,7 @@ def main():
     parser.add_argument("--frame_step", type=int, default=2)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n_shuffle_seeds", type=int, default=3)
+    add_model_args(parser)
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -173,13 +153,14 @@ def main():
     print(f"Loaded {len(valid_paths)} videos successfully")
 
     # Process each model
+    models = get_models(args.models)
     results = {}
-    for model_name, cfg in MODELS.items():
+    for model_name, cfg in models.items():
         print(f"\n{'='*60}")
         print(f"Model: {model_name}")
         print(f"{'='*60}")
 
-        is_videomae = model_name == "EchoMAE-L"
+        is_videomae = cfg.get("type") == "videomae"
         if is_videomae:
             model = load_videomae_encoder(cfg, device, args.resolution, args.frames)
         else:
