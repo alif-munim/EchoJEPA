@@ -155,11 +155,12 @@ All in `results/segmentation/<model>/<lr_wd>/best_decoder.pt` with `grid_summary
 **⚠️ CAMUS Orientation Issue:** CAMUS A4C images have a ~45° clockwise-rotated sector scan (apex top-left, LV center-left, LA right). This differs from standard North American (UHN) A4C convention (sector pointing downward, apex top-center). The issue is a rotation, not just a horizontal flip. The frozen encoder (pretrained on UHN) has RoPE positional embeddings that encode absolute spatial position — rotated inputs produce different representations. Impact:
 - **G (384px)** most affected: higher spatial precision = more sensitive to orientation. Also has resolution mismatch (384px pretrain → 224px eval).
 - **L (224px)** partially compensated: random horizontal flip during probe training helps the decoder learn some spatial invariance, and lower spatial precision reduces sensitivity.
-- **Fix**: `--fix_orientation` flag in `evals/segmentation_frozen/eval.py` applies `rot270 + flipH`. Already implemented in `camus_dataset.py` line 124.
-- **Retraining**: G (384px) → `results/segmentation/echojepa_g_384_fixed_orient/`. L pt50 (224px) → `results/segmentation/echojepa_l_pt50_fixed_orient/`. Both in progress.
-- **Visual reference**: `scripts/rebuttal/samples/camus_orientation_fix_comparison.png` (left=original, right=fixed).
+- **Fix attempted**: `--fix_orientation` flag (rot270 + flipH). Results: **G worsened** (0.729→0.606), L pt50 marginal improvement (0.815→0.826). The fix is WRONG for G — the G model learned orientation-invariant features from 18M diverse echos. Do not apply for G.
+- **Output dirs**: G → `results/segmentation/echojepa_g_384_fixed_orient/` (test Dice 0.606, DO NOT USE). L pt50 → `results/segmentation/echojepa_l_pt50_fixed_orient/` (test Dice 0.826, marginal improvement).
+- **Conclusion**: G < L gap is primarily resolution mismatch (384px→224px), not orientation.
+- **Visual reference**: `scripts/rebuttal/samples/camus_orientation_fix_comparison.png`.
 
-**⚠️ Resolution Confound (general):** Comparing results across datasets at different resolutions is invalid. UHN probes train at 224px (1568 tokens); EchoNet-Pediatric native is 112px (392 tokens). All cross-dataset comparisons must use matched resolution. See §5k in doc 10 for the pediatric resolution confound and retraining at 224px.
+**⚠️ Resolution Note (EchoNet-Pediatric):** EchoNet-Pediatric is natively 112px. We tested both 112px and 224px probes — results are nearly identical (JEPA R²=0.157 at 112px vs 0.123 at 224px). Resolution is NOT the issue for the pediatric pt50 results. The fully-trained JEPA (pt210-an25) gets R²=0.568 at 112px on the same test set, confirming the pt50 encoder simply needs more pretraining for pediatric transfer. UHN probes train at 224px; EchoNet-Dynamic probes at 224px (upscaled from native 112px, works fine with 7.5K training data).
 
 ---
 
@@ -239,7 +240,7 @@ Tracks which probes have been run on held-out test sets, with prediction CSV loc
 |-------|-------|-----------------|----------------|---------|-------------|--------|
 | EchoJEPA-L pt50 | EFS: `.../icml-echojepa-l-pt50-lvef-d4/best.pt` | `configs/inference/vitl/icml/echojepa_l_pt50_lvef_test.yaml` | `predictions/icml/echojepa_l_pt50_lvef_test.csv` | 0.409 | 0.650 | DONE |
 | EchoBYOL-L pt50 | EFS: `.../icml-echobyol-l-pt50-lvef-d4/best.pt` | `configs/inference/vitl/icml/echobyol_l_pt50_lvef_test.yaml` | `predictions/icml/echobyol_l_pt50_lvef_test.csv` | 0.384 | 0.625 | DONE |
-| EchoMAE-L pt50 | S3: `.../echomae_pt50_lvef_274/.../best.pt` | — | — | — | — | **NOT RUN** (probe done, needs inference config) |
+| EchoMAE-L pt50 | EFS: `.../echomae_pt50_lvef/.../icml-echomae-l-pt50-lvef-d4/best.pt` | `/tmp/echomae_lvef_test.yaml` | `predictions/icml-echomae-l-pt50-lvef-test.csv` | 0.283 | 0.572 | **DONE** |
 
 ### UHN RVSP Test (5,103 studies)
 
@@ -263,16 +264,18 @@ Tracks which probes have been run on held-out test sets, with prediction CSV loc
 |-------|-------|----------------|----------|---------|-------------|--------|
 | EchoJEPA-L (pt210-an25, fine-tuned) | `checkpoints/eval_probes/lvef/echonet-pediatric/echojepa-l.pt` | `predictions/echojepa-l-echonet-pediatric-lvef-test.csv` | 5.122 | 0.568 | 0.763 | DONE (reproduces preprint 5.12) |
 | EchoJEPA-L (pt210-an25, zero-shot) | `checkpoints/eval_probes/lvef/echonet-dynamic/echojepa-l.pt` | `predictions/echojepa-l-echonet-pediatric-lvef-zeroshot.csv` | 7.713 | — | 0.402 | DONE (preprint claims 6.31 — different eval pipeline) |
-| EchoJEPA-L pt50 (224px) | `evals/vitl/icml/enp_lvef/.../icml-echojepa-l-pt50-enp-lvef-d4-224px/best.pt` | — | — | — | — | **PROBE DONE** (val MAE 6.093). Test inference pending. |
-| EchoBYOL-L pt50 (224px) | `evals/vitl/icml/enp_lvef/.../icml-echobyol-l-pt50-enp-lvef-d4-224px/best.pt` | — | — | — | — | **PROBE DONE** (val MAE 6.147). Test inference pending. |
-| EchoMAE-L pt50 (224px) | `evals/vitl/icml/enp_lvef/.../icml-echomae-l-pt50-enp-lvef-d4-224px/best.pt` | — | — | — | — | **PROBE DONE** (val MAE 5.985). Test inference pending. |
+| **EchoBYOL-L pt50 (112px)** | `evals/vitl/icml/enp_lvef/.../icml-echobyol-l-pt50-enp-lvef-d4/best.pt` | `predictions/icml-echobyol-l-pt50-enp-lvef-test.csv` | 5.618 | **0.415** | **0.668** | **DONE** (112px is correct — see §5k) |
+| EchoJEPA-L pt50 (112px) | `evals/vitl/icml/enp_lvef/.../icml-echojepa-l-pt50-enp-lvef-d4/best.pt` | `predictions/icml-echojepa-l-pt50-enp-lvef-test.csv` | 6.598 | 0.157 | 0.489 | DONE (variance attenuation — needs more pretraining) |
+| EchoMAE-L pt50 (112px) | `evals/vitl/icml/enp_lvef/.../icml-echomae-l-pt50-enp-lvef-d4/best.pt` | `predictions/icml-echomae-l-pt50-enp-lvef-test.csv` | 6.776 | -0.065 | 0.195 | DONE (collapsed) |
 
-**⚠️ Invalid 112px runs** (resolution artifact — do not use):
-- `predictions/icml-echojepa-l-pt50-enp-lvef-test.csv` (112px, MAE=6.598)
-- `predictions/icml-echobyol-l-pt50-enp-lvef-test.csv` (112px, MAE=5.618)
-- `predictions/icml-echomae-l-pt50-enp-lvef-test.csv` (112px, MAE=6.776)
-- `predictions/icml-echojepa-l-pt50-enp-lvef-zeroshot.csv` (112px, UHN probe at wrong resolution)
-- `predictions/icml-echobyol-l-pt50-enp-lvef-zeroshot.csv` (112px, UHN probe at wrong resolution)
+**224px retrain (inconclusive — resolution was not the issue):**
+- `predictions/icml-echojepa-l-pt50-enp-lvef-test-224px.csv` (224px, R²=0.123 — same attenuation as 112px)
+- `predictions/icml-echobyol-l-pt50-enp-lvef-test-224px.csv` (224px, R²=0.316)
+- `predictions/icml-echomae-l-pt50-enp-lvef-test-224px.csv` (224px, R²=0.247)
+
+**Zero-shot runs (112px, UHN probes → pediatric — cross-resolution, less reliable):**
+- `predictions/icml-echojepa-l-pt50-enp-lvef-zeroshot.csv`
+- `predictions/icml-echobyol-l-pt50-enp-lvef-zeroshot.csv`
 
 ---
 

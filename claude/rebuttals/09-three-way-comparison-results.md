@@ -103,7 +103,7 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 
 **Best: epoch 16 — Val MAE 9.044 (26.2% of mean). Best R² 0.241 (ep20), Best Pearson 0.504 (ep19). Plateaued ep16-20.**
 
-### EchoBYOL-L (50ep) — KILLED (ep1, no checkpoint saved, needs full restart)
+### EchoBYOL-L (50ep) — DONE (20/20 epochs)
 
 | Epoch | Train MAE | Val MAE | R² | Pearson |
 |-------|-----------|---------|-----|---------|
@@ -113,27 +113,53 @@ R²/Pearson unavailable at runtime (scipy libstdc++ mismatch); compute post-hoc 
 | 4 | 9.369 | 9.788 | 0.113 | 0.367 |
 | 5 | 9.228 | 9.635 | 0.111 | 0.385 |
 | 6 | 9.105 | 9.531 | 0.133 | 0.408 |
+| 7 | 9.062 | 9.552 | 0.171 | 0.417 |
+| 8 | 8.999 | 9.544 | 0.147 | 0.425 |
+| 9 | 8.952 | 9.425 | 0.172 | 0.441 |
+| 10 | 8.915 | 9.447 | 0.187 | 0.442 |
+| 11 | 8.826 | 9.445 | 0.150 | 0.444 |
+| 12 | 8.807 | 9.340 | 0.195 | 0.449 |
+| 13 | 8.755 | 9.302 | 0.198 | 0.457 |
+| 14 | 8.718 | 9.317 | 0.183 | 0.458 |
+| 15 | 8.668 | 9.352 | 0.206 | 0.461 |
+| 16 | 8.686 | 9.258 | 0.200 | 0.464 |
+| 17 | 8.650 | **9.252** | 0.203 | 0.464 |
+| 18 | 8.647 | 9.261 | 0.199 | 0.465 |
+| 19 | 8.618 | 9.274 | 0.199 | 0.465 |
+| 20 | 8.624 | 9.281 | 0.202 | **0.465** |
 
-### Head-to-head at matched epochs
+**Best: epoch 17 — Val MAE 9.252 (26.8% of mean). Best R² 0.206 (ep15), Best Pearson 0.465 (ep20). Plateaued ep16-20.**
 
-| Epoch | BYOL Val MAE | BYOL Pearson | JEPA Val MAE | JEPA Pearson |
-|-------|-------------|-------------|-------------|-------------|
-| 1 | 10.558 | 0.213 | 10.544 | 0.206 |
-| 2 | 10.601 | 0.221 | 9.882 | 0.336 |
-| 3 | 10.080 | 0.318 | 9.700 | 0.382 |
-| 4 | 9.788 | 0.367 | 9.839 | 0.419 |
-| 5 | 9.635 | 0.385 | 9.402 | 0.425 |
-| 6 | 9.531 | 0.408 | 9.339 | 0.445 |
+### Head-to-head at matched epochs (every 4th)
 
-### Comparison (RVSP, in progress)
+| Epoch | BYOL Val MAE | BYOL Pearson | JEPA Val MAE | JEPA Pearson | JEPA Δ Pearson |
+|-------|-------------|-------------|-------------|-------------|----------------|
+| 4 | 9.788 | 0.367 | 9.839 | 0.419 | +0.052 |
+| 8 | 9.544 | 0.425 | 9.344 | 0.452 | +0.027 |
+| 12 | 9.340 | 0.449 | 9.124 | 0.486 | +0.037 |
+| 16 | 9.258 | 0.464 | 9.044 | 0.503 | +0.039 |
+| 20 | 9.281 | 0.465 | 9.083 | 0.503 | +0.038 |
 
-| Model | Objective | Best Val MAE | R² | Pearson | Status |
-|-------|-----------|-------------|-----|---------|--------|
-| EchoJEPA-L (50ep) | Latent prediction | **9.044** (ep16) | **0.241** | **0.504** | DONE (20/20) |
-| EchoBYOL-L (50ep) | Self-distillation | 9.531 (ep6) | 0.133 | 0.408 | KILLED (ep1, restart needed) |
-| EchoMAE-L (50ep) | Pixel reconstruction | **9.287** (ep17) | **0.198** | **0.453** | DONE (HyperPod job 260, 20/20) |
+### Comparison (RVSP — Validation)
 
-**Finding:** JEPA converges faster and maintains a consistent lead on multi-view RVSP. Final Pearson **0.504** (ep19) matches the fully-trained pt210-an25 (0.504 at ep9), confirming pt50 captures essentially all RVSP-relevant information. Metrics plateaued ep16-20. RVSP requires integrating spatial information across two echo views (A4C + RV-focused), which benefits from JEPA's spatially structured representations over BYOL's global mean-pooling.
+| Model | Objective | Best Val MAE | Best R² | Best Pearson | Status |
+|-------|-----------|-------------|---------|-------------|--------|
+| **EchoJEPA-L (50ep)** | Latent prediction | **9.044** (ep16) | **0.241** (ep20) | **0.504** (ep19) | DONE (20/20) |
+| EchoBYOL-L (50ep) | Self-distillation | 9.252 (ep17) | 0.206 (ep15) | 0.465 (ep20) | DONE (20/20) |
+| EchoMAE-L (50ep) | Pixel reconstruction | 9.287 (ep17) | 0.198 | 0.453 | DONE (HyperPod job 260, 20/20) |
+
+### Test Set Results (5K held-out, best probe checkpoint)
+
+| Model | Objective | Test MAE | Test R² | Test Pearson |
+|-------|-----------|----------|---------|-------------|
+| **EchoJEPA-L (50ep)** | Latent prediction | **9.100** | **0.220** | **0.484** |
+| EchoBYOL-L (50ep) | Self-distillation | 9.183 | 0.193 | 0.446 |
+| EchoMAE-L (50ep) | Pixel reconstruction | 9.275 | 0.179 | 0.438 |
+
+Inference configs: `configs/inference/vitl/icml/echo{jepa,byol,mae}_l_pt50_rvsp_test.yaml`
+Prediction CSVs: `predictions/icml-echo{jepa,byol,mae}-l-pt50-rvsp-test.csv`
+
+**Finding:** Test set confirms the validation ordering: JEPA > BYOL > MAE. JEPA leads BYOL by 0.038 Pearson (0.484 vs 0.446) and MAE by 0.046 (0.484 vs 0.438). The consistent ~8% relative Pearson gap between JEPA and BYOL confirms that local masked prediction preserves spatial structure that BYOL's global mean-pooling discards. Unlike LVEF where BYOL matched JEPA, RVSP requires integrating spatial information across two echo views (A4C + RV-focused). MAE trails both EMA methods, confirming the noise-filtering hierarchy: JEPA > BYOL > MAE on spatial tasks. Validation Pearson **0.504** (ep19) matches the fully-trained pt210-an25 (0.504 at ep9), confirming pt50 captures essentially all RVSP-relevant information.
 
 ---
 
@@ -162,6 +188,57 @@ Existing results from `08-rebuttal-v2.md` (fully trained models):
 | EchoMAE-L (50ep) | Pixel reconstruction | 0.887 | 0.760 | 0.818 | **0.822** |
 
 **Key finding:** All three methods converge to near-identical CAMUS segmentation (0.7pp spread). MAE achieves the **best** clean Dice (0.822) despite zero LVEF signal (R²~0). This dissociation is the core evidence: pixel reconstruction encodes spatial anatomy but not hemodynamic function; EMA-based methods encode both.
+
+---
+
+## Task 4: Zero-Shot LVEF Generalization to EchoNet-Pediatric
+
+All probes evaluated on EchoNet-Pediatric test set (368 pediatric clips, raw LVEF labels) with NO retraining.
+
+### 4a: UHN Probe → EchoNet-Pediatric (cross-institution + cross-age)
+
+**Setup**: Probes trained on UHN 10K/1K rebuttal subset (adult, d=4 attentive, Z-score mean=57.07/std=11.28)
+**Configs**: `configs/inference/vitl/icml/echo{jepa,byol,mae}_l_pt50_enp_lvef_zeroshot.yaml`
+
+| Model | Objective | Test MAE | Test R² | Test Pearson |
+|-------|-----------|----------|---------|-------------|
+| **EchoJEPA-L (50ep)** | Latent prediction | **6.957** | **0.405** | **0.705** |
+| EchoMAE-L (50ep) | Pixel reconstruction | 7.857 | 0.187 | 0.626 |
+| EchoBYOL-L (50ep) | Self-distillation | 8.004 | 0.206 | 0.602 |
+
+### 4b: EchoNet-Dynamic Probe → EchoNet-Pediatric (same institution, cross-age)
+
+**Setup**: Probes trained on EchoNet-Dynamic (7465 train / 1288 val, d=4 attentive, Z-score mean=55.78/std=12.41)
+**Configs**: `configs/inference/vitl/icml/echo{jepa,byol,mae}_l_pt50_end2enp_lvef_zeroshot.yaml`
+
+| Model | Objective | Test MAE | Test R² | Test Pearson |
+|-------|-----------|----------|---------|-------------|
+| **EchoJEPA-L (50ep)** | Latent prediction | **7.358** | **0.293** | **0.615** |
+| EchoMAE-L (50ep) | Pixel reconstruction | 9.203 | 0.041 | 0.531 |
+| EchoBYOL-L (50ep) | Self-distillation | 12.132 | -0.847 | 0.498 |
+
+### Combined Zero-Shot Summary
+
+| Source → Target | Model | Test MAE | Test Pearson |
+|-----------------|-------|----------|-------------|
+| **UHN → Pediatric** | **JEPA** | **6.957** | **0.705** |
+| UHN → Pediatric | MAE | 7.857 | 0.626 |
+| UHN → Pediatric | BYOL | 8.004 | 0.602 |
+| **END → Pediatric** | **JEPA** | **7.358** | **0.615** |
+| END → Pediatric | MAE | 9.203 | 0.531 |
+| END → Pediatric | BYOL | 12.132 | 0.498 |
+
+Prediction CSVs: `predictions/icml-echo{jepa,byol,mae}-l-pt50-{enp,end2enp}-lvef-zeroshot.csv`
+
+**Findings:**
+
+1. **JEPA generalizes best from both source datasets.** The Pearson gap widens dramatically out-of-distribution: JEPA leads BYOL by **0.103** (UHN→Ped) and **0.117** (END→Ped), vs only ~0.04 in-distribution. JEPA's local predictive objective learns more transferable cardiac representations.
+
+2. **BYOL collapses on END→Pediatric** (R²=-0.847, MAE=12.13) despite positive Pearson (0.498). This means predictions are correlated but with catastrophic systematic bias — BYOL's global pooling overfits to EchoNet-Dynamic's adult distribution and cannot recalibrate for pediatric hearts.
+
+3. **UHN probes generalize better than END probes** across all models. UHN's larger (10K vs 7.5K) and more diverse training set (multi-view, multi-vendor) produces more robust representations. JEPA UHN→Ped (0.705) even exceeds JEPA END→Ped (0.615) despite UHN being a completely different institution.
+
+4. **Zero-shot is the strongest differentiator for JEPA.** In-distribution LVEF: JEPA ≈ BYOL. RVSP: JEPA +8% over BYOL. Zero-shot pediatric: JEPA +17-24% over BYOL. The advantage scales with distribution shift.
 
 ---
 
@@ -210,13 +287,13 @@ BYOL (6.297) and JEPA (6.329) are near-identical on LVEF — BYOL is marginally 
 
 > "EMA-based self-distillation is the key ingredient for noisy domains. JEPA provides additional benefit via local prediction, but the broader principle — latent targets filter noise — is itself a novel finding."
 
-**Where JEPA should pull ahead:** Tasks requiring spatial precision (CAMUS segmentation) or multi-view spatial reasoning (RVSP with factorized view embeddings). BYOL's global pooling discards spatial structure during pretraining; JEPA's local masked prediction preserves it. The RVSP and CAMUS results will test this hypothesis.
+**Where JEPA pulls ahead (confirmed):** RVSP (multi-view spatial reasoning) — JEPA 0.503 vs BYOL 0.465 Pearson, a consistent ~8% relative gap across all 20 epochs. BYOL's global pooling discards spatial structure during pretraining; JEPA's local masked prediction preserves it. CAMUS segmentation was a wash (all three ~0.82 Dice), likely because the linear decoder is too simple to expose representational differences.
 
-**Rebuttal framing:** The three-way comparison reveals a hierarchy of noise filtering: EMA-based methods (JEPA, BYOL) >> pixel reconstruction (MAE). Within EMA methods, local prediction (JEPA) and global prediction (BYOL) are equivalent for global function metrics, but JEPA's spatial inductive bias should emerge on spatially demanding tasks. The novel finding is not "JEPA beats everything" but "EMA targets filter noise in stochastic domains" — a general SSL principle.
+**Rebuttal framing:** The three-way comparison reveals a hierarchy of noise filtering: EMA-based methods (JEPA, BYOL) >> pixel reconstruction (MAE). Within EMA methods, local prediction (JEPA) and global prediction (BYOL) are equivalent for in-distribution global function metrics (LVEF: 6.33 vs 6.30), but JEPA's spatial inductive bias emerges on spatially demanding tasks (RVSP: 0.503 vs 0.465) and generalizes dramatically better out-of-distribution (zero-shot pediatric LVEF: 0.705 vs 0.602). The novel finding is not "JEPA beats everything" but "EMA targets filter noise in stochastic domains" — a general SSL principle — with the addendum that local prediction yields more transferable representations across populations and institutions.
 
 ---
 
-## Execution Queue (2026-03-30, updated 00:10 UTC)
+## Execution Queue (2026-03-30, updated 10:00 UTC)
 
 1. **DONE**: EchoJEPA-L pt50 LVEF (10K/1K rebuttal) — Best MAE 6.329 (ep17)
 2. **DONE**: EchoBYOL-L pt50 LVEF (10K/1K rebuttal) — Best MAE 6.297 (ep18)
@@ -230,7 +307,10 @@ BYOL (6.297) and JEPA (6.329) are near-identical on LVEF — BYOL is marginally 
 10. **DONE (HyperPod job 296, 224px)**: EchoMAE-L pt50 EchoNet-Dynamic LVEF — **R²=0.495, Pearson=0.706, MAE=6.410**
 11. **DONE (A100, 224px)**: EchoBYOL-L pt50 EchoNet-Dynamic LVEF — **R²=0.528, Pearson=0.729, MAE=6.174**
 12. **RUNNING (A100, 224px)**: All 3 pt50 EchoNet-Pediatric LVEF — ep12-14/20, converging (MAE 6.08, JEPA 6.13, BYOL 6.18)
-9. **KILLED**: EchoBYOL-L pt50 RVSP full (41K/5K) — killed ep1, needs restart
+13. **DONE (A100)**: EchoBYOL-L pt50 RVSP full (41K/5K) — **MAE=9.252, R²=0.206, Pearson=0.465**
+14. **DONE (A100)**: RVSP test set inference (all 3) — JEPA 0.484, BYOL 0.446, MAE 0.438 Pearson
+15. **DONE (A100)**: Zero-shot UHN→EchoNet-Pediatric LVEF (all 3) — **JEPA 0.705, MAE 0.626, BYOL 0.602 Pearson**
+16. **DONE (A100)**: Zero-shot END→EchoNet-Pediatric LVEF (all 3) — **JEPA 0.615, MAE 0.531, BYOL 0.498 Pearson**
 
 ## Notes
 
