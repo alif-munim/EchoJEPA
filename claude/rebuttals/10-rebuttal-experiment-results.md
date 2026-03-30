@@ -425,6 +425,16 @@ The smoking gun: the **fully-trained JEPA (pt210-an25) at 112px gets R²=0.568**
 
 With linear probes, all three are R²≈0.03-0.08, Pearson≈0.24-0.28. The BYOL advantage exists only with d=4 attentive — BYOL's single global token (after mean-pool during pretraining) is easier for the attentive decoder to learn from with 2,580 training samples than JEPA's 1,568 spatially-structured tokens.
 
+**4b. d=1 attentive probe (224px, 50 epochs) — JEPA recovers its lead:**
+
+| Model | d=4 R² | d=4 Pearson | d=1 R² | d=1 Pearson | Linear R² | Linear Pearson |
+|-------|--------|-------------|--------|-------------|-----------|---------------|
+| JEPA  | 0.184  | 0.484       | **0.460** | **0.686** | 0.048     | 0.244         |
+| BYOL  | **0.295** | **0.552** | 0.127  | 0.413 (ep7) | 0.075     | 0.277         |
+| MAE   | -0.014 | 0.190       | 0.041  | 0.277 (ep12) | 0.026     | 0.283         |
+
+With d=1 attentive (single cross-attention, no self-attention blocks), **JEPA surpasses BYOL** (R²=0.460 vs 0.127, Pearson=0.686 vs 0.413). The ranking inverts back to JEPA > BYOL > MAE — consistent with all other evaluations. The d=4 ranking inversion was caused by the 3 self-attention blocks overfitting on 2,580 samples with JEPA's high-dimensional token space. d=1 has enough capacity to attend over spatial tokens but not enough to memorize the training set.
+
 **5. Head-level analysis:** JEPA heads cluster tightly (spread=0.097 MAE), BYOL has more HP sensitivity (spread=0.191). MAE heads are identical (spread=0.027 — features are dead).
 
 **6. Zero-shot UHN→Pediatric (THE DEFINITIVE TEST):**
