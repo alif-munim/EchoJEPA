@@ -220,7 +220,45 @@ Consolidated in `checkpoints/eval_probes/`, organized by task.
 
 ---
 
-## 5. Eval Config Reference
+## 5. Test Set Inference Tracker
+
+Tracks which probes have been run on held-out test sets, with prediction CSV locations.
+
+### UHN LVEF Test (53,637 clips)
+
+| Model | Probe | Inference Config | Predictions CSV | Test R² | Test Pearson | Status |
+|-------|-------|-----------------|----------------|---------|-------------|--------|
+| EchoJEPA-L pt50 | EFS: `.../icml-echojepa-l-pt50-lvef-d4/best.pt` | `configs/inference/vitl/icml/echojepa_l_pt50_lvef_test.yaml` | `predictions/icml/echojepa_l_pt50_lvef_test.csv` | 0.409 | 0.650 | DONE |
+| EchoBYOL-L pt50 | EFS: `.../icml-echobyol-l-pt50-lvef-d4/best.pt` | `configs/inference/vitl/icml/echobyol_l_pt50_lvef_test.yaml` | `predictions/icml/echobyol_l_pt50_lvef_test.csv` | 0.384 | 0.625 | DONE |
+| EchoMAE-L pt50 | S3: `.../echomae_pt50_lvef_274/.../best.pt` | — | — | — | — | **NOT RUN** (probe done, needs inference config) |
+
+### UHN RVSP Test (5,103 studies)
+
+| Model | Probe | Inference Config | Predictions CSV | Test R² | Test Pearson | Status |
+|-------|-------|-----------------|----------------|---------|-------------|--------|
+| EchoJEPA-L pt50 | EFS: `.../icml-echojepa-l-pt50-rvsp-d4-full/best.pt` | `configs/inference/vitl/icml/echojepa_l_pt50_rvsp_test.yaml` | `predictions/icml-echojepa-l-pt50-rvsp-test.csv` | 0.220 | 0.484 | DONE |
+| EchoMAE-L pt50 | S3: `.../echomae_pt50_rvsp_260/.../best.pt` | — | — | — | — | **NOT RUN** (probe done, needs inference config) |
+| EchoBYOL-L pt50 | — | — | — | — | — | **BLOCKED** (no probe — BYOL RVSP killed ep1) |
+
+### EchoNet-Dynamic LVEF Test (1,277 videos)
+
+| Model | Probe | Predictions CSV | Test R² | Test Pearson | Status |
+|-------|-------|----------------|---------|-------------|--------|
+| EchoJEPA-L pt50 (224px) | S3: `.../echojepa_pt50_end_lvef_294/.../best.pt` | — | — | — | **NOT RUN** (probe done) |
+| EchoMAE-L pt50 (224px) | S3: `.../echomae_pt50_end_lvef_296/.../best.pt` | — | — | — | **PROBE IN PROGRESS** (ep14/20) |
+| EchoBYOL-L pt50 (224px) | Running on A100 | — | — | — | **PROBE IN PROGRESS** (ep4/20) |
+
+### EchoNet-Pediatric LVEF Test (368 videos)
+
+| Model | Probe | Predictions CSV | Test R² | Test Pearson | Status |
+|-------|-------|----------------|---------|-------------|--------|
+| EchoJEPA-L pt50 (224px) | Retraining on A100 | — | — | — | **PROBE IN PROGRESS** (ep13/20) |
+| EchoBYOL-L pt50 (224px) | Retraining on A100 | — | — | — | **PROBE IN PROGRESS** (ep14/20) |
+| EchoMAE-L pt50 (224px) | Retraining on A100 | — | — | — | **PROBE IN PROGRESS** (ep12/20) |
+
+---
+
+## 6. Eval Config Reference
 
 All rebuttal configs in `configs/eval/vit{b,l}/icml/`. See `10-rebuttal-experiment-results.md` §6 for the full config-to-checkpoint mapping table.
 
