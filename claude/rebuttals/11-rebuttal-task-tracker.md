@@ -95,6 +95,7 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 | ✓ | **EchoMAE-L pt50 LVEF (10K, 20ep)** | **R²=0.325, Pearson=0.584, MAE=6.866** (job 274, retrained) | Mar 29 |
 | ✓ | EchoJEPA-L pt50 RVSP 41K (20ep) | Pearson=0.504, R²=0.241, MAE=9.044 | Mar 29 |
 | ✓ | **EchoMAE-L pt50 RVSP 41K (20ep)** | **Pearson=0.453, R²=0.198, MAE=9.287** (job 260) | Mar 30 |
+| ✓ | **EchoNet-Dynamic LVEF TEST (224px, 3 models)** | **JEPA R²=0.552 >> BYOL 0.440 >> MAE 0.351. Cross-dataset amplifies objective difference.** | Mar 30 |
 
 ---
 

@@ -323,6 +323,7 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 | **EchoJEPA-L pt50 EchoNet-Pediatric LVEF (224px, 20ep)** | **Val MAE=6.093 (ep15)** | 2026-03-30 |
 | **EchoBYOL-L pt50 EchoNet-Pediatric LVEF (224px, 20ep)** | **Val MAE=6.147 (ep14)** | 2026-03-30 |
 | **EchoMAE-L pt50 EchoNet-Pediatric LVEF (224px, 20ep)** | **Val MAE=5.985 (ep20)** | 2026-03-30 |
+| **EchoNet-Dynamic LVEF TEST (224px, all 3 models)** | **JEPA R²=0.552, Pearson=0.753, MAE=5.938. BYOL R²=0.440, Pearson=0.669, MAE=6.666. MAE R²=0.351, Pearson=0.609, MAE=7.283.** | 2026-03-30 |
 
 ### Paused
 
@@ -403,7 +404,8 @@ The complete three-way comparison:
 | LVEF Pearson (UHN, in-dist) | 0.625 | 0.634 | 0.584 | JEPA ≈ BYOL (p=0.11, NS) |
 | CAMUS Dice | 0.815 | 0.821 | **0.822** | MAE (spatial only) |
 | RVSP Pearson (UHN, in-dist) | **0.484** (test) | TBD | 0.453 (ep20, val) | JEPA |
-| EchoNet-Dynamic R² (cross-dataset) | **0.621** | 0.528 | 0.495 | JEPA >> BYOL > MAE |
+| EchoNet-Dynamic R² (cross-dataset, val) | **0.621** | 0.528 | 0.495 | JEPA >> BYOL > MAE |
+| EchoNet-Dynamic R² (cross-dataset, **test**) | **0.552** | 0.440 | 0.351 | **JEPA >> BYOL >> MAE** |
 | Pediatric MAE (cross-pop, 224px) | 6.093 | 6.147 | **5.985** | All converged (spread 0.16) |
 
 **Two-level hierarchy of SSL objectives for echocardiography:**
