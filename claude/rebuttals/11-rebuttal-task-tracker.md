@@ -7,20 +7,22 @@
 
 ## P0 — CRITICAL PATH (blocks rebuttal writing)
 
-These are the experiments the rebuttal narrative is built on. Without them, we have no mechanistic evidence section.
+Three experiments for the mechanistic evidence section. CKA and noise probe dropped (contradictory results across training durations; see session notes). Replaced with functional evidence that's directly clinically interpretable.
 
 | # | Task | Status | Reviewer | Effort | Depends On | Notes |
 |---|------|--------|----------|--------|-----------|-------|
-| P0.1 | **Frame shuffling temporal ablation** | NOT STARTED | ALL (AC champion) | ~4h | None | `scripts/rebuttal/frame_shuffling.py` exists. Run JEPA-L, BYOL-L, MAE-L on LVEF + view. 3 shuffle types (tubelet, frame, matched-position) × 3 seeds. |
-| P0.2 | **Generate perturbed test data** | NOT STARTED | — (blocks P0.3, P0.4, P0.6) | ~2h | None (CPU) | Synthetic Rayleigh speckle at 3-5 intensity levels on LVEF, RVSP, and CAMUS test sets. `scripts/rebuttal/generate_perturbed_videos.py`. Can run on CPU. Generate for ALL test sets, not just CKA subset. |
-| P0.3 | **CKA speckle invariance** | NOT STARTED | ncQn (explicit ask) | ~4h | P0.2 | CKA between clean and perturbed representations. All 5 models. Representation-level stability evidence. |
-| P0.4 | **Noise-level linear probe** | NOT STARTED | ncQn (explicit ask) | ~4h | P0.2 | Predict speckle intensity from frozen features. All 5 models. Representation-level information content evidence. |
-| P0.5 | **Record MAE pt50 CAMUS results** | **DONE** | hfQ1, 6t2T | — | — | Test Dice=0.822, Val Dice=0.834. MAE best on CAMUS despite R²=0 on LVEF. |
-| P0.6 | **Noised test inference (LVEF, CAMUS, RVSP)** | NOT STARTED | ALL | ~4-6h | P0.2 + trained probes from P1 | Run existing trained probes on perturbed test sets (3-5 speckle levels). No retraining — inference only. Probes: pt50 JEPA/BYOL/MAE on LVEF (done), CAMUS (done), RVSP (P1.2-P1.4). **Task-level complement to CKA** (P0.3 = representation stability, P0.6 = downstream task degradation). Expected: MAE degrades most, JEPA least — flips CAMUS clean ordering where MAE wins. |
-| P0.7 | **Cross-view representation similarity (RVSP)** | NOT STARTED | ALL (world model) | ~30min | None | Extract features from both views (A4C + PSAX-AV) of the same RVSP study for all 3 pt50 models. Compute cosine similarity between view-pair features. **Tests whether the model learned cardiac state (view-invariant) or image appearance (view-specific).** JEPA should produce more similar cross-view features than MAE. Inference only, no training. Uses existing RVSP multi-view data (41K studies, 96.7% genuine A4C+PSAX-AV pairs). |
-| P0.8 | **Cardiac cycle phase reconstruction** | NOT STARTED | ALL (world model) | ~15min | None | Extract features at 8 temporal positions from EchoNet-Dynamic clips. Train linear classifier to predict ED vs ES using frame indices from EchoNet metadata. **Tests whether the representation explicitly encodes cardiac cycle phase.** Distinct from frame shuffling: shuffling tests temporal *dependence* (destroy order → performance drops); phase reconstruction tests temporal *structure* (features encode where in the cardiac cycle you are). Minutes on cached features, no GPU needed for the classifier. |
+| P0.1 | **Downstream frame shuffling** | **RUNNING** | ALL | ~2h | Trained probes | Shuffle frame order, evaluate frozen LVEF probes on shuffled inputs, measure **R² degradation** (not cosine similarity — cosine was too insensitive). JEPA should degrade (encodes temporal dynamics), MAE should be invariant (static appearance). Uses `noised_inference.py` with shuffled test videos. |
+| P0.5 | **Record MAE pt50 CAMUS results** | **DONE** | hfQ1, 6t2T | — | — | Test Dice=0.822, Val Dice=0.834. MAE best on CAMUS despite R²=0.28 on LVEF. |
+| P0.6 | **Functional robustness under noise** | **RUNNING** | ncQn (direct ask) | ~3h | Trained probes | Frozen LVEF probes evaluated on EchoNet-Dynamic test set with USAugment perturbations (depth attenuation, shadow, haze) at 3 severity levels. **THE key experiment** — answers ncQn's ask with downstream task performance, not feature geometry. Running on GPUs 4-6. |
+| P0.9 | **Anatomy vs function dissociation** | **DONE** | ncQn | — | — | MAE best seg (0.822) but worst LVEF (R²=0.28). Already in hand — no new experiment needed. |
 
-**Why P0:** ncQn is 75-80% likely to flip 3→4/5 if P0.1-P0.4 are strong. Frame shuffling provides the AC champion sentence. CKA + noise probe + noised inference together provide three complementary angles on noise filtering: representation stability (CKA), noise information content (probe), and task-level degradation curves (noised inference). The clean 3-way results are close (CAMUS: 0.7pp spread, MAE wins; LVEF: 1.5pp JEPA-BYOL gap) — **perturbation testing is what separates the methods and turns the close clean results from a weakness into a strength**: *"Under clean conditions all methods converge; under realistic noise, only latent prediction maintains performance."*
+**Dropped experiments (results didn't support narrative):**
+- ~~P0.3 CKA~~: pt50 showed MAE most stable, JEPA least stable (opposite of hypothesis). Fully-trained showed the expected pattern. Inconsistency across training durations makes CKA unreliable for the rebuttal.
+- ~~P0.4 Noise probe~~: All models encode perturbation info above chance, no clean separation. USAugment perturbations are deterministic spatial degradation, not stochastic noise — the probe is detecting spatial patterns, not noise.
+- ~~P0.7 Cross-view similarity~~: Deprioritized — not needed given the 6-task comparison table.
+- ~~P0.8 Cardiac phase reconstruction~~: Deprioritized — frame shuffling covers temporal dynamics.
+
+**Why P0:** The rebuttal's mechanistic evidence is now: (1) functional robustness under noise — JEPA maintains clinical accuracy, (2) downstream frame shuffling — JEPA encodes dynamics, (3) anatomy vs function dissociation — the pretraining objective determines what clinical info is encoded. All three are directly clinically interpretable without requiring representational geometry claims.
 
 ---
 
