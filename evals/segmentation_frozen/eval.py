@@ -596,6 +596,8 @@ def main():
     parser.add_argument("--resolution", type=int, default=224, help="Input resolution (default 224, use 384 for G)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--model_name", default=None, help="Override vjepa model name (e.g. vit_giant)")
+    parser.add_argument("--fix_orientation", action="store_true",
+                        help="Rotate CAMUS NIfTI images to standard A4C orientation (rot90 CCW + flip-H).")
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
@@ -619,9 +621,9 @@ def main():
 
     # --- Create datasets ---
     views = tuple(args.views)
-    train_ds = CAMUSSegDataset(train_ids, args.camus_root, views=views, resolution=args.resolution, augment=True)
-    val_ds = CAMUSSegDataset(val_ids, args.camus_root, views=views, resolution=args.resolution, augment=False)
-    test_ds = CAMUSSegDataset(test_ids, args.camus_root, views=views, resolution=args.resolution, augment=False)
+    train_ds = CAMUSSegDataset(train_ids, args.camus_root, views=views, resolution=args.resolution, augment=True, fix_orientation=args.fix_orientation)
+    val_ds = CAMUSSegDataset(val_ids, args.camus_root, views=views, resolution=args.resolution, augment=False, fix_orientation=args.fix_orientation)
+    test_ds = CAMUSSegDataset(test_ids, args.camus_root, views=views, resolution=args.resolution, augment=False, fix_orientation=args.fix_orientation)
     logger.info(f"Samples: {len(train_ds)} train, {len(val_ds)} val, {len(test_ds)} test")
 
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)

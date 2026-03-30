@@ -50,11 +50,13 @@ class CAMUSSegDataset(Dataset):
         resolution=224,
         num_frames=16,
         augment=False,
+        fix_orientation=False,
     ):
         self.camus_root = camus_root
         self.resolution = resolution
         self.num_frames = num_frames
         self.augment = augment
+        self.fix_orientation = fix_orientation  # Rotate 90° CCW + flip-H to match standard A4C orientation
 
         # Build (patient_id, view) pairs
         self.samples = []
@@ -106,6 +108,13 @@ class CAMUSSegDataset(Dataset):
         # To tensors [T, H, W]
         frames = torch.from_numpy(frames.copy()).float().permute(2, 0, 1)
         gt_frames = torch.from_numpy(gt_frames.copy()).long().permute(2, 0, 1)
+
+        # Fix CAMUS NIfTI orientation to match standard North American A4C:
+        # rot 90° CCW + horizontal flip → transducer at top, sector pointing down.
+        # Without this, the sector is rotated ~45° with apex at top-left.
+        if self.fix_orientation:
+            frames = torch.rot90(frames, 1, dims=(1, 2)).flip(-1)
+            gt_frames = torch.rot90(gt_frames, 1, dims=(1, 2)).flip(-1)
 
         # Normalize pixel values to [0, 1]
         fmax = frames.max()

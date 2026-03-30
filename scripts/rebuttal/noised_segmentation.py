@@ -278,6 +278,8 @@ def main():
     parser.add_argument("--severity_levels", nargs="*", default=None,
                         help="Severity levels (default: all)")
     parser.add_argument("--skip_clean", action="store_true")
+    parser.add_argument("--fix_orientation", action="store_true",
+                        help="Rotate CAMUS NIfTI to standard A4C orientation (rot90 CCW + flip-H)")
     # Compute
     parser.add_argument("--device", default="cuda:0")
     # Output
@@ -318,6 +320,7 @@ def main():
         resolution=args.resolution,
         num_frames=16,
         augment=False,
+        fix_orientation=args.fix_orientation,
     )
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     print(f"  {len(dataset)} samples ({len(test_ids)} patients × {len(args.views)} views)")
