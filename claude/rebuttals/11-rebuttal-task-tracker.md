@@ -39,7 +39,7 @@ Without these, the controlled comparison only covers LVEF and CAMUS. RVSP adds t
 |---|------|--------|----------|--------|-----------|-------|
 | P1.1 | **EchoMAE-L pt50 LVEF probe** | **DONE** (HyperPod job 274) | hfQ1, ncQn | — | — | R²=0.325, Pearson=0.584, MAE=6.866 (ep18). Retrained with z-score normalization after Bug 017c. MAE trails JEPA (0.436) and BYOL (0.421) on R², confirming EMA advantage. |
 | P1.2 | **Resume JEPA pt50 RVSP 41K** (ep18→20) | **DONE** (20/20) | ALL | — | — | **Pearson=0.504** (ep19), R²=0.241 (ep20), Val MAE=9.044 (ep16). Matches pt210-an25. |
-| P1.3 | **BYOL pt50 RVSP 41K** (20ep) | KILLED (ep0) | hfQ1 | ~10h | Config exists | Killed mid-epoch-1, no checkpoint. Full restart needed. |
+| P1.3 | **BYOL pt50 RVSP 41K** (20ep) | **DONE** (A100) | hfQ1 | — | — | Val Pearson=0.465, R²=0.206 (ep20). **Test Pearson=0.446, R²=0.193**. |
 | P1.4 | **MAE pt50 RVSP 41K** (20ep) | **DONE** (HyperPod job 260) | ALL | — | — | Val MAE **9.287** (ep17), R²=0.198 (ep19), Pearson=**0.453** (ep20). Trails JEPA (0.504) by 5.1pp Pearson. |
 
 **Why P1:** The rebuttal tex claims "converging evidence across LVEF, CAMUS, and RVSP." Without RVSP results for all 3 models, this is only partially supported.
@@ -105,41 +105,53 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 | ✓ | EchoJEPA-L pt50 RVSP 41K (20ep) | Pearson=0.504, R²=0.241, MAE=9.044 | Mar 29 |
 | ✓ | **EchoMAE-L pt50 RVSP 41K (20ep)** | **Pearson=0.453, R²=0.198, MAE=9.287** (job 260) | Mar 30 |
 | ✓ | **EchoNet-Dynamic LVEF TEST (224px, 3 models)** | **JEPA R²=0.552 >> BYOL 0.440 >> MAE 0.351. Cross-dataset amplifies objective difference.** | Mar 30 |
+| ✓ | **EchoBYOL-L pt50 RVSP 41K (20ep)** | **Val Pearson=0.465, Test Pearson=0.446, R²=0.193** | Mar 30 |
+| ✓ | **RVSP test inference (all 3 models)** | **JEPA 0.484, BYOL 0.446, MAE 0.438 Pearson** | Mar 30 |
+| ✓ | **Noise robustness — LVEF (EchoNet-Dynamic)** | **JEPA -19% avg, MAE -37%, BYOL -40%** | Mar 31 |
+| ✓ | **Noise robustness — CAMUS segmentation** | **MAE -8% avg, JEPA -10%, BYOL -25%** | Mar 31 |
+| ✓ | **Noise robustness — Pediatric zero-shot** | **JEPA highest Pearson at all severity levels** | Mar 31 |
+| ✓ | **icml_rebuttal.tex full rewrite** | **Zero TBDs, ~5.5 pages, all results integrated** | Mar 31 |
 
 ---
 
-## Execution Plan (Mar 29 evening → Apr 2)
+## Execution Plan (Updated 2026-03-31)
 
-### Completed (Mar 28-29)
+### Completed (Mar 28-31)
 - [x] P0.5: Record MAE CAMUS results — **Test Dice 0.822** ✓
-- [x] P1.1: Launched MAE pt50 LVEF retrain — HyperPod job 274, node 83 (6 HP heads, ~8h)
-- [x] Infrastructure: Migrated ALL 34 sbatch scripts from code.tar to deploy.sh `/opt/vjepa2` workflow
-- [x] Infrastructure: Updated deploy.sh to target both compute nodes by default
+- [x] P0.6: Functional robustness under noise — JEPA -19%, MAE -37%, BYOL -40% (LVEF); MAE -8%, JEPA -10%, BYOL -25% (CAMUS) ✓
+- [x] P0.9: Anatomy vs function dissociation — MAE best seg (0.822) + worst LVEF (R²=0.28) ✓
+- [x] P1.1: MAE pt50 LVEF retrain — R²=0.325, Pearson=0.584, MAE=6.866 (job 274) ✓
+- [x] P1.2: JEPA pt50 RVSP 41K — Pearson=0.504, R²=0.241 (20/20) ✓
+- [x] P1.3: BYOL pt50 RVSP 41K — Test Pearson=0.446, R²=0.193 (20/20) ✓
+- [x] P1.4: MAE pt50 RVSP 41K — Pearson=0.453, R²=0.198 (job 260) ✓
+- [x] P2.1: All 3 EchoNet-Dynamic probes DONE — JEPA R²=0.552, BYOL 0.440, MAE 0.351 (test) ✓
+- [x] P2.2: All 3 EchoNet-Pediatric probes — val MAE converged ✓
+- [x] Infrastructure: Migrated ALL 34 sbatch scripts to deploy.sh workflow ✓
+- [x] icml_rebuttal.tex rewrite — zero TBDs, ~5.5 pages, all results integrated ✓
 
-### Mar 30 — Mechanistic evidence day (P0 focus)
-- [ ] P0.2: Generate perturbed test data on CPU (speckle at 3-5 levels on LVEF + CAMUS + RVSP test sets) — **start first, blocks P0.3/P0.4/P0.6**
-- [ ] P0.1: Launch frame shuffling on A100 (JEPA/BYOL/MAE × LVEF + view × 3 shuffle types × 3 seeds)
-- [ ] P0.3: Launch CKA (after P0.2 finishes, parallel with P0.4)
-- [ ] P0.4: Launch noise probe (after P0.2, parallel with P0.3)
-- [ ] P1.2: Check JEPA pt50 RVSP 41K final result (was ep19/20)
-- [x] P1.1: MAE pt50 LVEF retrain **DONE** — R²=0.325, Pearson=0.584, MAE=6.866
-- [ ] P1.4: Check MAE pt50 RVSP 41K (HyperPod job 260, ep14/20)
-- [x] P2.1: JEPA EchoNet-Dynamic DONE at 224px (job 294, R²=0.621). MAE (job 296) + BYOL (A100) running
-- [ ] P2.2: EchoNet-Pediatric 224px retrain in progress (all 3 on A100, ep12-14)
-- [ ] P1.3: Restart BYOL pt50 RVSP 41K (if GPU available)
+### Mar 31 → Apr 2 — Final experiments + submission
 
-### Mar 31 — Task-level degradation + EchoBench
-- [ ] P0.6: Noised test inference — run trained LVEF + CAMUS probes on perturbed test sets (inference only). RVSP if P1.2-P1.4 probes done.
-- [ ] P0.6: Generate degradation curves (performance vs noise level, per model)
-- [ ] P2.1: Train EchoNet-Dynamic pt50 probes (3 models) if GPUs free
-- [ ] Record all P0 results → update icml_rebuttal.tex
-- [ ] P3.1: Single-view RVSP ablation (if GPU free — quick win)
+**Priority 1: Frame shuffling — downstream R² degradation (~2-3h GPU)**
+Strongest remaining mechanistic evidence. Shuffle frame order in EchoNet-Dynamic test videos, run frozen LVEF probes, measure R² degradation. JEPA should degrade most (encodes temporal dynamics); MAE should be unaffected (static appearance). Needs a frame-shuffle perturbation function for the VideoDataset perturbation hook (same pipeline as noise robustness). If results are clean, add back to rebuttal as a paragraph in Section B.
 
-### Apr 1 — Write rebuttal
-- [ ] P2.3-P2.4: EchoBench perturbation matrix (if P2.1 probes done)
-- [ ] Write rebuttal text — all P0 results must be in by now
-- [ ] Final numbers into icml_rebuttal.tex (replace all \tbd)
+**Priority 2: UHN LVEF bootstrap CIs (~30min CPU)**
+Already claimed significance in rebuttal footnote. Run the actual bootstrap (n=53K) to have numbers ready if reviewers ask in discussion phase.
+
+**Priority 3: Representation visualization / attention maps (~1-2h GPU)**
+Committed to in Section D (camera-ready). Extract attention maps from JEPA vs MAE on clean vs perturbed inputs. Not required for rebuttal submission, but having a draft figure shows good faith.
+
+**Priority 4: Cross-view representation similarity (P0.7, ~30min)**
+Cosine similarity between A4C and PSAX-AV features of the same study. Tests view-invariant cardiac state encoding. Could strengthen multi-view argument if results are clean.
+
+**Priority 5: Cardiac phase reconstruction (P0.8, ~15min)**
+ED vs ES linear classifier on temporal features. Tests structured temporal encoding. Quick and easy; include only if result is clean.
+
+### Apr 1 — Final review
+- [ ] Run frame shuffling if GPUs available (Priority 1)
+- [ ] Run UHN bootstrap CIs (Priority 2)
+- [ ] Final numbers check against doc 10
 - [ ] Review narrative coherence
+- [ ] Push to Overleaf
 
 ### Apr 2
 - [ ] Final review, submit

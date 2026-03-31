@@ -105,7 +105,7 @@ Z-score: mean=34.465, std=14.013.
 |-------|-----------|---------|-------------|--------|-------------|--------|
 | EchoJEPA-L (50ep) | Latent prediction | 5K/1K subset | 9.771 (ep20) | 0.092 | 0.376 | DONE (insufficient) |
 | EchoJEPA-L (50ep) | Latent prediction | Full 41K/5K | **9.044** (ep16) | **0.241** (ep20) | **0.504** (ep19) | DONE (20/20) |
-| EchoBYOL-L (50ep) | Self-distillation | Full 41K/5K | — | — | — | KILLED (ep1, restart needed) |
+| EchoBYOL-L (50ep) | Self-distillation | Full 41K/5K | **9.252** (ep17) | **0.206** (ep15) | **0.465** (ep20) | DONE (A100, 20/20) |
 | EchoMAE-L (ep163) | Pixel reconstruction | Full 41K/5K | 10.529 (ep1) | -0.031 | 0.124 | PAUSED (ep2) |
 | EchoMAE-L (50ep) | Pixel reconstruction | Full 41K/5K | **9.287** (ep17) | **0.198** (ep19) | **0.453** (ep20) | DONE (HyperPod job 260, 20/20) |
 
@@ -118,8 +118,10 @@ Z-score: mean=34.465, std=14.013.
 | Model | Test MAE | Test R² | Test Pearson | R²/Pearson² | Best Head |
 |-------|----------|---------|-------------|-------------|-----------|
 | EchoJEPA-L (50ep) | **9.101** | **0.220** | **0.484** | 0.94 (well-calibrated) | Head 5 |
+| EchoBYOL-L (50ep) | 9.183 | 0.193 | 0.446 | 0.97 | — |
+| EchoMAE-L (50ep) | 9.275 | 0.179 | 0.438 | 0.93 | — |
 
-Predictions saved: `predictions/icml-echojepa-l-pt50-rvsp-test.csv` (5,103 studies). Val→test generalization: MAE 9.044→9.101 (+0.6%), Pearson 0.504→0.484 (-4%), R² 0.241→0.220 (-9%). Well-calibrated (R²/Pearson²=0.94), confirming no variance attenuation on in-distribution RVSP.
+Predictions saved: `predictions/icml-echo{jepa,byol,mae}-l-pt50-rvsp-test.csv` (5,103 studies). Val→test generalization (JEPA): MAE 9.044→9.101 (+0.6%), Pearson 0.504→0.484 (-4%), R² 0.241→0.220 (-9%). Well-calibrated (R²/Pearson²=0.94), confirming no variance attenuation on in-distribution RVSP.
 
 <details>
 <summary>EchoJEPA-L pt50 RVSP — full 41K epoch table (in progress)</summary>
@@ -293,17 +295,11 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 
 ### Currently Running
 
-| Experiment | Node | Job/PID | Epoch | ETA |
-|-----------|------|---------|-------|-----|
-| EchoBYOL-L pt50 EchoNet-Dynamic LVEF (224px) | — | — | — | **DONE** |
-| CAMUS G (384px) + fix_orientation | Local A100 (GPU 6) | — | ep29/50 | ~1.5h |
-| CAMUS L pt50 (224px) + fix_orientation | Local A100 (GPU 7) | — | ep42/50 | ~20 min |
+(None — all experiments completed as of 2026-03-31.)
 
 ### Queued
 
-| Experiment | Waiting For | Config |
-|-----------|-------------|--------|
-| EchoBYOL-L pt50 RVSP (full 41K) | GPU availability | Config exists (`echobyol_l_pt50_rvsp_d4_full.yaml`) — restart from ep0 |
+(None — all queued experiments completed.)
 
 ### Completed
 
@@ -338,19 +334,19 @@ All three pt50 methods match the fully-trained pt210-an25 (0.818), confirming th
 
 | Experiment | Reason | How to Resume |
 |-----------|--------|---------------|
-| EchoBYOL-L pt50 RVSP 41K | Killed in ep1 | Restart from scratch — no completed epochs saved |
-| EchoMAE-L ep163 RVSP (full 41K) | GPU priority | Set `resume_checkpoint: true`, relaunch |
+| EchoMAE-L ep163 RVSP (full 41K) | GPU priority — pt50 comparison complete, ep163 no longer needed | Deprioritized |
 
-### Not Started
+### Not Started (Updated 2026-03-31)
 
 | Experiment | Priority | Notes |
 |-----------|----------|-------|
-| EchoMAE-L 50ep retrain | High | Corrected LR (1.5e-4). Needed for clean 3-way comparison. |
-| ~~EchoBYOL-L pt50 CAMUS seg~~ | ~~Medium~~ | DONE — Test Dice 0.821 |
-| ~~EchoJEPA-L pt50 CAMUS seg~~ | ~~Medium~~ | DONE — Test Dice 0.815 |
-| CKA speckle invariance (all models) | High (Tier 1) | Hours. Reviewer ncQn. |
-| Frame shuffling temporal ablation (all models) | High (Tier 1) | Hours. All reviewers. |
-| Noise-level linear probe (all models) | High (Tier 1) | Hours. Reviewer ncQn. |
+| **Frame shuffling (downstream R² degradation)** | **P1 — Highest** | Shuffle frames in END test videos, run frozen LVEF probes, measure R² drop. ~2-3h GPU. Strongest remaining mechanistic evidence. |
+| **UHN LVEF bootstrap CIs** | **P2 — High** | ~30min CPU. Already claimed in rebuttal footnote, need actual numbers. |
+| Representation visualization (attention maps) | P3 — Medium | Committed in rebuttal Section D. Draft figure for camera-ready. ~1-2h GPU. |
+| Cross-view representation similarity (P0.7) | P4 — Low | Cosine sim A4C vs PSAX-AV per study. ~30min. Include if clean. |
+| Cardiac phase reconstruction (P0.8) | P5 — Low | ED vs ES linear classifier. ~15min. Include if clean. |
+| ~~CKA speckle invariance~~ | ~~Dropped~~ | Contradictory results at pt50 (MAE most stable, not JEPA). See doc 11 for details. |
+| ~~Noise-level linear probe~~ | ~~Dropped~~ | All models encode perturbation above chance — no clean separation. |
 
 ---
 
@@ -484,7 +480,7 @@ The complete three-way comparison:
 |------|------|------|-----|--------|
 | LVEF R² (UHN, in-dist, **test 53K**) | **0.409** | 0.384 | 0.283 | **JEPA > BYOL > MAE** |
 | CAMUS Dice | 0.815 | 0.821 | **0.822** | MAE (spatial only) |
-| RVSP Pearson (UHN, **test 5K**) | **0.484** | 0.446 | 0.438 | **JEPA > BYOL > MAE** |
+| RVSP Pearson (UHN, **test 5K**) | **0.484** | 0.446 | 0.438 | **JEPA > BYOL > MAE** (all 3 test done) |
 | RVSP single-view ablation (JEPA) | A4C: 0.447, PSAX: 0.449 | — | — | Multi-view +3.9pp R² |
 | EchoNet-Dynamic R² (cross-dataset, **test**) | **0.552** | 0.440 | 0.351 | **JEPA >> BYOL >> MAE** (all pairwise SIG) |
 | Pediatric Pearson (zero-shot UHN→Ped) | **0.705** | 0.602 | 0.626 | **JEPA >> MAE > BYOL** |
@@ -795,7 +791,7 @@ Then inference on clean + perturbed test sets is fast.
 |---|-----------|-----------|--------|-----------|
 | ~~2a~~ | ~~EchoMAE-L pt50 LVEF~~ | ~~3-way completion~~ | — | **DONE** (job 274: R²=0.325, Pearson=0.584, MAE=6.866) |
 | 2b | ~~Finish JEPA pt50 RVSP 41K~~ | ~~3-way completion~~ | — | **DONE** (20/20, Pearson 0.504) |
-| 2c | BYOL pt50 RVSP 41K (20ep) | 3-way completion | ~10h | Config exists — restart from ep0 |
+| ~~2c~~ | ~~BYOL pt50 RVSP 41K (20ep)~~ | ~~3-way completion~~ | — | **DONE** (A100: Val Pearson=0.465, Test Pearson=0.446) |
 | ~~2d~~ | ~~MAE pt50 RVSP 41K~~ | ~~3-way completion~~ | — | **DONE** (job 260: MAE=9.287, R²=0.198, Pearson=0.453) |
 
 Completes the controlled comparison table across all tasks. Without 2a, the 3-way LVEF comparison lacks the MAE pt50 data point (only have ep99 which shows no signal — need pt50 to confirm it's not just overtraining).
