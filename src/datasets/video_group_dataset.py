@@ -68,6 +68,19 @@ def make_videogroupdataset(
     min_present=1,                  # <<< NEW
     split_name="train"
 ):
+    # Check for perturbation via environment variables (for noise robustness evaluation).
+    # Mirrors VideoDataset's perturbation hook.
+    from src.datasets.video_dataset import _PerturbationFn
+    perturbation_fn = None
+    ptype = os.environ.get("PERTURBATION_TYPE")
+    psev = os.environ.get("PERTURBATION_SEVERITY")
+    if ptype and psev:
+        transducer_pos = tuple(
+            float(x) for x in os.environ.get("TRANSDUCER_POS", "0.5,0.0").split(",")
+        )
+        perturbation_fn = _PerturbationFn(ptype, psev, transducer_pos)
+        logger.info(f"VideoGroupDataset perturbation enabled: {ptype}/{psev} (transducer_pos={transducer_pos})")
+
     ds = VideoGroupDataset(
         data_paths=data_paths,
         group_size=group_size,
@@ -86,7 +99,8 @@ def make_videogroupdataset(
         training=training,                # <<< pass through
         miss_augment_prob=miss_augment_prob,
         min_present=min_present,
-        split_name=split_name
+        split_name=split_name,
+        perturbation_fn=perturbation_fn,
     )
     
     # Mark the split (used by MISS augmentation)
@@ -164,10 +178,11 @@ class VideoGroupDataset(Dataset):
         shared_transform=None,
         transform=None,
         img_size=336,
-        training=False, 
-        miss_augment_prob=0.0, 
+        training=False,
+        miss_augment_prob=0.0,
         min_present=1,
-        split_name="train"
+        split_name="train",
+        perturbation_fn=None,
     ):
         super().__init__()
     
@@ -227,7 +242,8 @@ class VideoGroupDataset(Dataset):
         self.min_present = int(min(min_present, self.group_size))
         self._is_training = bool(training)
         self.split_name = str(split_name)
-      
+        self.perturbation_fn = perturbation_fn
+
         logger.info(
             f"[{self.split_name}] MISS augmentation: p={self.miss_augment_prob} "
             f"min_present={self.min_present} (train={self._is_training})"
@@ -343,12 +359,31 @@ class VideoGroupDataset(Dataset):
     
             if self.transform is not None:
                 clips = [self.transform(c) for c in clips]
-    
+
+            # Apply perturbation if set (for noise robustness evaluation).
+            # Operates on normalized tensors: un-normalize → perturb in [0,1] → re-normalize.
+            if self.perturbation_fn is not None and p:  # only perturb present views
+                MEAN = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1, 1)
+                STD = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1, 1)
+                perturbed_clips = []
+                for clip_or_list in clips:
+                    if isinstance(clip_or_list, (list, tuple)):
+                        clip = clip_or_list[0]
+                        pixel = (clip * STD + MEAN).clamp(0, 1)
+                        pixel = self.perturbation_fn(pixel, uri)
+                        perturbed_clips.append([(pixel - MEAN) / STD])
+                    else:
+                        clip = clip_or_list
+                        pixel = (clip * STD + MEAN).clamp(0, 1)
+                        pixel = self.perturbation_fn(pixel, uri)
+                        perturbed_clips.append((pixel - MEAN) / STD)
+                clips = perturbed_clips
+
             segs.extend(clips)
             clip_indices_out.extend(idxs)
             # Per-clip presence flag (replicate the view's presence for its K clips)
             slot_mask.extend([bool(p)] * len(clips))
-    
+
         return segs, label, clip_indices_out, torch.tensor(slot_mask, dtype=torch.bool)
 
 

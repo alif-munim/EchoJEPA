@@ -1,0 +1,66 @@
+# EchoMAE-L pt50 RVSP test inference (multi-view, d=4)
+app: vjepa
+cpus_per_task: 32
+folder: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitl/icml/echomae_pt50_rvsp_inference
+mem_per_gpu: 80G
+nodes: 1
+tasks_per_node: 8
+num_workers: 8
+
+eval_name: video_classification_frozen_multi
+resume_checkpoint: true
+tag: icml-echomae-l-pt50-rvsp-d4-full-test
+val_only: true
+predictions_save_path: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/predictions/icml-echomae-l-pt50-rvsp-test.csv
+
+probe_checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitl/icml/echomae_pt50_rvsp_full/video_classification_frozen/icml-echomae-l-pt50-rvsp-d4-full/best.pt
+
+experiment:
+  classifier:
+    task_type: regression
+    num_heads: 16
+    num_probe_blocks: 4
+    use_slot_embeddings: true
+    num_views: 2
+    clips_per_view: 2
+    use_factorized: true
+    num_targets: 1
+
+  data:
+    dataset_type: VideoGroupDataset
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/rvsp_test.csv
+    dataset_val: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/rvsp_test.csv
+    num_classes: 1
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 1
+    num_segments: 2
+    num_clips_per_video: 2
+    num_views_per_segment: 1
+    miss_augment_prob: 0.0
+    min_present: 1
+    target_mean: 34.4650
+    target_std: 14.0130
+
+  optimization:
+    batch_size: 8
+    num_epochs: 1
+    use_bfloat16: true
+    use_pos_embed: false
+    multihead_kwargs:
+    - {final_lr: 0.0, final_weight_decay: 0.01, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.01}
+    - {final_lr: 0.0, final_weight_decay: 0.1, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.1}
+    - {final_lr: 0.0, final_weight_decay: 0.4, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.4}
+    - {final_lr: 0.0, final_weight_decay: 0.01, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.01}
+    - {final_lr: 0.0, final_weight_decay: 0.1, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.1}
+    - {final_lr: 0.0, final_weight_decay: 0.4, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.4}
+
+model_kwargs:
+  checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/videomae_l_mimic_ep50.pth
+  module_name: evals.video_classification_frozen_multi.modelcustom.videomae_encoder
+  pretrain_kwargs:
+    encoder:
+      model_name: vit_large_patch16_224
+      tubelet_size: 2
+  wrapper_kwargs:
+    return_per_clip: true
