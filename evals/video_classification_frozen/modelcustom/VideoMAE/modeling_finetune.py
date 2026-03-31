@@ -258,12 +258,51 @@ class VisionTransformer(nn.Module):
         self.num_classes = num_classes
         self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
+    def _get_matched_pos_embed(self, pos_embed, N):
+        """Rearrange pos_embed temporal component for matched-position shuffle."""
+        if not hasattr(self, "_matched_perm"):
+            import os
+            import numpy as np
+            fs_type = os.environ.get("FRAME_SHUFFLE_TYPE", "")
+            if fs_type in ("matched", "matched_frame"):
+                seed = int(os.environ.get("FRAME_SHUFFLE", "0"))
+                h_patches = self.patch_embed.img_size[0] // self.patch_embed.patch_size[0]
+                w_patches = self.patch_embed.img_size[1] // self.patch_embed.patch_size[1]
+                tokens_per_frame = h_patches * w_patches
+                grid_depth = N // tokens_per_frame
+                if fs_type == "matched":
+                    # Tubelet-level perm
+                    perm = np.random.RandomState(seed).permutation(grid_depth)
+                else:
+                    # Frame-level: derive tubelet perm from frame perm (first frame's original tubelet)
+                    num_frames = grid_depth * self.tubelet_size
+                    frame_perm = np.random.RandomState(seed).permutation(num_frames)
+                    perm = np.array([frame_perm[t * self.tubelet_size] // self.tubelet_size
+                                     for t in range(grid_depth)])
+                    print(f"VideoMAE matched-position (frame): frame_perm={frame_perm.tolist()}, "
+                          f"tubelet_perm={perm.tolist()}")
+                remap = []
+                for t in range(grid_depth):
+                    orig_t = perm[t]
+                    for s in range(tokens_per_frame):
+                        remap.append(orig_t * tokens_per_frame + s)
+                self._matched_perm = remap
+                if fs_type == "matched":
+                    print(f"VideoMAE matched-position: perm={perm.tolist()}")
+            else:
+                self._matched_perm = None
+        if self._matched_perm is not None:
+            return pos_embed[:, self._matched_perm, :]
+        return pos_embed
+
     def forward_features(self, x):
         x = self.patch_embed(x)
         B, _, _ = x.size()
 
         if self.pos_embed is not None:
-            x = x + self.pos_embed.expand(B, -1, -1).type_as(x).to(x.device).clone().detach()
+            pe = self.pos_embed.expand(B, -1, -1).type_as(x).to(x.device).clone().detach()
+            pe = self._get_matched_pos_embed(pe, x.size(1))
+            x = x + pe
         x = self.pos_drop(x)
 
         if self.use_checkpoint:

@@ -158,11 +158,51 @@ class VisionTransformer(nn.Module):
     def no_weight_decay(self):
         return {}
 
+    def _setup_matched_position(self, device):
+        """One-time setup for matched-position temporal ablation."""
+        import os
+        import numpy as np
+        fs_type = os.environ.get("FRAME_SHUFFLE_TYPE", "")
+        if not self.use_rope:
+            return
+        if fs_type == "matched":
+            # Tubelet-level: shuffle tubelets, remap RoPE to original positions
+            seed = int(os.environ.get("FRAME_SHUFFLE", "0"))
+            grid_depth = self.num_frames // self.tubelet_size
+            perm = torch.from_numpy(
+                np.random.RandomState(seed).permutation(grid_depth).astype("int64")
+            ).to(device)
+            for blk in self.blocks:
+                blk.attn._temporal_perm = perm
+            print(f"Matched-position RoPE (tubelet): perm={perm.tolist()}")
+        elif fs_type == "matched_frame":
+            # Frame-level: shuffle individual frames, remap RoPE based on first frame's origin.
+            # Each new tubelet gets the temporal position of its first frame's original tubelet.
+            seed = int(os.environ.get("FRAME_SHUFFLE", "0"))
+            num_frames = self.num_frames
+            tubelet_size = self.tubelet_size
+            grid_depth = num_frames // tubelet_size
+            frame_perm = np.random.RandomState(seed).permutation(num_frames)
+            tubelet_rope_perm = []
+            for t in range(grid_depth):
+                first_frame_orig = frame_perm[t * tubelet_size]
+                orig_tubelet = first_frame_orig // tubelet_size
+                tubelet_rope_perm.append(orig_tubelet)
+            perm = torch.tensor(tubelet_rope_perm, dtype=torch.int64).to(device)
+            for blk in self.blocks:
+                blk.attn._temporal_perm = perm
+            print(f"Matched-position RoPE (frame): frame_perm={frame_perm.tolist()}, "
+                  f"tubelet_rope_perm={perm.tolist()}")
+
     def forward(self, x, masks=None):
         """
         :param x: input image/video
         :param masks: indices of patch tokens to mask (remove)
         """
+        if not hasattr(self, "_matched_pos_done"):
+            self._matched_pos_done = True
+            self._setup_matched_position(x.device)
+
         if masks is not None and not isinstance(masks, list):
             masks = [masks]
 

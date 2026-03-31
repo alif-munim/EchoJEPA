@@ -100,6 +100,23 @@ def make_videodataset(
         perturbation_fn = _PerturbationFn(ptype, psev, transducer_pos)
         logger.info(f"Perturbation enabled: {ptype}/{psev} (transducer_pos={transducer_pos})")
 
+    # Check for temporal ablation via environment variables.
+    # FRAME_SHUFFLE=<seed>  — base seed for stochastic shuffles (required for frame/tubelet, ignored for reverse)
+    # FRAME_SHUFFLE_TYPE=frame|tubelet|reverse  — shuffle type (default: frame)
+    #   frame:   permute all frames independently (destroys all temporal structure)
+    #   tubelet: permute pairs of consecutive frames (preserves local motion, destroys phase)
+    #   reverse: play video backwards (preserves local motion magnitude, reverses cardiac cycle direction)
+    # Example: FRAME_SHUFFLE=100 python -m evals.main ...                         # frame shuffle
+    # Example: FRAME_SHUFFLE=100 FRAME_SHUFFLE_TYPE=tubelet python -m evals.main ...  # tubelet shuffle
+    # Example: FRAME_SHUFFLE=0 FRAME_SHUFFLE_TYPE=reverse python -m evals.main ...    # temporal reversal
+    frame_shuffle_seed = None
+    frame_shuffle_type = "frame"
+    fs_env = os.environ.get("FRAME_SHUFFLE")
+    if fs_env:
+        frame_shuffle_seed = int(fs_env)
+        frame_shuffle_type = os.environ.get("FRAME_SHUFFLE_TYPE", "frame")
+        logger.info(f"Temporal ablation enabled: type={frame_shuffle_type}, base_seed={frame_shuffle_seed}")
+
     dataset = VideoDataset(
         data_paths=data_paths,
         datasets_weights=datasets_weights,
@@ -116,6 +133,8 @@ def make_videodataset(
         shared_transform=shared_transform,
         transform=transform,
         perturbation_fn=perturbation_fn,
+        frame_shuffle_seed=frame_shuffle_seed,
+        frame_shuffle_type=frame_shuffle_type,
     )
 
     log_dir = pathlib.Path(log_dir) if log_dir else None
@@ -193,6 +212,8 @@ class VideoDataset(torch.utils.data.Dataset):
         filter_long_videos=int(10**9),
         duration=None,  # duration in seconds
         perturbation_fn=None,  # Optional: callable(clip_tensor, video_path) -> clip_tensor
+        frame_shuffle_seed=None,  # Optional: int seed for temporal ablation
+        frame_shuffle_type="frame",  # "frame", "tubelet", or "reverse"
     ):
         self.data_paths = data_paths
         self.datasets_weights = datasets_weights
@@ -207,6 +228,8 @@ class VideoDataset(torch.utils.data.Dataset):
         self.duration = duration
         self.fps = fps
         self.perturbation_fn = perturbation_fn
+        self.frame_shuffle_seed = frame_shuffle_seed
+        self.frame_shuffle_type = frame_shuffle_type
 
         # Initialize S3 client lazily per worker (avoid pickling/FD sharing)
         self.s3_client = None
@@ -344,6 +367,57 @@ class VideoDataset(torch.utils.data.Dataset):
                     pixel = self.perturbation_fn(pixel, sample_uri)
                     perturbed.append((pixel - MEAN) / STD)
             buffer = perturbed
+
+        # Apply temporal ablation if set.
+        # Types: frame (permute all), tubelet (permute pairs), reverse (flip temporal axis).
+        if self.frame_shuffle_seed is not None:
+            import hashlib
+            video_hash = int(hashlib.md5(str(sample_uri).encode()).hexdigest()[:8], 16)
+            rng = np.random.RandomState(video_hash + self.frame_shuffle_seed)
+            shuffled = []
+            for clip_or_list in buffer:
+                is_wrapped = isinstance(clip_or_list, (list, tuple))
+                clip = clip_or_list[0] if is_wrapped else clip_or_list
+                T = clip.shape[1]
+
+                if self.frame_shuffle_type == "reverse":
+                    clip = clip[:, torch.arange(T - 1, -1, -1), :, :]
+                elif self.frame_shuffle_type == "tubelet":
+                    n_tubelets = T // 2
+                    tubelet_perm = rng.permutation(n_tubelets)
+                    indices = []
+                    for ti in tubelet_perm:
+                        indices.extend([ti * 2, ti * 2 + 1])
+                    if T % 2 == 1:
+                        indices.append(T - 1)
+                    clip = clip[:, indices, :, :]
+                elif self.frame_shuffle_type == "matched":
+                    # Tubelet-level shuffle with FIXED perm (same for all videos).
+                    # Encoder remaps RoPE positions to match content's original temporal position.
+                    # Uses base seed only (not per-video) so encoder can reconstruct the same perm.
+                    n_tubelets = T // 2
+                    fixed_rng = np.random.RandomState(self.frame_shuffle_seed)
+                    tubelet_perm = fixed_rng.permutation(n_tubelets)
+                    indices = []
+                    for ti in tubelet_perm:
+                        indices.extend([ti * 2, ti * 2 + 1])
+                    if T % 2 == 1:
+                        indices.append(T - 1)
+                    clip = clip[:, indices, :, :]
+                elif self.frame_shuffle_type == "matched_frame":
+                    # Frame-level shuffle with FIXED perm + matched RoPE (Goodfire-style).
+                    # Individual frames are shuffled (creating incoherent tubelets), but each
+                    # tubelet gets the RoPE position of its first frame's original temporal position.
+                    # This removes positional compensation, exposing full temporal reliance.
+                    fixed_rng = np.random.RandomState(self.frame_shuffle_seed)
+                    frame_perm = fixed_rng.permutation(T)
+                    clip = clip[:, frame_perm, :, :]
+                else:  # "frame"
+                    perm = rng.permutation(T)
+                    clip = clip[:, perm, :, :]
+
+                shuffled.append([clip] if is_wrapped else clip)
+            buffer = shuffled
 
         return buffer, label, clip_indices, sample_uri
 

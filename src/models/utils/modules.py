@@ -136,10 +136,14 @@ class ACRoPEAttention(nn.Module):
         self.w_dim = int(2 * ((head_dim // 3) // 2))
         self.grid_size = grid_size
         self.is_causal = is_causal
+        self._temporal_perm = None  # Set externally for matched-position shuffle
 
     def _get_frame_pos(self, ids, H_patches, W_patches):
         tokens_per_frame = int(H_patches * W_patches)
-        return ids // tokens_per_frame
+        frame_ids = ids // tokens_per_frame
+        if self._temporal_perm is not None:
+            frame_ids = self._temporal_perm.to(frame_ids.device)[frame_ids.long()]
+        return frame_ids
 
     def _get_height_pos(self, ids, H_patches, W_patches):
         # Remove frame component from ids
@@ -288,24 +292,28 @@ class RoPEAttention(nn.Module):
         self.w_dim = int(2 * ((head_dim // 3) // 2))
         self.grid_size = grid_size
         self.is_causal = is_causal
+        self._temporal_perm = None  # Set externally for matched-position shuffle
 
     def _get_frame_pos(self, ids, H_patches=None, W_patches=None):
         if H_patches is None or W_patches is None:
             tokens_per_frame = int(self.grid_size * self.grid_size)
         else:
             tokens_per_frame = int(H_patches * W_patches)
-        return ids // tokens_per_frame
+        frame_ids = ids // tokens_per_frame
+        if self._temporal_perm is not None:
+            frame_ids = self._temporal_perm.to(frame_ids.device)[frame_ids.long()]
+        return frame_ids
 
     def _get_height_pos(self, ids, H_patches=None, W_patches=None):
-        # Remove frame component from ids
+        # Remove frame component from ids — use RAW ids (not remapped) for spatial positions
         if H_patches is None or W_patches is None:
             tokens_per_frame = int(self.grid_size * self.grid_size)
             tokens_per_row = self.grid_size
         else:
             tokens_per_frame = int(H_patches * W_patches)
             tokens_per_row = W_patches
-        frame_ids = self._get_frame_pos(ids, H_patches, W_patches)
-        ids = ids - tokens_per_frame * frame_ids
+        raw_frame_ids = ids // tokens_per_frame  # use raw (not remapped) for spatial decomposition
+        ids = ids - tokens_per_frame * raw_frame_ids
         # --
         return ids // tokens_per_row
 
@@ -316,12 +324,13 @@ class RoPEAttention(nn.Module):
         else:
             tokens_per_frame = int(H_patches * W_patches)
             tokens_per_row = W_patches
-        frame_ids = self._get_frame_pos(ids, H_patches, W_patches)
+        frame_ids = self._get_frame_pos(ids, H_patches, W_patches)  # may be remapped
         # --
-        height_ids = self._get_height_pos(ids, H_patches, W_patches)
+        height_ids = self._get_height_pos(ids, H_patches, W_patches)  # uses raw positions
         # --
-        # Remove frame component from ids (1st term) and height component (2nd term)
-        width_ids = (ids - tokens_per_frame * frame_ids) - tokens_per_row * height_ids
+        # Remove frame component (raw) and height component from ids for width
+        raw_frame_ids = ids // tokens_per_frame
+        width_ids = (ids - tokens_per_frame * raw_frame_ids) - tokens_per_row * height_ids
         return frame_ids, height_ids, width_ids
 
     def forward(self, x, mask=None, attn_mask=None, T=None, H_patches=None, W_patches=None):
