@@ -1,0 +1,36 @@
+Test set: 1277 videos
+
+======================================================================
+Model: MAE-L-pt50
+======================================================================
+[INFO    ][2026-03-31 03:47:52][evals.video_classification_frozen.modelcustom.videomae_encoder][_import_modeling_finetune] Loaded modeling_finetune from /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/video_classification_frozen/modelcustom/VideoMAE/modeling_finetune.py
+[INFO    ][2026-03-31 03:48:02][evals.video_classification_frozen.modelcustom.videomae_encoder][_convert_pretrain_to_finetune_state_dict] Checkpoint conversion: 317 keys converted, 57 decoder keys skipped
+  Probe: depth=4, heads=16, best_head=3 (val=6.4098), z-score=55.7776/12.4072
+
+  [Clean — original frame order]
+/opt/conda/lib/python3.12/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+    200/1277
+    400/1277
+    600/1277
+    800/1277
+    1000/1277
+    1200/1277
+    R²=0.1413  Pearson=0.5723  MAE=8.598  (skipped 0)
+
+  [Shuffled — seed 100]
+/opt/conda/lib/python3.12/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+    200/1277
+    400/1277
+    600/1277
+    800/1277
+    1000/1277
+    1200/1277
+    R²=-0.2963  Pearson=0.5246  MAE=11.333
+
+  [Shuffled — seed 101]
+    200/1277
+    400/1277
+    600/1277
+    800/1277

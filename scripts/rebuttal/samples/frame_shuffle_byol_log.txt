@@ -1,0 +1,33 @@
+Test set: 1277 videos
+
+======================================================================
+Model: BYOL-L-pt50
+======================================================================
+  Probe: depth=4, heads=16, best_head=1 (val=6.1743), z-score=55.7776/12.4072
+
+  [Clean — original frame order]
+/opt/conda/lib/python3.12/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+    200/1277
+    400/1277
+    600/1277
+    800/1277
+    1000/1277
+    1200/1277
+    R²=0.4265  Pearson=0.6603  MAE=6.643  (skipped 0)
+
+  [Shuffled — seed 100]
+/opt/conda/lib/python3.12/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+    200/1277
+    400/1277
+    600/1277
+    800/1277
+    1000/1277
+    1200/1277
+    R²=0.1979  Pearson=0.5662  MAE=7.654
+
+  [Shuffled — seed 101]
+    200/1277
+    400/1277
+    600/1277
