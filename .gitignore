@@ -88,3 +88,11 @@ classifier/split_summary.txt
 
 refs/
 assets/reza/
+
+# Local data directories
+data/camus/
+data/samsung/
+data/echonet
+data/manifest_keys.json
+data/mimic_presign.ipynb
+data/presigned_urls.txt

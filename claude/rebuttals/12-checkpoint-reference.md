@@ -296,8 +296,11 @@ Tracks which probes have been run on held-out test sets, with prediction CSV loc
 | EchoJEPA-L (pt210-an25, fine-tuned) | `checkpoints/eval_probes/lvef/echonet-pediatric/echojepa-l.pt` | `predictions/echojepa-l-echonet-pediatric-lvef-test.csv` | 5.122 | 0.568 | 0.763 | DONE (reproduces preprint 5.12) |
 | EchoJEPA-L (pt210-an25, zero-shot) | `checkpoints/eval_probes/lvef/echonet-dynamic/echojepa-l.pt` | `predictions/echojepa-l-echonet-pediatric-lvef-zeroshot.csv` | 7.713 | — | 0.402 | DONE (preprint claims 6.31 — different eval pipeline) |
 | **EchoBYOL-L pt50 (112px)** | `evals/vitl/icml/enp_lvef/.../icml-echobyol-l-pt50-enp-lvef-d4/best.pt` | `predictions/icml-echobyol-l-pt50-enp-lvef-test.csv` | 5.618 | **0.415** | **0.668** | **DONE** (112px is correct — see §5k) |
-| EchoJEPA-L pt50 (112px) | `evals/vitl/icml/enp_lvef/.../icml-echojepa-l-pt50-enp-lvef-d4/best.pt` | `predictions/icml-echojepa-l-pt50-enp-lvef-test.csv` | 6.598 | 0.157 | 0.489 | DONE (variance attenuation — needs more pretraining) |
-| EchoMAE-L pt50 (112px) | `evals/vitl/icml/enp_lvef/.../icml-echomae-l-pt50-enp-lvef-d4/best.pt` | `predictions/icml-echomae-l-pt50-enp-lvef-test.csv` | 6.776 | -0.065 | 0.195 | DONE (collapsed) |
+| EchoJEPA-L pt50 d=4 (112px) | `.../icml-echojepa-l-pt50-enp-lvef-d4/best.pt` | `predictions/icml-echojepa-l-pt50-enp-lvef-test.csv` | 6.598 | 0.157 | 0.489 | DONE (d=4 overfitting — use d=1 instead) |
+| **EchoJEPA-L pt50 d=1 (224px, 50ep)** | `.../icml-echojepa-l-pt50-enp-lvef-d1-224px/best.pt` | `predictions/icml-echojepa-l-pt50-enp-lvef-d1-224px-test.csv` | **5.167** | **0.568** | **0.771** | **DONE — matches fully-trained probe** |
+| EchoMAE-L pt50 d=4 (112px) | `.../icml-echomae-l-pt50-enp-lvef-d4/best.pt` | `predictions/icml-echomae-l-pt50-enp-lvef-test.csv` | 6.776 | -0.065 | 0.195 | DONE (collapsed) |
+
+**d=4 probe overfitting on pediatric:** d=4 attentive probes overfit on 2,580 training samples — JEPA R² drops from 0.568 (d=1) to 0.123 (d=4). d=1 (cross-attention only, no SA blocks, 50 epochs) is the correct probe for small-data cross-population transfer. See §5k in doc 10 for full analysis.
 
 **224px retrain (inconclusive — resolution was not the issue):**
 - `predictions/icml-echojepa-l-pt50-enp-lvef-test-224px.csv` (224px, R²=0.123 — same attenuation as 112px)
@@ -345,18 +348,79 @@ All rebuttal configs in `configs/eval/vit{b,l}/icml/`. See `10-rebuttal-experime
 
 All at `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/data/csv/`.
 
-| CSV | Labels | Notes |
-|-----|--------|-------|
-| `echonet_dynamic_train_s3_raw.csv` | Raw LVEF (mean=55.78, std=12.41) | 7,465 videos, S3 paths |
-| `echonet_dynamic_val_s3_raw.csv` | Raw LVEF | 1,288 videos |
-| `echonet_dynamic_test_s3_raw.csv` | Raw LVEF | 1,277 videos |
-| `echonet_pediatric_train_s3_raw.csv` | Raw LVEF (mean=61.03, std=10.44) | 2,580 videos, folds 0-7 |
-| `echonet_pediatric_val_s3_raw.csv` | Raw LVEF | 336 videos, fold 8 |
-| `echonet_pediatric_test_s3_raw.csv` | Raw LVEF | 368 videos, fold 9 |
-| `echonet_dynamic_train_s3.csv` | Pre-z-scored | Legacy, do not use |
-| `rebuttal/lvef/lvef_train_10k.csv` | Raw LVEF (mean=57.06, std=11.28) | UHN 10K rebuttal subset |
-| `rebuttal/lvef/lvef_val_1k.csv` | Raw LVEF | UHN 1K rebuttal subset |
-| `rvsp_train.csv` / `rvsp_val.csv` | Raw RVSP (mean=34.47, std=14.01) | UHN full 41K/5K |
+#### UHN LVEF (single-view A4C)
+
+| CSV | Format | Rows | Notes |
+|-----|--------|------|-------|
+| `rebuttal/lvef/lvef_train_10k.csv` | `a4c_s3_path label` | 10,000 | Rebuttal subset, raw LVEF (mean=57.07, std=11.28) |
+| `rebuttal/lvef/lvef_val_1k.csv` | `a4c_s3_path label` | 1,000 | Rebuttal subset |
+| `a4c_b_lvef_train_224px.csv` | `a4c_s3_path label` | 176,791 | Full UHN A4C B-mode, 224px pre-resized |
+| `a4c_b_lvef_val_224px.csv` | `a4c_s3_path label` | 26,166 | Full UHN |
+| `a4c_b_lvef_test_224px.csv` | `a4c_s3_path label` | 53,637 | Full UHN test |
+
+#### UHN LVEF (biplane A4C + A2C)
+
+| CSV | Format | Rows | Notes |
+|-----|--------|------|-------|
+| `rebuttal/lvef/biplane_lvef_train_10k.csv` | `a4c_path a2c_path label` | 9,990 | Rebuttal subset matched, 99.9% coverage |
+| `rebuttal/lvef/biplane_lvef_val_1k.csv` | `a4c_path a2c_path label` | 1,000 | 100% coverage |
+| `rebuttal/lvef/biplane_lvef_test.csv` | `a4c_path a2c_path label` | 53,611 | Full test, 100% coverage |
+| `biplane_lvef_train.csv` | `a4c_path a2c_path label` | 34,792 | Full UHN study-level |
+| `biplane_lvef_val.csv` | `a4c_path a2c_path label` | 5,013 | Full UHN study-level |
+| `biplane_lvef_test.csv` | `a4c_path a2c_path label` | 10,039 | Full UHN study-level |
+
+A4C = highest-confidence A4C per study. A2C = highest-confidence A2C per study. Both from 18M view classifier predictions. Built for `VideoGroupDataset` (multi-view probing).
+
+#### UHN RVSP (multi-view A4C + PSAX-AV)
+
+| CSV | Format | Rows | Notes |
+|-----|--------|------|-------|
+| `rvsp_train.csv` | `a4c_path psax_path label` | 40,969 | Full 41K, raw RVSP (mean=34.47, std=14.01) |
+| `rvsp_val.csv` | `a4c_path psax_path label` | 5,102 | Full 5K |
+| `rvsp_test.csv` | `a4c_path psax_path label` | 5,103 | Full test |
+
+#### UHN RVSP (single-view ablation)
+
+| CSV | Format | Rows | Notes |
+|-----|--------|------|-------|
+| `rvsp_train_a4c.csv` | `a4c_path label` | 40,969 | Column 1 of multi-view train |
+| `rvsp_val_a4c.csv` | `a4c_path label` | 5,102 | Column 1 of multi-view val |
+| `rvsp_test_a4c.csv` | `a4c_path label` | 5,103 | Column 1 of multi-view test |
+| `rvsp_train_psax.csv` | `psax_path label` | 40,969 | Column 2 of multi-view train |
+| `rvsp_val_psax.csv` | `psax_path label` | 5,102 | Column 2 of multi-view val |
+| `rvsp_test_psax.csv` | `psax_path label` | 5,103 | Column 2 of multi-view test |
+
+#### EchoNet-Dynamic LVEF
+
+| CSV | Format | Rows | Notes |
+|-----|--------|------|-------|
+| `echonet_dynamic_train_s3_raw.csv` | `s3_path label` | 7,465 | Raw LVEF (mean=55.78, std=12.41), from FileList.csv |
+| `echonet_dynamic_val_s3_raw.csv` | `s3_path label` | 1,288 | Raw LVEF |
+| `echonet_dynamic_test_s3_raw.csv` | `s3_path label` | 1,277 | Raw LVEF |
+| `echonet_dynamic_*_s3.csv` | `s3_path z_label` | — | Pre-z-scored, **legacy — do not use** |
+
+#### EchoNet-Pediatric LVEF
+
+| CSV | Format | Rows | Notes |
+|-----|--------|------|-------|
+| `echonet_pediatric_train_s3_raw.csv` | `s3_path label` | 2,580 | Raw LVEF (mean=61.03, std=10.44), folds 0-7, from FileList.csv |
+| `echonet_pediatric_val_s3_raw.csv` | `s3_path label` | 336 | Fold 8 |
+| `echonet_pediatric_test_s3_raw.csv` | `s3_path label` | 368 | Fold 9 |
+| `echonet_pediatric_*_s3.csv` | `s3_path z_label` | — | Pre-z-scored, **legacy — do not use** |
+
+#### Data Sources
+
+| Dataset | Videos (S3) | FileList.csv (S3) | Archive (GDrive) |
+|---------|-------------|-------------------|------------------|
+| EchoNet-Dynamic | `.../data/EchoNet-Dynamic/Videos/` (10,031) | `.../data/EchoNet-Dynamic/FileList.csv` | `echo_foundation/nature_medicine/datasets/echonet_data.zip` (6.6GB) |
+| EchoNet-Pediatric (A4C) | `.../data/echonetpediatric/.../A4C/Videos/` (3,284) | `.../data/echonetpediatric/.../A4C/FileList.csv` | `echo_foundation/nature_medicine/datasets/echonet_pediatric.tar.gz` (2.1GB) |
+| UHN 18M | `s3://echodata25/results/echo-study/` | 18M view classifier: `classifier/output/view_inference_18m/master_predictions.csv` (4GB) | — |
+
+**Z-score convention:** All `*_raw.csv` files have raw label values. The code computes z-score at runtime from training data and embeds params in the checkpoint. Legacy `*_s3.csv` files have pre-z-scored labels — do not use (double z-scoring risk).
+
+**Pediatric split mapping:** FileList.csv folds 0-7 = train (2,580), fold 8 = val (336), fold 9 = test (368).
+
+**Biplane LVEF construction:** For each study, select highest-confidence A4C + A2C clips from 18M view classifier predictions (`classifier/output/view_inference_18m/master_predictions.csv`). Study→clip mapping from `experiments/nature_medicine/uhn/study_to_clips_index.pkl` (319K studies, 18M clips).
 
 ### HyperPod Sbatch Scripts
 

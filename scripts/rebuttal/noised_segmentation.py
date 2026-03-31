@@ -105,22 +105,8 @@ def load_encoder(encoder_type, checkpoint, model_name=None, device="cpu", resolu
         return model, model.embed_dim
 
     elif encoder_type == "videomae":
-        from evals.video_classification_frozen.modelcustom.videomae_encoder import (
-            _convert_pretrain_to_finetune_state_dict,
-            _import_modeling_finetune,
-        )
-        mf = _import_modeling_finetune()
-        model = mf.vit_large_patch16_224(
-            img_size=resolution, all_frames=16, tubelet_size=2, num_classes=1000,
-        )
-        ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
-        sd = ckpt.get("model", ckpt)
-        sd = _convert_pretrain_to_finetune_state_dict(sd, model.state_dict())
-        model.load_state_dict(sd, strict=False)
-        model.eval().to(device)
-        for p in model.parameters():
-            p.requires_grad = False
-        return model, 1024  # ViT-L embed_dim
+        from evals.segmentation_frozen.eval import load_videomae_encoder
+        return load_videomae_encoder(checkpoint, device=device)
 
     else:
         raise ValueError(f"Unknown encoder_type: {encoder_type}")
