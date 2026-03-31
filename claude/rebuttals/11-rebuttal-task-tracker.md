@@ -112,6 +112,7 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 | ✓ | **Noise robustness — Pediatric zero-shot** | **JEPA highest Pearson at all severity levels** | Mar 31 |
 | ✓ | **icml_rebuttal.tex full rewrite** | **Zero TBDs, ~5.5 pages, all results integrated** | Mar 31 |
 | ✓ | **RVSP multi-view noise robustness** | **Multi-view -5.4% avg severe vs A4C -9.8%, PSAX -7.5%. MV severe ≥ SV clean.** | Mar 31 |
+| ✓ | **Pathology-stratified LVEF (EchoNet-Dynamic)** | **JEPA MAE=12.4 vs MAE=19.3 on reduced EF (<40%). Gap grows from +0.8 to +6.9 MAE points.** | Mar 31 |
 
 ---
 
