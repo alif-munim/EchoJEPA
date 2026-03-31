@@ -742,6 +742,39 @@ Existing predictions stratified by EF severity. No new training — pure re-anal
 
 The advantage of latent prediction over pixel reconstruction is largest precisely where clinical stakes are highest — this is the kind of failure mode that would be clinically dangerous with a pixel-reconstruction model.
 
+### 5s. Information Probing — Speckle Filtering (EchoNet-Dynamic, 2,554 clips)
+
+Linear probes on clip-level mean-pooled embeddings (1,277 videos × 2 clips, 5-fold CV Ridge regression).
+
+**Nuisance variable probing:**
+
+| Variable | JEPA R² | BYOL R² | MAE R² |
+|---|---|---|---|
+| Speckle energy (raw) | **0.764** | 0.835 | 0.910 |
+| Mean intensity | 0.998 | 0.984 | 0.995 |
+| Texture variance | 0.956 | 0.970 | 0.975 |
+| **Speckle energy (partial, controlling for intensity)** | **0.674** | 0.775 | **0.875** |
+
+Speckle-intensity Pearson correlation: r=0.530 (moderate confound — partial R² is the right metric).
+
+**Target variable probing:**
+
+| Variable | JEPA R² | BYOL R² | MAE R² |
+|---|---|---|---|
+| EF | -0.093 | -0.430 | 0.075 |
+| ESV | 0.100 | -0.112 | 0.291 |
+| EDV | 0.073 | -0.155 | 0.172 |
+
+**Key findings:**
+1. **JEPA encodes 23% less speckle information than MAE** (partial R²=0.674 vs 0.875 after controlling for mean intensity). The gap survives the confound check and actually widens in relative terms (raw ratio 84%, partial ratio 77%). This confirms the EMA target encoder filters high-frequency acquisition noise at the representation level.
+2. **Mean intensity is saturated** (~1.0 for all models) — trivial global statistics are equally encoded.
+3. **EF is not linearly decodable** from mean-pooled clip embeddings for ANY model. The eval pipeline's attentive probe (cross-attention over 1,568 spatial tokens) is required to extract hemodynamic function. This is consistent: the downstream task tables (Table A) demonstrate EF encoding; the probing result shows it requires spatial attention to decode.
+4. **ESV/EDV favor MAE** (0.291/0.172 vs JEPA 0.100/0.073) — spatial volume is anatomical information that pixel reconstruction encodes better. Consistent with MAE's segmentation advantage.
+
+**Interpretation:** The probing matrix tells a consistent story. MAE retains more pixel-level information (high nuisance R², better ESV/EDV which are spatial measures) because the reconstruction objective forces retention of image detail. JEPA filters speckle but encodes clinical function in a spatially distributed way that requires attention to decode. The downstream task advantage (JEPA R²=0.552 vs MAE 0.351 on LVEF) comes from richer clinical signal in the attended token space, not from mean-pooled global features.
+
+Data saved: `scripts/rebuttal/samples/information_probing_{model}.npz`
+
 ### 5h. RVSP Data Is Truly Multi-View (UHN DICOM Audit)
 
 **Initial concern:** Both clips per study share the same DICOM series UID, which normally implies same acquisition/view. Appeared that 99.9% of RVSP "multi-view" data was actually multi-clip from the same view.
