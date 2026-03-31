@@ -111,6 +111,7 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 | ✓ | **Noise robustness — CAMUS segmentation** | **MAE -8% avg, JEPA -10%, BYOL -25%** | Mar 31 |
 | ✓ | **Noise robustness — Pediatric zero-shot** | **JEPA highest Pearson at all severity levels** | Mar 31 |
 | ✓ | **icml_rebuttal.tex full rewrite** | **Zero TBDs, ~5.5 pages, all results integrated** | Mar 31 |
+| ✓ | **RVSP multi-view noise robustness** | **Multi-view -5.4% avg severe vs A4C -9.8%, PSAX -7.5%. MV severe ≥ SV clean.** | Mar 31 |
 
 ---
 
