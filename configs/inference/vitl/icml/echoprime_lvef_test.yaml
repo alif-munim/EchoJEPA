@@ -1,0 +1,61 @@
+# EchoPrime LVEF test inference (d=4 attentive probe, rebuttal)
+app: vjepa
+cpus_per_task: 32
+folder: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitb/icml/echoprime_lvef_test
+mem_per_gpu: 80G
+nodes: 1
+tasks_per_node: 8
+num_workers: 8
+
+eval_name: video_classification_frozen
+resume_checkpoint: true
+tag: icml-echoprime-lvef-d4-test
+val_only: true
+predictions_save_path: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/predictions/icml-echoprime-lvef-test.csv
+
+probe_checkpoint: /mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/evals/vitb/icml/echoprime_lvef/video_classification_frozen/icml-echoprime-lvef-d4/best.pt
+
+experiment:
+  classifier:
+    task_type: regression
+    num_heads: 16
+    num_probe_blocks: 4
+    num_targets: 1
+
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_test_224px_RAW.csv
+    dataset_val: /home/sagemaker-user/user-default-efs/vjepa2/data/csv/a4c_b_lvef_test_224px_RAW.csv
+    num_classes: 1
+    resolution: 224
+    target_mean: 57.0686
+    target_std: 11.2794
+    frames_per_clip: 16
+    frame_step: 2
+    num_segments: 2
+    num_views_per_segment: 1
+    normalization:
+      - [0.0, 0.0, 0.0]
+      - [1.0, 1.0, 1.0]
+
+  optimization:
+    batch_size: 8
+    num_epochs: 1
+    use_bfloat16: true
+    use_pos_embed: false
+    multihead_kwargs:
+    - {final_lr: 0.0, final_weight_decay: 0.01, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.01}
+    - {final_lr: 0.0, final_weight_decay: 0.1, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.1}
+    - {final_lr: 0.0, final_weight_decay: 0.4, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.4}
+    - {final_lr: 0.0, final_weight_decay: 0.01, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.01}
+    - {final_lr: 0.0, final_weight_decay: 0.1, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.1}
+    - {final_lr: 0.0, final_weight_decay: 0.4, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.4}
+
+model_kwargs:
+  checkpoint: null
+  module_name: evals.video_classification_frozen.modelcustom.echo_prime_encoder
+  pretrain_kwargs: {}
+  wrapper_kwargs:
+    echo_prime_root: /home/sagemaker-user/user-default-efs/vjepa2/evals/video_classification_frozen/modelcustom/EchoPrime
+    force_fp32: true
+    bin_size: 50
