@@ -600,6 +600,54 @@ Same perturbation framework applied to zero-shot UHN→Pediatric and END→Pedia
 3. **MAE is surprisingly robust on Pearson** (correlation preserved) but starts from the lowest clean baseline — the correlation exists but the predictions lack discriminative power (R² near zero or negative).
 4. The robustness pattern is consistent across two independent source datasets (UHN and END), confirming it's a property of the encoder features, not the probe.
 
+### 5o. Segmentation Robustness — CAMUS Under Noise (P0.6)
+
+Frozen segmentation decoders (trained on clean CAMUS data) evaluated on test set (50 patients, 4CH+2CH) with USAugment perturbations. Uses `noised_segmentation.py` — same perturbation framework as LVEF robustness but with Dice score instead of R².
+
+**Depth Attenuation (mean Dice):**
+
+| Severity | JEPA | BYOL | MAE |
+|---|---|---|---|
+| Clean | 0.815 | 0.821 | **0.822** |
+| Mild | 0.787 | 0.720 | **0.809** |
+| Moderate | 0.747 | 0.554 | **0.782** |
+| Severe | 0.681 | 0.425 | **0.749** |
+| Drop | -16.4% | **-48.2%** | **-8.9%** |
+
+**Acoustic Shadow (mean Dice):**
+
+| Severity | JEPA | BYOL | MAE |
+|---|---|---|---|
+| Clean | 0.815 | 0.821 | **0.822** |
+| Mild | 0.802 | 0.800 | **0.810** |
+| Moderate | 0.776 | 0.751 | **0.782** |
+| Severe | 0.708 | 0.614 | **0.728** |
+| Drop | -13.1% | **-25.2%** | **-11.4%** |
+
+**Haze Artifact (mean Dice):**
+
+| Severity | JEPA | BYOL | MAE |
+|---|---|---|---|
+| Clean | 0.815 | 0.821 | **0.822** |
+| Mild | 0.814 | **0.820** | 0.821 |
+| Moderate | 0.810 | **0.817** | 0.815 |
+| Severe | 0.800 | 0.804 | 0.794 |
+| Drop | **-1.8%** | -2.1% | -3.4% |
+
+**Summary (average clean→severe Dice drop):**
+
+| Model | Depth | Shadow | Haze | Average |
+|---|---|---|---|---|
+| **MAE** | **-8.9%** | **-11.4%** | -3.4% | **-7.9%** |
+| JEPA | -16.4% | -13.1% | **-1.8%** | -10.4% |
+| BYOL | -48.2% | -25.2% | -2.1% | -25.2% |
+
+**Key finding — anatomy vs function dissociation extends to noise robustness:**
+- **On LVEF regression (function):** JEPA most robust (§5m: -19% avg) > MAE (-37%) > BYOL (-40%)
+- **On CAMUS segmentation (anatomy):** MAE most robust (-7.9% avg) > JEPA (-10.4%) > BYOL (-25.2%)
+
+The pretraining objective determines not just what the model learns, but what it's robust to. MAE's pixel reconstruction produces spatial features that are robust to spatial degradation (segmentation maintained). JEPA's latent prediction produces hemodynamic features that are robust to noise (LVEF maintained). BYOL collapses on both — global mean-pooling loses both spatial and temporal information under perturbation.
+
 ### 5l. RVSP Single-View Ablation (pt50 JEPA-L)
 
 **Test set results (5,103 studies):**
