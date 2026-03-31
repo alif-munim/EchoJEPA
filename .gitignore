@@ -96,3 +96,8 @@ data/echonet
 data/manifest_keys.json
 data/mimic_presign.ipynb
 data/presigned_urls.txt
+
+# Archived embedding backups (too large for git)
+experiments/nature_medicine/mimic/archived/*.npz.shuffled_backup
+experiments/nature_medicine/uhn/archived/
+experiments/nature_medicine/uhn/study_to_clips_index.pkl
