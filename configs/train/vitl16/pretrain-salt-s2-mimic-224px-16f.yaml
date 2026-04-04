@@ -1,0 +1,102 @@
+# SALT Stage 2: Frozen-teacher student training
+# Freeze the Stage 1 encoder as teacher, train a new student encoder + predictor
+# to predict the teacher's latent representations at masked positions.
+app: salt
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 220G
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/mimic/salt_s2_vitl_224px_16f
+data:
+  dataset_type: VideoDataset
+  datasets:
+  - /home/sagemaker-user/user-default-efs/vjepa2/data/csv/mimic_annotations_s3.csv
+  datasets_weights:
+  - 1.0
+  batch_size: 128
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs:
+  - 16
+  fps: 8
+  tubelet_size: 2
+  num_workers: 8
+  persistent_workers: true
+  pin_mem: true
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio:
+  - 0.9
+  - 1.1
+  random_resize_scale:
+  - 0.5
+  - 1.0
+  reprob: 0.0
+loss:
+  loss_exp: 1.0  # L1 loss
+mask:
+- aspect_ratio:
+  - 0.75
+  - 1.5
+  full_complement: false
+  max_keep: null
+  max_temporal_keep: 1.0
+  num_blocks: 8
+  spatial_scale:
+  - 0.15
+  - 0.15
+  temporal_scale:
+  - 1.0
+  - 1.0
+- aspect_ratio:
+  - 0.75
+  - 1.5
+  full_complement: false
+  max_keep: null
+  max_temporal_keep: 1.0
+  num_blocks: 2
+  spatial_scale:
+  - 0.7
+  - 0.7
+  temporal_scale:
+  - 1.0
+  - 1.0
+meta:
+  dtype: bfloat16
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  seed: 234
+  use_sdpa: true
+model:
+  stage: 2
+  model_name: vit_large   # student encoder
+  # Teacher config — can use a smaller model than the student
+  teacher_model_name: vit_large
+  teacher_checkpoint: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/mimic/salt_s1_vitl_224px_16f/latest.pt
+  # Predictor config (same architecture as V-JEPA 2)
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  zero_init_mask_tokens: true
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_rope: true
+  use_silu: false
+  wide_silu: true
+optimization:
+  epochs: 240
+  ipe: 300
+  ipe_scale: 1.25
+  warmup: 40
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  betas: [0.9, 0.95]
+  grad_clip: 0.02
+  force_load_pretrain: false
