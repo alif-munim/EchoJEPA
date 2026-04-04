@@ -16,6 +16,7 @@ Technical documentation for the codebase internals.
 | `checkpoint-registry.md` | **All encoder and probe checkpoints.** Descriptive symlinks (`checkpoints/encoders/`), pretraining lineage (G=UHN, L/L-K=MIMIC), epoch conventions (V-JEPA vs VideoMAE), ICML eval_probes, NatMed UHN/MIMIC probes, init weights, S3 sources. |
 | `classifier-pipeline.md` | ConvNeXt/Swin classifier pipeline: training, cooldown, 18M inference, data prep stages, label mappings, experiment history |
 | `forward-prediction.md` | Zero-shot anomaly detection & forward prediction experiments exploiting the JEPA predictor network. Results across 4 approaches (prediction error, repr distance mean-pooled/token-level, forward prediction) on UHN (hard negatives) and MIMIC (population negatives). Key finding: takotsubo 0.711 AUROC zero-shot; predictor-based scoring uniformly at chance. Full results in `evals/forward_prediction/RESULTS.md` |
+| `salt-pretraining.md` | SALT (Static-teacher Asymmetric Latent Training) implementation guide. Two-stage design (V-Pixel pixel reconstruction → frozen-teacher latent prediction), file layout (`app/salt/`), config reference, how to run, checkpoint compatibility, key design decisions. Reference paper: `claude/papers/vjepa-salt/arxiv.tex` |
 
 ## data/
 
@@ -67,11 +68,12 @@ Development log: bug tracker, changelog, operational guides, and code review fin
 
 ## rebuttals/
 
-ICML rebuttal — actual reviews received 2026-03-25 (scores 2/3/3/4), updated 2026-03-26. **`08-rebuttal-v2.md` is the active rebuttal plan.** Pre-review docs (`01`-`07`) anticipated different concerns than reviewers raised. See `rebuttals/README.md` for the full index and status of each file.
+ICML rebuttal — reviews received 2026-03-25 (scores 2/3/3/4), rebuttal submitted 2026-03-31, **all reviewers maintained scores (2026-04-04)**. Decision with AC. See `rebuttals/README.md` for the full index. All rebuttal experiments feed Nature Medicine.
 
 | File | Contents | Status |
 |------|----------|--------|
-| **`08-rebuttal-v2.md`** | **Active rebuttal plan based on actual reviews.** Reviewer-by-reviewer analysis, per-concern responses with pre-written text, experiment priority table, EchoJEPA-G gated release strategy, path to acceptance | **PRIMARY** |
+| **`13-post-rebuttal-outcome.md`** | **Post-rebuttal analysis.** Reviewer acknowledgements, updated acceptance probability (10-20%), lessons, path forward | **START HERE** |
+| `08-rebuttal-v2.md` | Rebuttal plan. Reviewer-by-reviewer analysis, per-concern responses, experiment priority table, EchoJEPA-G gated release strategy, path to acceptance | Reference |
 | `01-paper-audit.md` | TIER 1-4 issue inventory with anticipated attacks, defense evidence, and response templates | Reference |
 | `02-rebuttal-template.md` | Pre-review rebuttal text. Leads with controlled comparison, covers compute-matched concerns, baseline fairness | Superseded by 08 |
 | `03-worst-case-scenarios.md` | Scenarios 1-7: broken VideoMAE, missing EchoCardMAE, model size, frozen probing, large gap, probe unfairness | Superseded by 08 |
@@ -80,7 +82,39 @@ ICML rebuttal — actual reviews received 2026-03-25 (scores 2/3/3/4), updated 2
 | `06-claim-validity.md` | Bulletproof vs confounded claims — which hills to die on, which to concede | Superseded by 08 |
 | `07-camera-ready-actions.md` | Final assessment + 13 prioritized action items for camera-ready | Reference |
 | `claude-rebuttal-master.md` | Original unstructured source document (preserved) | Archive |
+| `11-rebuttal-task-tracker.md` | Task list: 35 completed experiments, P0-P3 priorities, execution log | Complete |
+| `10-rebuttal-experiment-results.md` | Consolidated results: all numbers, key findings, config↔checkpoint mapping | Reference |
+| `09-three-way-comparison-results.md` | 3-way JEPA/BYOL/MAE detail: epoch tables, architecture audit, interpretation | Reference |
+| `12-checkpoint-reference.md` | All encoder and probe checkpoint paths | Reference |
 | `review-simulation-prompt.md` | Self-contained prompt for simulating ICML review panel in Claude web app | Tool |
+
+Experiment writeups migrated to `neurips/experiments/`.
+
+## neurips/
+
+NeurIPS 2025 resubmission plan. Reframes from "model paper" to "SSL understanding paper." SALT (4th paradigm) completes the 2×2 experimental design.
+
+| File | Contents |
+|------|----------|
+| **`README.md`** | High-level plan: title candidates, core thesis, experiment status matrix (17 completed + 10 new), key differences from ICML, timeline, Nature Medicine deconfliction |
+| `completed-experiments.md` | Inventory of all done experiments organized by NeurIPS paper section, with key numbers and source references |
+| `new-experiments.md` | What needs to be run: SALT pretraining (P0), evaluation battery, EchoBench, frame shuffling, speckle probing. Dependency chain and compute estimates |
+| `paper-outline.md` | Section-by-section NeurIPS structure with page budgets, experiment mapping, and figure plan |
+| `competitive-landscape.md` | US-JEPA, SALT paper, V-JEPA 2, EchoPrime, PanEcho: differences, how to cite, positioning |
+
+### neurips/experiments/
+
+Standalone experiment writeups with full results, methodology, scripts, checkpoints, and interpretation. Each follows a consistent format: overview, setup, results tables, key finding, references.
+
+| File | Contents |
+|------|----------|
+| `frame-shuffling.md` | 6-condition temporal ablation (clean, tubelet, reverse, matched, shuffle, matched_frame) × 3 models. BYOL collapses to R²=0.099 under matched_frame |
+| `three-way-comparison.md` | Core 3-way results: LVEF (53K test), RVSP (5K test), CAMUS (50 patients) with bootstrap CIs |
+| `noise-robustness.md` | EchoBench: LVEF + CAMUS + Pediatric under 3 perturbations × 3 severities. Anatomy-function robustness dissociation |
+| `speckle-probing.md` | Information probing: JEPA encodes 23% less speckle (partial R²=0.674 vs 0.875) |
+| `cross-dataset-transfer.md` | EchoNet-Dynamic (1,277 test) + Pediatric zero-shot from UHN and END probes |
+| `clinical-stratification.md` | Pathology-stratified LVEF: JEPA advantage 8× larger on reduced EF (<40%) |
+| `multi-view-ablation.md` | RVSP single-view vs multi-view + noise robustness. MV halves degradation |
 
 ## goodfire/
 
