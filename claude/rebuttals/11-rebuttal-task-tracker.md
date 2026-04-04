@@ -1,7 +1,8 @@
 # ICML Rebuttal — Task Tracker
 
-**Deadline:** Apr 2, 2026 (submission). Writing starts Apr 1.
-**Resources:** 8× A100 80GB (GPUs 0-7). H100 node running BYOL-Video v2 pretrain (separate).
+**Status: REBUTTAL SUBMITTED (Mar 31) + DISCUSSION COMPLETE (Apr 4).**
+All reviewers maintained original scores (2/3/3/4). See `13-post-rebuttal-outcome.md`.
+**Resources used:** 8× A100 80GB (GPUs 0-7). H100 node for BYOL-Video pretrain.
 
 ---
 
@@ -117,9 +118,9 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 
 ---
 
-## Execution Plan (Updated 2026-03-31)
+## Execution Plan (Updated 2026-04-04)
 
-### Completed (Mar 28-31)
+### Completed (Mar 28-31) — Pre-rebuttal experiments
 - [x] P0.5: Record MAE CAMUS results — **Test Dice 0.822** ✓
 - [x] P0.6: Functional robustness under noise — JEPA -19%, MAE -37%, BYOL -40% (LVEF); MAE -8%, JEPA -10%, BYOL -25% (CAMUS) ✓
 - [x] P0.9: Anatomy vs function dissociation — MAE best seg (0.822) + worst LVEF (R²=0.28) ✓
@@ -132,29 +133,21 @@ External benchmark validation on public data. Differentiates from US-JEPA. Commu
 - [x] Infrastructure: Migrated ALL 34 sbatch scripts to deploy.sh workflow ✓
 - [x] icml_rebuttal.tex rewrite — zero TBDs, ~5.5 pages, all results integrated ✓
 
-### Mar 31 → Apr 2 — Final experiments + submission
+### Completed (Mar 31) — Rebuttal submitted
+- [x] Rebuttal submitted to OpenReview (Mar 31)
+- [x] Reply to 6t2T (clarified MAE/BYOL are non-JEPA methods) (Apr 4)
+- [x] Reply to hfQ1 (dataset diversity, L-K results, ethics statement) (Apr 1)
+- [x] Reply to ncQn (ranking inversion, speckle probing, EchoBench) (Apr 1)
 
-**Priority 1: Frame shuffling — downstream R² degradation (~2-3h GPU)**
-Strongest remaining mechanistic evidence. Shuffle frame order in EchoNet-Dynamic test videos, run frozen LVEF probes, measure R² degradation. JEPA should degrade most (encodes temporal dynamics); MAE should be unaffected (static appearance). Needs a frame-shuffle perturbation function for the VideoDataset perturbation hook (same pipeline as noise robustness). If results are clean, add back to rebuttal as a paragraph in Section B.
+### Post-Rebuttal Outcome (Apr 4)
+- All reviewers selected (c) Unresolved or (b) Follow-up
+- All reviewers maintained original scores
+- Universal blocker: novelty/technical contribution
+- ncQn explicitly confirmed experiments resolved their concerns
+- Decision now with AC; estimated 10-20% acceptance
 
-**Priority 2: UHN LVEF bootstrap CIs (~30min CPU)**
-Already claimed significance in rebuttal footnote. Run the actual bootstrap (n=53K) to have numbers ready if reviewers ask in discussion phase.
-
-**Priority 3: Representation visualization / attention maps (~1-2h GPU)**
-Committed to in Section D (camera-ready). Extract attention maps from JEPA vs MAE on clean vs perturbed inputs. Not required for rebuttal submission, but having a draft figure shows good faith.
-
-**Priority 4: Cross-view representation similarity (P0.7, ~30min)**
-Cosine similarity between A4C and PSAX-AV features of the same study. Tests view-invariant cardiac state encoding. Could strengthen multi-view argument if results are clean.
-
-**Priority 5: Cardiac phase reconstruction (P0.8, ~15min)**
-ED vs ES linear classifier on temporal features. Tests structured temporal encoding. Quick and easy; include only if result is clean.
-
-### Apr 1 — Final review
-- [ ] Run frame shuffling if GPUs available (Priority 1)
-- [ ] Run UHN bootstrap CIs (Priority 2)
-- [ ] Final numbers check against doc 10
-- [ ] Review narrative coherence
-- [ ] Push to Overleaf
-
-### Apr 2
-- [ ] Final review, submit
+### Remaining (feeds Nature Medicine, not ICML)
+- [ ] Frame shuffling downstream (results in hand from Goodfire report, not submitted to ICML)
+- [ ] Cross-view representation similarity
+- [ ] Cardiac phase reconstruction
+- [ ] Full EchoBench packaging

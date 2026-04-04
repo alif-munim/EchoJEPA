@@ -1,0 +1,1015 @@
+
+\documentclass{applemlr}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{amsmath}
+\usepackage{enumerate} 
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsfonts}
+\usepackage{amsthm}
+\usepackage{newtxtt}
+\usepackage{diagbox} 
+\usepackage{colortbl}
+\usepackage{amssymb}
+\usepackage{xspace}
+\usepackage{wrapfig}
+\usepackage{adjustbox}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{enumitem}
+\usepackage{silence}
+\usepackage{dsfont}
+\usepackage[table]{xcolor}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{xfakebold}
+\usepackage{wrapfig}
+\usepackage{graphicx}
+\usepackage{url}
+\input{math_commands}
+
+
+\definecolor{textgray}{HTML}{6E6E73}
+\usetikzlibrary{positioning, calc}
+\usetikzlibrary{decorations.pathmorphing}
+
+\makeatletter
+\patchcmd{\wrong@fontshape}{\@gobbletwo}{}{}{}
+\makeatother
+\WarningFilter{latexfont}{Font shape}
+\WarningFilter{latexfont}{Some font}
+
+
+\numberwithin{equation}{section} 
+\setcounter{tocdepth}{2} %
+\tcbuselibrary{minted}
+\usemintedstyle{colorful}
+
+\setminted[python]{
+  linenos,
+  breaklines,
+  fontsize=\footnotesize,
+  xleftmargin=2em
+}
+
+
+\makeatletter
+\AtBeginDocument{
+  \urlstyle{sf}
+  \def\UrlFont{\sffamily}
+}
+\makeatother
+
+\definecolor{light}{RGB}{125, 125, 125}
+\crefname{tcb@cnt@pbox}{code}{code}
+\Crefname{tcb@cnt@pbox}{Code}{Code}
+\crefname{assumption}{assumption}{assumption}
+\Crefname{assumption}{Assumption}{Assumptions}
+
+\newtcolorbox[auto counter]{pbox}[2][]{
+  colback=white,
+  title=Code~\thetcbcounter: #2,
+  #1,fonttitle=\sffamily,
+  fontupper=\sffamily,
+  arc=2pt,
+  colframe=bgcolor,
+  coltitle=fgcolor,
+  colbacktitle=bgcolor,
+  toptitle=0.25cm,
+  bottomtitle=0.125cm
+}
+
+\newcommand\blfootnote[1]{%
+  \begin{NoHyper}%
+  \renewcommand\thefootnote{}\footnote{#1}%
+  \addtocounter{footnote}{-1}%
+  \end{NoHyper}%
+}
+
+\makeatletter
+\newcommand\applefootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}%
+  \renewcommand\@makefntext[1]{\noindent##1}%
+  \footnote{#1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+\makeatother
+
+
+\definecolor{cverbbg}{gray}{0.90}
+\newenvironment{lcverbatim}
+ {\SaveVerbatim{cverb}}
+ {\endSaveVerbatim
+  \flushleft\fboxrule=0pt\fboxsep=.5em
+  \colorbox{cverbbg}{%
+    \makebox[\dimexpr\linewidth-2\fboxsep][l]{\BUseVerbatim{cverb}}%
+  }
+  \endflushleft
+}
+
+\title{Rethinking JEPA:~Compute‑Efficient Video SSL with Frozen Teachers}
+\author[*]{Xianhang Li}
+\author{Chen Huang}
+\author{Chun-Liang Li}
+\author{Eran Malach}
+\author{Josh Susskind}
+\author{Vimal Thilak}
+\author{Etai Littwin }
+\affiliation{Apple}
+
+
+\abstract{
+
+    Video Joint Embedding Predictive Architectures (V‑JEPA) learn generalizable off-the-shelf video representation by predicting masked regions in latent space with an exponential moving average (EMA)‑updated teacher.
+    While EMA prevents representation collapse, it complicates scalable model selection and couples teacher and student architectures. 
+    We revisit masked‑latent prediction and show that a frozen teacher suffices. Concretely, we (i) train a target encoder with a simple pixel‑reconstruction objective under V‑JEPA masking, then (ii) freeze it and train a student to predict the teacher’s latents on masked regions. 
+    This leads to a two‑stage, unregularized scheme that we refer to as \ourmethod (Static-teacher Asymmetric Latent Training). \ourmethod decouples optimization into pixel reconstruction (teacher) and masked latent prediction (student), increasing transparency, efficiency, and scalability while preserving the ability of representation to generalize under frozen evaluation. Empirically, our student models outperform recently proposed V-JEPA 2 encoders under frozen backbone evaluation across diverse benchmarks. They are also more compute‑optimal: at matched pretraining FLOPs, our method achieves higher probing accuracy, and its scaling curves dominate V‑JEPA’s accuracy–FLOPs Pareto frontier. 
+    Finally, we find that student quality is remarkably robust to teacher quality: high-performing students emerge even with small, sub-optimal teachers. This points to a compute budget allocation that should overwhelmingly favor the student.
+    These results position SALT as a simple, scalable, and compute‑efficient alternative to EMA‑based self‑distillation for video representation learning.
+}
+
+\metadata[Correspondence]{\sffamily Vimal Thilak: \url{vthilak@apple.com}; Etai Littwin: \url{elittwin@apple.com}}
+\date{\sffamily\today}
+
+
+\newcommand{\new}{\marginpar{NEW}}
+\newcommand{\ourmethod}{SALT\xspace}
+\newcommand{\vjepa}{V-JEPA\xspace}
+\newcommand{\ditto}{\texttt{"}}
+
+\begin{document}
+\maketitle
+
+\blfootnote{\textsuperscript{*}Work done during an internship at Apple.}
+
+\section{Introduction}
+
+Self-supervised learning (SSL)-based methods have emerged as a standard approach for representation learning in computer vision. These methods pretrain neural networks that use vast amounts of image~\citep{mae, ijepa, dino, dinov2_oquab2024, aim-el-nouby24a} or video~\citep{videomaev1_tong2022, videomaev2_wang2023_cvpr, bardes2024vjepa, assran2025vjepa2} data to learn backbones that have been shown to work well on many downstream tasks. Among these methods, Joint Embedding Predictive Architecture (JEPA)-based methods~\citep{lecun2022path} have demonstrated a strong ability to learn powerful semantic features that  perform well on downstream image (I-JEPA)~\citep{ijepa} and video (V-JEPA)~\citep{bardes2024vjepa, assran2025vjepa2} tasks.
+
+As concrete instantiations of the Joint Embedding Predictive Architecture (JEPA), I-JEPA~\citep{ijepa} and V-JEPA~\citep{bardes2024vjepa, assran2025vjepa2} are masking-based pretraining methods that learn powerful semantic representation by predicting masked-out portions of the input in a learned embedding space. Specifically, these methods consist of a context (student) encoder and a predictor that are trained to make predictions that match the embeddings provided by a target (teacher) encoder. 
+While powerful, the JEPA family of models are often complex, hyperparameter-brittle, and use an uninformative loss metric that is a poor proxy for representation quality, requiring practitioners to rely on other more downstream-predictive metrics~\citep{alphareq_agrawal2022, rankme_garrido, lidar_thilak}.  
+These issues stem from the core JEPA design: because student and teacher representation co‑evolve, trivial collapsed solutions with near‑zero loss exist, and must be avoided. To prevent representation collapse, these models are implicitly regularized using the self-distillation approach pioneered by BYOL~\citep{byol}. Namely, the stop-gradient operation is applied on the target encoder, and its weights are updated by an exponential moving average (EMA) copy of the student weights, according to some EMA scheduler. It is worth mentioning that other variants of joint-embedding SSL models utilize more explicit regularizers to prevent collapse~\citep{BarlowTwins, vicreg}. \\
+
+In this paper, we challenge the common assumption that such involved collapse prevention mechanisms are required for learning high-quality semantic features. Specifically, we show that a \emph{dynamic} teacher is unnecessary, and that stable, high-quality targets needed to optimize the student model can be obtained in a more efficient manner. We propose a significantly simplified pretraining recipe that replaces the momentum teacher with a frozen encoder. This design obviates the need for both the EMA update and the stop-gradient, streamlining the self-distillation process and reducing implementation complexity. 
+We propose a simple two-stage pretraining scheme: (i) train a target encoder with a pixel‑reconstruction objective under V‑JEPA–style masking; (ii) freeze this encoder and train a student with the JEPA objective to predict the teacher’s latents on masked regions~\citep{bardes2024vjepa}. We dub this method as \ourmethod (Static-teacher Asymmetric Latent Training). Prior work has explored using pretrained frozen encoders as masked‑prediction targets~\citep{mvd_wang2022, umt_li2023}, but typically assumes access to strong teachers and often relies on fine‑tuning the student to realize the benefits. In contrast, we show:
+\begin{enumerate}
+\item \textbf{Small, “sub‑optimal” teachers suffice.} High‑quality semantic features competitive with state-of-the-art under frozen evaluation protocols can be learned from much smaller and cheaper teachers. Using the strongest available pretrained encoders is unnecessary and yields at most marginal gains for the student.
+\item \textbf{Compute efficiency.} Our two‑stage design is more compute‑efficient than EMA‑based self‑distillation (e.g., V‑JEPA): at matched \textbf{FL}oating \textbf{P}oint \textbf{O}perations (FLOPs) and wall‑clock, and even when accounting for the cost of training the teacher, our method achieves a better accuracy–FLOPs trade‑off\footnote{
+FLOPs and total number of training steps are used interchangeably to refer to compute. ~\Cref{appendix:sec:flops_note} includes an explanation for this choice}. 
+
+\item \textbf{Interpretable model selection.} Our design yields a student loss that provides an informative, training‑time metric that correlates strongly with downstream accuracy under the frozen‑backbone protocol, in contrast to EMA‑based methods that require proxy heuristics for model selection.
+\end{enumerate}
+Taken together, our results suggest that elaborate online student-teacher dynamics, and specifically EMA-based collapse prevention machinery may be unnecessary for learning high-quality representation.  
+
+
+\begin{figure}[t!]
+    \centering
+    \includegraphics[width=0.9\linewidth]{figs/method_9_23_v1.pdf}
+    \caption{\textbf{(Left) \ourmethod Stage 2: } Frozen-teacher, learnable student and predictor. The frozen teacher encoder is obtained via \textbf{Stage 1} (not pictured above) by training using a pixel reconstruction objective. The student and predictor are jointly optimized to learn representation from video in Stage 2 using a latent space prediction objective. \textbf{(Right):} SALT's compute-accuracy curve dominates V-JEPA 2.}
+    \label{fig:w2s_teaser}
+\end{figure}
+
+\section{Method Overview}
+
+We first review video-based JEPA models that include both V-JEPA and V-JEPA 2, and then describe our simple approach named \ourmethod for representation learning from videos. Note that V-JEPA 2 uses the same pretraining method described in V-JEPA but employs updated hyperparameters so our method review applies to both models.
+
+\subsection{V-JEPA}
+
+V-JEPA employs a masked prediction objective: the context encoder–predictor reconstructs masked regions from visible frames in a learned representation space, while an EMA-updated target encoder supplies the supervision. Following the notation used by~\citet{bardes2024vjepa}, the latent space prediction objective can be written:
+\begin{equation}
+\min_{\theta, \phi} \mathbb{E}_{x,y}\|g_\phi(f_\theta(x), \delta y) - \textbf{stop\_grad}(\bar{f}_\theta(y))\|_1
+\label{eqn:vjepa}
+\end{equation}
+where $x$ and $y$ denote two disjoint regions of the input, $f$, $\bar{f}$ and $g$ denote the encoder, target encoder and predictor respectively, $\textbf{stop\_grad}$ denotes the stop-gradient operation; and $\delta y$ denotes the spatio-temporal positions of missing regions in the input which serve as context for the predictor. 
+
+\subsection{Static-teacher Asymmetric Latent Training (SALT) - A Simplified Video Representation Learning Method}
+\label{sec:subsec:our_method}
+
+The V-JEPA method uses a self-distillation approach incorporating stop-gradient and exponential moving average (EMA). This approach requires meticulous tuning of the  associated hyperparameters to maintain training stability and prevent representation collapse. In this work, we advocate for an alternative solution, which we refer to as ~\ourmethod, that does not require the use of EMA. Specifically, we simplify the architecture by breaking down video representation learning into two steps:
+\begin{itemize}
+    \item \textbf{Stage 1 - } The teacher or target encoder is trained to optimize a pixel reconstruction objective in Stage 1. The objective is identical to that used in VideoMAE~\citep{videomaev1_tong2022}. However, our Stage 1 method differs from VideoMAE as we use a more efficient masking scheme, the details of which are described in~\Cref{sec:results:teacher_howto:teacher_masking_strategy}.
+    \item \textbf{Stage 2 - } The weights of the teacher from Stage 1 are frozen and used to train a student and predictor network, as shown in~\Cref{fig:w2s_teaser}. The JEPA objective, described by~\Cref{eqn:vjepa}, is used to optimize the student and the predictor.
+\end{itemize}
+
+The simplification described above results in two loss objectives that are proper loss functions which are easier to interpret in practice, and are immune to representation collapse by design. This stands in contrast to V-JEPA's objective in \Cref{eqn:vjepa}, which is difficult to interpret due to its self-distillation nature that, in turn, necessitates the use of surrogate metrics~\citep{rankme_garrido, lidar_thilak}. Moreover, our two-stage approach completely decouples the teacher and student architectures, unlocking considerable compute efficiency gains through the use of small teachers to train larger students, as shown in~\Cref{fig:w2s_teaser} and~\Cref{tab:main_results:systematic_comparison}. We observe from~\Cref{fig:w2s_teaser} that SALT shows a significant improvement over V-JEPA 2 on Something-Something-v2 (SSv2)~\citep{goyal2017something}, which is a temporal understanding task. Furthermore~\Cref{tab:main_results:systematic_comparison} shows that a smaller but noticeable improvement is observed on Kinetics-400~\citep{kay2017kinetics}, an appearance understanding benchmark. We describe the experimental setup in~\Cref{sec:expt_setup} and discuss results in detail in~\Cref{sec:main_results}.
+
+\subsubsection{\ourmethod Design Principles}
+SALT follows the contemporary trend toward simple, principled architectures and objectives, avoiding elaborate engineering.  
+We provide a simple recipe to train the teacher in \textbf{Stage 1} with method that we call V-Pixel that uses a pixel reconstruction objective~\footnote{This method is implicitly described in Table 1 by~\citet{bardes2024vjepa}. We name the method V-Pixel for clarity in presentation.} along with the multi-block masking method described in V-JEPA. 
+The decoupled design of \ourmethod allows us to study the role of architecture and dataset choices for training the teacher and student in a granular manner.  We uncover a surprising finding that, a high performing teacher, as measured by its downstream performance, is not necessary to train a high-quality student. As we show in~\Cref{sec:results:teacher_howto:training_data}, ~\Cref{sec:results:teacher_howto:teacher_model_size} and \Cref{sec:results:teacher_student_steps}, the student's ultimate quality is surprisingly robust to suboptimal data mixture, teacher size and compute budget. 
+Overall, our simplified design demonstrates superior efficiency, scalability, and interpretability over the baseline V-JEPA. 
+
+\section{Experimental Setup}
+\label{sec:expt_setup}
+
+\paragraph{Training}
+Our training data includes Kinetics-710 (K710)~\citet{kay2017kinetics}, constructed by merging Kinetics-400/600/700 and removing all validation samples, Something-Something V2 (SSV2)~\citet{goyal2017something}, and a 2.8 million subset of the Panda70M~\cite{chen2024panda70m} resulting in approximately 3.6 million (3.6M) video dataset that we refer to as V-3.6M dataset in our work. Note that our training dataset differs from the training datasets used in V-JEPA and V-JEPA 2 as the latter methods use Howto100M~\citep{miech2019howto100m} and YT-Temporal-1B datasets~\citep{zellers2022merlot} while we use a subset of Panda70M in V-3.6M. Our models are standard Vision Transformers (ViT)~\citep{vit_dosovitskiy2020} with rotary positional embeddings (RoPE)~\citep{su2024roformer} which are identical to the architecture described in V-JEPA 2. Specifically, we use ViT-Large (ViT-L), ViT-Huge (ViT-H), ViT-giant (ViT-g), and ViT-G in our experiments, the details of which are described in~\Cref{appendix:sec:architecture}. All baseline models (V-JEPA and V-Pixel) are trained with the same batch size of 3072 using the AdamW optimizer with hyperparameters described in detail in~\Cref{appendix:sec:training_details}.
+ To ensure fair comparisons, we keep the number of optimization steps fixed for \ourmethod and the baseline methods. In other words, the total number of steps for Stage 1 and Stage 2 is identical to the number of steps used by baseline methods. The optimal number of steps to train a teacher and student is obtained through an ablation detailed in~\Cref{sec:results:teacher_student_steps}.
+
+\paragraph{Evaluation} 
+We evaluate our models on a variety of video and image tasks. For video classification, following, we use Kinetics-400 (K400), Something-Something-v2, COIN classification~\citep{tang2019coin}, Jester~\citep{jester_materzynska2019} and Diving-48~\citep{diving48_Li_2018_ECCV} by freezing the backbone and training an attentive classifier to assess performance. For image classification, we adopt the same protocol on ImageNet-1K~\citep{imagenet_russakovsky2015}, replicating each image 16 times to form the input sequence.
+Furthermore, we evaluate our models on intuitive physics understanding benchmarks, which measure performance by comparing the model’s surprise scores for possible versus impossible videos. Following~\citep{garrido2025intuitive}, we use the predictor to forecast future representation. We assess performance on the IntPhys~\citep{riochet2018intphys}, GRASP~\citep{jassim2023grasp}, and InfLevel~\citep{weihs_inflevel} datasets. All setup information and hyperparameters used for our evaluations are described in detail in~\Cref{appendix:sec:evals}.
+
+
+\section{Experimental Results}
+\label{sec:main_results}
+%%%%%%%%%%%%%%%%%%%%%%
+% Teaser Figure
+%%%%%%%%%%%%%%%%%%%%%%
+\begin{table*}[t]
+\centering
+\caption{
+\textbf{Systematic comparison} of state-of-the-art video encoders under frozen-backbone evaluation, using SSv2 (16$\times$2$\times$3) and K400 (16$\times$2$\times$3). The comparison includes several baselines including encoders trained with V-JEPA 2 method on our V-3.6M dataset. The V-JEPA 2 encoders trained on V3.6M and \ourmethod encoders are evaluated using the protocol in~\Cref{sec:expt_setup} and~\Cref{appendix:sec:evals}. The results for other models are copied from Table 4 in V-JEPA 2~\citep{assran2025vjepa2}. A detailed description of FLOPs calculation is available in~\Cref{appendix:sec:flops_estimation}.
+}
+
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l c c c c c c c}
+\toprule
+\textbf{Method} & \textbf{Param.} & \textbf{Pretraining Dataset}
+& \textbf{Teacher (Params)}
+& \textbf{Total Compute} & \textbf{\# Seen Samples} & \textbf{SSv2} & \textbf{K400} \\
+\midrule
+VideoMAEv2~\citep{videomaev1_tong2022}              & 1B   & UnlabeledHybrid-1.4M & N/A                         & 2.2  & 1.6B & 56.1 & 82.8 \\
+PE\textsubscript{core}G~\citep{perception_encoder_bolya2025} & 1.9B & MetaCLIP-5B~\citep{xu2023metaclip}          & N/A                         & ---  & 86B & 55.4 & 88.5 \\
+InternVideo2-1B~\citep{internvideo2_wang2024}         & 1B   & IV-25.5M             & InternVL-6B + VideoMAEv2-g (6B + 1.0B) & ---  & --- & 67.3 & 87.9 \\
+VideoPrism~\citep{videoprism_zhao2024}              & 1B   & VT-36M               & Stage-1-ViT-g (~1.0B)          & ---  & 2.0B & 68.5 & 87.6 \\
+DINOv2~\citep{dinov2_oquab2024}                  & 1.1B & LVD-142M             & EMA teacher (1.1B)         & ---   & 1.9B & 50.7 & 83.6 \\
+SigLIP2~\citep{siglip2_tschannen2025}                 & 1.2B & WebLI-10B~\citep{chen2022webli}            & EMA teacher (1.2B)         & --- & 40B & 49.9 & 87.3 \\
+\vjepa 2 ViT-L~\citep{assran2025vjepa2}  & 300M & VM-22M               & EMA teacher (300M)         & 1.9 & 0.7B & 73.7 & 85.1 \\
+\vjepa 2 ViT-H~\citep{assran2025vjepa2}  & 600M & VM-22M               & EMA teacher (600M)         & 3.5  & 0.7B & 74.0 & 85.3 \\
+\vjepa 2 ViT-g~\citep{assran2025vjepa2}  & 1B   & VM-22M               & EMA teacher (1B)           & 5.3 & 0.7B  & 75.3 & 86.6 \\
+\midrule
+\vjepa 2 ViT-L & 300M & V-3.6M & EMA teacher (300M) & 1.4 & 0.7B &68.2 &83.8   \\
+\vjepa 2 ViT-H & 600M & V-3.6M & EMA teacher (600M)                                   & 2.6 & 0.7B &73.4  &84.6  \\
+\midrule
+\ourmethod ViT-L & 300M & V-3.6M & \multirow{4}{*}{\ourmethod-ViT-L (300M)} & 1.2 & 0.7B & 74.9 & 85.4  \\
+\ourmethod ViT-H & 600M & V-3.6M &                                    & \textbf{1.5}& 0.7B & 75.4 &86.0  \\
+\ourmethod ViT-g & 1B   & V-3.6M &                                    & \textbf{1.9} & 0.7B& 76.2 & 86.8 \\
+\ourmethod ViT-G & 2B   & V-3.6M &                                    & \textbf{2.6}& 0.7B &76.1      &87.2  \\
+\bottomrule
+\end{tabular}
+
+}
+\label{tab:vjepa2_paper_results}
+\label{tab:main_results:systematic_comparison}
+\end{table*}
+
+\paragraph{Systematic comparison of \ourmethod with existing baselines }~\Cref{tab:main_results:systematic_comparison} lists the performance of \ourmethod and existing work that serve as strong baselines including V-JEPA 2, VideoPrism~\citep{videoprism_zhao2024}, InternVideo2~\citep{internvideo2_wang2024}, VideoMAEv2~\citep{videomaev2_wang2023_cvpr}, Perception Encoder~\citep{perception_encoder_bolya2025}  and image encoders that include DINOv2~\citep{dinov2_oquab2024} and SigLIP2~\citep{siglip2_tschannen2025}. We use the Kinetics-400 (K400) and Something-Something-v2 (SSv2) as benchmark datasets and evaluate \ourmethod following the same multiclip, multiview setting used in existing baseline. We observe from~\Cref{tab:main_results:systematic_comparison} that our largest models, ViT-g, and ViT-G, trained with \ourmethod outperforms all of the baseline methods on SSv2, which tests the motion understanding ability of video models. On K400, which is an appearance understanding benchmark, the encoders trained with our method exceeds the performance of V-JEPA 2 across all scales and remains highly competitive with other state-of-the-art methods including the recently proposed Perception Encoder. 
+
+\begin{figure}[t!]
+  \centering
+  % Left
+  \begin{subfigure}[t]{0.65\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{figs/main_1_downstream.pdf}
+    \caption{Per-benchmark accuracy of ViT-L.}
+    \label{fig:vjepa2_vs_our_method:downstream_left}
+  \end{subfigure}\hfill
+  % Right
+  \begin{subfigure}[t]{0.35\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{figs/model_size_scaling_with_vjepa.pdf}
+    \caption{Scaling model-size.}
+    \label{fig:vjepa2_vs_our_method:scaling_right}
+  \end{subfigure}
+  \vspace{-0.6em}
+  \caption{\textbf{V-JEPA\,2 vs.\ \ourmethod\ at matched total steps on V-3.6M.}
+Both methods are trained on the same V-3.6M dataset for an identical number of pretraining steps.
+\ourmethod uses an 80k-step teacher and a 160k-step student.
+We evaluate all models under the \emph{same frozen-backbone protocol} across standard video/image benchmarks:
+K400 with 16$\times$1$\times$1 input; SSv2 with 16$\times$1$\times$1; Diving48 and Jester with 16$\times$4$\times$3; and COIN 16$\times$8$\times$3.~\Cref{tab:teaser_results} provides a breakdown of downstream performance for each dataset used in this evaluation.}
+  \label{fig:vjepa2_vs_our_method}
+  \vspace{-0.6em}
+\end{figure}
+
+\paragraph{Static teacher improves representation quality} A key design choice of \ourmethod is the use of a \emph{static} teacher which differs from the dynamic momentum-encoder teacher used in V-JEPA 2. To ascertain the differences between these two approaches, we use the same V-3.6M dataset and input resolution of $224 \times 224$ to train \ourmethod and V-JEPA 2. We train both methods for a total of 240k steps in this study.~\Cref{fig:vjepa2_vs_our_method:downstream_left} shows the downstream performance results of this study for ViT-L-based teacher and student model setup while~\Cref{fig:vjepa2_vs_our_method:scaling_right} shows the scaling behavior of the two methods as we scale up the student encoder while using a teacher encoder that is the same size or smaller than the student. We observe from~\Cref{fig:vjepa2_vs_our_method:downstream_left} that \ourmethod improves the average accuracy over the V-JEPA 2-based encoder by 2.3\% with the average calculated over six benchmarks. Furthermore, we observe from~\Cref{fig:vjepa2_vs_our_method:scaling_right} that \ourmethod displays improved performance as we scale up the student. Note that we use the same-sized teacher and student models for ViT-B and ViT-L while we use a smaller ViT-L teacher model for training ViT-H student encoder. We refer the reader to~\Cref{appendix:sec:architecture} for detailed model size and other architecture information. Together,~\Cref{fig:vjepa2_vs_our_method} suggests that the \emph{static} teacher-based \ourmethod learns higher quality features compared to V-JEPA 2 which uses an EMA-based teacher.
+
+\paragraph{Small teachers unlock compute efficiency}
+\Cref{tab:main_results:systematic_comparison,fig:vjepa2_vs_our_method} show that strong students can be trained from a \emph{frozen} teacher, which is considerably cheaper: a fixed ViT‑L teacher successfully trains same‑size ViT‑L students, and much larger ViT‑H/g/G students. Consequently, \ourmethod achieves lower \emph{total} pretraining FLOPs than the EMA‑based baseline across model sizes, even when accounting for the teacher pretraining stage. 
+The savings stem from the simple, efficient teacher pretraining (e.g., ViT‑L on V‑3.6M) and grow with both model size and spatial resolution. FLOPs computation details are provided in \Cref{appendix:sec:flops_estimation}.
+
+
+\begin{figure}[t!]
+  \centering
+  % Left
+  \begin{subfigure}[t]{0.33\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{figs/ablation/student_loss_vs_acc.png}
+    \caption{\ourmethod-teacher 80k. \\$R^{2}=0.951$}
+\label{fig:analysis_student:student_80k_teacher_loss_vs_acc}
+  \end{subfigure}\hfill
+  \begin{subfigure}[t]{0.33\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{figs/ablation/student_40k_teacher_loss_vs_acc.pdf}
+    \caption{\ourmethod-teacher 40k. \\$R^{2}=0.972$}
+    \label{fig:analysis_student:student_40k_teacher_loss_vs_acc}
+  \end{subfigure}\hfill
+  % Right
+  \begin{subfigure}[t]{0.33\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{figs/ablation/student_20k_teacher_loss_vs_acc.pdf}
+    \caption{\ourmethod-teacher 20k. \\$R^{2}=0.984$}
+\label{fig:analysis_student:student_20k_teacher_loss_vs_acc}
+  \end{subfigure}
+  \vspace{-0.6em}
+  \caption{\textbf{Correlation between student loss and downstream accuracy.} Observe that the student model's training loss is predictive of downstream accuracy.}
+  \label{fig:analysis_student}
+  \vspace{-0.6em}
+\end{figure}
+% \xhl{0.984 for 20k teacher, 0.9718 for 40k teacher}
+\paragraph{\ourmethod enables interpretable model selection} A key challenge with using joint-embedding methods including JEPA is that the training loss is typically uninformative of representation quality.~\Cref{fig:analysis_student:student_80k_teacher_loss_vs_acc} shows a student training loss versus student downstream accuracy plot for various student checkpoints that use the same \ourmethod Stage 1 checkpoint as the teacher. This checkpoint is obtained by training a teacher for 80K steps. The plot shows that the student loss is highly predictive of the downstream accuracy with an $R^{2}$ value of 0.951,  suggesting an almost linear relationship. This result implies that \ourmethod significantly simplifies tracking the quality of representation during student pretraining, and provides a clear signal for improvement via simple loss minimization. Similar observations can be made by a teacher trained for 40K and 20K iterations in~\Cref{fig:analysis_student}. Lastly, we study whether teacher-related metrics such as teacher loss or RankMe~\citep{rankme_garrido} are predictive of downstream performance in~\Cref{fig:appendix:analysis_teacher}. We find that neither the teacher's loss nor embedding rank are predictive of the student encoder's downstream performance.
+
+\paragraph{Intuitive physics evaluation}~\citet{garrido2025intuitive} have shown that video models trained with the JEPA objective show an emergent understanding of intuitive physics. We follow the setup described in~\citep{garrido2025intuitive} to measure the intuitive understanding ability of video models trained with \ourmethod. The evaluation setup and results are discussed in detail in~\Cref{sec:main_results:subsec_physics} due to space limitations. The main finding is that intuitive physics understanding is observed on models trained via \ourmethod as well as V-JEPA 2.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\columnwidth]{figs/ablation/ablation_teacher_data.pdf}
+    \vspace{-1.em}
+    \caption{ \textbf{Training data of static-teacher.} We ablate the impact of training data of teacher, thus fixed the student's training data as the whole data-mix by default.~\Cref{tab:appendix:ablation:teacher_pretraining_datasets} provides a detailed breakdown of the results show above.}
+    \label{fig:ablate_teacher_data}
+    \vspace{-1.em}
+\end{figure}
+
+
+\section{Teacher Design Choice Ablation}
+\label{sec:results:teacher_howto}
+
+The empirical analysis in~\Cref{sec:main_results} shows that \ourmethod provides high-quality representation that outperforms several existing methods. A key aspect of \ourmethod is the static (frozen) teacher that provides high-quality prediction targets. We study the design choices involved in training the teacher model and student model that lead to optimal representation via a series of ablations described in the following. 
+
+\subsection{Training Dataset}
+\label{sec:results:teacher_howto:training_data}
+
+In this section, we study the role of pretraining data distribution on a teacher model. Specifically, we train a ViT-L teacher model with six training datasets: (i) Kinetics-710 (K710), (ii) Something-Something-V2 (SSv2), (iii) a 2.8 million subset of Panda70M, (iv) ImageNet-1k, (v) data aggregated from K710 and SSv2,  and (vi) V-3.6M which is data aggregated from K710, SSv2 and Panda70M subset. The exact details of the datasets are described in~\Cref{sec:expt_setup}. The teacher model is trained using the Stage 1 approach (V-Pixel) described in~\Cref{sec:subsec:our_method}. For each teacher model from Stage 1, we train a ViT-L-based student model on the combined V-3.6M dataset using Stage 2 approach described in~\Cref{sec:subsec:our_method}. 
+
+\Cref{fig:ablate_teacher_data} shows the result of benchmarking the teacher and student models trained with the datasets described above. We observe that downstream performance of each student model described above improves over that of its corresponding teacher. Additionally, each student model's downstream performance exceeds the performance of a V-JEPA 2-based  encoder with the exception of the student model trained on ImagetNet-1K-based teacher model. Among the teacher models trained on video datasets considered in this study, we observe comparable performance with the notable exception of the teacher model trained on Something-Something-V2. Taken together, these results suggests that an effective teacher maybe trained with a relatively small amount of data to build strong foundation models.
+
+\begin{figure}[htbp] % {r}{0.5\linewidth}
+    \centering
+    \includegraphics[width=0.8\columnwidth]{figs/ablation/ablation_teacher_mask.pdf}
+    \vspace{-1.em}
+    \caption{ \textbf{Masking Strategy of static-teacher.} We study the impact of random vs multi-block masking strategy influences a student's performance.~\Cref{tab:appendix:teacher_mask_ablation_data} includes hyperparameters and results information.}
+    \label{fig:ablate_teacher_mask}
+    \vspace{-1.em}
+\end{figure}
+
+\subsection{Teacher Masking Strategy}
+\label{sec:results:teacher_howto:teacher_masking_strategy}
+
+We study the role of masking strategy used to train the teacher that provides targets to optimize the student model. To this end, we train a ViT-L using random masking used in VideoMAE, multi-block masking used in V-JEPA and a modified method that we call multi-random tube where we adapt the short-range and long-range masking idea from V-JEPA to random masking. We refer the reader to~\Cref{tab:appendix:teacher_mask_ablation_data} for setup details used in this ablation.~\Cref{fig:ablate_teacher_mask} shows the results for this ablation. We observe that the multi-block masking approach works the best for V-Pixel model achieving an accuracy of 72.5\%. This finding in and of itself is a new empirical finding as VideoMAE models typically use random-tube masking. Furthermore, we observe from~\Cref{fig:ablate_teacher_mask} that the student trained with a multi-block teacher achieves the highest accuracy while the other student models also show a big improvement over their corresponding teachers. We conclude that multi-block masking strategy is effective with training our teacher and name the pixel reconstruction method with multi-block masking as V-Pixel.
+
+
+\subsection{Teacher model size}
+\label{sec:results:teacher_howto:teacher_model_size}
+
+
+
+Next, we study the impact of a teacher model's size on a student model's performance. We train a ViT-B, ViT-L, ViT-H and ViT-G based V-Pixel models and use these models to supervise a ViT-L and ViT-G based student models.~\Cref{fig:ablate_teacher_size} shows the results of this ablation. We observe that the best performing ViT-L student has an average accuracy of 77.4\% and is obtained by training with a ViT-L teacher. This result is remarkable as this accuracy is better than the accuracy obtained with ViT-H and ViT-G based teachers that are larger than the student. A similar observation can be made about the ViT-G student where the highest average accuracy of 78\% is obtained with a ViT-L teacher. Additionally we observe that all student models show improvement over their teachers which are of the same or smaller size. These observations suggest that the multi-stage training proposed in \ourmethod allow the student to bootstrap from a weaker teacher to learn high-quality representation.
+
+\begin{figure}[tbhp]
+    \centering
+    \includegraphics[width=0.8\columnwidth]{figs/ablation/ablation_teacher_size_subfigs.pdf}
+    \vspace{-1.em}
+    \caption{ \textbf{Teacher model size ablation.} We train ViT-B, ViT-L, ViT-H and ViT-G based teacher and use the teacher to train a ViT-L and ViT-G student. Observe that the best performing student is obtained from ViT-L teacher with modest performance.~\Cref{tab:appendix:ablation:ablate_teacher_size} provides a detailed breakdown of results on downstream benchmarks.}
+    \label{fig:ablate_teacher_size}
+    \vspace{-1.em}
+\end{figure}
+
+\subsection{Impact of Teacher-Student Compute Allocation}
+\label{sec:results:teacher_student_steps}
+
+Due to a frozen teacher approach used in \ourmethod, we are confronted with the problem of allocating compute between the teacher and the student. 
+Training compute is a function of the model size, the number of optimization steps as well as the number of FLOPs per step. 
+In this ablation, we hold the model size, the total number of optimization steps, and the training dataset (V-3.6M) constant as that allows us to conduct a fair comparison of \ourmethod and V-JEPA 2 baseline. 
+
+
+\begin{figure}[htbp] %  {r}{0.5\linewidth} % {l} or {r}; width fraction of text width
+  % \vspace{-2.5em}
+  \centering
+  \includegraphics[width=0.75\columnwidth]{figs/ablation/ablation_flops_acc_vjepa_vs_ours.pdf}
+  % \vspace{-2em}
+  \caption{\textbf{Comparison of compute allocation in SALT.} We show average Top-1 accuracy across benchmarks against total training FLOPs. Our SALT curves dominate V-JEPA-2 at matched budgets. See~\Cref{tab:appendix:ablation:ablate_teacher_compute_all_flops} for additional details.}
+  \label{fig:ablate_teacher_compute_all_flops}
+  % \vspace{1.0em}
+\end{figure}
+
+We use ViT-L based model for both teacher and student in this ablation where we vary the number of steps used to train the teacher and student for a fixed total number of optimization steps.
+We observe from~\Cref{fig:ablate_teacher_compute_all_flops} that \ourmethod outperforms V-JEPA 2 baseline over a range of optimization steps considered in our experiments. Furthermore, we observe that \ourmethod exceeds V-JEPA 2's performance at approximately the same FLOPs level which in turn suggests that \ourmethod is more compute efficient than V-JEPA 2. The best performing student is obtained by training on 240k total steps, as can be seen from~\Cref{fig:ablate_teacher_compute_all_flops}, that is supervised by a teacher that is only trained for 40k steps. This finding underscores the effectiveness of our multi-stage training approach and demonstrates that the focus of pretraining in \ourmethod should be on the student, and that aiming for a high performing teacher may wasteful. Additional visualization and analysis that supports these claims are provided in ~\Cref{appendix:sec:additional_results:compute_allocation}. 
+
+\section{Related Work}
+
+\paragraph{Video foundation models:} Masking-based self-supervised learning (SSL)~\citep{videomaev1_tong2022, stmae_feichtenhofer2022, videomaev2_arxiv, bardes2024vjepa, assran2025vjepa2, mvd_wang2022, umt_li2023, videoprism_zhao2024, intervideo1_wang2022, dinov3} is a prominent approach used to learn representation from large-scale video datasets for building video foundation models. Several works~\citep{videomaev1_tong2022, stmae_feichtenhofer2022, videomaev2_wang2023_cvpr} have extended image-based masked autoencoders~\citep{mae} to video data by using random masking to learn representation via pixel-space reconstruction. An alternate approach for representation learning is to learn via latent-space predictions. These methods are known to learn features that differ in quality from those obtained via reconstruction-based methods~\citep{littwin_jepa_avoids_noisy_feats, balestriero_icml24b}. Prominent among latent-space prediction methods for video are V-JEPA~\citep{bardes2024vjepa} and V-JEPA 2~\citep{assran2025vjepa2} that use an online/momentum encoder to learn the teacher that provides prediction targets. \ourmethod simplifies the JEPA pipeline by using a frozen teacher that is reliable and efficient that leads to higher quality representation as shown in our analysis.
+
+
+\paragraph{Distillation from frozen teacher encoder: } While many studies utilize frozen pretrained models as teachers for student encoder supervision, we limit our review to prior work that is directly relevant to our core method and refer the interested reader to~\citep{balestriero2023cookbook} for a comprehensive survey on SSL literature. MVD~\citep{mvd_wang2022} and InternVideo~\citep{intervideo1_wang2022} use VideoMAE~\citep{videomaev1_tong2022} while other works such as UnMasked Teacher~\citep{umt_li2023}, VideoPrism~\citet{videoprism_zhao2024}, InternVideo2~\citet{internvideo2_wang2024} and many more use a vision-language model~\citep{clip}, as a frozen teacher. PerceptionEncoder~\citep{perception_encoder_bolya2025} is a recent vision foundation model that uses features from a predefined layer from within the model as well as features from an external teacher SAM~\citep{sam_kirillov2023} to encourage feature locality.~AM-RADIO~\citep{radio_Ranzinger_2024_CVPR} proposes to learn a student from multiple teacher models. Beyond prior work, which require access to powerful pretrained encoders, we uncover a \emph{weak‑teacher, strong‑student} effect: students supervised by much weaker \emph{frozen} teachers consistently outperform those trained with EMA‑based teachers. Our method is purely self‑supervised and unregularized, unlike self‑training~\citet{xie2020self}, which relies on labeled+unlabeled data and explicit noise regularization. Related world‑modeling approaches~\citep{dino_back_to_features_baldassarre202, zhou2024dino} also fix encoders for stability but optimize for future‑state prediction, while our aim is representation learning. Nevertheless, \ourmethod’s strong video features make it a promising backbone for world models.
+
+\paragraph{Masked video distillation: }~\citet{mvd_wang2022} propose a two-stage method called masked video distillation (MVD) that first trains two separate encoders one each for image and video input using an MAE~\citep{mae, videomaev1_tong2022}-like approach. These teacher encoders then provide targets (latent features) used to optimize a smaller student encoder.~\ourmethod resembles the approach taken by MVD but has several critical differences. The first difference is that we provide an improved method to train the video teacher encoder as a result of careful empirical analysis in~\Cref{fig:ablate_teacher_mask}. Additionally, we do not use a separate encoder for image data but instead focus on learning representation from large-scale video datasets. The most critical difference is that we use a teacher model whose size is the same or smaller than that of the student model. Furthermore, we conduct detailed ablations in~\Cref{sec:results:teacher_howto} to show how to choose a teacher model (checkpoint). Finally, \ourmethod learns superior features as our benchmark results are based on frozen backbone evaluations while MVD uses fine-tuning for downstream evaluation.
+
+\section{Limitations and Conclusion}
+\label{sec:discussion}
+
+We present \ourmethod, a simple, compute‑efficient, and scalable framework for video representation learning.  Across standard benchmarks, \ourmethod consistently outperforms strong baselines, including V‑JEPA‑2 in frozen-evaluation protocols. Strikingly, we find that \emph{sub‑optimal}, often smaller teachers can yield much stronger students, raising questions as to how the quality of the teacher should be assessed, and whether EMA-based machinery is necessary to learn highly-semantic representation. A principled characterization of teacher quality and a fuller study of \ourmethod’s scaling behaviour is left for future work.\\\\
+While \ourmethod improves compute efficiency and downstream performance over self‑distillation, it has limitations. Our ablations (\Cref{sec:results:teacher_howto}) suggest that a simple \emph{V‑Pixel} recipe usually suffices to train an effective teacher and that compute is best allocated to the student; however, they do not fully explain what makes a “good” teacher. We also observe modest gains from an additional student‑training stage, but the mechanism remains unclear. Given the experiment volume, we focused compute on simple scalar diagnostics of teacher quality (\Cref{sec:results:teacher_howto} and \Cref{appendix:sec:additional_results:how_to_choose_teacher_checkpoint}). Finally, performance plateaus as model size grows in our setting, likely reflecting data limits, and that larger pretraining sets may extend the scaling trend. 
+
+\newpage
+\bibliography{salt}
+\bibliographystyle{salt}
+
+\clearpage
+\newpage
+
+\appendix
+
+\section{Training Dataset}
+\label{appendix:sec:training_data}
+
+We describe the datasets used to train vision transformer (ViT) models with \ourmethod. We form the Kinetics-710 (K710) dataset by combining training samples from Kinetics-400/600/700~\citep{kay2017kinetics} and removing duplicated samples as well as samples that are in the validation sets of the above datasets. We then add training samples from the Something-Something-v2 (SSv2)~\citep{goyal2017something} dataset. Finally, we add an approximately 2.8 million video clips subset of Panda70M~\citep{chen2024panda70m} to form our dataset that we refer to as V-3.6M to train our models. We apply stratified sampling to select the subset of clips from Panda70M that enables us to have clips whose duration ranges from 4 seconds to 50 seconds. We do not apply any other form of filtering or curation to form our training dataset.~\Cref{tab:appendix:training_dataset} lists the sample count information for our V-3.6M dataset.
+
+\begin{table*}[htbp]
+    \centering
+    \caption{\textbf{V-3.6M} Training dataset details.}
+    \label{tab:appendix:training_dataset}
+
+    \begin{tabular}{cc}
+        \toprule
+        Dataset & Sample Count \\
+        \midrule
+        Kinetics-710            & 657,257   \\
+        Something-Something-v2  & 168,913   \\
+        Panda70M                & 2,799,959 \\
+        \midrule
+        \textbf{V-3.6M}         & 3,626,129 \\
+        \bottomrule
+    \end{tabular}
+\end{table*}
+
+
+\section{Architecture Details}
+\label{appendix:sec:architecture}
+
+We use Vision Transformers (ViTs)~\citep{vit_dosovitskiy2020} to implement our video encoders and predictors. We use a spatial patch size of $16 \times 16$ and temporal patch size of $2$ in all of our models.~\Cref{tab:appendix:model_arch:encoders} and~\Cref{tab:appendix:model_arch:predictors} lists the model architecture in detail for our encoders and predictors respectively. We follow V-JEPA 2~\citep{assran2025vjepa2} and use rotary position embedding (RoPE)~\citep{su2024roformer} to encode position information in all of our models. Note that our predictor's last layer projects the embedding dimension to be compatible with that of the teacher encoder. This information is captured in the input and output dimension columns in~\Cref{tab:appendix:model_arch:predictors}. We use a ViT-L teacher to train all encoders except the ViT-B model which uses a ViT-B teacher. This information is captured in the output dimension column in~\Cref{tab:appendix:model_arch:predictors}.
+
+
+\begin{table*}[htbp]
+    \centering
+    \caption{Encoder model architecture details. M indicates a million and B a billion.}
+    \label{tab:appendix:model_arch:encoders}
+
+    \begin{tabular}{ccccc}
+        \toprule
+        Model & Parameter Count & Width & Depth & Heads \\
+        \midrule
+        % \textbf{Encoders} &      &    &   \\
+        ViT-B & 86M      & 768  & 12 & 12 \\
+        ViT-L & 303M     & 1024 & 24 & 16 \\
+        ViT-H & 632M     & 1280 & 32 & 16 \\
+        ViT-g & 1.012B   & 1408 & 40 & 16 \\
+        ViT-G & 1.843B     & 1664 & 48 & 16 \\
+        
+    \end{tabular}
+\end{table*}
+
+\begin{table*}[htbp]
+    \centering
+    \caption{Predictor model architecture details. M indicates a million.}
+    \label{tab:appendix:model_arch:predictors}
+
+    \begin{tabular}{ccccccc}
+        \toprule
+        Predictor \& & Input & Output & Parameter & Width & 
+        Depth & Heads \\
+        (Encoder) & Dimension & Dimension & Count & & & \\
+        \midrule
+        ViT-Predictor (ViT-B) &  768 & 768  & 21.88M    & 384 & 12 & 16 \\
+        ViT-Predictor (ViT-L) & 1024 & 1024 & 22.08M & 384 & 12 & 16 \\
+        ViT-Predictor (ViT-H) & 1280 & 1024 & 22.18M & 384 & 12 & 16 \\
+        ViT-Predictor (ViT-g) & 1408 & 1024 & 22.23M & 384 & 12 & 16 \\
+        ViT-Predictor (ViT-G) & 1664 & 1024 & 22.32M       & 384 & 12 & 16 \\
+        
+    \end{tabular}
+\end{table*}
+
+
+
+\section{Training Details}
+\label{appendix:sec:training_details}
+
+
+\begin{table*}[htbp]
+    \centering
+    \caption{Hyperparameter details used to train models with \ourmethod. Note that \ditto indicates that Stage 2 uses the same hyperparameter value as listed in Stage 1.}
+    \label{tab:appendix:training_details}
+
+    \begin{tabular}{ccc}
+        \toprule
+        Parameter & Stage 1 & Stage 2 \\
+        \midrule
+        Input spatial resolution        & $224 \times 224$          & \ditto \\
+        Tubelet size                    & 2                         & \ditto \\
+        Patch size                      & $16 \times 16 \times 2$   & \ditto \\
+        Number of frames                & 16                        & \ditto \\
+        Frame step                      & 4                         & \ditto \\
+        Random resize aspect ratio      & [0.75, 1.35]              & \ditto \\
+        Random resize scale             & [0.3, 1]                  & \ditto \\
+        Short-range Spatial mask scale  & 0.15                      & \ditto \\
+        Long-range Spatial mask scale   & 0.7                       & \ditto \\
+        Temporal mask scale             & 1                         & \ditto \\
+        Mask aspect ratio               & [0.75, 1.5]               & \ditto \\ 
+        Batch size                      & 3072                      & \ditto \\
+        Number of Steps                 & Variable                  & Variable \\
+        Steps per epoch scale           & 1                         & \ditto \\ 
+        Start learning rate             &  0.0002                      & \ditto \\
+        learning rate                   &  0.000625                      & \ditto \\
+        Final learning rate             &  1e-6                      & \ditto \\
+        Start Weight decay              &  0.04                      & \ditto  \\
+        End Weight decay                &  0.4                      & \ditto \\
+        Clip grad                      &  0.02                       & \ditto      \\
+        Learning rate schedule          & Cosine                    & \ditto \\
+        Warmup steps                    &  10000                      & \ditto \\
+        AdamW $\beta_{1}$               &  0.9                      & \ditto \\
+        AdamW $\beta_{2}$               &  0.95                     & \ditto \\
+        \bottomrule
+    \end{tabular}
+\end{table*}
+
+Recall from~\Cref{sec:subsec:our_method} \ourmethod is a multi-stage training approach in which the teacher is trained at first via V-Pixel method followed by student training using a frozen or static teacher in the last stage.~\Cref{tab:appendix:training_details} lists hyperparameter information  in detail that are used to train video encoders with \ourmethod. Observe that we use multi-block masking method~\citep{bardes2024vjepa} for V-Pixel. Note that the hyperparamters for setting up multi-block are copied over from those used in V-JEPA~\citep{bardes2024vjepa}. 
+
+\Cref{tab:appendix:training_details} also lists optimization-related hyperparametrs that we used to train video encoders. We use a value of $240,000$ steps in total to show results in~\Cref{tab:main_results:systematic_comparison}. We conduct ablations with the number of steps set to $120,000$, $160,000$, or $240,000$ for results shown in~\Cref{fig:vjepa2_vs_our_method} and discussed in~\Cref{sec:results:teacher_howto}. Observe that we use the standard cosine weight-decay strategy during training~\citep{bardes2024vjepa}. We use a value of 0.95 for $\beta_{2}$ in AdamW~\citep{loshchilov2017decoupled} as this value is used by~\citet{carreira2024scaling} to train VideoMAE-like models both at scale but most importantly at large scale. We also opt not to use virtual early stopping approach adopted in V-JEPA~\citep{bardes2024vjepa} and V-JEPA 2~\citep{assran2025vjepa2} that scales the training steps by $25\%$ to avoid training instabilities in the latter part of training. Empirically, we observe that frozen teacher provides a stable representation that allows \ourmethod to be stable throughout training.
+
+\section{Evaluation Details}
+\label{appendix:sec:evals}
+
+We adopt the evaluation protocol used in V-JEPA 2~\citep{assran2025vjepa2} that uses attentive probing to ensure fair comparison between \ourmethod, V-JEPA 2 and several baselines reported by~\citet{assran2025vjepa2}. We use Kinetics-400~\citep{kay2017kinetics}, Something-Something-v2 (SSv2)~\citep{goyal2017something} to systematically compare against state-of-the-art baselines the results of which are reported in~\Cref{tab:main_results:systematic_comparison}. 
+
+\paragraph{Systematic evaluation setup for K400 and SSv2} We use inputs with $16$ frames, $8$ segments or clips per input and $3$ spatial views per segment which is identical to the setting used in V-JEPA 2~\citep{assran2025vjepa2} for this dataset. The probe consists of attentive pooling which is implemented via four Transformer blocks where the first three blocks are self-attention based blocks while the last layer uses cross-attention with a learnable query token. This pooling operation is followed by a standard linear layer where the number of outputs is set to the number of classes for a classification dataset. This value is $400$ for Kinetics-400 dataset and $174$ for SSv2 dataset. 
+
+The attentive probe is trained with AdamW for 20 epochs using a learning and weight decay hyperparameters that are determined via a grid search.~\Cref{tab:appendix:eval:hparams:systematic_k400_ssv2} reports the hyperparametrs that are common to \ourmethod and V-JEPA 2.
+
+The key difference between \ourmethod and V-JEPA 2 is that we use a spatial crop of $224 \times 224$ while V-JEPA 2 uses $256 \times 256$. This difference makes the results obtained with \ourmethod even more remarkable as we spend much less compute during probing compared to V-JEPA 2 due to using smaller resolution.
+
+\begin{table}[h]
+\centering
+\caption{Kinetics-400 and Something-Something-v2 evaluation hyperparameters that are common to \ourmethod and V-JEPA 2. The results of this evaluation are shown in~\Cref{tab:main_results:systematic_comparison}. Note that \ditto denotes the value is the same as the one used in K400 evaluation.}
+\label{tab:appendix:eval:hparams:systematic_k400_ssv2}
+\begin{tabular}{ccc}
+\toprule
+Parameter & K400 & SSv2 \\ 
+\midrule
+Number of frames & 16 & \ditto \\ 
+Segments / Clip & 8 & 2 \\ 
+Views / Segment & 3 & \ditto \\ 
+Frame step & 4 & \ditto \\ 
+Epochs & 20 & \ditto \\ 
+Batch size (global) & 256 & \ditto \\ 
+Classifier heads & 20 & \ditto  \\ 
+Classifier learning rates & [5e-3, 3e-3, 1e-3, 3e-4, 1e-4] & \ditto \\ 
+Classifier weight decay & [.8, .4, .1, .01] & \ditto \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Fast evaluation setup for K400 and SSv2} Due to the sheer volume of compute involved with training and probing our methods over a range of downstream datasets, we use a more efficient evaluation protocol for many ablations and results shown in the main paper. The main difference is the use of 1 clip and 1 view per frame while keeping the 16 frames per input clip as described above. The evaluation hyperparameters identical to the values used in V-JEPA~\citep{bardes2024vjepa} and are described in~\Cref{tab:appendix:eval:hparams:16x1x1} for completeness. The results of these evaluations are described in~\Cref{fig:w2s_teaser,fig:vjepa2_vs_our_method,fig:ablate_teacher_data,fig:ablate_teacher_mask,fig:ablate_teacher_size,fig:ablate_teacher_compute_all,fig:ablate_teacher_compute_all_flops,fig:appendix:analysis_teacher,fig:analysis_student}.
+
+\begin{table}[htbp]
+\centering
+\caption{Kinetics-400 and Something-Something-v2 evaluation hyperparameters that are common to \ourmethod and V-JEPA 2.}
+\label{tab:appendix:eval:hparams:16x1x1}
+\begin{tabular}{cc}
+\toprule
+Parameter & K400 \& SSv2 \\ 
+\midrule
+Number of frames & 16 \\ 
+Segments / Clip & 1  \\ 
+Views / Segment & 1  \\ 
+Frame step & 4  \\ 
+Epochs & 20  \\ 
+Batch size (global) & 256  \\ 
+Classifier heads & 1   \\ 
+Classifier learning rates & 1e-3  \\ 
+Classifier weight decay & .01  \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{COIN, Diving-48 and Jester Evaluations} We report results using COIN classification~\citep{tang2019coin}, Diving-48~\citep{diving48_Li_2018_ECCV}, Jester~\citep{jester_materzynska2019} and ImageNet-1K~\citep{imagenet_russakovsky2015} benchmarks in addition to Kinetics-400 and Something-Something-v2 benchmarks. The number of classes in COIN, Diving-48, Jester, and ImageNet-1K are 180, 48, 27 and 1000 respectively.
+~\Cref{tab:appendix:eval:hparams:coin_diving_jester_in1k} reports the hyperparameters used to evaluate frozen backbones with these benchmarks. The results of these evaluations are reported in ~\Cref{fig:w2s_teaser,fig:vjepa2_vs_our_method,fig:ablate_teacher_data,fig:ablate_teacher_mask,fig:ablate_teacher_size,fig:ablate_teacher_compute_all,fig:ablate_teacher_compute_all_flops,fig:appendix:analysis_teacher,fig:analysis_student}.
+
+\begin{table}[htbp]
+\centering
+\caption{COIN~\citep{tang2019coin}, Jester~\citep{jester_materzynska2019}, Diving-48~\citep{diving48_Li_2018_ECCV} and ImageNet-1K~\citep{imagenet_russakovsky2015} evaluation hyperparameters that are common to \ourmethod and V-JEPA 2. Note that \ditto denotes the value is the same as the one used in COIN evaluation.}
+\label{tab:appendix:eval:hparams:coin_diving_jester_in1k}
+\begin{tabular}{cccc}
+\toprule
+Parameter & COIN & Jester/Diving-48 & ImageNet-1K \\ 
+\midrule
+Number of frames & 16 & \ditto & \ditto \\ 
+Segments / Clip  & 8  &  4     & 1 \\ 
+Views / Segment  & 3  & \ditto & \ditto \\ 
+Frame step & 4 & 2 & NA \\ 
+Epochs & 20 & \ditto & \ditto \\ 
+Batch size (global) & 256 & 128 & 1024 \\ 
+Classifier heads & 1 & \ditto & \ditto \\ 
+Classifier learning rates & 1e-3 & \ditto & \ditto \\ 
+Classifier weight decay & .01 & \ditto & \ditto \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Intuitive physics}
+
+We follow the protocol established by~\citet{garrido2025intuitive} and use the surprise score in our evaluations with IntPhys-2019 or IntPhys~\citep{riochet2018intphys}, GRASP~\citep{jassim2023grasp} and InfLevel~\citep{weihs_inflevel} datasets. In the following, we reproduce the equations used by~\citet{garrido2025intuitive} to quantify surprise. We let $f$ be the context encoder, $g$ be the predictor or the decoder and $h$ be the target encoder. $V$ denotes a frames of a video clip, $C$ denotes the context frames count and $M$ denotes the number of future frames. The surprise at time $t$ is given by:
+\begin{equation}
+S_t = \| g_\phi \left( f_\theta \left( V_{t:t+C} \right) \right) - h_\psi \left( V_{t:t+C+M} \right) \|_1.
+\end{equation}
+
+The surprise above can then be calculated over all windows to obtain  the following \textbf{global surprise score}:
+
+\begin{equation}
+\text{Average Surprise} = \frac{1}{T} \sum_{t \in \{1,1+s,\ldots,T-(C+M)\}} S_t \quad \text{or} \quad \text{Maximum Surprise} = \max_{t \in \{1,1+s,\ldots,T-(C+M)\}} S_t.
+\end{equation},
+
+where we set s to 2 and use the average surprise score to quantify the surprise between a pair of videos following the methodology used by~\citet{garrido2025intuitive}. The scores are then converted to relative accuracy using label information for video pairs to obtain the relative accuracy values discussed in~\Cref{tab:main_results_intuitive_physics}.
+
+\section{Additional Results}
+\label{appendix:sec:additional_results}
+
+In this section, we include additional tables and results to support figures and tables in the main paper.
+
+\begin{table*}[htbp]
+\centering
+\caption{Comparison on Intuitive physics benchmarks (IntPhys, GRASP, InfLevel). }
+\resizebox{0.7\textwidth}{!}{
+\begin{tabular}{l c c c c c c}
+\toprule
+\textbf{Method} & \textbf{Encoder} & \textbf{Predictor} & \textbf{IntPhys} & \textbf{GRASP} & \textbf{InfLevel} & \textbf{Avg}\\
+\midrule
+\multicolumn{6}{l}{\emph{Results reported in~\citep{baldassarre2025backdino} }}\\   
+COSMOS-4B~\citep{agarwal2025cosmos}        & VAE   & 4B   & 99.5 & 60.1 & 44.8  & 68.1 \\
+V-JEPA~\citep{bardes2024vjepa}            & ViT-L & 22M  & 92.2 & 67.0 & 58.9 & 72.7 \\
+V-JEPA~\citep{bardes2024vjepa}             & ViT-H & 22M  & 89.4 & 73.0 & 59.9 & 74.1 \\
+\midrule
+\multicolumn{6}{l}{\emph{Results reported in~\citep{bordes2025intphys2} }}\\ 
+V-JEPA 2~\cite{assran2025vjepa2}         & ViT-H & 22M  &87.2	&--	&-- & -- \\
+\midrule
+\multicolumn{6}{l}{\emph{Our Eval}}\\ 
+VideoMAE V2~\citep{videomaev2_wang2023_cvpr}        & ViT-g & 12M   & 59.4  & 61.3 & 54.4 & 58.4 \\
+V-JEPA 2 (V-3.6M)         & ViT-B & 22M  &76.6 &56.1 &52.4 & 61.7   \\
+V-JEPA 2 (V-3.6M)              & ViT-L & 22M  &96.9	&53.0 &57.4 &69.1  \\
+V-JEPA 2  (V-3.6M)            & ViT-H & 22M  &88.5	&65.1 &60.0 &71.2 \\
+\midrule
+\ourmethod  & ViT-B & 22M &72.4	&56.4	&54.9 & 61.2 \\ 
+\ourmethod  & ViT-L & 22M &90.6	&53.5	&54.2 & 66.1 \\ 
+\ourmethod  & ViT-H & 22M &95.8	&58	&58.2 & 70.7 \\ 
+% \ourmethod  & ViT-g & 22M & 94.8	&57.5	&55.3 & 69.2 \\ 
+% \midrule
+% \ourmethod  & ViT-g & 22M &93.8	&60.9	&61.8 & 72.2 \\ 
+\bottomrule
+\end{tabular}}
+\label{tab:main_results_intuitive_physics}
+\end{table*}
+\subsection{Intuitive Physics Benchmarks}
+\label{sec:main_results:subsec_physics}
+
+In this section, we evaluate the intuitive physics understanding of video models. We follow the protocol and datasets described in~\citet{garrido2025intuitive} to test a video model's understanding of intuitive physics in a zero-shot setting. Following the protocol of~\citet{garrido2025intuitive} we calculate a surprise metric that measures the deviations from expected physical behaviour. The benchmark probes the predictor or the decoder to test for physical attributes such as object permanence, spatio-temporal continuity, shape and color constancy, gravity, support, solidity, inertia and collision. We refer the interested reader to ~\citet{garrido2025intuitive} for additional details on datasets and definition of the attributes mentioned above.
+
+~\Cref{tab:main_results_intuitive_physics} shows the results of this benchmark for \ourmethod as well as several baseline video models.~\Cref{tab:main_results_intuitive_physics} shows that \ourmethod's average accuracy scales with model size. \ourmethod compares favorably with published baselines including COSMOS-4B~\citep{agarwal2025cosmos}, V-JEPA~\citep{bardes2024vjepa} and V-JEPA 2~\citep{assran2025vjepa2} and VideoMAEv2~\citep{videomaev2_wang2023_cvpr}. Finally, we consider a setup where we train V-JEPA 2 and \ourmethod models using the same dataset and optimization budget. We observe that V-JEPA 2 models trained under the conditions stated above compare favorably with \ourmethod. These results suggests that emergent intuitive physics understanding behaviour observed in video models trained with V-JEPA objective~\citep{garrido2025intuitive} is seen with \ourmethod as well. 
+
+
+
+\subsection{Impact of Teacher-Student Compute Allocation}
+\label{appendix:sec:additional_results:compute_allocation}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figs/ablation/ablate_compute_budget.pdf}
+    \vspace{-1.em}
+    \caption{ \ourmethod trained with a compute budget of (a) 120K steps (b) 160K steps and (c) 240K steps. The X-axis shows the number of steps allocated to the teacher with the rest used to optimize the student. Observe that the optimal allocation favors training the student longer than the teacher.}
+    \label{fig:ablate_teacher_compute_all}
+    \vspace{-1.em}
+\end{figure}
+
+~\Cref{fig:ablate_teacher_compute_all} provides an alternative view of the plot shown in~\Cref{fig:ablate_teacher_compute_all_flops}. We train a ViT-L model in this ablation. It is clear from~\Cref{fig:ablate_teacher_compute_all} that the teacher encoder's downstream performance increases with the number of training steps across all values of total number of training steps. Remarkably, the student encoders improve over the teachers that they use to obtain predictions targets. The best performing model is obtained by training a teacher for 40,000 steps and using the remaining steps on the student. This observation suggests that the optimal compute allocation should favor the student.
+
+\subsection{How to choose a Teacher checkpoint?}
+\label{appendix:sec:additional_results:how_to_choose_teacher_checkpoint}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\linewidth]{figs/ablation/teacher_student_correlation.pdf}
+    \vspace{-1.em}
+    \caption{Teacher quality vs. student performance. We take all the teachers trained in \ourmethod and measure the RankME\citep{rankme_garrido} of the embedding and pretraining loss and analyze the corelation between them and student's downstream performance.  Each point represents a single \ourmethod run. We control the total training budgets of 160k for both stages to the be same for all models in this comparison.}
+    \label{fig:appendix:analysis_teacher}
+    \vspace{-1.em}
+\end{figure}
+
+
+A question that arises naturally with \ourmethod is whether there is a principled way choose an optimal teacher checkpoint. By optimal, we here mean choosing a checkpoint that maximizes the student's performance. We study this question empirically by looking at the correlation between the student's benchmark accuracy and teacher's embedding rank, training loss and teacher model's downstream accuracy.~\Cref{fig:appendix:analysis_teacher}a shows a plot of embeddings rank where the embeddings are extracted from a teacher model versus student accuracy. We use RankMe~\citep{rankme_garrido} to estimate the embedding rank.~\citet{rankme_garrido} have shown that high embedding rank is a necessary condition for good downstream performance in joint-embedding self-supervised learning (JE-SSL) models. We observe from~\Cref{fig:appendix:analysis_teacher} that the the teacher's embedding rank is not predictive of student's downstream performance. A similar trend can be observed from~\Cref{fig:appendix:analysis_teacher}b with the teacher's pixel reconstruction or training loss. We see that neither the teacher loss nor its embedding rank are predictive of downstream student's performance.
+
+\section{Floating Point Operations (FLOPs) Estimation}
+\label{appendix:sec:flops_estimation}
+
+A common approach to estimating the total training compute for Transformers, including ViTs, is by using the well-known $6ND$ formula~\citep{brownscaling2020, hoffmann2022training}. Here $N$ stands the for the model parameter count while $D$ represents the total number of tokens used to train the model. This simple approximation assumes that the backward pass during training costs twice as much as the forward pass. Consequently, we use $2ND$ to approximate the training compute of a teacher model that provides targets in distillation-based methods. The total number of input tokens observed by a model during training is a function of input resolution, spatial for image models and spatio-temporal for video models, the patch size, the batch size per step and the total number of optimization steps. Note that we include the embedding layer in our parameter count. With these preliminaries in place, we present the total compute estimate for models presented in~\Cref{tab:main_results:systematic_comparison}.   
+
+\paragraph{VideoMAEv2~\citep{videomaev2_wang2023_cvpr}} We use a masking ratio of 0.9 and 0.5 for VideoMAEv2~\citep{videomaev2_wang2023_cvpr} encoder and decoder respectively. The model considered here is a ViT-g model with an input patch size of 14 that operates on a spatial input of size $16 \times 16$. Our analysis uses 1200 epochs for calculating the number of tokens in the encoder and decoder. The other details used to estimate FLOPs is shown in~\Cref{tab:appendix:model_flops}. 
+
+\paragraph{V-JEPA 2~\citep{assran2025vjepa2}} The spatial resolution is $256 \times 256$ with a patch size of 16. We use a masking ratio of 0.9 for the encoder on average following the recommendation made in V-JEPA~\citep{bardes2024vjepa}. The predictor operates on a token count that is half of that seen by the encoder due to temporal stride being set to 2. In other words, the predictor sees the union of mask tokens used for missing regions and context tokens used for visible regions. We assume that the model is trained for 240,000 steps using a batch size of 3072. Note that we need to account for the teacher forward call that we do in our analysis.
+
+\paragraph{\ourmethod} The spatial resolution is $224 \times 224$ with a patch size of 16. We use a masking ratio of 0.9 for all stages in our training as we use the same multi-block masking for training teacher and student encoders. The rest of the details are identical to those described above for V-JEPA 2. The main difference between our method and V-JEPA 2 is the use of same-sized or smaller teacher encoder as well using a smaller resolution for the inputs. Together, these significantly lower the training compute requirements for \ourmethod over V-JEPA 2.
+
+Finally, we report the GPU-hours estimated by running training for a 20 steps on a single NVIDIA A100 GPU in~\Cref{tab:appendix:support_fig:train_compute_tflops}. We observe a strong correlation between the ordering of models provided by GPU-hours versus that obtained from ``6ND'' FLOPs estimate.
+
+\begin{table}[htbp]
+\centering
+\caption{FLOPs estimate for VideoMAEv2, V-JEPA 2 and \ourmethod models.}
+\label{tab:appendix:model_flops}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{cccccccccc} 
+\toprule
+Model & Input & $N_e$ & $N_T$ & $N_p$ & $D_e$ & $D_p$ & $D_t$ & \# Samples & Total FLOPs \\
+ & Resolution & (B) & (B) & (B) & ($\times 10^9$) & ($\times 10^9$) & ($\times 10^9$) & (B) & ($\times 10^{21}$) \\
+\midrule
+% Added an empty cell for each row
+VideoMAEv2-g/14 & $16\times224\times224$ & 1.1 & --- & 0.012 & 331.8 & 165.9 & --- & 1.6 & 2.2 \\
+\midrule
+V-JEPA 2 L/16  & $16\times256\times256$ & 0.303 & 0.303 & 0.022 & 302.0 & 3019.9 & 1510.2 & 0.7 & 1.9 \\
+V-JEPA 2 H/16  & $16\times256\times256$ & 0.632 & 0.632 & 0.022 & 302.0 & 3019.9 & 1509.9 & 0.7 & 3.5 \\
+V-JEPA 2 g/16  & $16\times256\times256$ & 1.012 & 1.012  & 0.022 & 302.0 & 3019.9 & 1509.9 & 0.7 & 5.3 \\
+\midrule
+SALT-L/16     & $16\times224\times224$ & 0.3 & 0.303 & 0.022 & 154.1 & 1541.4 & 770.7 & 0.7 & 1.2 \\
+SALT-H/16     & $16\times224\times224$ & 0.6 & 0.303 & 0.022 & 154.1 & 1541.4 & 770.7 & 0.7 & 1.5 \\
+SALT-g/16     & $16\times224\times224$ & 1.0 & 0.303 & 0.022 & 154.1 & 1541.4 & 770.7 & 0.7 & 1.8 \\
+SALT-G/16     & $16\times224\times224$ & 1.8 & 0.303 & 0.022 & 154.1 & 1541.4 & 770.7 & 0.7 & 2.6 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% FIGURE 1 specific results: FLOPS/GPU hours and SSV2 performance
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \xhl{Fig. 1 specific results}
+\begin{table*}[htbp]
+\centering
+\caption{Training compute and GPU hours. We evaluate our models on \textbf{SSv2} with input of 16$\times$2$\times$3 (*V-JEPA 2 uses a spatial resolution of $256\times256$, and SALT utilizes $224\times224$.). We compute TFLOPs under the same batch size and masking strategy, and measure on one single A100 GPU  for all methods to ensure fairness and we exclude data-loading overhead  and GPU-communication load from all measurements to ensure they are CPU-agnostic. The results in this table are used in~\Cref{fig:w2s_teaser}.}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lccccccc}
+\toprule
+\multirow{2}{*}{\textbf{Method}} &
+\multirow{2}{*}{\textbf{Teacher Params}} &
+\multirow{2}{*}{\textbf{Student Params}} &
+\multirow{2}{*}{\textbf{\# Seen Samples ($\times10^9$)}} &
+\multirow{2}{*}{\textbf{Total Compute ($\times 10^{21}$ FLOPs)}} &
+\multirow{2}{*}{\textbf{GPU-hrs}} &
+\multicolumn{2}{c}{\textbf{SSv2 Top-1 (\%)}} \\
+\cmidrule(lr){7-8}
+ &  &  &  &  &  & \small 16$\times$2$\times$3 & \small 16$\times$1$\times$1 \\
+\midrule
+\vjepa 2 ViT\mbox{-}L~\citet{assran2025vjepa2} & 302M & 302M &7.4 & 1.9  & 9800 & 73.7  & 69.6\\
+\vjepa 2 ViT\mbox{-}H~\citet{assran2025vjepa2} & 631M & 631M &7.4 & 3.5 & 14377 & 74.0 & 69.6 \\
+\vjepa 2 ViT\mbox{-}g~\citet{assran2025vjepa2} &   1B &   1B  &7.4 & 5.3  & 18708 & 75.3 & 72.2 \\
+\midrule
+\ourmethod-Stage-1 ViT\mbox{-}L & N/A & 302M & 7.4 & 0.24  & 9062 &- & 66.2  \\
+% \vjepa 2 ViT\mbox{-}H  & 631M & 631M & 7.4 & 15.7 & 14408 &  \\
+%\vjepa 2 ViT\mbox{-}g &   1B &   1B  & 7.4 & 25.2  & 16374 &  \\
+% \midrule
+% \ourmethod-Vpixel ViT\mbox{-}L &   N/A & {302M} &2.5 & 0.20 & 2140\\
+% \ourmethod-Vpixel ViT\mbox{-}H &   N/A & {631M} &2.5 & 0.39 &2734\\
+% \ourmethod-Vpixel ViT\mbox{-}G &   N/A & 2B &2.5 &1.41 & 6604\\
+\midrule
+\ourmethod{} ViT\mbox{-}L & \textbf{302M} & 302M & 7.4 & \textbf{1.2}  & 8263 & 74.9  & 71.3\\
+\ourmethod{} ViT\mbox{-}H & \textbf{302M} & 631M & 7.4 & \textbf{1.5} & 9574 & 75.4 & 72.6 \\
+\ourmethod{} ViT\mbox{-}g* & \textbf{302M} &1B   & 7.4 & \textbf{1.9}  & 10476 & 76.2  & 72.9\\
+\ourmethod{} ViT\mbox{-}G* & \textbf{302M} &2B  & 7.4 & \textbf{2.6} & 12379 &76.1  & 73.2\\
+\bottomrule
+\end{tabular}}
+\label{tab:appendix:support_fig:train_compute_tflops}
+\end{table*}
+
+\section{Compute Budget specified via FLOPs and optimization steps}
+\label{appendix:sec:flops_note}
+    
+While we use FLOPs in our accuracy-compute trade-off analysis, we specify compute via the total number of optimization steps in our experiments. The use of latter quantity is natural in our setup as the teacher’s EMA update in V-JEPA 2~\citep{assran2025vjepa2} depends on the student getting updated first which is similar to the nature of the update in our two-stage training as the teacher needs to be trained first followed by the student. The advantage with \ourmethod is due from the fact that the teacher training is light-weight, and crucially, once a teacher model is trained, it may be used to train multiple student models.
+
+\newpage
+\section{Additional Tables}
+\label{appendix:sec:addiitonal_tables_figures}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% FIGURE 2 Main results 1: apple-to-apple comparison VJEPA vs Vpixel vs SALT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{table}[htbp]
+\caption{V-JEPA 2 vs. \ourmethod on same pretraining set. Kinetics-400 uses $16\times1\times1$ (number of frames in clip by temporal crops by spatial crops), Something-Something v2 (SSv2) uses $16\times1\times1$ while COIN is run with $16\times8\times3$. All models are evaluated using a spatial resolution of $224\times224$ pixels. The results in this table are used in~\Cref{fig:vjepa2_vs_our_method}.}
+\label{tab:teaser_results}
+\centering
+\resizebox{\textwidth}{!}{%
+\setlength{\tabcolsep}{6pt}
+% \renewcommand{\arraystretch}{1.2}
+\begin{tabular}{l| l l l ccccccc}
+\toprule
+\textbf{Method} & \textbf{Teacher} & \textbf{Student} & \textbf{IN-1K} & \textbf{K400} & \textbf{SSv2} & \textbf{COIN} & \textbf{Diving-48} & \textbf{Jester} & \textbf{Avg} \\
+
+\midrule
+  
+% \midrule
+\multirow{3}{*}{V-JEPA 2 (w/ our dataset)} 
+ & ViT-B & ViT-B &66.9  &66.9	&61.4 &68.4	&71.0	&95.9	 &71.8    \\
+& ViT-L & ViT-L &73.7  &73.3	&68.4 &83.1	&82.1	&97.0	 &79.6    \\
+& ViT-H & ViT-H &76.7 &73.6 &68.9 &84.9 &84.5 &97.1 &81.0      \\
+\midrule
+\multirow{2}{*}{\ourmethod Stage 1 (V-Pixel)} &N/A  & \cellcolor{lightgray}ViT-B & \cellcolor{lightgray}70.3 & \cellcolor{lightgray}65.2 & \cellcolor{lightgray}60.9 & \cellcolor{lightgray}73.3 & 
+\cellcolor{lightgray} 72.9 & \cellcolor{lightgray}95.7 & \cellcolor{lightgray}73.1\\
+ &N/A & \cellcolor{lightgray}ViT-L & \cellcolor{lightgray}75.5 & \cellcolor{lightgray}70.4 & \cellcolor{lightgray}66.2 & \cellcolor{lightgray}77.9 & 
+\cellcolor{lightgray}76.8 & \cellcolor{lightgray}96.9 & \cellcolor{lightgray}77.3\\
+\midrule
+&ViT-B &\cellcolor{lightgray}ViT-B &\cellcolor{lightgray}74.8    & \cellcolor{lightgray}70.9 & \cellcolor{lightgray}66.1 & \cellcolor{lightgray}80.5 &
+\cellcolor{lightgray}78.7 &
+\cellcolor{lightgray}96.7 &
+\cellcolor{lightgray}78.0  \\
+\multirow{5}{*}{\ourmethod Stage 2}  & \multirow{3}{*}{ViT-L}&\cellcolor{lightgray}ViT-L   &\cellcolor{lightgray}79.0 &\cellcolor{lightgray}76.0 &\cellcolor{lightgray}71.3 &\cellcolor{lightgray}85.3 
+&\cellcolor{lightgray}82.5
+&\cellcolor{lightgray}97.2
+&\cellcolor{lightgray}81.9  \\
+&&\cellcolor{lightgray}ViT-H &\cellcolor{lightgray}79.6   & \cellcolor{lightgray}77.2 & \cellcolor{lightgray}72.6 & \cellcolor{lightgray}87.0 &
+\cellcolor{lightgray}86.4 &
+\cellcolor{lightgray}97.3 &
+\cellcolor{lightgray}83.4  \\
+
+&& \cellcolor{lightgray}ViT-g &\cellcolor{lightgray}79.7    & \cellcolor{lightgray}78.0 & \cellcolor{lightgray}72.9 & \cellcolor{lightgray}87.0 &
+\cellcolor{lightgray}85.5 &
+\cellcolor{lightgray}97.4 &
+\cellcolor{lightgray}83.4  \\
+&& \cellcolor{lightgray}ViT-G &\cellcolor{lightgray}80.3   & \cellcolor{lightgray}78.9 & \cellcolor{lightgray}73.2 & \cellcolor{lightgray}87.5	 &
+\cellcolor{lightgray}85.3 &
+\cellcolor{lightgray}97.4 &
+\cellcolor{lightgray}83.8  \\
+\bottomrule
+\end{tabular}
+}  % resizebox
+
+\end{table}
+
+\begin{table*}[htbp]
+\centering
+\caption{Ablation on teacher pretraining datasets. We test teacher and student model using frozen-backbone evaluation \%). We report Top-1 accuracy on K400, SSv2, and ImageNet-1k, and COIN. This ablation is used in~\Cref{fig:ablate_teacher_data}.}
+\label{tab:appendix:ablation:teacher_pretraining_datasets}
+\resizebox{0.8\textwidth}{!}{
+\begin{tabular}{l r c c c c c}
+\toprule
+\textbf{Dataset} & \textbf{\# Samples} & \textbf{K400} & \textbf{SSv2} & \textbf{IN1k} & \textbf{COIN} & \textbf{Avg} \\
+\midrule
+\multicolumn{7}{c}{\textbf{SALT-teacher}}\\
+\midrule
+\textbf{V-3.6M (default)}         & 3,626,089 & 70.4 & 66.2 & 75.5 & 77.9 & 72.5 \\
+K710                  &   657,217 & 71.0 & 65.2 & 74.2 & 78.9 & 72.3 \\
+Panda2.8M             & 2,799,959 & 69.2 & 64.9 & 75.3 & 79.5 & 72.2 \\
+SSv2                  &   168,913 & 56.8 & 63.6 & 61.7 & 69.0 & 62.8 \\
+K710 + SSv2           &   826,130 & 70.0 & 67.8 & 74.0 & 79.2 & 72.8 \\
+ImageNet-1k           & 1,281,167 & 51.9 & 39.3 & 80.6 & 67.4 & 59.8 \\
+\midrule
+\multicolumn{7}{c}{\textbf{SALT-student}}\\
+\midrule
+\textbf{V-3.6M (default)} & \multirow{6}{*}{\textbf{V-3.6M (default)}} & 75.5 & 70.9 & 78.4 & 84.9 & 77.4 \\
+K710              &                                   & 75.7 & 70.6 & 78.4 & 85.0 & 77.4 \\
+SSv2              &                                   & 72.9 & 69.8 & 76.2 & 83.1 & 75.5 \\
+Panda2.8M         &                                   & 75.3 & 70.5 & 78.4 & 84.4 & 77.2 \\
+K710 + SSv2       &                                   & 75.1 & 71.1 & 78.0 & 84.9 & 77.3 \\
+ImageNet-1k       &                                   & 72.1 & 66.5 & 79.1 & 82.0 & 74.9 \\
+\bottomrule
+\end{tabular}}
+\end{table*}
+
+
+\begin{table*}[htbp]
+\centering
+\caption{\textbf{Teacher model size ablation.} We report frozen-backbone Top-1 on K400, SSv2, IN1K, and COIN. The top block shows teachers evaluated directly. The lower blocks show students distilled from different teacher sizes (two student sizes: ViT-L and ViT-G). The data in this table is used in~\Cref{fig:ablate_teacher_size}.}
+\label{tab:appendix:ablation:ablate_teacher_size}
+\resizebox{0.7\textwidth}{!}{%
+\begin{tabular}{l l c c c c c}
+\toprule
+\multicolumn{2}{c}{\textbf{Model size}} & \textbf{K400} & \textbf{SSv2} & \textbf{IN1k} & \textbf{COIN} & \textbf{Avg} \\
+\cmidrule(lr){1-2}
+\textbf{Teacher} & \textbf{Student} &  &  &  &  &  \\
+\midrule
+ ViT-B         & --- & 65.2 & 60.9 & 70.3 & 73.3 & 67.4 \\
+ \textbf{ViT-L (default)}        & --- & 70.4 & 66.2 & 75.5 & 77.9 & 72.5 \\
+ ViT-H         & --- & 71.1 & 67.4 & 76.7 & 81.5 & 74.2 \\
+ ViT-G         & --- & 73.6 & 68.5 & 77.4 & 81.4 & 75.2 \\
+\midrule
+\multicolumn{7}{c}{\textbf{SALT-student }}\\
+\midrule
+ ViT-B  & \multirow{4}{*}{ViT-L} & 74.4 & 69.5 & 78.0 & 84.0 & 76.5 \\
+ \textbf{ViT-L (default)}   & & 75.5 & 70.9 & 78.4 & 84.9 & 77.4 \\
+ ViT-H  &  & 75.6 & 70.7 & 78.3 & 84.4 & 77.3 \\
+ ViT-G  &  & 75.5 & 71.5 & 78.5 & 84.7 & 77.6 \\
+\midrule
+ ViT-B & \multirow{3}{*}{ViT-G} & 76.9 & 71.8 & 79.0 & 85.4 & 78.3 \\
+\textbf{ViT-L (default)}   &  & 77.6 & 71.9 & 79.3 & 87.0 & 79.0 \\
+ ViT-H  &  & 77.5 & 72.4 & 79.6 & 85.3 & 78.7 \\
+\bottomrule
+\end{tabular}}
+\end{table*}
+
+\begin{table*}[htbp]
+\centering
+\caption{\textbf{Masking strategy ablation.} We report frozen-backbone Top-1 on K400, SSv2, IN1k, and COIN;  Top block: teachers evaluated directly. Bottom block: students (fixed student recipe) trained from different teachers. The data in this table is used in~\Cref{fig:ablate_teacher_mask}.}
+\label{tab:appendix:teacher_mask_ablation_data}
+\resizebox{0.9\textwidth}{!}{%
+\begin{tabular}{l c c l c c c c c}
+\toprule
+\textbf{Teacher masking strategy} &\textbf{ \# masks} &\textbf{Masking ratio} & \textbf{Student Mmsking strategy} & \textbf{K400} & \textbf{SSv2} & \textbf{IN1k} & \textbf{COIN} & \textbf{Avg} \\
+\midrule
+\multicolumn{9}{c}{\ourmethod-teacher}\\
+\midrule
+\textbf{Long-short block mask (default)} &$\times$2  &$\approx0.9$  & --- & 70.4 & 66.2 & 75.5 & 77.9 & 72.5 \\
+Random tube &$\times$2 &[0.9, 0.9]  & --- & 69.2 & 64.7 & 74.1 & 74.9 & 70.7 \\
+Random tube &$\times$1 &[0.9]  & --- & 67.9 & 63.3 & 72.6 & 73.5 & 69.3 \\
+Causal mask &$\times$2 &[0.9, 0.9]  & --- & 47.4 & 34.3 & 57.3 & 58.8 & 49.5 \\
+\midrule
+\multicolumn{9}{c}{\ourmethod-student}\\
+\midrule
+Long-short block mask (default) &$\times$2 &$\approx0.9$  & \multirow{4}{*}{Long-short block mask} & 75.5 & 70.9 & 78.4 & 84.9 & 77.4 \\
+Random tube &$\times$2 &[0.9, 0.9] &  & 75.0 & 70.3 & 78.1 & 84.3 & 76.9 \\
+Random tube &$\times$1 &[0.9] &  & 75.0 & 70.4 & 78.0 & 84.8 & 77.1 \\
+Causal mask &$\times$2 &[0.9, 0.9] & & 71.7 & 66.3 & 75.0 & 81.7 & 73.7 \\
+\bottomrule
+\end{tabular}}
+\end{table*}
+
+
+\begin{table*}[htbp]
+\centering
+\caption{\textbf{Compute–accuracy tradeoffs at matched total steps.} Each block fixes the \emph{total} pretraining steps (budget) and compares \vjepa,2 to our two–stage schedule (teacher+student). FLOPs are reported as $\times 10^{21}$. Metrics are frozen–backbone Top-1 on K400, SSv2, IN1k, and COIN. This table includes data presented in~\Cref{fig:ablate_teacher_compute_all_flops}.}
+\label{tab:appendix:ablation:ablate_teacher_compute_all_flops}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l r r r r r c c c c c}
+\toprule
+\multicolumn{1}{c}{\textbf{Teacher Steps}} &
+\multicolumn{1}{c}{\textbf{Teacher FLOPs}} &
+\multicolumn{1}{c}{\textbf{Student Steps}} &
+\multicolumn{1}{c}{\textbf{Student FLOPs}} &
+\multicolumn{1}{c}{\textbf{Total FLOPs}} &
+\multicolumn{1}{c}{\textbf{Total Steps}} &
+\multicolumn{1}{c}{\textbf{K400}} &
+\multicolumn{1}{c}{\textbf{SSv2}} &
+\multicolumn{1}{c}{\textbf{IN1k}} &
+\multicolumn{1}{c}{\textbf{COIN}} &
+\multicolumn{1}{c}{\textbf{Avg}} \\
+\midrule
+\multicolumn{11}{c}{\textbf{Budget: 240k total steps}}\\
+\midrule
+\textbf{\vjepa 2 (baseline)} & {1.900} & \textbf{—} & \textbf{—} & {1.900} & {240k} & 73.3 & 68.4 & 73.7 & 83.1 & 74.6 \\
+80k+80k &0.717 & 80k & 0.476 &1.193 & 240k & 76.5	&71.8 &79.0	&86.8 &78.5 \\
+40k+80k &0.597 & 120k & 0.714 &1.311 & 240k & 76.8	&71.7  &79.3	&86.7 &78.6 \\
+80k  & 0.241 & 160k & 0.951 & {1.192} & 240k & 76.0 & 71.3 & 79.0 & 85.3 & 77.9 \\
+40k  & 0.121 & 200k & 1.190 & {1.311} & 240k & 76.3 & 71.7 & 79.1 & 85.6 & 78.2 \\
+20k  & 0.061 & 220k & 1.309 & {1.370} & 240k & 75.8 & 71.2 & 78.7 & 84.9 & 77.7 \\
+\midrule
+\multicolumn{11}{c}{\textbf{Budget: 160k total steps}}\\
+\midrule
+\textbf{\vjepa 2 (baseline)} & {1.260} & \textbf{—} & \textbf{—} & {1.260} & {160k} & 73.5 & 68.3 & 74.8 & 82.9 & 74.9 \\
+80k  & 0.241 & 80k  & 0.476 & {0.717} & 160k & 75.5 & 70.9 & 78.4 & 84.9 & 77.4 \\
+40k  & 0.121 & 120k & 0.714 & {0.835} & 160k & 75.5 & 70.9 & 78.4 & 85.4 & 77.6 \\
+20k  & 0.061 & 140k & 0.833 & {0.894} & 160k & 74.9 & 70.6 & 78.0 & 84.6 & 77.0 \\
+\midrule
+\multicolumn{11}{c}{\textbf{Budget: 120k total steps}}\\
+\midrule
+\textbf{\vjepa 2 (baseline)} & {0.951} & \textbf{—} & \textbf{—} & {0.951} & {120k} & 73.3 & 67.9 & 74.7 & 81.5 & 74.4 \\
+80k  & 0.241 & 40k  & 0.238 & {0.479} & 120k & 74.0 & 69.5 & 77.7 & 84.5 & 76.4 \\
+40k  & 0.121 & 80k  & 0.476 & {0.597} & 120k & 75.0 & 70.2 & 78.0 & 84.9 & 77.0 \\
+20k  & 0.061 & 100k & 0.595 & {0.656} & 120k & 74.6 & 70.1 & 77.5 & 84.5 & 76.7 \\
+\bottomrule
+\end{tabular}}
+\end{table*}
+
+
+\clearpage
+\newpage
+
+\section{Additional Figures}
+
+% \begin{figure}[htbp]
+% \centering
+%     \includegraphics[width=0.75\linewidth]{figs/SALT_Full_Method.pdf}
+%     \vspace{-1.em}
+%     \caption{\textbf{SALT}. Figure illustrates the full \ourmethod approach to representation learning. (Left) the smaller-sized teacher is trained using V-Pixel, and (Right) then frozen and used to provide targets to optimize the student. }
+%     \label{fig:appendix:salt_full_method}
+%     \vspace{-1.em}
+% \end{figure}
+
+\begin{figure}[htbp]
+\centering
+    \includegraphics[width=0.5\linewidth]{figs/ablation/student_rankme_vs_acc.pdf}
+    \vspace{-1.em}
+    \caption{Correlation between RankME and downstream accuracy. We use the same SALT-Stage-1-80k  teacher checkpoint.}
+    \label{fig:appendix:analysis_student:rankme}
+    \vspace{-1.em}
+\end{figure}
+
+\applefootnote{ \textcolor{textgray}{\sffamily Apple and the Apple logo are trademarks of Apple Inc., registered in the U.S. and other countries and regions.}}
+
+
+\end{document}

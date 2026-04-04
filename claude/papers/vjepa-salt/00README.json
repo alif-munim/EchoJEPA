@@ -1,0 +1,89 @@
+{
+   "sources" : [
+      {
+         "usage" : "toplevel",
+         "filename" : "arxiv.tex"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "fancyhdr.sty"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figs/SALT_Full_Method.pdf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figs/ablation/ablation_teacher_120k.pdf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figs/ablation/ablation_teacher_160k.pdf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figs/ablation/ablation_teacher_240k.pdf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figs/ablation/ablation_teacher_size.pdf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figs/ablation/model_size_scaling_with_vjepa.pdf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figs/ablation/student_loss_rankme_vs_acc_sns.png"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figs/ablation/student_rank_loss_correlation.pdf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "salt.bib"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "salt.bst"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "store/SF-Pro-Display-Bold.ttf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "store/SF-Pro-Italic.ttf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "store/SF-Pro.ttf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "store/T1-WGL4.enc"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "store/natbib.sty"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "store/sfpro-bold.tfm"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "store/sfpro-italic.tfm"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "store/sfpro.tfm"
+      }
+   ],
+   "spec_version" : 1,
+   "texlive_version" : "2025",
+   "process" : {
+      "compiler" : "pdflatex"
+   }
+}
