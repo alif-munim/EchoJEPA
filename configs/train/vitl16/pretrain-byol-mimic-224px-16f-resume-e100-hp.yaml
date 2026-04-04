@@ -1,0 +1,66 @@
+# BYOL-Video ViT-L pretraining on MIMIC-IV-Echo — Resume from epoch 100, HyperPod 1-node
+# Continue BYOL pretraining to epoch 200
+app: byol_video
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 80G
+folder: /opt/dlami/nvme/checkpoints/pretrain/mimic/byol_vitl_224px_16f_imagenet_v2_resume
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /opt/dlami/nvme/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
+  batch_size: 64                    # 64 × 8 GPUs = 512 effective
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  num_clips: 2
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+meta:
+  s3_checkpoint_uri: "s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/byol-vitl-imagenet-v2-resume/"
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: true
+  read_checkpoint: null
+  save_every_freq: 5
+  checkpoints_to_keep: 3
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_rope: true
+  proj_hidden_dim: 4096
+  proj_dim: 256
+  pred_hidden_dim: 4096
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: false
+  anneal_ckpt: null
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  ipe: 300
+  ipe_scale: 1.25
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  warmup: 40
+  epochs: 200
