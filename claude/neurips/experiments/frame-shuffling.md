@@ -22,6 +22,8 @@ Temporal ablation experiment measuring how downstream LVEF prediction degrades w
 | EchoBYOL-L pt50 | `checkpoints/byol_vitl_imagenet_v2_e50.pt` (key: `target_encoder`) | `evals/vitl/icml/echobyol_pt50_end_lvef_224/.../best.pt` | head 1 |
 | EchoMAE-L pt50 | `checkpoints/videomae_l_mimic_ep50.pth` (key: `model`) | `evals/vitl/icml/echomae_pt50_end_lvef_224/.../best.pt` | head 5 |
 
+**S3 mirror:** All encoders and probes at `s3://echodata25/neurips/{encoders,probes/end_lvef_pt50}/`. See `completed-experiments.md` for full S3 layout.
+
 **Test CSV:** `data/csv/echonet_dynamic_test_local.csv` (1,277 videos, space-delimited: path raw_EF)
 
 ---

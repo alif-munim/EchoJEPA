@@ -211,11 +211,42 @@ Multi-view +3.9pp R² over best single view.
 
 ## Checkpoint Reference
 
-All encoder and probe checkpoint paths are in `rebuttals/12-checkpoint-reference.md`. Key encoders:
+### S3 (canonical, persistent)
 
-| Model | Checkpoint |
-|-------|-----------|
-| EchoJEPA-L pt50 | `checkpoints/echojepa-l-pt50.pt` |
-| EchoBYOL-L pt50 | `checkpoints/byol_vitl_imagenet_v2_e50.pt` |
-| EchoMAE-L pt50 | `checkpoints/videomae_l_mimic_ep50.pth` |
-| SALT (to be trained) | `checkpoints/pretrain/mimic/salt_s{1,2}_vitl_224px_16f/latest.pt` |
+All pt50 encoders and EchoNet-Dynamic LVEF probes are mirrored to a clean S3 location:
+
+```
+s3://echodata25/neurips/
+├── encoders/
+│   ├── echojepa_l_pt50.pt        (4.8 GB — ViT-L, JEPA, 50ep MIMIC)
+│   ├── echobyol_l_pt50.pt        (2.3 GB — ViT-L, BYOL, 50ep MIMIC)
+│   └── echomae_l_pt50.pth        (3.6 GB — ViT-L, MAE, 50ep MIMIC)
+└── probes/
+    └── end_lvef_pt50/
+        ├── echojepa_l_pt50/best.pt   (3.3 GB — d=4 attentive, 20ep, head 3)
+        ├── echobyol_l_pt50/best.pt   (3.3 GB — d=4 attentive, 20ep, head 1)
+        └── echomae_l_pt50/best.pt    (3.3 GB — d=4 attentive, 20ep, head 5)
+```
+
+These are the checkpoints used for frame shuffling and noise robustness experiments. The probes were trained on EchoNet-Dynamic (7,460 train) and evaluated on EchoNet-Dynamic test (1,277 videos).
+
+**Provenance:**
+- JEPA encoder: EFS `checkpoints/echojepa-l-pt50.pt`; probe from HyperPod job 294
+- BYOL encoder: EFS `checkpoints/byol_vitl_imagenet_v2_e50.pt`; probe trained on local A100 (EFS `evals/vitl/icml/echobyol_pt50_end_lvef_224/.../best.pt`)
+- MAE encoder: EFS `checkpoints/videomae_l_mimic_ep50.pth`; probe from HyperPod job 296
+
+**HyperPod S3 (original training outputs, less organized):**
+- `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/echojepa_pt50_end_lvef_294/`
+- `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/echobyol_pt50_end_lvef_284/` (earlier run, different HP selection)
+- `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs/echomae_pt50_end_lvef_296/`
+
+### EFS (local, fast access)
+
+| Model | Encoder (EFS) | Probe (EFS) |
+|-------|--------------|-------------|
+| EchoJEPA-L pt50 | `checkpoints/echojepa-l-pt50.pt` | `evals/vitl/icml/echojepa_pt50_end_lvef_224/.../best.pt` |
+| EchoBYOL-L pt50 | `checkpoints/byol_vitl_imagenet_v2_e50.pt` | `evals/vitl/icml/echobyol_pt50_end_lvef_224/.../best.pt` |
+| EchoMAE-L pt50 | `checkpoints/videomae_l_mimic_ep50.pth` | `evals/vitl/icml/echomae_pt50_end_lvef_224/.../best.pt` |
+| SALT (to be trained) | `checkpoints/pretrain/mimic/salt_s{1,2}_vitl_224px_16f/latest.pt` | — |
+
+Full checkpoint reference (all tasks, all models): `rebuttals/12-checkpoint-reference.md`
