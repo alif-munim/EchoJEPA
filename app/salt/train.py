@@ -374,7 +374,7 @@ def main(args, resume_preempt=False):
         head = decoder
     elif stage == 2:
         predictor = DistributedDataParallel(predictor, static_graph=False, find_unused_parameters=True)
-        teacher_encoder = DistributedDataParallel(teacher_encoder)
+        # Teacher is frozen — no DDP needed (no gradients to sync)
         for p in teacher_encoder.parameters():
             p.requires_grad = False
         head = predictor
@@ -486,7 +486,7 @@ def main(args, resume_preempt=False):
     # -- Determine teacher embed dim for Stage 2 hierarchical norm
     teacher_embed_dim = None
     if stage == 2:
-        teacher_embed_dim = teacher_encoder.module.backbone.embed_dim
+        teacher_embed_dim = teacher_encoder.backbone.embed_dim
 
     # --------------------------------------------------------------- #
     #  Training loop
