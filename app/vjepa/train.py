@@ -331,7 +331,8 @@ def main(args, resume_preempt=False):
             epoch_from_ckpt = checkpoint.get("epoch", 0)
 
             # Handle both formats: V-JEPA dict (has 'encoder' key) or flat state dict (ImageNet)
-            if "encoder" in checkpoint:
+            is_flat = "encoder" not in checkpoint
+            if not is_flat:
                 pretrained_dict = checkpoint["encoder"]
                 pretrained_dict = {k.replace("module.", ""): v for k, v in pretrained_dict.items()}
             else:
@@ -352,7 +353,13 @@ def main(args, resume_preempt=False):
                 pretrained_dict[pe_key] = pe_3d
                 logger.info(f"Inflated patch_embed.proj.weight: {pe_2d.shape} -> {pe_3d.shape}")
 
-            msg = encoder.load_state_dict(pretrained_dict, strict=False)
+            if is_flat:
+                # Flat ImageNet keys (blocks.0...) -> load into encoder.backbone
+                # (encoder is MultiSeqWrapper whose keys have backbone. prefix)
+                msg = encoder.backbone.load_state_dict(pretrained_dict, strict=False)
+            else:
+                # V-JEPA keys already have backbone. prefix from original save
+                msg = encoder.load_state_dict(pretrained_dict, strict=False)
             logger.info(f"Loaded pretrained encoder from epoch {epoch_from_ckpt} with msg: {msg}")
 
             # Copy to target encoder
