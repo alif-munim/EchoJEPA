@@ -1,18 +1,20 @@
-# V-JEPA 2.0 ViT-L pretraining on MIMIC-IV-Echo — ImageNet-21K init, HyperPod 1-node
-# Fresh start from ImageNet-21K for NeurIPS controlled comparison (matching BYOL/MAE init).
-app: vjepa
+# SALT Stage 2: Frozen-teacher student training — HyperPod 1-node
+# Freeze S1 encoder as teacher, train student encoder + predictor.
+# ImageNet-21K init for student (matches other models).
+# S1=50ep + S2=50ep = 100 total compute epochs.
+app: salt
 nodes: 1
 tasks_per_node: 8
 cpus_per_task: 16
 mem_per_gpu: 80G
-folder: /opt/dlami/nvme/checkpoints/pretrain/mimic/vjepa2_vitl_224px_16f_in21k
+folder: /opt/dlami/nvme/checkpoints/pretrain/mimic/salt_s2_vitl_224px_16f
 
 data:
   dataset_type: VideoDataset
   datasets:
     - /opt/dlami/nvme/data/csv/mimic_annotations_s3.csv
   datasets_weights: [1.0]
-  batch_size: 128                   # Same as original JEPA pretrain
+  batch_size: 64                    # 64 × 8 GPUs = 512 effective (student encoder + frozen teacher + predictor)
   crop_size: 224
   patch_size: 16
   dataset_fpcs: [16]
@@ -30,7 +32,7 @@ data_aug:
   reprob: 0.0
 
 loss:
-  loss_exp: 1.0
+  loss_exp: 1.0                     # L1 loss
 
 mask:
   - aspect_ratio: [0.75, 1.5]
@@ -50,37 +52,40 @@ mask:
 
 meta:
   dtype: bfloat16
-  eval_freq: 100
   load_checkpoint: false
   read_checkpoint: null
   save_every_freq: 5
+  max_epoch_checkpoints: 4
   seed: 234
   use_sdpa: true
 
 model:
-  model_name: vit_large
+  stage: 2
+  model_name: vit_large             # student encoder
+  teacher_model_name: vit_large     # teacher (same size for controlled comparison)
+  teacher_checkpoint: /opt/dlami/nvme/checkpoints/pretrain/mimic/salt_s1_vitl_224px_16f/latest.pt
   pred_depth: 12
   pred_embed_dim: 384
   pred_num_heads: 12
-  uniform_power: true
-  use_activation_checkpointing: true
   use_mask_tokens: true
   num_mask_tokens: 10
-  use_rope: true
   zero_init_mask_tokens: true
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_rope: true
+  use_silu: false
+  wide_silu: true
 
 optimization:
-  is_anneal: false
-  # ImageNet-21K init (same as BYOL and MAE)
-  force_load_pretrain: true
-  anneal_ckpt: /opt/dlami/nvme/checkpoints/vitl_in21k.pt
-  ema: [0.99925, 0.99925]
-  weight_decay: 0.04
-  final_weight_decay: 0.04
+  epochs: 50                        # S2=50ep (S1=50 + S2=50 = 100 total)
   ipe: 300
   ipe_scale: 1.25
+  warmup: 40
   start_lr: 3.33e-5
   lr: 1.75e-4
   final_lr: 1.75e-4
-  warmup: 40
-  epochs: 100                      # Match comparison point (BYOL/MAE/SALT at e100 total)
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  betas: [0.9, 0.95]
+  grad_clip: 0.02
+  force_load_pretrain: false

@@ -69,7 +69,7 @@ model:
   decoder_num_heads: 8
 
 optimization:
-  epochs: 100
+  epochs: 50                       # S1=50 + S2=50 = 100 total (matches JEPA/BYOL/MAE at e100)
   ipe: 300
   ipe_scale: 1.25
   warmup: 40
