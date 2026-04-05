@@ -34,7 +34,7 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel
 
-from app.vjepa_2_1.transforms import make_transforms
+from app.vjepa.transforms import make_transforms
 from app.vjepa.utils import init_opt, init_video_model, load_checkpoint
 from src.datasets.data_manager import init_data
 from src.masks.multiseq_multiblock3d import MaskCollator
