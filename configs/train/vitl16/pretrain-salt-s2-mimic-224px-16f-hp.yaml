@@ -77,7 +77,7 @@ model:
   wide_silu: true
 
 optimization:
-  epochs: 50                        # S2=50ep (S1=50 + S2=50 = 100 total)
+  epochs: 80                        # S2=80ep (S1=20 + S2=80 = 100 total, ~1:4 per SALT paper)
   ipe: 300
   ipe_scale: 1.25
   warmup: 40

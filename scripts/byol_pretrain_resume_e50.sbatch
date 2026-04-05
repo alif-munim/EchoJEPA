@@ -5,9 +5,9 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=96
 #SBATCH -t 7-00:00:00
-#SBATCH -J salt_s2
-#SBATCH -o /tmp/salt_s2-%j.out
-#SBATCH -e /tmp/salt_s2-%j.err
+#SBATCH -J byol_pt
+#SBATCH -o /tmp/byol_pt-%j.out
+#SBATCH -e /tmp/byol_pt-%j.err
 #SBATCH --chdir=/tmp
 #SBATCH --nodelist=ip-10-0-50-83
 
@@ -36,52 +36,58 @@ export LD_LIBRARY_PATH="/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cubl
 # =========================
 ART_BUCKET="sagemaker-hyperpod-lifecycle-495467399120-usw2"
 S3_BASE="s3://${ART_BUCKET}/vjepa2-artifacts"
+H100_BUCKET="sagemaker-echojepa-h100-march-0d224785-bucket"
 
+ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
+
+# BYOL e50 checkpoint (model + optimizer)
+CKPT_S3="s3://${H100_BUCKET}/checkpoints/byol-vitl-imagenet-v2/e50.pt"
+CKPT_OPT_S3="s3://${H100_BUCKET}/checkpoints/byol-vitl-imagenet-v2/e50_opt.pt"
+
+# Data CSV (MIMIC 525K with S3 paths)
 DATA_CSV_S3="${S3_BASE}/data/csv/mimic_annotations_s3.csv"
 
-# =====================================================================
-# SALT S1 TEACHER CHECKPOINT
-# Update this path to the actual S3 location of the S1 latest.pt
-# after S1 training completes. The sbatch syncs it to NVMe before launch.
-# =====================================================================
-SALT_S1_RUN_S3="${S3_BASE}/runs/salt_s1_pretrain_379/checkpoints/latest.pt"
+CFG_REL="configs/train/vitl16/pretrain-byol-mimic-224px-16f-resume-e50-hp.yaml"
 
-CFG_REL="configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f-hp.yaml"
-
-RUN_S3="${S3_BASE}/runs/salt_s2_pretrain_${SLURM_JOB_ID}"
-CKPT_DIR="/opt/dlami/nvme/checkpoints/pretrain/mimic/salt_s2_vitl_224px_16f"
+RUN_S3="${S3_BASE}/runs/byol_pretrain_resume_${SLURM_JOB_ID}"
 
 # =========================
-# LOGGING / SYNC
+# LOGGING
 # =========================
-sync_ckpts() {
-  if [ -d "$CKPT_DIR" ]; then
-    aws s3 sync "$CKPT_DIR" "${RUN_S3}/checkpoints/" \
-      --exclude "*" \
-      --include "e*.pt" --include "latest.pt" --include "*.csv" --include "*.yaml" \
-      --only-show-errors || true
-  fi
-}
-
 upload_logs() {
-  aws s3 cp "/tmp/salt_s2-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/job.out" --only-show-errors 2>/dev/null || true
-  aws s3 cp "/tmp/salt_s2-${SLURM_JOB_ID}.err" "${RUN_S3}/logs/job.err" --only-show-errors 2>/dev/null || true
+  aws s3 cp "/tmp/byol_pt-${SLURM_JOB_ID}.out" "${RUN_S3}/logs/job.out" --only-show-errors 2>/dev/null || true
+  aws s3 cp "/tmp/byol_pt-${SLURM_JOB_ID}.err" "${RUN_S3}/logs/job.err" --only-show-errors 2>/dev/null || true
 }
-
-on_exit() {
-  rc=$?
-  sync_ckpts
-  upload_logs
-  exit $rc
-}
-trap on_exit EXIT
+trap 'rc=$?; upload_logs; exit $rc' EXIT
 
 # =========================
 # HOST SETUP
 # =========================
 echo "[INFO] host=$(hostname) job=${SLURM_JOB_ID}"
 nvidia-smi -L || true
+
+# Clear shared memory
 rm -rf /dev/shm/* 2>/dev/null || true
+
+SCRATCH="/opt/dlami/nvme"
+WORKDIR="${SCRATCH}/byol_pt_${SLURM_JOB_ID}"
+mkdir -p "$WORKDIR"
+cd "$WORKDIR"
+
+# =========================
+# ENVIRONMENT
+# =========================
+echo "[INFO] Setting up environment..."
+if [ ! -d "env/bin" ]; then
+    aws s3 cp "$ENV_S3" env.tar
+    mkdir -p env && tar -xf env.tar -C env
+    set +u && source env/bin/activate && set -u
+    env/bin/conda-unpack || true
+    pip install "numpy<2.0" boto3 --no-cache-dir
+    rm -f env.tar
+else
+    set +u && source env/bin/activate && set -u
+fi
 
 # =========================
 # CODE
@@ -98,46 +104,28 @@ pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 
 # =========================
-# STAGE DATA + TEACHER CHECKPOINT
+# STAGE DATA CSV + CHECKPOINT
 # =========================
 echo "[INFO] Downloading data CSV..."
 mkdir -p /opt/dlami/nvme/data/csv
 aws s3 cp "$DATA_CSV_S3" /opt/dlami/nvme/data/csv/mimic_annotations_s3.csv
 
-echo "[INFO] Downloading SALT S1 teacher checkpoint..."
-S1_CKPT_DIR="/opt/dlami/nvme/checkpoints/pretrain/mimic/salt_s1_vitl_224px_16f"
-mkdir -p "$S1_CKPT_DIR"
-aws s3 cp "$SALT_S1_RUN_S3" "$S1_CKPT_DIR/latest.pt"
-
-echo "[INFO] Teacher checkpoint staged:"
-ls -lh "$S1_CKPT_DIR/latest.pt"
-
+echo "[INFO] Staging e50 checkpoint as latest.pt for resume..."
+CKPT_DIR="/opt/dlami/nvme/checkpoints/pretrain/mimic/byol_vitl_224px_16f_imagenet_v2_resume"
 mkdir -p "$CKPT_DIR"
+aws s3 cp "$CKPT_S3" "$CKPT_DIR/latest.pt"
+aws s3 cp "$CKPT_OPT_S3" "$CKPT_DIR/latest_opt.pt"
+
+echo "[INFO] Checkpoint staged:"
+ls -la "$CKPT_DIR/"
 
 # =========================
-# PERIODIC S3 SYNC
+# RUN PRETRAINING
 # =========================
-(
-  while true; do
-    sleep 900
-    sync_ckpts
-    upload_logs
-  done
-) &
-SYNC_PID=$!
-
-# =========================
-# RUN SALT STAGE 2
-# =========================
-echo "[INFO] Launching SALT Stage 2 (frozen-teacher student) pretraining..."
+echo "[INFO] Launching BYOL pretraining (resume from e50)..."
 python -m app.main \
   --fname "$CFG_REL" \
   --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 \
-  2>&1 | tee "salt_s2_${SLURM_JOB_ID}.log"
-RC=$?
+  2>&1 | tee "byol_pretrain_${SLURM_JOB_ID}.log"
 
-kill $SYNC_PID 2>/dev/null || true
-wait $SYNC_PID 2>/dev/null || true
-sync_ckpts
-upload_logs
-exit $RC
+echo "[INFO] DONE."

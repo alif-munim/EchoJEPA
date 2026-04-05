@@ -1,0 +1,93 @@
+# EchoJEPA-L (pt50) RVSP single-view regression (PSAX-AV only), d=4 attentive probe
+# Ablation: single-view vs multi-view (A4C + PSAX-AV). Same data, same labels, one clip per study.
+# Data: Full UHN RVSP (41K train / 5K val), raw RVSP labels
+app: vjepa
+cpus_per_task: 32
+folder: /opt/dlami/nvme/evals/icml/echojepa_pt50_rvsp_psax
+mem_per_gpu: 80G
+nodes: 1
+tasks_per_node: 8
+num_workers: 8
+
+eval_name: video_classification_frozen
+resume_checkpoint: false
+tag: icml-echojepa-l-pt50-rvsp-psax-d4
+
+experiment:
+  classifier:
+    task_type: regression
+    num_heads: 16
+    num_probe_blocks: 4
+    num_targets: 1
+
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /opt/dlami/nvme/data/csv/rvsp_train_psax.csv
+    dataset_val: /opt/dlami/nvme/data/csv/rvsp_val_psax.csv
+    target_mean: 34.4650
+    target_std: 14.0130
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 1
+    num_segments: 2
+    num_views_per_segment: 1
+
+  optimization:
+    batch_size: 1
+    num_epochs: 20
+    use_bfloat16: true
+    use_pos_embed: false
+    multihead_kwargs:
+    # --- Group 1: 1e-4 ---
+    - final_lr: 0.0
+      final_weight_decay: 0.01
+      lr: 0.0001
+      start_lr: 0.0001
+      warmup: 0.0
+      weight_decay: 0.01
+    - final_lr: 0.0
+      final_weight_decay: 0.1
+      lr: 0.0001
+      start_lr: 0.0001
+      warmup: 0.0
+      weight_decay: 0.1
+    - final_lr: 0.0
+      final_weight_decay: 0.4
+      lr: 0.0001
+      start_lr: 0.0001
+      warmup: 0.0
+      weight_decay: 0.4
+    # --- Group 2: 5e-5 ---
+    - final_lr: 0.0
+      final_weight_decay: 0.01
+      lr: 0.00005
+      start_lr: 0.00005
+      warmup: 0.0
+      weight_decay: 0.01
+    - final_lr: 0.0
+      final_weight_decay: 0.1
+      lr: 0.00005
+      start_lr: 0.00005
+      warmup: 0.0
+      weight_decay: 0.1
+    - final_lr: 0.0
+      final_weight_decay: 0.4
+      lr: 0.00005
+      start_lr: 0.00005
+      warmup: 0.0
+      weight_decay: 0.4
+
+model_kwargs:
+  checkpoint: /opt/dlami/nvme/checkpoints/echojepa_l_mimic_ep50.pt
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: target_encoder
+      model_name: vit_large
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true
+  wrapper_kwargs:
+    max_frames: 128
+    use_pos_embed: false
