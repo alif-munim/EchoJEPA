@@ -78,7 +78,16 @@ PT50_END_CONFIGS = {
 
 # Training dynamics configs: BYOL and MAE at e24, e50, e75, e100
 ALL_CONFIGS = {
-    # JEPA (only pt50 available)
+    # SALT S2 (frozen pixel teacher, student random init)
+    "SALT-S2-e79": {
+        "encoder_type": "vjepa",
+        "encoder_checkpoint": "checkpoints/salt_s2_vitl_e79.pt",
+        "encoder_model_name": "vit_large",
+        "encoder_key": "encoder",
+        "probe_checkpoint": "evals/vitl/icml/salt_s2_e79_end_lvef_224/"
+                            "video_classification_frozen/icml-salt-s2-e79-end-lvef-d4/best.pt",
+    },
+    # JEPA (only pt50 available — random init, not epoch-matched)
     "JEPA-L-e50": PT50_END_CONFIGS["JEPA-L-pt50"],
     # BYOL v2 (ImageNet init)
     "BYOL-L-e24": {

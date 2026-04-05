@@ -14,114 +14,119 @@ Target: 9 pages main text + references + appendix. Representation Learning / SSL
 
 **Preempts the novelty concern directly:** "The encoder architecture is deliberately held constant across all objectives. This is the experimental design, not a limitation. Our contribution is the systematic empirical finding, the mechanistic evidence explaining it, and the evaluation methodology that reveals it." Cite precedents (scaling laws papers, "Do ViTs See Like CNNs?", understanding papers at NeurIPS).
 
-**Completed experiments used:** All (this section frames everything).
-**New experiments needed:** None.
-
 ---
 
 ## Section 2: Experimental Design (~1.5 pages)
 
-**The controlled comparison.** Four SSL paradigms, one architecture (ViT-L), one dataset (MIMIC-IV-Echo 525K), one compute budget (50 epochs):
+**The controlled comparison.** Three SSL paradigms, one architecture (ViT-L), one dataset (MIMIC-IV-Echo 525K), one compute budget (100 epochs), ImageNet initialization:
 
-| Paradigm | Prediction Target | Teacher | Code |
+| Paradigm | Prediction Target | Teacher | Init |
 |----------|------------------|---------|------|
-| JEPA | Local masked tokens | EMA encoder | `app/vjepa_2_1/` |
-| BYOL-Video | Global mean-pooled repr | EMA encoder + projector | `app/byol_video/` |
-| MAE | Pixels | None (reconstruction) | VideoMAE |
-| SALT | Frozen teacher's latents | Frozen pixel-trained encoder | `app/salt/` |
+| JEPA | Local masked tokens | EMA encoder | ImageNet-21K |
+| BYOL-Video | Global mean-pooled repr | EMA encoder + projector | ImageNet-21K |
+| MAE | Pixels | None (reconstruction) | ImageNet |
 
-**The 2×2 design:** SALT decouples {pixel vs latent target} from {EMA vs frozen teacher}. Table showing which cell each paradigm occupies.
+**⚠️ NOTE:** Use JEPA IN21K (job 376) for primary table, NOT JEPA pt50 (which was init from fully-trained 235ep encoder). SALT included conditionally — see §4 mechanistic subsection.
 
-**Evaluation protocol:** Frozen backbone, d=4 attentive probe (or d=1 for small datasets), prediction averaging across clips. 5 tasks: LVEF, RVSP, CAMUS, EchoNet-Dynamic, zero-shot pediatric. Multi-view framework for RVSP (brief description, full ablation in appendix).
+**Evaluation protocol:** Frozen backbone, d=4 attentive probe, prediction averaging across clips. 5 tasks: LVEF (UHN), RVSP (UHN multi-view), CAMUS segmentation, EchoNet-Dynamic LVEF, zero-shot Pediatric LVEF.
 
-**EchoBench protocol:** 3 physics-based perturbation types × 3 severity levels. Probes NOT retrained — tests representation robustness, not adaptation.
-
-**Completed experiments used:** Setup descriptions from existing comparison.
-**New experiments needed:** SALT pretraining + evaluation (P0).
+**EchoBench protocol:** 3 physics-based perturbation types × 3 severity levels. Probes NOT retrained.
 
 ---
 
-## Section 3: The Prediction Target Determines What Is Encoded (~2 pages)
+## Section 3: The Prediction Target Determines What Is Encoded (~1.5 pages)
 
-**Core finding table:** 4-way comparison across all 5 tasks. JEPA/SALT lead functional tasks; MAE leads spatial tasks. Rankings invert.
+**Core finding table:** 3-way (or 4-way if SALT included) comparison across all 5 tasks. JEPA leads functional tasks; MAE leads spatial tasks. Rankings invert.
 
-**Cross-dataset amplification:** JEPA's advantage grows from +2.5pp R² in-distribution (UHN) → +12.6pp cross-dataset (EchoNet-Dynamic) → +10.3pp cross-population (Pediatric zero-shot). The prediction target matters most when you generalize.
+**Cross-dataset amplification:** JEPA's advantage grows from +2.5pp R² in-distribution (UHN) → +12.6pp cross-dataset (EchoNet-Dynamic) → +10.3pp cross-population (Pediatric zero-shot).
 
-**Clinical impact:** Pathology-stratified analysis. JEPA advantage 8× larger on reduced EF (<40%). MAE predicts 48% for patients with true EF 29%.
+**Clinical impact:** Pathology-stratified analysis. JEPA advantage 8× larger on reduced EF (<40%).
 
 **Statistical validation:** Bootstrap CIs for all pairwise comparisons. All significant.
 
-**Completed experiments used:** #1-6, #12-14 from completed inventory.
-**New experiments needed:** SALT results for all 5 tasks (P0).
-
 ---
 
-## Section 4: Mechanistic Evidence (~1.5 pages)
+## Section 4: Mechanistic Evidence (~2 pages)
 
-**Frame shuffling (Figure 2).** 6-condition temporal disruption gradient. Table + figure showing:
+**Frame shuffling (Figure 2a).** 6-condition temporal disruption gradient:
 - JEPA retains most absolute signal post-shuffle (R²=0.365 > MAE clean)
 - BYOL collapses to R²=0.099 under matched_frame (-79%)
-- MAE shows small relative drop because it has little temporal signal to lose
 - Monotonic gradient: clean ≈ tubelet ≈ reverse ≈ matched > shuffle > matched_frame
+
+**Frame shuffling severity gradient (Figure 2b).** Partial shuffle (0/25/50/75/100%) results (2026-04-05):
+
+| Fraction | BYOL e100 | MAE e99 | SALT S2 e79 |
+|----------|-----------|---------|-------------|
+| 0.00 | 0.468 | **0.445** | 0.293 |
+| 0.25 | 0.410 | **0.421** | -0.037 |
+| 0.50 | 0.336 | **0.436** | -0.277 |
+| 0.75 | 0.300 | **0.414** | -0.382 |
+| 1.00 | 0.291 | **0.428** | -0.397 |
+
+**Key finding: MAE e99 is invariant to shuffling.** R² stays ~0.43 from clean to fully shuffled — MAE converges to purely spatial representations. MAE e50 (R² 0.14→-0.30) still had temporal reliance, which was lost by e99. This is a **training dynamics** result: MAE's temporal encoding is transient, present early but eliminated during convergence. BYOL degrades linearly (~40% drop). SALT collapses immediately.
 
 **Speckle probing.** JEPA encodes 23% less speckle (partial R²=0.674 vs 0.875). Monotonic: JEPA < BYOL < MAE.
 
-**Information-theoretic hypothesis** (stated as testable predictions, not a formal proof):
-- Under MAE: optimal encoder retains all pixel info including noise
-- Under JEPA with EMA: target is temporally smoothed, noise is averaged out
-- Under SALT: frozen teacher trained on pixels → does the student inherit the filtering or learn its own?
+**Noise autocorrelation sweep (NEW — P0 for week 1).** Sweep temporal correlation of synthetic noise from τ=∞ (static, same pattern every frame) to τ=0 (iid per-frame) on echo data. Plot MAE-vs-JEPA R² as a function of noise autocorrelation time. If the ranking inverts as noise becomes more frame-varying, this is **causal proof** of the mechanism — not just correlation, but demonstrating the effect can be turned on and off with one parameter. Implement by modifying `scripts/rebuttal/echo_perturbations.py` for per-frame noise with controllable correlation.
 
-**Three empirical tests of the hypothesis:** speckle probing (confirmed), frame shuffling (confirmed), noise robustness (confirmed).
+**Two mechanistic tests of the hypothesis** (both on native data with real frame-varying speckle):
+1. Speckle probing: directly measures frame-varying noise retention (confirmed)
+2. Frame shuffling: directly measures temporal dependence (confirmed + severity gradient)
 
-**Completed experiments used:** #10, #11 from completed inventory.
-**New experiments needed:** SALT frame shuffling + speckle probing (P0).
+**Practical consequence in §5:** EchoBench shows mechanistic difference translates to practical robustness under clinical degradation (static perturbations). §4 explains *why*, §5 shows *that it matters*.
+
+**SALT subsection (conditional):** If SALT e200 results show frozen teacher retains more speckle than EMA teacher → include as one paragraph confirming the EMA filtering mechanism. If noisy → omit.
 
 ---
 
 ## Section 5: Robustness Under Physics-Based Perturbations (~1.5 pages)
 
-**EchoBench methodology.** Define the three perturbation types (depth attenuation, acoustic shadow, haze) with acoustic physics motivation. Protocol: frozen probes, no retraining, 3 severity levels.
+**EchoBench methodology.** Three perturbation types (depth attenuation, acoustic shadow, haze). Protocol: frozen probes, no retraining, 3 severity levels.
 
-**LVEF robustness table.** 4 models × 3 perturbations × 3 severities. JEPA -19% avg, MAE -37%, BYOL -40%. JEPA under severe noise outperforms MAE's clean baseline.
+**⚠️ FRAMING:** All perturbations are **spatially static** (same corruption map every frame — code: `echo_perturbations.py`, all maps broadcast via `unsqueeze(0).unsqueeze(0)`). EchoBench tests **clinical image quality degradation**, NOT frame-varying speckle. Include one sentence: "These perturbations are spatially static, simulating fixed clinical artifacts. The frame-varying component of ultrasound noise (speckle) is addressed by the representation-level analysis in §4."
 
-**Segmentation robustness table.** Rankings invert: MAE most robust on anatomy (-8%), JEPA on function (-19%). Different objectives → different robustness profiles.
+**LVEF robustness table.** JEPA -19% avg, MAE -37%, BYOL -40%.
 
-**Key insight:** Clean performance fails to predict robustness. All three converge on clean CAMUS (<1pp); under severe depth attenuation, 32pp gap emerges. Standard SSL benchmarks miss this.
+**Segmentation robustness table.** Rankings invert: MAE most robust (-8%), JEPA -10%, BYOL -25%.
 
-**Multi-view robustness.** Multi-view at severe ≈ single-view clean. Cross-view integration halves degradation.
-
-**Completed experiments used:** #7-9, #15 from completed inventory.
-**New experiments needed:** SALT through EchoBench (P0). DINOv2 + random baselines (P2, optional).
+**Key insight:** Clean performance fails to predict robustness. All three converge on clean CAMUS (<1pp); under severe perturbation, 32pp gap emerges.
 
 ---
 
 ## Section 6: Scaling (~0.5 pages)
 
-Brief section showing EchoJEPA-G (1.1B params, 18M echos) as a system-level result. Not the headline — confirms that the findings from the controlled 50-epoch comparison hold at scale.
-
-**Completed experiments used:** #17 from completed inventory.
-**New experiments needed:** None.
+Brief: EchoJEPA-G (1.1B params, 18M echos) confirms findings hold at scale.
 
 ---
 
-## Section 7: Discussion and Limitations (~0.5 pages)
+## Section 7: Discussion and Limitations (~1 page)
 
-**Generalization hypothesis:** The mechanism (EMA target filtering stochastic noise) should apply to any modality where pixel-level noise dominates: fetal ultrasound, lung ultrasound, radar, sonar, low-SNR microscopy. State as prediction, not claim.
+**Noise autocorrelation as causal test.** If the sweep figure works, lead with it: "We can turn the ranking inversion on and off by varying the temporal correlation of noise."
 
-**Practical decision rule:** Use latent prediction for functional/temporal tasks, pixel reconstruction for spatial/anatomical tasks, avoid global self-distillation for robustness.
+**Generalization evidence:**
+- Fetal US (appendix): both tasks spatial, MAE leads both as predicted → cross-anatomy transfer confirmed
+- Calcium imaging (if completed): different physics, genuine 2×2 inversion → general principle
 
-**Limitations:** Single imaging modality (echo); 50-epoch budget may not reflect fully-trained behavior; SALT epoch-matching requires careful accounting; speckle probing is linear (may miss nonlinear encoding).
+**Practical decision rules:**
+- Latent prediction for functional/temporal tasks, pixel reconstruction for spatial
+- Avoid BYOL when robustness matters
+- EchoBench perturbation testing should be standard for ultrasound SSL
+
+**Limitations:** Single primary modality (echo); init confound (JEPA IN21K matches BYOL/MAE but SALT is random init); EchoBench perturbations are static; 100-epoch budget may not reflect fully-trained behavior; noise autocorrelation sweep is synthetic.
 
 ---
 
 ## Appendix
 
-- **A.** Multi-view probing framework: factorized stream embeddings, early fusion (+12.1%), view dropout (+18.3%). Full ablation table.
-- **B.** CAMUS per-structure segmentation results (LV, MYO, LA × ED, ES).
-- **C.** Full perturbation matrices at mild/moderate/severe.
-- **D.** Pediatric robustness from both source datasets (UHN and END probes).
-- **E.** Hyperparameter sensitivity (probe LR/WD grid results).
-- **F.** Biplane LVEF (if P3 experiment completed).
+- **A.** Multi-view probing framework: factorized streams, early fusion, view dropout.
+- **B.** CAMUS per-structure segmentation (LV, MYO, LA × ED, ES).
+- **C.** Full EchoBench perturbation matrices.
+- **D.** Pediatric robustness from both source datasets.
+- **E.** Hyperparameter sensitivity (probe LR/WD grid).
+- **F.** Training dynamics: BYOL/MAE LVEF probes at e24/e50/e75/e100 + severity gradient across epochs.
+- **G.** Fetal ultrasound cross-anatomy transfer (AOP/HSD regression + segmentation).
+- **H.** Calcium imaging cross-modality (if completed).
+- **I.** SALT detailed analysis (if included).
 
 ---
 
@@ -129,12 +134,12 @@ Brief section showing EchoJEPA-G (1.1B params, 18M echos) as a system-level resu
 
 | Figure | Content | Source |
 |--------|---------|--------|
-| **Fig 1** | Method overview: 4 paradigms shown as 2×2, evaluation protocol | New (draw) |
-| **Fig 2** | Frame shuffling: 6-condition temporal disruption gradient, R² per model | `experiments/frame-shuffling.md` |
-| **Fig 3** | Ranking inversion: bar chart of R² across tasks showing JEPA wins function, MAE wins anatomy | Completed experiments |
-| **Fig 4** | Noise robustness curves: R² vs severity for 3 perturbation types × 4 models | `rebuttals/10-*` §5m |
-| **Fig 5** | Speckle probing: bar chart of partial R² by model | `rebuttals/10-*` §6e |
-| **Fig 6** | Clinical impact: scatter plot of predicted vs true EF, stratified by severity bin | `rebuttals/10-*` §6d |
+| **Fig 1** | Method overview: 3 paradigms, evaluation protocol | New (draw) |
+| **Fig 2** | Mechanistic panel: (a) 6-condition R² bars, (b) severity gradient curves, (c) noise autocorrelation sweep | frame-shuffling results + NEW autocorrelation sweep |
+| **Fig 3** | Ranking inversion: R² across tasks, JEPA wins function, MAE wins anatomy | Completed experiments |
+| **Fig 4** | Noise robustness curves: R² vs severity for 3 perturbation types | `rebuttals/10-*` §5m |
+| **Fig 5** | Speckle probing: partial R² by model | `rebuttals/10-*` §6e |
+| **Fig 6** | Clinical impact OR calcium imaging 2×2 (if completed) | Fallback: pathology-stratified scatter |
 
 ---
 
@@ -144,9 +149,11 @@ Brief section showing EchoJEPA-G (1.1B params, 18M echos) as a system-level resu
 |---------|-------|
 | Introduction | 1.5 |
 | Experimental Design | 1.5 |
-| Core Finding | 2.0 |
-| Mechanism | 1.5 |
+| Core Finding | 1.5 |
+| Mechanism (shuffling + autocorrelation + speckle) | 2.0 |
 | EchoBench | 1.5 |
 | Scaling | 0.5 |
-| Discussion | 0.5 |
-| **Total** | **9.0** |
+| Discussion + Limitations | 1.0 |
+| **Total** | **9.5** |
+
+Note: 0.5 pages over — compress §3 (move pairwise CIs to appendix) or trim scaling.

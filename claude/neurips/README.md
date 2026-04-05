@@ -2,7 +2,7 @@
 
 ## Submission Target
 
-**NeurIPS 2025**, Representation Learning or Datasets & Benchmarks track. New paper from scratch (not a revision of the ICML submission).
+**NeurIPS 2025**, Representation Learning or Datasets & Benchmarks track. Abstract deadline: **May 4, 2026**. New paper from scratch (not a revision of the ICML submission). ~6 weeks from 2026-04-05.
 
 ## Title Candidates
 
@@ -12,7 +12,16 @@
 
 ## Core Thesis
 
-The choice of prediction target in self-supervised video learning determines what clinical information is encoded and preserved under noise. Through a controlled four-way comparison (JEPA, BYOL, MAE, SALT — same ViT-L, same data, same compute), we demonstrate that (1) prediction target rankings invert across task types, with latent prediction leading functional tasks and pixel reconstruction leading spatial tasks; (2) this dissociation is explained mechanistically by differential noise encoding, confirmed via speckle probing and temporal ablation; (3) clean-condition benchmarks fail to predict noise robustness, motivating EchoBench, the first physics-informed evaluation framework for ultrasound foundation models.
+The choice of prediction target in self-supervised video learning determines what clinical information is encoded and preserved under noise. Through a controlled three-way comparison (JEPA, BYOL, MAE — same ViT-L, same data, same compute) + SALT as a mechanistic probe, we demonstrate that (1) prediction target rankings invert across task types, with latent prediction leading functional tasks and pixel reconstruction leading spatial tasks; (2) this dissociation is explained mechanistically by differential noise encoding, confirmed via speckle probing and temporal ablation; (3) clean-condition benchmarks fail to predict noise robustness, motivating EchoBench.
+
+## Contribution Framing (Analysis → Tool)
+
+To avoid "ablation paper" perception, the paper must deliver actionable tools, not just observations:
+
+1. **Discovery** — The prediction target determines clinical utility (ranking inversion across task types)
+2. **Mechanism** — Frame shuffling + speckle probing explain *why* (temporal encoding + noise filtering)
+3. **Framework** — EchoBench (physics-based evaluation) + noise autocorrelation sweep (causal proof)
+4. **Generalization** — Cross-domain transfer to fetal ultrasound (appendix) and/or calcium imaging (if viable)
 
 ## Key Differences from ICML
 
@@ -21,15 +30,54 @@ The choice of prediction target in self-supervised video learning determines wha
 | **Title** | "EchoJEPA: A Foundation Model for Echocardiography" | Scientific question about SSL objectives |
 | **Framing** | Model paper (we built X) | Understanding paper (we discovered Y) |
 | **Track** | Applications / Health | Representation Learning / SSL |
-| **Comparison** | 2-way (JEPA vs MAE) | 4-way (JEPA vs BYOL vs MAE vs SALT) |
-| **SALT** | Not included | Completes {pixel,latent} × {EMA,frozen} 2×2 design |
-| **Frame shuffling** | Absent | Main experiment (6 conditions, Figure 2) |
+| **Comparison** | 2-way (JEPA vs MAE) | 3-way (JEPA vs BYOL vs MAE), SALT as mechanistic probe |
+| **Frame shuffling** | Absent | Main experiment (6 conditions + severity gradient) |
 | **Speckle probing** | Absent | Main experiment (representation-level mechanism) |
+| **Noise autocorrelation sweep** | Absent | **NEW: causal proof of mechanism** |
 | **Segmentation** | Absent | Included (anatomy-function dissociation evidence) |
 | **EchoBench** | Absent | Own section with formal definition |
-| **Multi-view probe** | Headline contribution | Methods section tool, ablation in appendix |
-| **EchoJEPA-G scaling** | Main text hero result | Brief scaling subsection |
-| **Novelty preemption** | Absent | Explicit paragraph with precedent citations |
+| **SALT** | Not included | Mechanistic probe (conditional inclusion — see decision gate below) |
+| **Second modality** | Absent | Calcium imaging (if viable) or fetal US (appendix) |
+
+---
+
+## Known Framing Issues
+
+### EchoBench perturbations are spatially static (2026-04-05)
+
+All three EchoBench perturbations (depth attenuation, gaussian shadow, haze) apply the same spatial corruption map to every frame in a clip. Code: `scripts/rebuttal/echo_perturbations.py` — all maps broadcast via `unsqueeze(0).unsqueeze(0)` over time. This means EchoBench tests robustness to **clinical image quality degradation**, not to frame-varying speckle noise.
+
+**Impact on claims:** Results are valid (JEPA really does degrade less). But the mechanistic explanation (EMA filters frame-varying noise) is tested by speckle probing and frame shuffling (§4), not by EchoBench (§5). Keep these sections separate. Do NOT claim EchoBench tests "speckle robustness."
+
+**Correct framing:** §4 explains the mechanism (speckle probing + frame shuffling on native data). §5 shows practical consequence (does the model work with degraded image quality?). One sentence in §5 noting the perturbations are static.
+
+### Init confound in the controlled comparison (2026-04-05)
+
+| Model | Init | Source | Config |
+|-------|------|--------|--------|
+| JEPA pt50 | **Fully-trained JEPA (235ep on MIMIC)** | `anneal_ckpt: vitl.pt` | `pretrain-mimic-224px-16f.yaml` |
+| JEPA IN21K | ImageNet-21K | Job 376 on HyperPod | Matches BYOL/MAE init |
+| BYOL | ImageNet-21K | `anneal_ckpt: vitl_in21k.pt` | `pretrain-byol-mimic-224px-16f-h100.yaml` |
+| MAE | ImageNet | `args.finetune = pretrained_videomae_init.pth` | VideoMAE pretrain script |
+| SALT S1 | ImageNet-21K | `anneal_ckpt: vitl_in21k.pt` | `pretrain-salt-s1-mimic-224px-16f-hp.yaml` |
+| SALT S2 student | **Random** | `force_load_pretrain: false` | Correct per SALT paper recipe |
+
+**JEPA pt50 has the strongest init by far (full MIMIC pretraining). Do not use in primary comparison table.** Use JEPA IN21K (job 376) instead for init-matched comparison with BYOL/MAE.
+
+SALT S2's random student init is the paper's standard recipe. The SALT paper matches total steps (S1+S2), not init. Note in a footnote.
+
+### SALT as conditional inclusion (2026-04-05)
+
+SALT risks making the paper look like a "comprehensive comparison of four training recipes." Decision gate: after SALT S2 e200 results, include only if it tells a clean mechanistic story. If noisy, drop SALT and keep the 3-way as the core. The paper is strong without SALT.
+
+### Second modality assessment (2026-04-05)
+
+**Explored and evaluated:**
+- **Fetal intrapartum US** (774 videos, Zenodo): Downloaded to `data/fetal_ultrasound/DatasetV3/`. Has segmentation + AOP/HSD regression labels. BUT AOP/HSD are single-frame measurements (spatial tasks), NOT temporal/functional. Both fetal tasks are spatial → no ranking inversion possible. Useful as appendix cross-anatomy transfer only.
+- **Allen Brain Observatory calcium imaging** (1,518 sessions, ~60GB each): Has genuine temporal task (transient detection) + spatial task (cell segmentation). BUT requires pretraining from scratch (domain gap too large for frozen transfer from echo). 5-10 sessions = 200-400K clips, viable volume. High engineering cost.
+- **Noise autocorrelation sweep** (synthetic): Sweep temporal correlation of noise from static to iid per-frame on echo data. Directly proves causal mechanism with one controllable parameter. Fast to implement on existing pipeline.
+
+**Decision:** Noise autocorrelation sweep is P0 (week 1). Fetal is P1 (appendix, 1 day). Calcium imaging is P2 (attempt weeks 2-4, hard kill at week 4 if not working).
 
 ---
 
@@ -39,59 +87,73 @@ The choice of prediction target in self-supervised video learning determines wha
 
 | # | Experiment | Models | Key Result | NeurIPS Section | Source |
 |---|-----------|--------|-----------|----------------|--------|
-| 1 | **LVEF regression (UHN, 53K test)** | JEPA/BYOL/MAE | JEPA R²=0.409, BYOL 0.384, MAE 0.283 | §3 Core finding | `rebuttals/10-rebuttal-experiment-results.md` §1a |
+| 1 | **LVEF regression (UHN, 53K test)** | JEPA/BYOL/MAE | JEPA R²=0.409, BYOL 0.384, MAE 0.283 | §3 Core finding | `rebuttals/10-*` §1a |
 | 2 | **RVSP regression (UHN, 5K test, multi-view)** | JEPA/BYOL/MAE | JEPA Pearson=0.484, BYOL 0.446, MAE 0.438 | §3 Core finding | `rebuttals/10-*` §1b |
 | 3 | **CAMUS segmentation (50 test patients)** | JEPA/BYOL/MAE | MAE **0.822**, BYOL 0.821, JEPA 0.815 | §3 Ranking inversion | `rebuttals/10-*` §1c |
 | 4 | **EchoNet-Dynamic LVEF (1,277 test)** | JEPA/BYOL/MAE | JEPA R²=0.552 >> BYOL 0.440 >> MAE 0.351 | §3 Transfer | `rebuttals/10-*` §3a |
 | 5 | **Pediatric zero-shot (UHN probes, 368 test)** | JEPA/BYOL/MAE | JEPA Pearson=0.705, BYOL 0.602, MAE 0.626 | §3 Transfer | `rebuttals/10-*` §4b |
 | 6 | **Pediatric zero-shot (END probes)** | JEPA/BYOL/MAE | JEPA Pearson=0.615, BYOL 0.498, MAE 0.531 | §3 Transfer | `rebuttals/10-*` §4c |
-| 7 | **Noise robustness — LVEF (3 perturbations × 3 severities)** | JEPA/BYOL/MAE | JEPA -19% avg, BYOL -40%, MAE -37% | §5 EchoBench | `rebuttals/10-*` §5m |
-| 8 | **Noise robustness — CAMUS (3 × 3)** | JEPA/BYOL/MAE | MAE -8% avg, JEPA -10%, BYOL -25% | §5 EchoBench | `rebuttals/10-*` §5o |
-| 9 | **Noise robustness — Pediatric ZS (3 × 2 source datasets)** | JEPA/BYOL/MAE | JEPA highest Pearson at all severity levels | §5 EchoBench | `rebuttals/10-*` §5n |
-| 10 | **Frame shuffling (6 conditions, 1,277 test)** | JEPA/BYOL/MAE | JEPA 0.365 post-shuffle > MAE clean 0.396; BYOL collapses to 0.099 | §4 Mechanism | `rebuttals/experiments/frame-shuffling.md` |
-| 11 | **Speckle probing (partial R², 5-fold CV)** | JEPA/BYOL/MAE | JEPA 0.674, BYOL 0.775, MAE 0.875 (23% less speckle in JEPA) | §4 Mechanism | `rebuttals/10-*` §6e |
-| 12 | **Pathology-stratified LVEF (EchoNet-Dynamic)** | JEPA/BYOL/MAE | JEPA advantage 8× larger on reduced EF (<40%): 12.4 vs 19.3 MAE | §3 Clinical | `rebuttals/10-*` §6d |
-| 13 | **Bootstrap CIs (UHN 53K, 10K resamples)** | JEPA/BYOL/MAE | All 6 pairwise CIs exclude zero | §3 Stats | `rebuttals/10-*` §6a |
-| 14 | **Bootstrap CIs (EchoNet-Dynamic 1,277)** | JEPA/BYOL/MAE | All 3 pairwise Pearson CIs exclude zero | §3 Stats | `rebuttals/10-*` §3a |
-| 15 | **RVSP multi-view noise robustness** | JEPA (MV vs SV) | MV severe (0.449) ≈ SV clean (0.448); MV halves degradation | §5 EchoBench | `rebuttals/10-*` §6c |
-| 16 | **RVSP single-view ablation** | JEPA (A4C vs PSAX vs MV) | MV +3.9pp R² over best SV | Appendix | `rebuttals/10-*` §6b |
-| 17 | **LVEF scaling (B → L → G)** | JEPA only | B R²=0.650, L 0.436, G 0.778 (confounded) | §6 Scaling | `rebuttals/10-*` §2 |
+| 7 | **Noise robustness — LVEF (3×3)** | JEPA/BYOL/MAE | JEPA -19% avg, BYOL -40%, MAE -37% | §5 EchoBench | `rebuttals/10-*` §5m |
+| 8 | **Noise robustness — CAMUS (3×3)** | JEPA/BYOL/MAE | MAE -8% avg, JEPA -10%, BYOL -25% | §5 EchoBench | `rebuttals/10-*` §5o |
+| 9 | **Noise robustness — Pediatric ZS (3×2)** | JEPA/BYOL/MAE | JEPA highest at all severity levels | §5 EchoBench | `rebuttals/10-*` §5n |
+| 10 | **Frame shuffling (6 conditions)** | JEPA/BYOL/MAE | JEPA 0.365 post-shuffle; BYOL collapses to 0.099 | §4 Mechanism | `rebuttals/experiments/frame-shuffling.md` |
+| 11 | **Speckle probing (partial R²)** | JEPA/BYOL/MAE | JEPA 0.674, BYOL 0.775, MAE 0.875 | §4 Mechanism | `rebuttals/10-*` §6e |
+| 12 | **Pathology-stratified LVEF** | JEPA/BYOL/MAE | JEPA advantage 8× larger on reduced EF | §3 Clinical | `rebuttals/10-*` §6d |
+| 13 | **Bootstrap CIs (UHN 53K)** | JEPA/BYOL/MAE | All 6 pairwise CIs exclude zero | §3 Stats | `rebuttals/10-*` §6a |
+| 14 | **Bootstrap CIs (END 1,277)** | JEPA/BYOL/MAE | All 3 pairwise CIs exclude zero | §3 Stats | `rebuttals/10-*` §3a |
+| 15 | **RVSP multi-view noise robustness** | JEPA | MV severe ≈ SV clean | §5 EchoBench | `rebuttals/10-*` §6c |
+| 16 | **RVSP single-view ablation** | JEPA | MV +3.9pp R² over best SV | Appendix | `rebuttals/10-*` §6b |
+| 17 | **LVEF scaling (B→L→G)** | JEPA | B 0.650, L 0.436, G 0.778 (confounded) | §6 Scaling | `rebuttals/10-*` §2 |
 
-### Completed (2026-04-05) — Training Dynamics & SALT
+### Completed (2026-04-05) — Training Dynamics, SALT, Severity Gradient
 
-| # | Experiment | Models | Key Result | NeurIPS Section | Source |
-|---|-----------|--------|-----------|----------------|--------|
-| 18 | **Training dynamics LVEF probes (END, d=4)** | BYOL/MAE at e24/e50/e75/e100 | BYOL: 6.37→6.17→5.99→5.94; MAE: 7.54→6.41→6.11→6.05 | §4 Mechanism / §3 | `rebuttals/12-checkpoint-reference.md` §EchoNet-Dynamic LVEF Probes |
-| 19 | **SALT S2 END LVEF probe (d=4)** | SALT S2 (e79) | **IN PROGRESS** — training on 8×A100 | §3 Core finding | `configs/eval/vitl/icml/salt_s2_e79_end_lvef_d4.yaml` |
+| # | Experiment | Models | Key Result | Source |
+|---|-----------|--------|-----------|--------|
+| 18 | **Training dynamics LVEF probes** | BYOL/MAE at e24/e50/e75/e100 | BYOL: 6.37→6.17→5.99→5.94; MAE: 7.54→6.41→6.11→6.05 | `rebuttals/12-checkpoint-reference.md` |
+| 19 | **SALT S2 e79 END LVEF probe** | SALT S2 | Val MAE=6.47 (11.6%) | `evals/vitl/icml/salt_s2_e79_end_lvef_224/.../best.pt` |
+| 20 | **Frame shuffling severity gradient** | BYOL e50/e100, MAE e50/e99, SALT S2 e79 | See results table below | `scripts/rebuttal/samples/severity_*.csv` |
 
-### In Progress (2026-04-05)
+#### Severity Gradient Results (R² vs Shuffle Fraction, EchoNet-Dynamic test)
 
-| Experiment | Status | ETA | Notes |
-|-----------|--------|-----|-------|
-| **SALT S2 END LVEF probe** | Training epoch 1/20 on 8×A100 | ~1.5 hrs (BYOL-like arch) | Checkpoint: `checkpoints/salt_s2_vitl_e79.pt`, key: `encoder` |
-| **JEPA IN21K (100ep)** | Epoch 71/100 on HyperPod node 184 | ~9 hrs | Job 376 |
-| **Frame shuffling severity gradient (P1.5a)** | Scripts ready, queued after SALT probe | ~2 hrs | 9 models (JEPA e50 + BYOL/MAE e24/e50/e75/e100), `scripts/rebuttal/frame_shuffle_severity.py --all` |
+| Fraction | BYOL e50 | BYOL e100 | MAE e50 | MAE e99 | SALT S2 e79 |
+|----------|----------|-----------|---------|---------|-------------|
+| 0.00 | 0.427 | 0.468 | 0.141 | **0.445** | 0.293 |
+| 0.25 | 0.360 | 0.410 | 0.091 | **0.421** | -0.037 |
+| 0.50 | 0.278 | 0.336 | -0.103 | **0.436** | -0.277 |
+| 0.75 | 0.220 | 0.300 | -0.271 | **0.414** | -0.382 |
+| 1.00 | 0.219 | 0.291 | -0.301 | **0.428** | -0.397 |
 
-### New Experiments Needed for NeurIPS
+**Key findings:**
+- **MAE e99 is invariant to shuffling** — R² stays ~0.43 from clean to fully shuffled. MAE converges to purely spatial representations over training, losing whatever temporal encoding it had at e50.
+- **MAE e50 collapses** under shuffling (0.14→-0.30) — early MAE had temporal reliance that disappeared by e99.
+- **BYOL degrades linearly** — ~40% relative drop, consistent at both e50 and e100. Stable temporal encoding.
+- **SALT S2 collapses dramatically** — 0.29→-0.40, steepest relative drop. Frozen teacher doesn't maintain temporal features.
+- **Training dynamics insight:** MAE's temporal encoding is transient — present early, lost by convergence. This is a novel finding.
 
-| Priority | Experiment | Models | Compute | Depends On | Status |
-|----------|-----------|--------|---------|-----------|--------|
-| ~~**P0**~~ | ~~SALT Stage 1 (V-Pixel, 20ep)~~ | ~~SALT teacher~~ | — | — | **DONE** (HyperPod job, S1 checkpoint used by S2) |
-| ~~**P0**~~ | ~~SALT Stage 2 (student, 80ep)~~ | ~~SALT student~~ | — | — | **DONE** (HyperPod job 388, 16 checkpoints e4–e79) |
-| **P0** | SALT 5-task evaluation | SALT | ~1 day probes | SALT S2 checkpoint | **IN PROGRESS** — END LVEF probe training now; RVSP, CAMUS, Pediatric ZS queued |
-| **P0** | SALT EchoBench (9 noise conditions) | SALT | ~4 hours | SALT probes | Queued after probes |
-| **P0** | SALT frame shuffling (6 conditions) | SALT | ~2 hours | SALT END probe | Queued after probe |
-| **P0** | SALT speckle probing | SALT | ~1 hour | SALT encoder | Queued |
-| **P1** | V-JEPA 2.1 probe evaluation | V-JEPA 2.1 | ~1 day probes | Check if ckpt exists | Not started |
-| **P1.5a** | Frame shuffling severity gradient | JEPA/BYOL/MAE (4 epochs each) | ~2 hours | Training dynamics probes | **READY** — scripts + all 9 probes done, queued after SALT |
-| **P1.5b** | CAMUS segmentation under shuffling | JEPA/BYOL/MAE | ~1 hour | Existing decoders | **READY** — script done (`frame_shuffle_segmentation.py`) |
-| **P2** | View classification (all 4 paradigms) | JEPA/BYOL/MAE/SALT | ~2 hours each | Existing + SALT ckpt | Not started |
-| **P2** | EchoBench reference baselines | DINOv2, random ViT | ~4 hours | Public checkpoints | Not started |
-| **P3** | Training dynamics (speckle across epochs) | JEPA/MAE | ~1 day | Epoch checkpoints | Partially addressed by #18 (LVEF probes at 4 epochs) |
+### In Progress / Queued (2026-04-05)
+
+| Experiment | Status | Location | ETA |
+|-----------|--------|----------|-----|
+| **SALT S2 e29 probe** | Training on GPUs 5-7 | `configs/eval/vitl/icml/salt_s2_e29_end_lvef_d4.yaml` | ~4 hrs |
+| **JEPA IN21K (100ep)** | Epoch ~80/100 on HyperPod | Job 376, node 184 | ~7 hrs |
+| **SALT S2 e80→e100** | Running on HyperPod | Job 391, node 83 | ~2 hrs |
+| **SALT S2 e100→e200** | Queued after job 391 | Job 392, node 83 | ~13 hrs after 391 |
+| **BYOL/MAE resume to e200** | Not started | Resume from e108/e116 on S3 | Queue after JEPA/SALT finish |
+
+### New Experiments — Prioritized Plan (6 weeks to May 4)
+
+| Week | Priority | Experiment | Compute | Notes |
+|------|----------|-----------|---------|-------|
+| 1 | **P0** | Noise autocorrelation sweep | ~2 days | Sweep noise temporal correlation τ from static to iid on echo data. Modify `echo_perturbations.py` for per-frame noise. **Best-paper-caliber if curve is clean.** |
+| 1 | **P0** | Fetal US appendix experiment | 1 day | Freeze MIMIC encoders, probe on fetal AOP/HSD + segmentation. Both tasks spatial → MAE should lead both. Confirms cross-anatomy transfer. |
+| 1 | **P0** | JEPA IN21K probe training | ~4 hrs | After job 376 finishes. Primary comparison table needs this. |
+| 2 | **P0** | Primary comparison table at e100 | — | JEPA IN21K / BYOL / MAE / (SALT if clean). All at ~100 total epochs. |
+| 2-3 | **P1** | Calcium imaging viability test | 1 day | Pretrain ViT-B MAE+JEPA for 10ep on 1 session. If features non-degenerate, proceed. |
+| 3-4 | **P1** | Calcium imaging full experiment | ~1 week | Pretrain ViT-L on 5-10 sessions, evaluate segmentation + transient detection. Kill at week 4 if not clean. |
+| 2 | **P1** | SALT decision gate | — | Evaluate SALT S2 e200. Include as mechanistic probe if speckle probing shows frozen teacher retains more speckle than EMA. Otherwise drop. |
+| 5-6 | — | Writing + polish | 2 weeks | Full draft, figures, appendix |
 
 ### SALT Experiment Design (2×2 Matrix)
-
-The key addition for NeurIPS. SALT decouples two confounded variables:
 
 | | Pixel target | Latent target |
 |---|---|---|
@@ -100,90 +162,136 @@ The key addition for NeurIPS. SALT decouples two confounded variables:
 | **Frozen pixel teacher** | V-Pixel (SALT S1) | SALT S2 |
 | **Global self-distillation** | — | BYOL |
 
-**Predictions to test:**
-- If SALT S2 ≈ JEPA → frozen teacher suffices, EMA is unnecessary
-- If SALT S2 > MAE but < JEPA → latent target helps, but EMA adds filtering
-- If SALT S1 ≈ MAE on downstream → pixel teacher has same anatomy-function profile as MAE
-- Any outcome is publishable — the 2×2 isolates the mechanism
+**SALT S2 compute matching (per SALT paper):** Total S1+S2 steps must match other models.
+- ~50ep comparison: S1(20) + S2(29) = 49 total → SALT S2 e29
+- ~100ep comparison: S1(20) + S2(79) = 99 total → SALT S2 e79
+- Extended: S2 to e200 (jobs 391+392) for scaling analysis
 
-**Code:** `app/salt/` (built 2026-04-04). Configs: `configs/train/vitl16/pretrain-salt-s{1,2}-mimic-224px-16f.yaml`
-**Docs:** `claude/architecture/salt-pretraining.md`
+**Current SALT result:** SALT S2 e79 val MAE=6.47, worst of all models. Possible reasons: (1) random student init (BYOL/MAE have ImageNet), (2) frozen teacher only 20ep pixel recon, (3) SALT needs >200K student steps per paper.
 
 ---
 
-## Timeline Sketch
+## Checkpoint Inventory (Local EFS)
 
-| Phase | Duration | Activity |
-|-------|----------|---------|
-| **Compute: SALT pretraining** | ~1 week | Stage 1 (50ep) + Stage 2 (50ep) on 8×A100/H100 |
-| **Compute: SALT evaluation** | ~3 days | 5-task battery + EchoBench + frame shuffling + speckle probing |
-| **Writing: New paper draft** | ~2 weeks (parallel with compute) | Sections 1-6, figures, tables |
-| **P1/P2 experiments** | ~1 week (if time) | V-JEPA 2.1, view classification, DINOv2 baselines |
-| **Revision + polish** | ~1 week | Internal review, figure refinement, appendix |
+### Encoder Checkpoints
 
-**Total: ~5-6 weeks from start to submission-ready.**
+| Model | Epoch | Init | Local Path |
+|-------|-------|------|-----------|
+| JEPA | 50 | Fully-trained JEPA 235ep | `checkpoints/echojepa-l-pt50.pt` |
+| JEPA | 90 | Fully-trained JEPA 235ep | `checkpoints/echojepa-l-pt90.pt` |
+| JEPA IN21K | 100 | ImageNet-21K | **Training** (job 376) |
+| BYOL | 24 | ImageNet-21K | `checkpoints/byol_vitl_imagenet_v2_e24.pt` |
+| BYOL | 50 | ImageNet-21K | `checkpoints/byol_vitl_imagenet_v2_e50.pt` |
+| BYOL | 75 | ImageNet-21K | `checkpoints/byol_vitl_imagenet_v2_e75.pt` |
+| BYOL | 100 | ImageNet-21K | `checkpoints/byol_vitl_imagenet_v2_e100.pt` |
+| MAE | 24 | ImageNet | `checkpoints/videomae_l_mimic_ep24.pth` |
+| MAE | 50 | ImageNet | `checkpoints/videomae_l_mimic_ep50.pth` |
+| MAE | 74 | ImageNet | `checkpoints/videomae_l_mimic_ep74.pth` |
+| MAE | 99 | ImageNet | `checkpoints/videomae_l_mimic_ep99.pth` |
+| SALT S2 | 29 | Random student | `checkpoints/salt_s2_vitl_e29.pt` |
+| SALT S2 | 49 | Random student | `checkpoints/salt_s2_vitl_e49.pt` |
+| SALT S2 | 79 | Random student | `checkpoints/salt_s2_vitl_e79.pt` |
+
+### EchoNet-Dynamic LVEF Probes (d=4 attentive, 224px)
+
+| Model | Epoch | Val MAE | Probe Path |
+|-------|-------|---------|-----------|
+| JEPA | 50 | 5.51 | `evals/vitl/icml/echojepa_pt50_end_lvef_224/.../icml-echojepa-l-pt50-end-lvef-d4/best.pt` |
+| BYOL | 24 | 6.37 | `evals/vitl/icml/echobyol_e24_end_lvef_224/.../icml-echobyol-l-e24-end-lvef-d4/best.pt` |
+| BYOL | 50 | 6.17 | `evals/vitl/icml/echobyol_pt50_end_lvef_224/.../icml-echobyol-l-pt50-end-lvef-d4-224/best.pt` |
+| BYOL | 75 | 5.99 | `evals/vitl/icml/echobyol_e75_end_lvef_224/.../icml-echobyol-l-e75-end-lvef-d4/best.pt` |
+| BYOL | 100 | 5.94 | `evals/vitl/icml/echobyol_e100_end_lvef_224/.../icml-echobyol-l-e100-end-lvef-d4/best.pt` |
+| MAE | 24 | 7.54 | `evals/vitl/icml/echomae_e24_end_lvef_224/.../icml-echomae-l-e24-end-lvef-d4/best.pt` |
+| MAE | 50 | 6.41 | `evals/vitl/icml/echomae_pt50_end_lvef_224/.../icml-echomae-l-pt50-end-lvef-d4/best.pt` |
+| MAE | 74 | 6.11 | `evals/vitl/icml/echomae_e74_end_lvef_224/.../icml-echomae-l-e74-end-lvef-d4/best.pt` |
+| MAE | 99 | 6.05 | `evals/vitl/icml/echomae_e99_end_lvef_224/.../icml-echomae-l-e99-end-lvef-d4/best.pt` |
+| SALT S2 | 79 | 6.47 | `evals/vitl/icml/salt_s2_e79_end_lvef_224/.../icml-salt-s2-e79-end-lvef-d4/best.pt` |
+| SALT S2 | 29 | Training | `configs/eval/vitl/icml/salt_s2_e29_end_lvef_d4.yaml` |
+
+### Severity Gradient Output Files
+
+| Model | CSV | JSON |
+|-------|-----|------|
+| BYOL e50 | `scripts/rebuttal/samples/severity_BYOL_e50.csv` | — |
+| BYOL e100 | `scripts/rebuttal/samples/severity_BYOL_e100.csv` | — |
+| MAE e50 | `scripts/rebuttal/samples/severity_MAE_e50.csv` | — |
+| MAE e99 | `scripts/rebuttal/samples/severity_MAE_e99.csv` | — |
+| SALT S2 e79 | `scripts/rebuttal/samples/severity_SALT_e79.csv` | — |
+
+---
+
+## Timeline (6 weeks, 2026-04-05 → 2026-05-04)
+
+| Week | Focus | Deliverables |
+|------|-------|-------------|
+| 1 | Noise autocorrelation sweep + fetal appendix | Per-frame noise implementation, sweep figure, fetal probe results |
+| 2 | Primary comparison table + SALT decision | JEPA IN21K probes, SALT e200 evaluation, go/no-go on SALT |
+| 2-3 | Calcium imaging viability | ViT-B test pretrain on 1 session, kill if degenerate |
+| 3-4 | Calcium imaging full (if viable) | ViT-L pretrain on 5-10 sessions, segmentation + transient detection |
+| 5 | Writing | Full draft sections 1-7, all figures |
+| 6 | Polish | Internal review, figure refinement, appendix, submission |
 
 ---
 
 ## Nature Medicine Deconfliction
 
-**In NeurIPS scope** (SSL understanding, public data):
-- 3-way + SALT controlled comparison on MIMIC-IV-Echo
-- EchoBench noise robustness methodology
-- Speckle probing, frame shuffling, information probing
-- EchoNet-Dynamic/Pediatric transfer
-- CAMUS segmentation
-- Multi-view probing framework (methods section)
+**In NeurIPS scope:** 3-way comparison on MIMIC, EchoBench, speckle probing, frame shuffling, EchoNet-Dynamic/Pediatric transfer, CAMUS segmentation, multi-view probing (methods), noise autocorrelation sweep, cross-domain transfer (fetal, calcium imaging).
 
-**Excluded from NeurIPS** (reserved for Nature Medicine):
-- Cross-modal hemodynamic prediction (MR/AS severity from B-mode)
-- Mortality, blood biomarkers, ICD code prediction
-- Longitudinal cardiomyopathy onset (93K pairs)
-- SAE interpretability / Goodfire concept discovery
-- Fairness analysis across demographics
-- UHN-specific clinical outcomes
-- EchoJEPA-G as flagship result (NeurIPS uses it only in a brief scaling section)
+**Excluded from NeurIPS:** Cross-modal hemodynamic prediction, mortality/biomarkers/ICD, longitudinal cardiomyopathy, SAE interpretability, fairness analysis, UHN clinical outcomes, EchoJEPA-G as flagship.
 
 ---
 
 ## Source Reference Index
 
-All rebuttal experiment data lives in `claude/rebuttals/`. The NeurIPS docs reference but don't duplicate:
-
 | File | What to extract for NeurIPS |
 |------|----------------------------|
-| `rebuttals/10-rebuttal-experiment-results.md` | All numbers, CIs, per-structure segmentation results |
-| `rebuttals/experiments/frame-shuffling.md` | 6-condition R² table, log file inventory, correct framing |
-| `rebuttals/09-three-way-comparison-results.md` | BYOL architecture audit table |
-| `rebuttals/12-checkpoint-reference.md` | Encoder + probe paths for all models |
-| `rebuttals/13-post-rebuttal-outcome.md` | ICML lessons (novelty framing, reviewer feedback) |
-| `uhn_echo/nature_medicine/icml_rebuttal_final.tex` | Submitted rebuttal text (~5.5 pages, zero TBDs) |
-| `claude/preprint/icml_preprint.tex` | Original method section, figures, baselines (1519 lines) |
-| `claude/papers/vjepa-salt/arxiv.tex` | SALT paper details for concurrent work section |
-| `claude/papers/us-jepa/example_paper.tex` | US-JEPA for independent validation citation |
+| `rebuttals/10-rebuttal-experiment-results.md` | All numbers, CIs, per-structure segmentation |
+| `rebuttals/experiments/frame-shuffling.md` | 6-condition R² table, correct framing |
+| `rebuttals/12-checkpoint-reference.md` | Encoder + probe paths, S3 locations, training dynamics |
+| `rebuttals/13-post-rebuttal-outcome.md` | ICML lessons |
+| `claude/papers/vjepa-salt/arxiv.tex` | SALT paper: fair comparison = matched total steps |
 | `claude/architecture/salt-pretraining.md` | SALT implementation guide |
-
----
+| `scripts/rebuttal/frame_shuffle_severity.py` | Severity gradient script (all model configs) |
+| `scripts/rebuttal/frame_shuffle_segmentation.py` | P1.5b CAMUS segmentation script |
+| `scripts/rebuttal/echo_perturbations.py` | EchoBench perturbations (static — see framing note) |
 
 ## Other Files in This Directory
 
 | File | Purpose |
 |------|---------|
-| `completed-experiments.md` | Summary inventory of all done experiments organized by NeurIPS section |
-| `new-experiments.md` | What needs to be run, with compute estimates and dependency chains |
-| `paper-outline.md` | Section-by-section NeurIPS paper structure |
-| `competitive-landscape.md` | US-JEPA, SALT paper, concurrent work positioning |
+| `completed-experiments.md` | Inventory of done experiments by NeurIPS section |
+| `new-experiments.md` | What needs to be run with compute estimates |
+| `paper-outline.md` | Section-by-section structure with framing notes |
+| `competitive-landscape.md` | US-JEPA, SALT paper, concurrent work |
 
 ## Experiment Writeups (`experiments/`)
 
-Standalone writeups for each major experiment with full results, methodology, scripts, and data references.
-
 | File | Experiment | NeurIPS Section |
 |------|-----------|----------------|
-| `frame-shuffling.md` | 6-condition temporal ablation (clean→matched_frame) | §4 Mechanism |
-| `three-way-comparison.md` | LVEF + RVSP + CAMUS core results with bootstrap CIs | §3 Core Finding |
-| `noise-robustness.md` | EchoBench: LVEF + CAMUS + Pediatric, 3 perturbations × 3 severities | §5 EchoBench |
-| `speckle-probing.md` | Information probing: partial R² for speckle/intensity/texture | §4 Mechanism |
-| `cross-dataset-transfer.md` | EchoNet-Dynamic + Pediatric zero-shot transfer | §3 Transfer |
-| `clinical-stratification.md` | Pathology-stratified LVEF by EF severity bin | §3 Clinical |
-| `multi-view-ablation.md` | RVSP single-view vs multi-view + noise robustness | Appendix |
+| `frame-shuffling.md` | 6-condition temporal ablation | §4 Mechanism |
+| `three-way-comparison.md` | LVEF + RVSP + CAMUS core results | §3 Core Finding |
+| `noise-robustness.md` | EchoBench: 3 perturbations × 3 severities | §5 EchoBench |
+| `speckle-probing.md` | Information probing: partial R² | §4 Mechanism |
+| `cross-dataset-transfer.md` | EchoNet-Dynamic + Pediatric | §3 Transfer |
+| `clinical-stratification.md` | Pathology-stratified LVEF | §3 Clinical |
+| `multi-view-ablation.md` | RVSP single-view vs multi-view | Appendix |
+
+## Datasets
+
+### Fetal Intrapartum Ultrasound (IUGC2024)
+
+Downloaded to `data/fetal_ultrasound/DatasetV3/`. 774 videos, 512×512 AVI at 24fps.
+
+| Split | Videos | Total Frames | Labels |
+|-------|--------|-------------|--------|
+| Train | 434 | 53,996 | 266 with segmentation, 2575 AOP/HSD landmarks, 434 classification |
+| Val | 40 | 2,870 | 40 seg, 40 landmarks, 40 cls |
+| Test | 300 | 8,665 | 300 seg, 300 landmarks, 300 cls |
+
+**Assessment:** Both AOP/HSD and segmentation are single-frame spatial tasks. No temporal/functional task available → no ranking inversion possible. Useful for appendix cross-anatomy transfer only.
+
+### Allen Brain Observatory (Visual Coding 2P)
+
+S3: `s3://allen-brain-observatory/visual-coding-2p/ophys_movies/`. 1,518 sessions, 512×512 at 30Hz, ~90 min each.
+
+**Assessment:** Has genuine 2×2: spatial (cell segmentation) + temporal (transient detection). Poisson shot noise is frame-varying. But requires pretraining from scratch (domain gap too large for frozen echo transfer). ~200-400K clips from 5-10 sessions. Allen SDK kernel set up at `allen` conda env. High engineering cost, high reward.
