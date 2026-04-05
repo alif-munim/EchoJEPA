@@ -386,25 +386,41 @@ def main(args, resume_preempt=False):
     if force_load_pretrain:
         if anneal_ckpt and os.path.exists(anneal_ckpt):
             logger.info(f"Force-loading pretrained encoder from {anneal_ckpt}")
-            import re
-
             from src.utils.checkpoint_loader import robust_checkpoint_loader
 
             checkpoint = robust_checkpoint_loader(anneal_ckpt, map_location=torch.device("cpu"))
 
-            def _strip_prefix(state_dict):
-                return {re.sub(r"^module\.(?:backbone\.)?", "", k): v for k, v in state_dict.items()}
-
+            # Handle both formats: V-JEPA dict (has 'encoder' key) or flat state dict (ImageNet)
             if "encoder" in checkpoint:
-                pretrained_dict = _strip_prefix(checkpoint["encoder"])
-                model_dict = encoder.module.backbone.state_dict()
-                # Skip shape mismatches
-                for k in list(pretrained_dict.keys()):
-                    if k in model_dict and pretrained_dict[k].shape != model_dict[k].shape:
-                        logger.warning(f"Skipping {k}: ckpt {pretrained_dict[k].shape} vs model {model_dict[k].shape}")
-                        del pretrained_dict[k]
-                msg = encoder.module.backbone.load_state_dict(pretrained_dict, strict=False)
-                logger.info(f"Loaded pretrained encoder with msg: {msg}")
+                pretrained_dict = checkpoint["encoder"]
+            else:
+                pretrained_dict = checkpoint.get("model", checkpoint.get("state_dict", checkpoint))
+
+            # Strip DDP/wrapper prefixes and drop classifier heads
+            pretrained_dict = {
+                k.replace("module.", "").replace("backbone.", ""): v
+                for k, v in pretrained_dict.items()
+                if not k.startswith(("head.", "fc_norm.", "module.head.", "module.fc_norm."))
+            }
+
+            # Inflate 2D patch_embed to 3D if loading from an image checkpoint
+            pe_key = "patch_embed.proj.weight"
+            if pe_key in pretrained_dict and pretrained_dict[pe_key].ndim == 4:
+                pe_2d = pretrained_dict[pe_key]
+                t = tubelet_size
+                pe_3d = pe_2d.unsqueeze(2).repeat(1, 1, t, 1, 1) / float(t)
+                pretrained_dict[pe_key] = pe_3d
+                logger.info(f"Inflated patch_embed.proj.weight: {pe_2d.shape} -> {pe_3d.shape}")
+
+            # Skip shape mismatches
+            model_dict = encoder.module.backbone.state_dict()
+            for k in list(pretrained_dict.keys()):
+                if k in model_dict and pretrained_dict[k].shape != model_dict[k].shape:
+                    logger.warning(f"Skipping {k}: ckpt {pretrained_dict[k].shape} vs model {model_dict[k].shape}")
+                    del pretrained_dict[k]
+
+            msg = encoder.module.backbone.load_state_dict(pretrained_dict, strict=False)
+            logger.info(f"Loaded pretrained encoder with msg: {msg}")
 
             del checkpoint
             gc.collect()

@@ -2,8 +2,8 @@
 # # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-import os
 import glob
+import os
 
 # -- FOR DISTRIBUTED TRAINING ENSURE ONLY 1 DEVICE VISIBLE PER PROCESS
 try:
@@ -13,20 +13,24 @@ except Exception:
 
 import copy
 import gc
+import io
 import random
 import time
-import io
+
 import boto3
 import numpy as np
 import torch
+
 # import torch.multiprocessing as mp
 import torch.multiprocessing as mp
+
 try:
     mp.set_sharing_strategy("file_system")
 except Exception:
     pass
 
 
+import torch.distributed as dist
 import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel
 
@@ -35,11 +39,9 @@ from app.vjepa.utils import init_opt, init_video_model, load_checkpoint
 from src.datasets.data_manager import init_data
 from src.masks.multiseq_multiblock3d import MaskCollator
 from src.masks.utils import apply_masks
+from src.utils.checkpoint_loader import robust_checkpoint_loader
 from src.utils.distributed import init_distributed
 from src.utils.logging import AverageMeter, CSVLogger, get_logger, gpu_timer
-from src.utils.checkpoint_loader import robust_checkpoint_loader
-
-import torch.distributed as dist
 
 
 def _barrier():
@@ -328,23 +330,40 @@ def main(args, resume_preempt=False):
             checkpoint = robust_checkpoint_loader(anneal_ckpt_path, map_location=torch.device("cpu"))
             epoch_from_ckpt = checkpoint.get("epoch", 0)
 
+            # Handle both formats: V-JEPA dict (has 'encoder' key) or flat state dict (ImageNet)
             if "encoder" in checkpoint:
                 pretrained_dict = checkpoint["encoder"]
                 pretrained_dict = {k.replace("module.", ""): v for k, v in pretrained_dict.items()}
-                msg = encoder.load_state_dict(pretrained_dict, strict=False)
-                logger.info(f"Loaded pretrained encoder from epoch {epoch_from_ckpt} with msg: {msg}")
+            else:
+                # Flat state dict (e.g. ImageNet ViT-L from vitl_in21k.pt)
+                pretrained_dict = checkpoint.get("model", checkpoint.get("state_dict", checkpoint))
+                pretrained_dict = {
+                    k.replace("module.", ""): v for k, v in pretrained_dict.items()
+                    if not k.startswith(("head.", "fc_norm.", "module.head.", "module.fc_norm."))
+                }
+                epoch_from_ckpt = 0
 
-            if "target_encoder" in checkpoint:
-                pretrained_dict = checkpoint["target_encoder"]
-                pretrained_dict = {k.replace("module.", ""): v for k, v in pretrained_dict.items()}
-                msg = target_encoder.load_state_dict(pretrained_dict, strict=False)
-                logger.info(f"Loaded pretrained target encoder from epoch {epoch_from_ckpt} with msg: {msg}")
+            # Inflate 2D patch_embed to 3D if loading from an image checkpoint
+            pe_key = "patch_embed.proj.weight"
+            if pe_key in pretrained_dict and pretrained_dict[pe_key].ndim == 4:
+                pe_2d = pretrained_dict[pe_key]
+                t = tubelet_size
+                pe_3d = pe_2d.unsqueeze(2).repeat(1, 1, t, 1, 1) / float(t)
+                pretrained_dict[pe_key] = pe_3d
+                logger.info(f"Inflated patch_embed.proj.weight: {pe_2d.shape} -> {pe_3d.shape}")
+
+            msg = encoder.load_state_dict(pretrained_dict, strict=False)
+            logger.info(f"Loaded pretrained encoder from epoch {epoch_from_ckpt} with msg: {msg}")
+
+            # Copy to target encoder
+            target_encoder.load_state_dict(encoder.state_dict())
+            logger.info("Copied encoder weights to target_encoder")
 
             if "predictor" in checkpoint:
-                pretrained_dict = checkpoint["predictor"]
-                pretrained_dict = {k.replace("module.", ""): v for k, v in pretrained_dict.items()}
-                msg = predictor.load_state_dict(pretrained_dict)
-                logger.info(f"loaded pretrained predictor from epoch {epoch_from_ckpt} with msg: {msg}")
+                pred_dict = checkpoint["predictor"]
+                pred_dict = {k.replace("module.", ""): v for k, v in pred_dict.items()}
+                msg = predictor.load_state_dict(pred_dict, strict=False)
+                logger.info(f"Loaded pretrained predictor from epoch {epoch_from_ckpt} with msg: {msg}")
 
             del checkpoint
             gc.collect()
