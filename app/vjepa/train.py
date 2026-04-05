@@ -34,7 +34,7 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel
 
-from app.vjepa.transforms import make_transforms
+from app.vjepa_2_1.transforms import make_transforms
 from app.vjepa.utils import init_opt, init_video_model, load_checkpoint
 from src.datasets.data_manager import init_data
 from src.masks.multiseq_multiblock3d import MaskCollator
@@ -553,8 +553,14 @@ def main(args, resume_preempt=False):
                             continue
     
                 for _fpc_sample in sample:
-                    bs, fpc = _fpc_sample[0][-1][0].size()
-                    mask_meters[fpc].update(bs / batch_size)
+                    try:
+                        udata = _fpc_sample[0]
+                        buf = udata[0] if torch.is_tensor(udata[0]) else udata[0][0]
+                        bs = buf.shape[0]
+                        fpc = buf.shape[2]
+                        mask_meters[fpc].update(bs / batch_size)
+                    except (IndexError, AttributeError, TypeError):
+                        pass
     
                 def load_clips():
                     all_clips, all_masks_enc, all_masks_pred = [], [], []
