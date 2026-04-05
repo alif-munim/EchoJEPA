@@ -74,6 +74,27 @@ Concurrent and related work that the NeurIPS paper must position against.
 
 ---
 
+## Intuitive Physics from V-JEPA (Meta/FAIR, arXiv 2502.11831)
+
+**Paper:** Garrido et al., "Intuitive physics understanding emerges from self-supervised pretraining on natural videos" (Feb 2025)
+
+**What they do:** Use violation-of-expectation testing (developmental psychology framework) to show V-JEPA develops intuitive physics understanding — object permanence, solidity, gravity, etc. VideoMAE and multimodal LLMs (Qwen2-VL, Gemini 1.5) score near chance.
+
+**Key results:**
+- V-JEPA: IntPhys 98%, GRASP 66%, InfLevel-lab 62%
+- VideoMAE v2: near chance on all benchmarks
+- Even V-JEPA trained on 1 week of video achieves >70%
+
+**Critical detail:** The surprise metric requires V-JEPA's **predictor network** (measures `||predicted_latent - actual_latent||₁`). Cannot be applied to BYOL/MAE which lack a latent predictor. Not a fair cross-method comparison tool.
+
+**How to cite:** Motivation for why latent prediction should encode temporal dynamics. "Garrido et al. showed V-JEPA develops intuitive physics from video pretraining, suggesting latent prediction captures temporal structure that pixel prediction misses. We investigate whether this extends to cardiac motion, where temporal dynamics encode clinically relevant hemodynamic function."
+
+**Code:** https://github.com/facebookresearch/jepa-intuitive-physics
+
+**Do NOT run as an experiment.** The benchmark is synthetic/lab video, requires the predictor (not encoder-only), and our frame shuffling experiment already makes the temporal encoding argument in a domain-specific way. Cite it; don't replicate it.
+
+---
+
 ## Other Relevant Work
 
 **DINOv2 (Meta):** Image-level self-distillation. Could serve as an EchoBench reference baseline (P2 experiment). Shows what image-only SSL learns from video frames.

@@ -20,7 +20,9 @@ Complete inventory of all pretraining checkpoints across objectives and initiali
 
 | Epoch | S3 Path | Run | Date | Seed |
 |-------|---------|-----|------|------|
-| e100 | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e100.pt` | 125 | Jan 25 | 42 |
+| e0–e85 (every 5ep) | `HYP/runs/jepa_in21k_pretrain_376/checkpoints/e{0,5,...,85}.pt` | 376 (running) | Apr 5 | 234 |
+| e100 (expected) | `HYP/runs/jepa_in21k_pretrain_376/checkpoints/e100.pt` | 376 | ~Apr 6 | 234 |
+| e100 (old run, same init) | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e100.pt` | 125 | Jan 25 | 42 |
 | e110 | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e110.pt` | 125 | Jan 25 | 42 |
 | e120 | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e120.pt` | 125 | Jan 25 | 42 |
 | e130 | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e130.pt` | 125 | Jan 25 | 42 |
@@ -122,13 +124,31 @@ Not part of the NeurIPS controlled comparison (different architecture version). 
 
 ---
 
-## 6. SALT — Not Yet Trained
+## 6. SALT — Trained (S1 complete, S2 e100 complete, e200 in progress)
 
-**Init (planned):** `vitl_in21k.pt` (ImageNet-21K, matching BYOL/MAE/JEPA§1)
-**Code:** `app/salt/` (built 2026-04-04)
-**Configs:** `configs/train/vitl16/pretrain-salt-s{1,2}-mimic-224px-16f.yaml`
+**Init:** S1 teacher: `vitl_in21k.pt` (ImageNet-21K). S2 student: random init (per SALT paper recipe).
+**Code:** `app/salt/` (built 2026-04-04, DDP fix 2026-04-05)
+**Configs:** `configs/train/vitl16/pretrain-salt-s{1,2}-mimic-224px-16f-hp.yaml`
 
-No checkpoints yet. See `new-experiments.md` for training plan.
+### Stage 1 (V-Pixel teacher, 20 epochs, ImageNet init)
+
+| Epoch | S3 Path | Run | Date |
+|-------|---------|-----|------|
+| e4, e9, e14, e19, latest (e20) | `HYP/runs/salt_s1_pretrain_379/checkpoints/` | Job 379 | Apr 5 |
+
+### Stage 2 (Frozen-teacher student, random init)
+
+| Epoch | S3 Path | Run | Date |
+|-------|---------|-----|------|
+| e4–e79 (every 5ep) + latest (e80) | `HYP/runs/salt_s2_pretrain_388/checkpoints/` | Job 388 | Apr 5 |
+| e80→e100 | `HYP/runs/salt_s2_resume_e80_391/checkpoints/` | Job 391 | Apr 5 |
+| e100→e200 | `HYP/runs/salt_s2_resume_e100_392/checkpoints/` | Job 392 (running) | Apr 5+ |
+
+**Compute budget:** S1=20ep (21K steps) + S2=200ep (205K steps) = 226K total steps. Matches SALT paper's ~240K recommended budget.
+
+**Implementation note:** S2 DDP fix applied — frozen teacher must not be wrapped in DDP (`app/salt/train.py:377`). Hierarchical `norms_block` layers in teacher were never trained (S1 uses `training_mode=False`); may affect S2 target quality. See SALT validation notes in conversation.
+
+**Decision pending:** SALT inclusion in NeurIPS paper depends on e200 results. If SALT < JEPA at e200, include as mechanistic evidence (frozen teacher misses temporal dynamics). If SALT ≈ JEPA, include as one row. If SALT > JEPA, reassess. Do not over-invest evaluation time until e200 results are in.
 
 ---
 
@@ -150,18 +170,20 @@ For the e100 controlled comparison (all ImageNet-21K init):
 
 | Model | Init | e100 Checkpoint | Status |
 |-------|------|----------------|--------|
-| **JEPA** | ImageNet-21K | `HYP/runs/vjepa_mimic_pretrain_125/.../e100.pt` | **Available** |
+| **JEPA** | ImageNet-21K | `HYP/runs/jepa_in21k_pretrain_376/.../e100.pt` | **Training** (job 376, ~e85, ~4h left) |
 | **BYOL** | ImageNet-21K | `HYP/runs/byol_pretrain_resume_342/.../e100.pt` | **Available** |
 | **MAE** | ImageNet-21K | `HYP/runs/videomae_resume_e54_354/.../checkpoint-99.pth` | **Available** (check exact filename) |
-| **SALT** | ImageNet-21K (planned) | — | **Not trained** |
+| **SALT S2** | Random student (ImageNet teacher) | `HYP/runs/salt_s2_pretrain_388/.../e79.pt` | **Available** (e200 in progress) |
 
 **Training dynamics coverage (for appendix figure):**
 
 | Model | Available Epochs | Gaps |
 |-------|-----------------|------|
-| JEPA (ImageNet) | e100, e110, e120, e130, e122-e238 | **e0-e99 lost** |
-| BYOL | e0-e50 (every 2ep), e95, e100, e106+ (running) | e52-e94 |
+| JEPA IN21K (job 376) | e0-e85 (every 5ep), e100 expected | None (dense) |
+| JEPA (old, same init) | e100, e110, e120, e130, e122-e238 | e0-e99 lost |
+| BYOL | e0-e50 (every 2ep), e85, e90, e95, e100, e105 | e52-e84 |
 | MAE | e4-e124 (every 5ep) | None |
+| SALT S2 | e4-e79 (every 5ep), e100 expected, e200 in progress | None (dense) |
 
 ---
 
@@ -174,8 +196,9 @@ These are the frozen probes used for frame shuffling and noise robustness. **Tra
 | JEPA (Meta init) | `CLEAN/probes/end_lvef_pt50/echojepa_l_pt50/best.pt` | Head 3, d=4 attentive |
 | BYOL | `CLEAN/probes/end_lvef_pt50/echobyol_l_pt50/best.pt` | Head 1, d=4 attentive |
 | MAE | `CLEAN/probes/end_lvef_pt50/echomae_l_pt50/best.pt` | Head 5, d=4 attentive |
-| JEPA (ImageNet init) | — | **Not trained** |
-| SALT | — | **Not trained** |
+| JEPA (ImageNet init) | — | **Pending** (job 376 finishes ~Apr 6) |
+| SALT S2 e79 | EFS: `evals/vitl/icml/salt_s2_e79_end_lvef_224/.../best.pt` | Val MAE 6.47 |
+| SALT S2 e49 | EFS: `evals/vitl/icml/salt_s2_e49_end_lvef_224/.../best.pt` | Trained on other machine |
 
 ---
 
