@@ -25,12 +25,31 @@ Paths are relative to the repo root unless marked with full path.
 
 S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 
-### Other EchoMAE-L
+### NeurIPS 3-Way Comparison (ViT-L, MIMIC, 100ep)
+
+| Model | Checkpoint | S3 Source | Notes |
+|-------|-----------|-----------|-------|
+| EchoBYOL-L (100ep) | `checkpoints/byol_vitl_imagenet_v2_e100.pt` | `s3://.../runs/byol_pretrain_resume_342/checkpoints/e100.pt` | BYOL-Video v2, ImageNet init, key: `target_encoder`. HyperPod job 342 |
+| EchoMAE-L (e99) | `checkpoints/videomae_l_mimic_ep99.pth` | `s3://.../runs/videomae_resume_e54_354/training_folder/checkpoint-99.pth` | VideoMAE, key: `model`. HyperPod job 354 (e58→e116, saved every 5ep). Closest to e100 |
+| ~~EchoJEPA-L (e100)~~ | `checkpoints/echojepa_l_mimic_v2_run125_e100.pt` | — | **WRONG INIT — do not use for epoch-matched comparison.** Different training run (run125) than pt50 baseline |
+
+**S3 bucket:** `sagemaker-hyperpod-lifecycle-495467399120-usw2`
+
+**Probe training configs (local, EchoNet-Dynamic LVEF d=4 attentive):**
+
+| Model | Config | Sbatch (HyperPod) |
+|-------|--------|-------------------|
+| EchoBYOL-L e100 | `configs/eval/vitl/icml/echobyol_l_e100_end_lvef_d4.yaml` | `scripts/neurips_byol_e100_end_lvef_probe.sbatch` |
+| EchoMAE-L e99 | `configs/eval/vitl/icml/echomae_l_e99_end_lvef_d4.yaml` | `scripts/neurips_mae_e100_end_lvef_probe.sbatch` |
+
+**Also available (cancelled early):**
+- `s3://.../runs/byol_pretrain_resume_e100_362/checkpoints/latest.pt` — e100→e200 run cancelled at ~e108. The `latest.pt` is ~e108, not e100. The `e100.pt` in that folder is the staged resume checkpoint (same as job 342's e100.pt).
+
+### Other EchoMAE-L (Legacy / Fully-Trained)
 
 | Model | Checkpoint | Notes |
 |-------|-----------|-------|
-| EchoMAE-L (ep99) | `checkpoints/echomae_l_mimic_ep99.pth` | Used for initial LVEF/View probes |
-| EchoMAE-L (ep163) | `checkpoints/videomae-ep163.pth` | Fully-trained, used for RVSP + CAMUS |
+| EchoMAE-L (ep163) | `checkpoints/videomae-ep163.pth` | Fully-trained (job 245 e54 + extended), used for RVSP + CAMUS. S3: `.../checkpoints/videomae-ep163.pth` |
 
 ### EchoJEPA-L Scaling Checkpoints
 
@@ -57,14 +76,78 @@ S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 
 ### BYOL-Video Pretraining Checkpoints
 
+**v1 (random init):**
+
 | Checkpoint | Notes |
 |-----------|-------|
 | `checkpoints/byol_vitl_e0.pt` | Random init / epoch 0 |
 | `checkpoints/byol_vitl_e10.pt` | Epoch 10 |
 | `checkpoints/byol_vitl_e44.pt` | Epoch 44 |
 | `checkpoints/byol_vitl_e50.pt` | Epoch 50 (v1, no ImageNet init) |
-| `checkpoints/byol_vitl_imagenet_v2_e50.pt` | **v2, 50ep, ImageNet init — used in rebuttal** |
 | `checkpoints/byol_vitl_latest.pt` | Latest (in-progress pretrain) |
+
+**v2 (ImageNet init) — used in rebuttal/NeurIPS:**
+
+Original training (0→50): `s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet-v2/` (save_every=2)
+Resume training (50→100): `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/byol-vitl-imagenet-v2-resume/` (save_every=5)
+
+| Epoch | Local Path | S3 Path | Notes |
+|-------|-----------|---------|-------|
+| 0 | — | `s3://.../echojepa-h100.../byol-vitl-imagenet-v2/e0.pt` | ImageNet init |
+| 2-22 | — | `s3://.../echojepa-h100.../byol-vitl-imagenet-v2/e{2,4,...,22}.pt` | Every 2 epochs |
+| 24 | `checkpoints/byol_vitl_imagenet_v2_e24.pt` | `s3://.../echojepa-h100.../byol-vitl-imagenet-v2/e24.pt` | **NeurIPS e25 probe** |
+| 26-48 | — | `s3://.../echojepa-h100.../byol-vitl-imagenet-v2/e{26,28,...,48}.pt` | Every 2 epochs |
+| 50 | `checkpoints/byol_vitl_imagenet_v2_e50.pt` | `s3://.../echojepa-h100.../byol-vitl-imagenet-v2/e50.pt` | **Rebuttal pt50 baseline** |
+| 55 | — | `.../checkpoints/byol-vitl-imagenet-v2-resume/e55.pt` | Job 342, save_every=5 |
+| 60 | — | `.../checkpoints/byol-vitl-imagenet-v2-resume/e60.pt` | Job 342 |
+| 65 | — | `.../checkpoints/byol-vitl-imagenet-v2-resume/e65.pt` | Job 342 |
+| 70 | — | `.../checkpoints/byol-vitl-imagenet-v2-resume/e70.pt` | Job 342 |
+| 75 | — | `.../checkpoints/byol-vitl-imagenet-v2-resume/e75.pt` | Job 342 |
+| 80 | — | `.../checkpoints/byol-vitl-imagenet-v2-resume/e80.pt` | Job 342 |
+| 85 | — | `.../checkpoints/byol-vitl-imagenet-v2-resume/e85.pt` | Job 342 |
+| 90 | — | `.../checkpoints/byol-vitl-imagenet-v2-resume/e90.pt` | Job 342 |
+| 95 | — | `.../checkpoints/byol-vitl-imagenet-v2-resume/e95.pt` | Job 342 |
+| 100 | `checkpoints/byol_vitl_imagenet_v2_e100.pt` | `.../checkpoints/byol-vitl-imagenet-v2-resume/e100.pt` | **NeurIPS e100 baseline** |
+| 105 | — | `.../checkpoints/byol-vitl-imagenet-v2-resume/e105.pt` | Job 362 (e100→e200, cancelled ~e108) |
+
+S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts`
+
+### VideoMAE Pretraining Checkpoints
+
+**Original run (job 245, random init, save_every=5):**
+
+| Epoch | S3 Path | Notes |
+|-------|---------|-------|
+| 4 | `.../runs/videomae_matched_2n_245/training_folder/checkpoint-4.pth` | |
+| 9 | `.../runs/videomae_matched_2n_245/training_folder/checkpoint-9.pth` | |
+| 14 | `.../runs/videomae_matched_2n_245/training_folder/checkpoint-14.pth` | |
+| 19 | `.../runs/videomae_matched_2n_245/training_folder/checkpoint-19.pth` | |
+| 24 | `.../runs/videomae_matched_2n_245/training_folder/checkpoint-24.pth` | |
+| 29 | `.../runs/videomae_matched_2n_245/training_folder/checkpoint-29.pth` | |
+| 34 | `.../runs/videomae_matched_2n_245/training_folder/checkpoint-34.pth` | |
+| 39 | `.../runs/videomae_matched_2n_245/training_folder/checkpoint-39.pth` | |
+| 44 | `.../runs/videomae_matched_2n_245/training_folder/checkpoint-44.pth` | |
+| 49 | `.../runs/videomae_matched_2n_245/training_folder/checkpoint-49.pth` | **pt50 (local: `checkpoints/videomae_l_mimic_ep50.pth`)** |
+| 54 | `.../runs/videomae_matched_2n_245/training_folder/checkpoint-54.pth` | Final epoch of job 245 |
+
+**Resume run (job 354, e58→e116, save_every=5):**
+
+| Epoch | Local Path | S3 Path | Notes |
+|-------|-----------|---------|-------|
+| 58 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-58.pth` | |
+| 59 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-59.pth` | |
+| 64 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-64.pth` | |
+| 69 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-69.pth` | |
+| 74 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-74.pth` | |
+| 79 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-79.pth` | |
+| 84 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-84.pth` | |
+| 89 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-89.pth` | |
+| 94 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-94.pth` | |
+| 99 | `checkpoints/videomae_l_mimic_ep99.pth` | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-99.pth` | **NeurIPS e99 (closest to e100)** |
+| 104 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-104.pth` | |
+| 109 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-109.pth` | |
+| 114 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-114.pth` | |
+| 116 | — | `.../runs/videomae_resume_e54_354/training_folder/checkpoint-116.pth` | Final epoch of job 354 |
 
 ---
 
@@ -281,13 +364,38 @@ Tracks which probes have been run on held-out test sets, with prediction CSV loc
 | EchoJEPA-L pt50 | A4C | `.../echojepa_pt50_rvsp_a4c_301/.../best.pt` | `rvsp_test_a4c.csv` (NOT BUILT) | **BLOCKED** (need test CSV) |
 | EchoJEPA-L pt50 | PSAX-AV | `.../echojepa_pt50_rvsp_psax_305/.../best.pt` | `rvsp_test_psax.csv` (NOT BUILT) | **BLOCKED** (need test CSV) |
 
-### EchoNet-Dynamic LVEF Test (1,277 videos)
+### EchoNet-Dynamic LVEF Probes — Training Dynamics (d=4 attentive, 224px)
+
+All probes: 6 HP heads, 20 epochs, raw LVEF labels (mean=55.78, std=12.41).
+
+| Model | Epoch | Probe Path | Val MAE | Trained |
+|-------|-------|-----------|---------|---------|
+| EchoJEPA-L | 50 | `evals/vitl/icml/echojepa_pt50_end_lvef_224/video_classification_frozen/icml-echojepa-l-pt50-end-lvef-d4/best.pt` | 5.51 | HyperPod |
+| EchoBYOL-L | 24 | `evals/vitl/icml/echobyol_e24_end_lvef_224/video_classification_frozen/icml-echobyol-l-e24-end-lvef-d4/best.pt` | 6.37 | A100 local |
+| EchoBYOL-L | 50 | `evals/vitl/icml/echobyol_pt50_end_lvef_224/video_classification_frozen/icml-echobyol-l-pt50-end-lvef-d4-224/best.pt` | 6.17 | HyperPod |
+| EchoBYOL-L | 75 | `evals/vitl/icml/echobyol_e75_end_lvef_224/video_classification_frozen/icml-echobyol-l-e75-end-lvef-d4/best.pt` | 5.99 | A100 local |
+| EchoBYOL-L | 100 | `evals/vitl/icml/echobyol_e100_end_lvef_224/video_classification_frozen/icml-echobyol-l-e100-end-lvef-d4/best.pt` | 5.94 | A100 local |
+| EchoMAE-L | 24 | `evals/vitl/icml/echomae_e24_end_lvef_224/video_classification_frozen/icml-echomae-l-e24-end-lvef-d4/best.pt` | 7.54 | A100 local |
+| EchoMAE-L | 50 | `evals/vitl/icml/echomae_pt50_end_lvef_224/video_classification_frozen/icml-echomae-l-pt50-end-lvef-d4/best.pt` | 6.41 | HyperPod |
+| EchoMAE-L | 74 | `evals/vitl/icml/echomae_e74_end_lvef_224/video_classification_frozen/icml-echomae-l-e74-end-lvef-d4/best.pt` | 6.11 | A100 local |
+| EchoMAE-L | 99 | `evals/vitl/icml/echomae_e99_end_lvef_224/video_classification_frozen/icml-echomae-l-e99-end-lvef-d4/best.pt` | 6.05 | A100 local |
+
+**Training dynamics summary (Val MAE, lower is better):**
+
+| Model | e24 | e50 | e75 | e100 |
+|-------|-----|-----|-----|------|
+| BYOL | 6.37 | 6.17 | 5.99 | 5.94 |
+| MAE | 7.54 | 6.41 | 6.11 | 6.05 |
+
+MAE improves more steeply (20% e24→e100) but BYOL leads at every checkpoint (ImageNet init head start). Both plateau after e75.
+
+### EchoNet-Dynamic LVEF Test Inference (1,277 videos)
 
 | Model | Probe | Predictions CSV | Test R² | Test Pearson | Status |
 |-------|-------|----------------|---------|-------------|--------|
 | EchoJEPA-L pt50 (224px) | S3: `.../echojepa_pt50_end_lvef_294/.../best.pt` | — | — | — | **NOT RUN** (probe done) |
 | EchoMAE-L pt50 (224px) | S3: `.../echomae_pt50_end_lvef_296/.../best.pt` | — | — | — | **NOT RUN** (probe done) |
-| EchoBYOL-L pt50 (224px) | Running on A100 | — | — | — | **PROBE IN PROGRESS** (ep11/20) |
+| EchoBYOL-L pt50 (224px) | see table above | — | — | — | **NOT RUN** (probe done) |
 
 ### EchoNet-Pediatric LVEF Test (368 videos)
 
@@ -340,6 +448,13 @@ All rebuttal configs in `configs/eval/vit{b,l}/icml/`. See `10-rebuttal-experime
 | JEPA pt50 EchoNet-Dynamic LVEF | `configs/eval/vitl/icml/echojepa_l_pt50_end_lvef_d4.yaml` |
 | BYOL pt50 EchoNet-Dynamic LVEF | `configs/eval/vitl/icml/echobyol_l_pt50_end_lvef_d4.yaml` |
 | MAE pt50 EchoNet-Dynamic LVEF | `configs/eval/vitl/icml/echomae_l_pt50_end_lvef_d4.yaml` |
+| **BYOL e24 EchoNet-Dynamic LVEF** | `configs/eval/vitl/icml/echobyol_l_e24_end_lvef_d4.yaml` |
+| **BYOL e75 EchoNet-Dynamic LVEF** | `configs/eval/vitl/icml/echobyol_l_e75_end_lvef_d4.yaml` |
+| **BYOL e100 EchoNet-Dynamic LVEF** | `configs/eval/vitl/icml/echobyol_l_e100_end_lvef_d4.yaml` |
+| **MAE e24 EchoNet-Dynamic LVEF** | `configs/eval/vitl/icml/echomae_l_e24_end_lvef_d4.yaml` |
+| **MAE e74 EchoNet-Dynamic LVEF** | `configs/eval/vitl/icml/echomae_l_e74_end_lvef_d4.yaml` |
+| **MAE e99 EchoNet-Dynamic LVEF** | `configs/eval/vitl/icml/echomae_l_e99_end_lvef_d4.yaml` |
+| ~~JEPA e100 EchoNet-Dynamic LVEF~~ | `configs/eval/vitl/icml/echojepa_l_e100_end_lvef_d4.yaml` *(wrong init — do not use)* |
 | JEPA pt50 EchoNet-Pediatric LVEF | `configs/eval/vitl/icml/echojepa_l_pt50_enp_lvef_d4.yaml` |
 | BYOL pt50 EchoNet-Pediatric LVEF | `configs/eval/vitl/icml/echobyol_l_pt50_enp_lvef_d4.yaml` |
 | MAE pt50 EchoNet-Pediatric LVEF | `configs/eval/vitl/icml/echomae_l_pt50_enp_lvef_d4.yaml` |
@@ -432,6 +547,8 @@ A4C = highest-confidence A4C per study. A2C = highest-confidence A2C per study. 
 | `scripts/echomae_pt50_lvef_probe.sbatch` | MAE pt50 UHN LVEF | node 83 |
 | `scripts/echomae_pt50_rvsp_probe.sbatch` | MAE pt50 UHN RVSP | node 184 |
 | `scripts/echomae_pt50_lvef_test.sbatch` | MAE pt50 LVEF test inference | node 83 |
+| `scripts/neurips_byol_e100_end_lvef_probe.sbatch` | **BYOL e100 EchoNet-Dynamic LVEF probe** | — |
+| `scripts/neurips_mae_e100_end_lvef_probe.sbatch` | **MAE e99 EchoNet-Dynamic LVEF probe** | — |
 
 ### EchoNet Dataset Sources
 
@@ -455,3 +572,10 @@ All at `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/che
 | `echojepa_l_mimic_ep50.pt` | `checkpoints/echojepa-l-pt50.pt` | EchoJEPA-L (V-JEPA 2.0, 50ep) |
 | `echobyol_l_mimic_ep50.pt` | `checkpoints/byol_vitl_imagenet_v2_e50.pt` | EchoBYOL-L (BYOL-Video v2, 50ep, ImageNet init) |
 | `echomae_l_mimic_ep50.pth` | `checkpoints/videomae_l_mimic_ep50.pth` | EchoMAE-L (VideoMAE, 50ep) |
+
+### e100 Encoder Checkpoints on S3
+
+| S3 Path | Local Path | Model |
+|---------|-----------|-------|
+| `runs/byol_pretrain_resume_342/checkpoints/e100.pt` | `checkpoints/byol_vitl_imagenet_v2_e100.pt` | EchoBYOL-L (100ep, ImageNet init, job 342) |
+| `runs/videomae_resume_e54_354/training_folder/checkpoint-99.pth` | `checkpoints/videomae_l_mimic_ep99.pth` | EchoMAE-L (e99, job 354, closest to e100) |

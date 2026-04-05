@@ -57,20 +57,37 @@ The choice of prediction target in self-supervised video learning determines wha
 | 16 | **RVSP single-view ablation** | JEPA (A4C vs PSAX vs MV) | MV +3.9pp R² over best SV | Appendix | `rebuttals/10-*` §6b |
 | 17 | **LVEF scaling (B → L → G)** | JEPA only | B R²=0.650, L 0.436, G 0.778 (confounded) | §6 Scaling | `rebuttals/10-*` §2 |
 
+### Completed (2026-04-05) — Training Dynamics & SALT
+
+| # | Experiment | Models | Key Result | NeurIPS Section | Source |
+|---|-----------|--------|-----------|----------------|--------|
+| 18 | **Training dynamics LVEF probes (END, d=4)** | BYOL/MAE at e24/e50/e75/e100 | BYOL: 6.37→6.17→5.99→5.94; MAE: 7.54→6.41→6.11→6.05 | §4 Mechanism / §3 | `rebuttals/12-checkpoint-reference.md` §EchoNet-Dynamic LVEF Probes |
+| 19 | **SALT S2 END LVEF probe (d=4)** | SALT S2 (e79) | **IN PROGRESS** — training on 8×A100 | §3 Core finding | `configs/eval/vitl/icml/salt_s2_e79_end_lvef_d4.yaml` |
+
+### In Progress (2026-04-05)
+
+| Experiment | Status | ETA | Notes |
+|-----------|--------|-----|-------|
+| **SALT S2 END LVEF probe** | Training epoch 1/20 on 8×A100 | ~1.5 hrs (BYOL-like arch) | Checkpoint: `checkpoints/salt_s2_vitl_e79.pt`, key: `encoder` |
+| **JEPA IN21K (100ep)** | Epoch 71/100 on HyperPod node 184 | ~9 hrs | Job 376 |
+| **Frame shuffling severity gradient (P1.5a)** | Scripts ready, queued after SALT probe | ~2 hrs | 9 models (JEPA e50 + BYOL/MAE e24/e50/e75/e100), `scripts/rebuttal/frame_shuffle_severity.py --all` |
+
 ### New Experiments Needed for NeurIPS
 
-| Priority | Experiment | Models | Compute | Depends On | Why |
-|----------|-----------|--------|---------|-----------|-----|
-| **P0** | SALT Stage 1 (V-Pixel, 50ep) | SALT teacher (ViT-L) | ~2-3 days, 8×GPU | Code done (`app/salt/`) | Train the frozen pixel teacher |
-| **P0** | SALT Stage 2 (student, 50ep) | SALT student (ViT-L) | ~2-3 days, 8×GPU | SALT S1 checkpoint | Train the latent student from frozen teacher |
-| **P0** | SALT 5-task evaluation | SALT | ~1 day probes | SALT S2 checkpoint | LVEF, RVSP, CAMUS, END, Pediatric ZS |
-| **P0** | SALT EchoBench (9 noise conditions) | SALT | ~4 hours | SALT probes | Noise robustness for 4th paradigm |
-| **P0** | SALT frame shuffling (6 conditions) | SALT | ~2 hours | SALT END probe | Temporal encoding of 4th paradigm |
-| **P0** | SALT speckle probing | SALT | ~1 hour | SALT encoder | Does frozen teacher filter noise like EMA? |
-| **P1** | V-JEPA 2.1 probe evaluation | V-JEPA 2.1 | ~1 day probes | Check if ckpt exists | Dense hierarchical supervision → better spatial? |
-| **P2** | View classification (all 4 paradigms) | JEPA/BYOL/MAE/SALT | ~2 hours each | Existing + SALT ckpt | Broadens beyond regression tasks |
-| **P2** | EchoBench reference baselines | DINOv2, random ViT | ~4 hours | Public checkpoints | Makes EchoBench a community benchmark |
-| **P3** | Training dynamics (speckle across epochs) | JEPA/MAE | ~1 day | Epoch checkpoints | When does noise filtering emerge? |
+| Priority | Experiment | Models | Compute | Depends On | Status |
+|----------|-----------|--------|---------|-----------|--------|
+| ~~**P0**~~ | ~~SALT Stage 1 (V-Pixel, 20ep)~~ | ~~SALT teacher~~ | — | — | **DONE** (HyperPod job, S1 checkpoint used by S2) |
+| ~~**P0**~~ | ~~SALT Stage 2 (student, 80ep)~~ | ~~SALT student~~ | — | — | **DONE** (HyperPod job 388, 16 checkpoints e4–e79) |
+| **P0** | SALT 5-task evaluation | SALT | ~1 day probes | SALT S2 checkpoint | **IN PROGRESS** — END LVEF probe training now; RVSP, CAMUS, Pediatric ZS queued |
+| **P0** | SALT EchoBench (9 noise conditions) | SALT | ~4 hours | SALT probes | Queued after probes |
+| **P0** | SALT frame shuffling (6 conditions) | SALT | ~2 hours | SALT END probe | Queued after probe |
+| **P0** | SALT speckle probing | SALT | ~1 hour | SALT encoder | Queued |
+| **P1** | V-JEPA 2.1 probe evaluation | V-JEPA 2.1 | ~1 day probes | Check if ckpt exists | Not started |
+| **P1.5a** | Frame shuffling severity gradient | JEPA/BYOL/MAE (4 epochs each) | ~2 hours | Training dynamics probes | **READY** — scripts + all 9 probes done, queued after SALT |
+| **P1.5b** | CAMUS segmentation under shuffling | JEPA/BYOL/MAE | ~1 hour | Existing decoders | **READY** — script done (`frame_shuffle_segmentation.py`) |
+| **P2** | View classification (all 4 paradigms) | JEPA/BYOL/MAE/SALT | ~2 hours each | Existing + SALT ckpt | Not started |
+| **P2** | EchoBench reference baselines | DINOv2, random ViT | ~4 hours | Public checkpoints | Not started |
+| **P3** | Training dynamics (speckle across epochs) | JEPA/MAE | ~1 day | Epoch checkpoints | Partially addressed by #18 (LVEF probes at 4 epochs) |
 
 ### SALT Experiment Design (2×2 Matrix)
 
