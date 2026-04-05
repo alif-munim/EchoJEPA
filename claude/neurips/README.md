@@ -103,7 +103,7 @@ SALT risks making the paper look like a "comprehensive comparison of four traini
 | 14 | **Bootstrap CIs (END 1,277)** | JEPA/BYOL/MAE | All 3 pairwise CIs exclude zero | §3 Stats | `rebuttals/10-*` §3a |
 | 15 | **RVSP multi-view noise robustness** | JEPA | MV severe ≈ SV clean | §5 EchoBench | `rebuttals/10-*` §6c |
 | 16 | **RVSP single-view ablation** | JEPA | MV +3.9pp R² over best SV | Appendix | `rebuttals/10-*` §6b |
-| 17 | **LVEF scaling (B→L→G)** | JEPA | B 0.650, L 0.436, G 0.778 (confounded) | §6 Scaling | `rebuttals/10-*` §2 |
+| ~~17~~ | ~~LVEF scaling (B→L→G)~~ | ~~JEPA~~ | ~~B 0.650, L 0.436, G 0.778 (confounded)~~ | ~~§6 Scaling~~ — **CUT**: G uses private 18M UHN data, confounds target with scale. One sentence in discussion instead. | — |
 
 ### Completed (2026-04-05) — Training Dynamics, SALT, Severity Gradient
 

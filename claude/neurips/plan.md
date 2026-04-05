@@ -18,6 +18,8 @@
 | **P2** | Calcium imaging full | Pretrain ViT-L on 5-10 sessions, eval segmentation + transient detection. | ~1 week | Weeks 3-4, hard kill at week 4 |
 | **P3** | Extend BYOL/MAE to e200 | Removes "undertrained" concern. Resume from e108/e116 on S3. | ~1-2 days on HyperPod | After JEPA/SALT finish |
 
+**Dropped:** EchoJEPA-G scaling section. G uses private 18M UHN data, confounds prediction target with 36× data + 4× params. Conflicts with Nature Medicine. One sentence in discussion instead. Reclaimed 0.5 pages for §4 mechanism.
+
 ---
 
 ## Current State (2026-04-05 evening)

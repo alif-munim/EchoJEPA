@@ -93,13 +93,13 @@ Target: 9 pages main text + references + appendix. Representation Learning / SSL
 
 ---
 
-## Section 6: Scaling (~0.5 pages)
+## ~~Section 6: Scaling~~ — CUT
 
-Brief: EchoJEPA-G (1.1B params, 18M echos) confirms findings hold at scale.
+EchoJEPA-G (ViT-g, 384px, 18M UHN private data) breaks the controlled comparison — confounds prediction target with 36× more data and 4× more parameters. Conflicts with Nature Medicine deconfliction. Reclaimed 0.5 pages for §4 mechanism. One sentence in discussion: "Preliminary scaling experiments suggest these findings hold at scale; detailed analysis is beyond this controlled study's scope."
 
 ---
 
-## Section 7: Discussion and Limitations (~1 page)
+## Section 6: Discussion and Limitations (~1 page)
 
 **Noise autocorrelation as causal test.** If the sweep figure works, lead with it: "We can turn the ranking inversion on and off by varying the temporal correlation of noise."
 
@@ -150,10 +150,9 @@ Brief: EchoJEPA-G (1.1B params, 18M echos) confirms findings hold at scale.
 | Introduction | 1.5 |
 | Experimental Design | 1.5 |
 | Core Finding | 1.5 |
-| Mechanism (shuffling + autocorrelation + speckle) | 2.0 |
+| Mechanism (shuffling + autocorrelation + speckle) | 2.5 |
 | EchoBench | 1.5 |
-| Scaling | 0.5 |
 | Discussion + Limitations | 1.0 |
 | **Total** | **9.5** |
 
-Note: 0.5 pages over — compress §3 (move pairwise CIs to appendix) or trim scaling.
+Note: 0.5 pages over — compress §3 (move pairwise CIs to appendix) or tighten §4.
