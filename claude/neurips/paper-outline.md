@@ -46,36 +46,62 @@ Target: 9 pages main text + references + appendix. Representation Learning / SSL
 
 ---
 
-## Section 4: Mechanistic Evidence (~2 pages)
+## Section 4: Mechanistic Evidence (~2.5 pages)
 
-**Frame shuffling (Figure 2a).** 6-condition temporal disruption gradient:
+**Central claim:** The prediction target doesn't just determine what is encoded — it determines what *survives training*. We identify three qualitatively distinct temporal encoding regimes, invisible from single-checkpoint evaluation.
+
+### 4.1 Frame shuffling: 6-condition baseline (Figure 2a)
+
+6-condition temporal disruption gradient (from ICML rebuttal, pt50 models):
 - JEPA retains most absolute signal post-shuffle (R²=0.365 > MAE clean)
-- BYOL collapses to R²=0.099 under matched_frame (-79%)
+- BYOL collapses to R²=0.099 under matched_frame (−79%)
 - Monotonic gradient: clean ≈ tubelet ≈ reverse ≈ matched > shuffle > matched_frame
 
-**Frame shuffling severity gradient (Figure 2b).** Partial shuffle (0/25/50/75/100%) results (2026-04-05):
+### 4.2 Severity gradient × training dynamics (Figure 2b — KEY RESULT)
 
-| Fraction | BYOL e100 | MAE e99 | SALT S2 e79 |
-|----------|-----------|---------|-------------|
-| 0.00 | 0.468 | **0.445** | 0.293 |
-| 0.25 | 0.410 | **0.421** | -0.037 |
-| 0.50 | 0.336 | **0.436** | -0.277 |
-| 0.75 | 0.300 | **0.414** | -0.382 |
-| 1.00 | 0.291 | **0.428** | -0.397 |
+Partial shuffle (0/25/50/75/100%) across pretraining epochs reveals three regimes:
 
-**Key finding: MAE e99 is invariant to shuffling.** R² stays ~0.43 from clean to fully shuffled — MAE converges to purely spatial representations. MAE e50 (R² 0.14→-0.30) still had temporal reliance, which was lost by e99. This is a **training dynamics** result: MAE's temporal encoding is transient, present early but eliminated during convergence. BYOL degrades linearly (~40% drop). SALT collapses immediately.
+**Full results (R², mean of 3 seeds):**
 
-**Speckle probing.** JEPA encodes 23% less speckle (partial R²=0.674 vs 0.875). Monotonic: JEPA < BYOL < MAE.
+| Fraction | JEPA e25 | JEPA e50 | JEPA e75 | JEPA e100 | BYOL e50 | BYOL e100 | MAE e50 | MAE e99 | SALT S2 e79 |
+|----------|----------|----------|----------|-----------|----------|-----------|---------|---------|-------------|
+| 0.00 | 0.383 | 0.503 | 0.537 | **0.591** | 0.427 | 0.468 | 0.141 | 0.445 | 0.293 |
+| 0.25 | 0.362 | 0.419 | 0.465 | **0.542** | 0.360 | 0.410 | 0.091 | 0.421 | -0.037 |
+| 0.50 | 0.340 | 0.327 | 0.402 | **0.507** | 0.278 | 0.336 | -0.103 | 0.436 | -0.277 |
+| 0.75 | 0.332 | 0.293 | 0.378 | **0.485** | 0.220 | 0.300 | -0.271 | 0.414 | -0.382 |
+| 1.00 | 0.331 | 0.290 | 0.370 | **0.488** | 0.219 | 0.291 | -0.301 | 0.428 | -0.397 |
 
-**Noise autocorrelation sweep (NEW — P0 for week 1).** Sweep temporal correlation of synthetic noise from τ=∞ (static, same pattern every frame) to τ=0 (iid per-frame) on echo data. Plot MAE-vs-JEPA R² as a function of noise autocorrelation time. If the ranking inverts as noise becomes more frame-varying, this is **causal proof** of the mechanism — not just correlation, but demonstrating the effect can be turned on and off with one parameter. Implement by modifying `scripts/rebuttal/echo_perturbations.py` for per-frame noise with controllable correlation.
+(Still running: BYOL e24/e75, MAE e24/e74 — will complete the per-epoch matrix.)
 
-**Two mechanistic tests of the hypothesis** (both on native data with real frame-varying speckle):
-1. Speckle probing: directly measures frame-varying noise retention (confirmed)
-2. Frame shuffling: directly measures temporal dependence (confirmed + severity gradient)
+**Three temporal encoding regimes:**
 
-**Practical consequence in §5:** EchoBench shows mechanistic difference translates to practical robustness under clinical degradation (static perturbations). §4 explains *why*, §5 shows *that it matters*.
+1. **JEPA — Consolidation.** Temporal reliance peaks mid-training (e50: −42%) then consolidates (e100: −17%). The EMA target incentivizes temporal encoding throughout, but the representation becomes more efficient over time. At convergence, temporal features are strong but robust to disruption.
 
-**SALT subsection (conditional):** If SALT e200 results show frozen teacher retains more speckle than EMA teacher → include as one paragraph confirming the EMA filtering mechanism. If noisy → omit.
+2. **MAE — Transient.** e50 collapses under shuffling (−313%); e99 is invariant (−4%). MAE initially uses temporal consistency as a shortcut for pixel reconstruction, then discovers static spatial features suffice and *discards temporal information entirely*. The temporal encoding doesn't weaken — it vanishes.
+
+3. **BYOL — Stable.** Consistent ~40% degradation at both e50 and e100. Global self-distillation provides a fixed incentive for temporal encoding that neither grows nor shrinks.
+
+**Three supporting results:**
+
+- **JEPA spatial features alone beat everything:** JEPA e100 fully shuffled (R²=0.488) > BYOL e100 clean (0.468) > MAE e99 clean (0.445). The advantage is not just temporal — latent prediction produces better features on *both* axes.
+- **SALT confirms EMA is the mechanism:** SALT S2 collapses at 25% shuffle (R²=−0.037). A latent target with a frozen teacher doesn't produce temporal robustness — the *EMA dynamics* are essential.
+- **MAE's transient temporal encoding is novel:** Challenges the static view that "MAE is a spatial encoder." MAE *learns then unlearns* temporal features — a training dynamics effect invisible from any single checkpoint.
+
+**One-paragraph text for the paper:** "We identify three qualitatively distinct temporal encoding regimes determined by the prediction target. Pixel reconstruction (MAE) produces transient temporal features that are eliminated during convergence as the encoder discovers static spatial features suffice. EMA-based latent prediction (JEPA) consolidates temporal encoding into an efficient representation that is robust to temporal disruption. Global self-distillation (BYOL) maintains stable but moderate temporal dependence. These dynamics, invisible from single-checkpoint evaluation, reveal the mechanistic role of the prediction target in shaping representation structure over training."
+
+### 4.3 Speckle probing
+
+JEPA encodes 23% less speckle (partial R²=0.674 vs 0.875). Monotonic: JEPA < BYOL < MAE. Directly measures frame-varying noise retention in representations.
+
+### 4.4 Noise autocorrelation sweep (planned — P0 week 1)
+
+Sweep temporal correlation of synthetic noise from τ=∞ (static) to τ=0 (iid per-frame). If the MAE/JEPA ranking inverts as noise becomes more frame-varying → causal proof. Implement by modifying `scripts/rebuttal/echo_perturbations.py`.
+
+### 4.5 SALT subsection (conditional on e200 results)
+
+If SALT e200 speckle probing shows frozen teacher retains more speckle than EMA → one paragraph confirming EMA filtering mechanism. The severity gradient already shows SALT collapses — this would add the representation-level evidence.
+
+**§4 → §5 bridge:** These mechanistic differences (temporal encoding regimes, noise filtering) translate to practical robustness under clinical image quality degradation, tested in §5.
 
 ---
 
@@ -135,7 +161,7 @@ EchoJEPA-G (ViT-g, 384px, 18M UHN private data) breaks the controlled comparison
 | Figure | Content | Source |
 |--------|---------|--------|
 | **Fig 1** | Method overview: 3 paradigms, evaluation protocol | New (draw) |
-| **Fig 2** | Mechanistic panel: (a) 6-condition R² bars, (b) severity gradient curves, (c) noise autocorrelation sweep | frame-shuffling results + NEW autocorrelation sweep |
+| **Fig 2** | Mechanistic panel: (a) 6-condition R² bars (baseline), (b) severity gradient at e100: JEPA gentle slope / BYOL steep linear / MAE flat — three regimes in one plot, (c) training dynamics: R² clean vs shuffled across epochs showing MAE transient + JEPA consolidation. Optional (d): noise autocorrelation sweep if completed. | `experiments/severity-gradient.md`, frame-shuffling results |
 | **Fig 3** | Ranking inversion: R² across tasks, JEPA wins function, MAE wins anatomy | Completed experiments |
 | **Fig 4** | Noise robustness curves: R² vs severity for 3 perturbation types | `rebuttals/10-*` §5m |
 | **Fig 5** | Speckle probing: partial R² by model | `rebuttals/10-*` §6e |
