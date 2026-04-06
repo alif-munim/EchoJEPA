@@ -16,7 +16,7 @@
 |------|-----------|-----|---------|----------|
 | **P0** | Noise autocorrelation sweep | Causal proof — turn inversion on/off with one parameter. Nobody has done this. | ~2 days, existing pipeline | Week 1 |
 | **P0** | JEPA IN21K e100 probes | Primary comparison table needs init-matched JEPA | ~4 hrs on 8 GPUs | Week 1 (after job 376 finishes) |
-| **P1** | SALT e200 evaluation | If clean → mechanistic probe (frozen teacher vs EMA). If noisy → cut. | Already queued on HyperPod | Week 2 decision gate |
+| **P1** | SALT retrain with fixed configs | Initial SALT had wrong loss (L1→L2), no LR decay, no WD ramp, wrong ipe_scale. Must retrain S1+S2 before drawing conclusions. | ~3 days S1+S2 on HyperPod | Week 2 |
 | **P1** | Fetal US appendix | 1-day cross-anatomy transfer. Both tasks spatial → MAE leads both → confirms thesis. | ~2 hrs probe training | Week 1-2 |
 | **P2** | Calcium imaging viability test | ViT-B pretrain on 1 session, 10ep. If features non-degenerate → proceed. | ~2 hrs on 1 GPU | Week 2-3 |
 | **P2** | Calcium imaging full | Pretrain ViT-L on 5-10 sessions, eval segmentation + transient detection. | ~1 week | Weeks 3-4, hard kill at week 4 |

@@ -187,7 +187,7 @@ def main(args, resume_preempt=False):
 
     # -- LOSS
     cfgs_loss = args.get("loss", {})
-    loss_exp = cfgs_loss.get("loss_exp", 1.0)
+    loss_exp = cfgs_loss.get("loss_exp", 2.0)  # Default to L2/MSE (matches V-JEPA objective)
 
     # -- OPTIMIZATION
     cfgs_opt = args.get("optimization")
@@ -608,7 +608,9 @@ def main(args, resume_preempt=False):
                             # Predictor: predict teacher latents at masked positions
                             z_pred, _ = predictor(z, masks_enc, masks_pred)
 
-                            # L1 loss on masked patch predictions
+                            # MSE loss on masked patch predictions (matches V-JEPA objective)
+                            # SALT paper: "The JEPA objective is used to optimize the student"
+                            # V-JEPA uses L2/MSE. loss_exp=2 → MSE, loss_exp=1 → L1.
                             loss, n = 0, 0
                             for fpc_idx, (zp_fpc, h_fpc, mp_fpc) in enumerate(
                                 zip(z_pred, h, masks_pred)

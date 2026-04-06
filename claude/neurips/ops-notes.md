@@ -59,6 +59,29 @@ Always check the encoder init before comparing models:
 
 **Do not use JEPA pt50 in the primary comparison table.**
 
+## SALT configuration discrepancies (discovered 2026-04-06)
+
+The initial SALT S1+S2 runs (jobs 379, 388, 391, 392) had several hyperparameter mismatches vs the SALT paper. These are now fixed in the configs but the existing checkpoints were trained with the old values.
+
+| Parameter | SALT Paper | Our Initial Config | Fixed Config | Impact |
+|-----------|-----------|-------------------|-------------|--------|
+| **S2 Loss** | L2/MSE (V-JEPA objective) | L1 (`loss_exp: 1.0`) | L2 (`loss_exp: 2.0`) | Different optimization landscape |
+| **Peak LR** | 0.000625 | 1.75e-4 | 6.25e-4 | 3.6× too low → undertrained |
+| **Start LR** | 0.0002 | 3.33e-5 | 2.0e-4 | 6× too low |
+| **Final LR** | 1e-6 (cosine decay) | 1.75e-4 (constant) | 1e-6 | No LR decay → never fine-tunes |
+| **Weight decay ramp** | 0.04→0.4 (cosine) | 0.04→0.04 (constant) | 0.04→0.4 | Missing regularization ramp |
+| **ipe_scale** | 1.0 | 1.25 | 1.0 | 25% phantom steps (SALT paper explicitly disables) |
+| **Resize scale** | [0.3, 1.0] | [0.5, 1.0] | [0.3, 1.0] | Less aggressive cropping |
+| **Resize aspect** | [0.75, 1.35] | [0.9, 1.1] | [0.75, 1.35] | Less aspect variation |
+| **Batch size** | 3072 | 512 (64×8) | 512 (GPU-limited) | 6× smaller — cannot fix without more GPUs |
+
+**Files fixed:**
+- `app/salt/train.py`: `loss_exp` default changed from 1.0 to 2.0
+- `configs/train/vitl16/pretrain-salt-s1-mimic-224px-16f-hp.yaml`: LR, WD, ipe_scale, augmentation
+- `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f-hp.yaml`: LR, WD, ipe_scale, augmentation, loss_exp
+
+**Implication:** SALT results from jobs 379/388/391/392 may be artificially weak due to these mismatches. The frozen teacher ceiling finding (loss plateau, weight convergence) may still be real, but the absolute performance gap vs JEPA/BYOL/MAE is partly attributable to misconfiguration. A retrain with fixed configs is needed before drawing final conclusions.
+
 ## Probe result extraction
 
 When extracting val MAE from logs, always:

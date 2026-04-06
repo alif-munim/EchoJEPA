@@ -111,6 +111,8 @@ Sweep temporal correlation of synthetic noise from τ=∞ (static) to τ=0 (iid 
 
 **One sentence for the paper:** "Concurrent work achieves competitive results with frozen teachers using either diverse pretraining data (SALT; Li et al., 2025) or strong externally-pretrained teachers (US-JEPA; Kang et al., 2025); our results show that when the teacher is trained from scratch on a narrow clinical domain, the frozen teacher mechanism imposes a representation ceiling (loss plateau at 0.42, weight cosine >0.999 between e79 and e199) that EMA-based co-evolution avoids."
 
+**⚠️ CAVEAT (2026-04-06):** Initial SALT runs had several hyperparameter mismatches vs the SALT paper: L1 loss instead of L2, no LR cosine decay (constant 1.75e-4 vs 6.25e-4→1e-6), no WD ramp (constant 0.04 vs 0.04→0.4), ipe_scale=1.25 instead of 1.0, weaker augmentation. These are now fixed in configs. **SALT must be retrained with corrected configs before including in the paper.** The frozen teacher ceiling observation (loss plateau, weight convergence) may still hold, but the absolute performance gap is partly attributable to misconfiguration. See `ops-notes.md` for full discrepancy table.
+
 **§4 → §5 bridge:** These mechanistic differences (temporal encoding regimes, noise filtering) translate to practical robustness under clinical image quality degradation, tested in §5.
 
 ---
