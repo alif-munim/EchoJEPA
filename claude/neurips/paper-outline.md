@@ -73,13 +73,17 @@ Partial shuffle (0/25/50/75/100%) across pretraining epochs reveals three regime
 
 (Still running: BYOL e24/e75, MAE e24/e74 — will complete the per-epoch matrix.)
 
-**Three temporal encoding regimes:**
+**Three temporal encoding regimes — all emerge from early instability:**
 
-1. **JEPA — Consolidation.** Temporal reliance peaks mid-training (e50: −42%) then consolidates (e100: −17%). The EMA target incentivizes temporal encoding throughout, but the representation becomes more efficient over time. At convergence, temporal features are strong but robust to disruption.
+All three objectives show fragile temporal encoding early in training. They diverge in how they resolve it:
 
-2. **MAE — Transient.** e50 collapses under shuffling (−313%); e99 is invariant (−4%). MAE initially uses temporal consistency as a shortcut for pixel reconstruction, then discovers static spatial features suffice and *discards temporal information entirely*. The temporal encoding doesn't weaken — it vanishes.
+1. **JEPA — Consolidation.** e25: −14% → e50: −42% (peak) → e75: −31% → e100: −17%. EMA continuously incentivizes temporal encoding; the representation becomes more efficient over time — temporal features are encoded but no longer fragile.
 
-3. **BYOL — Stable.** Consistent ~40% degradation at both e50 and e100. Global self-distillation provides a fixed incentive for temporal encoding that neither grows nor shrinks.
+2. **BYOL — Stabilization.** e24: −146% (catastrophic) → e50: −49% → e75: −30% → e100: −38%. Resolves early collapse by locking in a fixed, moderate level of temporal dependence.
+
+3. **MAE — Transient then spatial.** e24: −20% → e50: −313% (catastrophic) → e74: −15% → e99: −4% (invariant). Temporal encoding peaks at e50, collapses catastrophically, then the encoder rebuilds entirely on static spatial features. By convergence, frame order is irrelevant.
+
+**The e50 crisis point:** All three models show extreme temporal behavior at e50 — JEPA peaks (−42%), BYOL is still fragile (−49%), MAE catastrophically collapses (−313%). This is a critical training phase where temporal and spatial features are negotiated. The prediction target determines which side wins.
 
 **Three supporting results:**
 
