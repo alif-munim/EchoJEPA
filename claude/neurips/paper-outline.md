@@ -101,9 +101,15 @@ JEPA encodes 23% less speckle (partial R²=0.674 vs 0.875). Monotonic: JEPA < BY
 
 Sweep temporal correlation of synthetic noise from τ=∞ (static) to τ=0 (iid per-frame). If the MAE/JEPA ranking inverts as noise becomes more frame-varying → causal proof. Implement by modifying `scripts/rebuttal/echo_perturbations.py`.
 
-### 4.5 SALT subsection (conditional on e200 results)
+### 4.5 SALT: the frozen teacher ceiling (confirmed)
 
-If SALT e200 speckle probing shows frozen teacher retains more speckle than EMA → one paragraph confirming EMA filtering mechanism. The severity gradient already shows SALT collapses — this would add the representation-level evidence.
+**Result:** SALT S2 e199 probe val MAE ~6.8 — worse than SALT S2 e79 (6.47). Training loss plateaued (0.429→0.419), weight cosine similarity >0.999 between e79 and e199. The frozen teacher imposes a representation ceiling that additional student training cannot overcome.
+
+**Severity gradient:** SALT S2 e79 collapses at 25% shuffle (R²=−0.037). The frozen pixel teacher provides a latent target but without EMA dynamics, the student learns no temporal robustness.
+
+**Context against concurrent work:** The SALT paper (Apple, 2025) trains on 3.6M diverse natural video clips — high data diversity compensates for the static teacher. US-JEPA (concurrent) succeeds with SALT by using URFM (BiomedCLIP-distilled) as a strong externally-pretrained teacher with broad medical coverage. Our V-Pixel teacher, trained from scratch on 525K echo clips (single domain), has narrow coverage → ceiling. The frozen teacher mechanism needs either **data diversity** (SALT paper) or a **strong external teacher** (US-JEPA) to work. With neither, EMA-based co-evolution (JEPA) is strictly superior.
+
+**One sentence for the paper:** "Concurrent work achieves competitive results with frozen teachers using either diverse pretraining data (SALT; Li et al., 2025) or strong externally-pretrained teachers (US-JEPA; Kang et al., 2025); our results show that when the teacher is trained from scratch on a narrow clinical domain, the frozen teacher mechanism imposes a representation ceiling (loss plateau at 0.42, weight cosine >0.999 between e79 and e199) that EMA-based co-evolution avoids."
 
 **§4 → §5 bridge:** These mechanistic differences (temporal encoding regimes, noise filtering) translate to practical robustness under clinical image quality degradation, tested in §5.
 

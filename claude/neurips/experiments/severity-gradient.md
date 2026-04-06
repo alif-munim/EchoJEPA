@@ -57,6 +57,10 @@ JEPA e100 fully shuffled (R²=0.488) > BYOL e100 clean (0.468) > MAE e99 clean (
 
 SALT S2 e79 collapses from R²=0.293 to −0.397 (−235%). Already negative at 25% shuffle (−0.037). The frozen pixel teacher provides a latent target but without EMA dynamics, the student learns no temporal robustness. This isolates the EMA mechanism as the key ingredient.
 
+**Extended training confirms the ceiling (2026-04-06):** SALT S2 e199 probe val MAE ~6.8 — *worse* than e79 (6.47). Training loss plateaued (0.429→0.419), weight cosine similarity >0.999 between e79 and e199. The frozen teacher imposes a representation ceiling that 2.5× more student training cannot overcome.
+
+**Context vs concurrent work:** The SALT paper (Apple) trains on 3.6M diverse natural video clips. US-JEPA (concurrent) uses URFM (BiomedCLIP-distilled) as a strong external teacher. Both succeed because the teacher has broad coverage. Our V-Pixel teacher on 525K echo clips (single domain) has narrow coverage → ceiling. The frozen teacher mechanism requires data diversity OR a strong external teacher. With neither, EMA-based co-evolution is strictly superior.
+
 ### 5. MAE's transient temporal encoding is novel
 
 The trajectory e24 (−20%) → e50 (−313%) → e74 (−15%) → e99 (−4%) shows MAE doesn't simply "fail to learn temporal features." It learns them, maximally exploits them, catastrophically depends on them, then abandons them entirely in favor of spatial features. This training dynamics effect is invisible from any single checkpoint.

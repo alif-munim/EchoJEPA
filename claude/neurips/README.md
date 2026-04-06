@@ -66,9 +66,15 @@ All three EchoBench perturbations (depth attenuation, gaussian shadow, haze) app
 
 SALT S2's random student init is the paper's standard recipe. The SALT paper matches total steps (S1+S2), not init. Note in a footnote.
 
-### SALT as conditional inclusion (2026-04-05)
+### SALT decision: mechanistic probe, not 4th paradigm (2026-04-06)
 
-SALT risks making the paper look like a "comprehensive comparison of four training recipes." Decision gate: after SALT S2 e200 results, include only if it tells a clean mechanistic story. If noisy, drop SALT and keep the 3-way as the core. The paper is strong without SALT.
+**Decision gate resolved.** SALT S2 e199 val MAE ~6.8 (worse than e79's 6.47). Training loss plateaued (0.429→0.419), weights barely changed (cosine sim >0.999 between e79 and e199). The frozen teacher ceiling is confirmed.
+
+**Include as one-paragraph mechanistic result in §4.5.** The finding: frozen teacher + latent target ≠ EMA + latent target. The EMA mechanism is essential. Supported by severity gradient (SALT collapses at 25% shuffle), training plateau, and context against concurrent work.
+
+**Does not contradict the SALT paper.** SALT paper uses 3.6M diverse clips; US-JEPA uses URFM (strong external BiomedCLIP-distilled teacher). Both succeed because the teacher has broad coverage. Our V-Pixel teacher on 525K narrow-domain echo clips hits a ceiling. The frozen teacher mechanism needs data diversity OR a strong external teacher.
+
+**Do NOT include SALT in primary comparison table or ranking inversion figure.** Keep 3-way core (JEPA/BYOL/MAE).
 
 ### Second modality assessment (2026-04-05)
 
