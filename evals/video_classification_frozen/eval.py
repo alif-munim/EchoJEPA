@@ -901,7 +901,8 @@ def run_one_epoch(
                 for di in data[0]
             ]
             clip_indices = [d.to(device, non_blocking=True) for d in data[2]]
-            labels = data[1].to(device)
+            labels = data[1] if isinstance(data[1], torch.Tensor) else torch.tensor(data[1])
+            labels = labels.to(device)
             batch_size = len(labels)
             
             video_paths = data[3] if len(data) > 3 else [f"video_{itr}_{i}" for i in range(batch_size)]
