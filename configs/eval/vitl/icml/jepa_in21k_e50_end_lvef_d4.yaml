@@ -7,7 +7,7 @@ cpus_per_task: 32
 folder: evals/vitl/icml/jepa_in21k_e50_end_lvef_224
 mem_per_gpu: 80G
 nodes: 1
-tasks_per_node: 7
+tasks_per_node: 8
 num_workers: 8
 
 eval_name: video_classification_frozen

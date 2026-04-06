@@ -87,7 +87,40 @@ ALL_CONFIGS = {
         "probe_checkpoint": "evals/vitl/icml/salt_s2_e79_end_lvef_224/"
                             "video_classification_frozen/icml-salt-s2-e79-end-lvef-d4/best.pt",
     },
-    # JEPA (only pt50 available — random init, not epoch-matched)
+    # JEPA IN21K (ImageNet-21K init, epoch-matched)
+    "JEPA-IN21K-e25": {
+        "encoder_type": "vjepa",
+        "encoder_checkpoint": "checkpoints/jepa_in21k_vitl_e25.pt",
+        "encoder_model_name": "vit_large",
+        "encoder_key": "target_encoder",
+        "probe_checkpoint": "evals/vitl/icml/jepa_in21k_e25_end_lvef_224/"
+                            "video_classification_frozen/icml-jepa-in21k-e25-end-lvef-d4/best.pt",
+    },
+    "JEPA-IN21K-e50": {
+        "encoder_type": "vjepa",
+        "encoder_checkpoint": "checkpoints/jepa_in21k_vitl_e50.pt",
+        "encoder_model_name": "vit_large",
+        "encoder_key": "target_encoder",
+        "probe_checkpoint": "evals/vitl/icml/jepa_in21k_e50_end_lvef_224/"
+                            "video_classification_frozen/icml-jepa-in21k-e50-end-lvef-d4/best.pt",
+    },
+    "JEPA-IN21K-e75": {
+        "encoder_type": "vjepa",
+        "encoder_checkpoint": "checkpoints/jepa_in21k_vitl_e75.pt",
+        "encoder_model_name": "vit_large",
+        "encoder_key": "target_encoder",
+        "probe_checkpoint": "evals/vitl/icml/jepa_in21k_e75_end_lvef_224/"
+                            "video_classification_frozen/icml-jepa-in21k-e75-end-lvef-d4/best.pt",
+    },
+    "JEPA-IN21K-e100": {
+        "encoder_type": "vjepa",
+        "encoder_checkpoint": "checkpoints/jepa_in21k_vitl_e100.pt",
+        "encoder_model_name": "vit_large",
+        "encoder_key": "target_encoder",
+        "probe_checkpoint": "evals/vitl/icml/jepa_in21k_e100_end_lvef_224/"
+                            "video_classification_frozen/icml-jepa-in21k-e100-end-lvef-d4/best.pt",
+    },
+    # JEPA pt50 (wrong init — fully-trained 235ep, NOT for primary table)
     "JEPA-L-e50": PT50_END_CONFIGS["JEPA-L-pt50"],
     # BYOL v2 (ImageNet init)
     "BYOL-L-e24": {
