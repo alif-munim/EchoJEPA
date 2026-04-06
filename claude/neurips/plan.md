@@ -1,8 +1,28 @@
 # NeurIPS 2025 Execution Plan
 
-**Last updated:** 2026-04-05
+**Last updated:** 2026-04-06
 **Deadline:** May 4, 2026 (abstract), ~6 weeks
 **Status:** Week 0 — infrastructure + initial experiments done
+
+---
+
+## Operational Notes
+
+### Probe training: never chain runs
+
+**Problem (2026-04-05):** Chaining probe training runs with `&&` in a single background task produces one shared output file. The eval logs don't include the model/checkpoint name, so when grep-ing for val MAE scores, results from different runs get mixed together. This caused JEPA IN21K e75 val MAE to be misattributed.
+
+**Rules:**
+1. **Always launch each probe as its own separate background task.** One model per task = one output file per model. Unambiguous.
+2. **Never chain `evals.main` calls with `&&`.** Even with `echo` markers between them, the output interleaving is error-prone.
+3. **Use absolute paths** for all output files (CSVs, logs). Relative paths resolve to the background shell's cwd, which may differ from the repo root. (This caused the first frame shuffling severity run to "lose" all output files.)
+4. **Use `PYTHONUNBUFFERED=1`** for all background Python jobs. Without it, stdout buffers and progress isn't visible until the process exits.
+5. **After a run completes, always verify the output file exists and has the expected content** before reporting results.
+
+### Config file gotchas
+
+- **`resume_checkpoint`**: Set to `true` only when you want to resume from `latest.pt` in the output folder. After a run completes, reset to `false` — otherwise the next model's run will try to load the previous model's checkpoint. The `sed` in-chain approach is fragile; prefer separate config files or manual reset.
+- **`tasks_per_node`**: Must match the number of `--devices` passed. If you launch on 7 GPUs but config says `tasks_per_node: 8`, rank 7 will crash.
 
 ---
 
