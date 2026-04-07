@@ -50,48 +50,78 @@ Target: 9 pages main text + references + appendix. Representation Learning / SSL
 
 **Central claim:** The prediction target doesn't just determine what is encoded — it determines what *survives training*. We identify three qualitatively distinct temporal encoding regimes, invisible from single-checkpoint evaluation.
 
-### 4.1 Frame shuffling: 6-condition baseline (Figure 2a)
+### 4.1 Frame shuffling: 6-condition (Figure 2a)
 
-6-condition temporal disruption gradient (from ICML rebuttal, pt50 models):
-- JEPA retains most absolute signal post-shuffle (R²=0.365 > MAE clean)
-- BYOL collapses to R²=0.099 under matched_frame (−79%)
-- Monotonic gradient: clean ≈ tubelet ≈ reverse ≈ matched > shuffle > matched_frame
+6 temporal disruption conditions with increasing severity. JEPA IN21K results complete; BYOL/MAE running.
 
-### 4.2 Severity gradient × training dynamics (Figure 2b — KEY RESULT)
+**JEPA IN21K at e100 (init-matched):**
 
-Partial shuffle (0/25/50/75/100%) across pretraining epochs reveals three regimes:
+| Condition | R² | Rel. drop |
+|-----------|-----|----------|
+| clean | 0.591 | — |
+| tubelet | 0.582 | −2% |
+| reverse | 0.539 | −9% |
+| matched | 0.580 | −2% |
+| shuffle | 0.484 | −18% |
+| matched_frame | 0.477 | −19% |
 
-**Full results (R², mean of 3 seeds):**
+Monotonic gradient confirmed: clean ≈ tubelet ≈ matched > reverse > shuffle ≈ matched_frame. Local reordering (tubelet) barely affects JEPA; global disruption (shuffle/matched_frame) costs ~19%.
 
-| Fraction | JEPA e25 | JEPA e50 | JEPA e75 | JEPA e100 | BYOL e50 | BYOL e100 | MAE e50 | MAE e99 | SALT S2 e79 |
-|----------|----------|----------|----------|-----------|----------|-----------|---------|---------|-------------|
-| 0.00 | 0.383 | 0.503 | 0.537 | **0.591** | 0.427 | 0.468 | 0.141 | 0.445 | 0.293 |
-| 0.25 | 0.362 | 0.419 | 0.465 | **0.542** | 0.360 | 0.410 | 0.091 | 0.421 | -0.037 |
-| 0.50 | 0.340 | 0.327 | 0.402 | **0.507** | 0.278 | 0.336 | -0.103 | 0.436 | -0.277 |
-| 0.75 | 0.332 | 0.293 | 0.378 | **0.485** | 0.220 | 0.300 | -0.271 | 0.414 | -0.382 |
-| 1.00 | 0.331 | 0.290 | 0.370 | **0.488** | 0.219 | 0.291 | -0.301 | 0.428 | -0.397 |
+**JEPA IN21K training dynamics across 6 conditions:**
 
-(Still running: BYOL e24/e75, MAE e24/e74 — will complete the per-epoch matrix.)
+| Condition | e25 | e50 | e75 | e100 |
+|-----------|-----|-----|-----|------|
+| clean | .383 | .503 | .537 | .591 |
+| tubelet | .384 | .507 | .532 | .582 |
+| reverse | .384 | .487 | .489 | .539 |
+| matched | .381 | .505 | .533 | .580 |
+| shuffle | .328 | .288 | .375 | .484 |
+| matched_frame | .323 | .273 | .372 | .477 |
 
-**Three temporal encoding regimes — all emerge from early instability:**
+The consolidation pattern (§4.2) holds across all 6 conditions: e50 shows the largest drop (clean→matched_frame: −46%), e100 the smallest (−19%).
 
-All three objectives show fragile temporal encoding early in training. They diverge in how they resolve it:
+**Figure 2a recommendation:** Bar chart of R² across 6 conditions for JEPA e100 / BYOL e100 / MAE e99. Shows monotonic gradient + cross-model differences at a glance.
 
-1. **JEPA — Consolidation.** e25: −14% → e50: −42% (peak) → e75: −31% → e100: −17%. EMA continuously incentivizes temporal encoding; the representation becomes more efficient over time — temporal features are encoded but no longer fragile.
+### 4.2 Severity gradient × training dynamics (Figure 2b,c — KEY RESULT)
 
-2. **BYOL — Stabilization.** e24: −146% (catastrophic) → e50: −49% → e75: −30% → e100: −38%. Resolves early collapse by locking in a fixed, moderate level of temporal dependence.
+Two orthogonal axes: the 6-condition experiment varies the *type* of temporal disruption; the severity gradient varies the *degree* (0-100% of frames shuffled). Together they fully characterize temporal encoding.
 
-3. **MAE — Transient then spatial.** e24: −20% → e50: −313% (catastrophic) → e74: −15% → e99: −4% (invariant). Temporal encoding peaks at e50, collapses catastrophically, then the encoder rebuilds entirely on static spatial features. By convergence, frame order is irrelevant.
+**Complete severity gradient matrix (R², mean of 3 seeds):**
 
-**The e50 crisis point:** All three models show extreme temporal behavior at e50 — JEPA peaks (−42%), BYOL is still fragile (−49%), MAE catastrophically collapses (−313%). This is a critical training phase where temporal and spatial features are negotiated. The prediction target determines which side wins.
+| Fraction | JEPA e25 | JEPA e50 | JEPA e75 | JEPA e100 | BYOL e24 | BYOL e50 | BYOL e75 | BYOL e100 | MAE e24 | MAE e50 | MAE e74 | MAE e99 |
+|----------|----------|----------|----------|-----------|----------|----------|----------|-----------|---------|---------|---------|---------|
+| 0% | .383 | .503 | .537 | **.591** | .380 | .427 | .435 | .468 | .221 | .141 | .390 | .445 |
+| 25% | .362 | .419 | .465 | **.542** | .119 | .360 | .388 | .410 | .214 | .091 | .356 | .421 |
+| 50% | .340 | .327 | .402 | **.507** | -.080 | .278 | .329 | .336 | .205 | -.103 | .347 | .436 |
+| 75% | .332 | .293 | .378 | **.485** | -.160 | .220 | .309 | .300 | .182 | -.271 | .320 | .414 |
+| 100% | .331 | .290 | .370 | **.488** | -.173 | .219 | .304 | .291 | .176 | -.301 | .330 | .428 |
 
-**Three supporting results:**
+**Relative degradation (clean → 100% shuffle):**
 
-- **JEPA spatial features alone beat everything:** JEPA e100 fully shuffled (R²=0.488) > BYOL e100 clean (0.468) > MAE e99 clean (0.445). The advantage is not just temporal — latent prediction produces better features on *both* axes.
-- **SALT confirms EMA is the mechanism:** SALT S2 collapses at 25% shuffle (R²=−0.037). A latent target with a frozen teacher doesn't produce temporal robustness — the *EMA dynamics* are essential.
-- **MAE's transient temporal encoding is novel:** Challenges the static view that "MAE is a spatial encoder." MAE *learns then unlearns* temporal features — a training dynamics effect invisible from any single checkpoint.
+| | e24/e25 | e50 | e74/e75 | e99/e100 |
+|---|---------|-----|---------|----------|
+| **JEPA** | −14% | −42% | −31% | **−17%** |
+| **BYOL** | −146% | −49% | −30% | **−38%** |
+| **MAE** | −20% | −313% | −15% | **−4%** |
 
-**One-paragraph text for the paper:** "We identify three qualitatively distinct temporal encoding regimes determined by the prediction target. Pixel reconstruction (MAE) produces transient temporal features that are eliminated during convergence as the encoder discovers static spatial features suffice. EMA-based latent prediction (JEPA) consolidates temporal encoding into an efficient representation that is robust to temporal disruption. Global self-distillation (BYOL) maintains stable but moderate temporal dependence. These dynamics, invisible from single-checkpoint evaluation, reveal the mechanistic role of the prediction target in shaping representation structure over training."
+**Three findings from this matrix:**
+
+**Finding 1: Three temporal encoding regimes at convergence (Fig 2b).** The severity gradient curves at e100 are visually distinct: JEPA gentle slope (−17%), BYOL steep linear (−38%), MAE flat (−4%). One figure, one glance, three regimes.
+
+**Finding 2: Temporal encoding is dynamic (Fig 2c).** All three objectives emerge from shared early instability, diverge by convergence:
+- **JEPA — Consolidation.** e25: −14% → e50: −42% (peak) → e75: −31% → e100: −17%. Temporal encoding is learned, peaks, then becomes efficient and robust.
+- **BYOL — Stabilization.** e24: −146% (catastrophic) → e50: −49% → e75: −30% → e100: −38%. Resolves early collapse into stable moderate dependence.
+- **MAE — Transient.** e24: −20% → e50: −313% (catastrophic) → e74: −15% → e99: −4%. Temporal features are learned, maximally exploited, then completely abandoned. By convergence frame order is irrelevant. *Novel finding — challenges the static view that "MAE doesn't learn temporal features."*
+
+**Finding 3: JEPA's advantage is not just temporal.** JEPA e100 fully shuffled (R²=0.488) > BYOL e100 clean (0.468) > MAE e99 clean (0.445). Even with all temporal information destroyed, JEPA's spatial features are the strongest. Preempts the reviewer objection "JEPA only wins because of temporal encoding."
+
+**One-paragraph text:** "We identify three qualitatively distinct temporal encoding regimes shaped by the prediction target. All emerge from shared early instability but diverge in resolution: EMA-based latent prediction (JEPA) consolidates temporal features into a robust representation (−17% at convergence); global self-distillation (BYOL) stabilizes at moderate temporal dependence (−38%); pixel reconstruction (MAE) abandons temporal encoding entirely (−4%) after a transient phase of catastrophic reliance at mid-training. These dynamics are invisible from single-checkpoint evaluation. Notably, JEPA's spatial features alone (under full temporal disruption) outperform BYOL's combined spatial+temporal features, demonstrating that the advantage of latent prediction extends beyond temporal encoding."
+
+**Figure plan:**
+- **Fig 2a:** 6-condition bar chart at e100 (JEPA/BYOL/MAE) — monotonic gradient
+- **Fig 2b:** Severity gradient curves at e100 — three regime shapes
+- **Fig 2c (appendix or main):** Degradation % vs epoch — training dynamics showing MAE transient + JEPA consolidation
+- **Appendix:** Full 13-model × 5-fraction and 12-model × 6-condition tables
 
 ### 4.3 Speckle probing
 
