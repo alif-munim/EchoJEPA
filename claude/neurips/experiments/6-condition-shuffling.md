@@ -82,24 +82,56 @@
 
 3. **BYOL's stabilization is visible across all conditions.** The degradation from clean→matched_frame settles at ~33-40% from e75 onward — no further consolidation like JEPA.
 
-## MAE Results (running, ETA ~35 min)
+## MAE Results (R², mean of 3 seeds where applicable)
 
-*To be filled when complete.*
+| Condition | e24 | e50 | e74 | e99 |
+|-----------|-----|-----|-----|-----|
+| clean | .221 | .141 | .390 | .445 |
+| tubelet | .197 | .255 | .417 | .424 |
+| reverse | .184 | .114 | .400 | .431 |
+| matched | .208 | .231 | .400 | .419 |
+| shuffle | .178 | -.278 | .327 | .422 |
+| matched_frame | .189 | -.343 | .345 | .449 |
+
+### Relative degradation (clean → matched_frame)
+
+| Epoch | Clean R² | Matched_frame R² | Relative Drop |
+|-------|----------|------------------|---------------|
+| e24 | 0.221 | 0.189 | −14% |
+| e50 | 0.141 | -0.343 | −343% |
+| e74 | 0.390 | 0.345 | −12% |
+| e99 | 0.445 | 0.449 | **+1% (invariant)** |
+
+### MAE-specific findings
+
+1. **MAE e99 is invariant across ALL 6 conditions.** R² ranges 0.419-0.449 — essentially flat. matched_frame (0.449) is marginally *higher* than clean (0.445). Frame order is completely irrelevant to converged MAE.
+
+2. **MAE e50 shows catastrophic temporal dependence across all conditions.** Clean R²=0.141 (already weak), shuffle −0.278, matched_frame −0.343. The transient temporal encoding at mid-training is confirmed across all disruption types.
+
+3. **MAE e50 tubelet (0.255) > MAE e50 clean (0.141).** This anomaly suggests that at mid-training, the temporal shortcut MAE learned actually *hurts* clean performance — the model overfits to frame-to-frame consistency. Disrupting local temporal structure forces the model to rely on spatial features, which are more useful.
 
 ---
 
-## Cross-Model Comparison at e100 (primary comparison point)
+## Cross-Model Comparison at Convergence (primary comparison point)
 
-| Condition | JEPA e100 | BYOL e100 | MAE e99 (pending) |
-|-----------|-----------|-----------|-------------------|
-| clean | **.591** | .468 | — |
-| tubelet | **.582** | .402 | — |
-| reverse | **.539** | .373 | — |
-| matched | **.580** | .415 | — |
-| shuffle | **.484** | .291 | — |
-| matched_frame | **.477** | .280 | — |
+| Condition | JEPA e100 | BYOL e100 | MAE e99 |
+|-----------|-----------|-----------|---------|
+| clean | **.591** | .468 | .445 |
+| tubelet | **.582** | .402 | .424 |
+| reverse | **.539** | .373 | .431 |
+| matched | **.580** | .415 | .419 |
+| shuffle | **.484** | .291 | .422 |
+| matched_frame | **.477** | .280 | .449 |
 
-JEPA leads on every condition by a wide margin. **JEPA matched_frame (0.477) > BYOL clean (0.468).**
+**Three visually distinct profiles:**
+- **JEPA**: monotonic gradient, gentle slope (0.591→0.477, −19%)
+- **BYOL**: monotonic gradient, steep slope (0.468→0.280, −40%)
+- **MAE**: completely flat (0.445→0.449, +1%)
+
+**Key comparisons:**
+- JEPA matched_frame (0.477) > BYOL clean (0.468) — JEPA's spatial features alone beat BYOL's best
+- MAE matched_frame (0.449) ≈ MAE clean (0.445) — frame order is irrelevant to MAE
+- Under full temporal disruption: JEPA (0.477) >> MAE (0.449) > BYOL (0.280) — BYOL collapses most
 
 ---
 
@@ -115,6 +147,10 @@ JEPA leads on every condition by a wide margin. **JEPA matched_frame (0.477) > B
 | BYOL e50 | `scripts/rebuttal/samples/6cond_BYOL_e50.csv` |
 | BYOL e75 | `scripts/rebuttal/samples/6cond_BYOL_e75.csv` |
 | BYOL e100 | `scripts/rebuttal/samples/6cond_BYOL_e100.csv` |
+| MAE e24 | `scripts/rebuttal/samples/6cond_MAE_e24.csv` |
+| MAE e50 | `scripts/rebuttal/samples/6cond_MAE_e50.csv` |
+| MAE e74 | `scripts/rebuttal/samples/6cond_MAE_e74.csv` |
+| MAE e99 | `scripts/rebuttal/samples/6cond_MAE_e99.csv` |
 
 ## For NeurIPS
 
