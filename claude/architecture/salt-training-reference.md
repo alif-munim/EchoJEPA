@@ -164,7 +164,7 @@ mask:
 
 ### Optimization (`optimization:` block)
 
-**All values below match Paper Table 5 exactly.** The `-hp` configs use these; the non-`-hp` configs have wrong values.
+**All values below match Paper Table 5 except LR, which is sqrt-scaled for our batch size (see [LR Scaling Rationale](#lr-scaling-rationale) below).** The `-hp` configs use these; the non-`-hp` configs have wrong values.
 
 ```yaml
 optimization:
@@ -397,9 +397,41 @@ Before launching a new SALT run, verify:
 
 ---
 
+## LR Scaling Rationale
+
+The SALT paper trains at batch 3072 and does not discuss scaling to other batch sizes. We run at batch 512 (6× smaller). Two standard scaling rules exist:
+
+| Rule | Formula | Our LR | Source |
+|------|---------|--------|--------|
+| **Linear** | `lr × (512/3072) = lr × 0.167` | 1.04e-4 | Goyal et al. 2017; V-JEPA 2 codebase |
+| **Sqrt** | `lr × sqrt(512/3072) = lr × 0.408` | 2.55e-4 | Hoffer et al. 2017; McCandlish et al. 2018 |
+
+**We use sqrt scaling.** Rationale:
+
+1. **Empirical signal from prior runs.** S1 loss curves across 3 SALT versions (confounded by other config changes, but directionally informative):
+
+   | Epoch | v1 (LR=1.75e-4, misc.) | v2 (LR=6.25e-4, unscaled) | v3 (LR=2.55e-4, sqrt) |
+   |-------|------------------------|---------------------------|----------------------|
+   | 1 | 0.378 | 0.347 | 0.361 |
+   | 2 | 0.293 | 0.302 | 0.302 |
+   | 10 | 0.261 | 0.272 | — |
+   | 20 | **0.251** | **0.265** | — |
+
+   The unscaled paper LR (6.25e-4) produced **worse** final S1 loss than the accidentally-low 1.75e-4, suggesting 6.25e-4 is too high for batch 512. (Caveat: v1 had ipe_scale=1.25 = 25% more steps and narrower augmentation.)
+
+2. **Linear scaling would be very conservative.** Linear gives 1.04e-4, even lower than v1's 1.75e-4 (which already looked slow to converge in early epochs). At only 20 S1 epochs, a very low LR risks undertraining.
+
+3. **Theoretical grounding for AdamW.** Sqrt scaling keeps the gradient signal-to-noise ratio constant. Adam already normalizes by second moments, so the remaining noise structure scales with 1/sqrt(batch). Linear scaling was derived for SGD.
+
+4. **Counterpoint: V-JEPA 2 uses linear scaling** with the same AdamW betas (0.9, 0.95) — see `claude/architecture/vjepa2-paper-recipes.md:130`. This works for V-JEPA, but V-JEPA's batch reduction is smaller (3072 → 1024, 3×) vs SALT's (3072 → 512, 6×). Sqrt and linear converge at moderate reductions but diverge significantly at 6×.
+
+**Decision: sqrt scaling (v3, jobs 445/446). Evaluate downstream probe performance. If SALT underperforms expectations, re-run with linear scaling as a diagnostic.**
+
+---
+
 ## Known Deviations From Paper (That We Cannot Fix)
 
-1. **Batch size**: Paper uses 3072, we use 512 (64 × 8 GPUs). Single-node H100 cluster cannot match paper's 3072 without more nodes. **LR is sqrt-scaled accordingly**: paper's 6.25e-4 → 2.55e-4, start_lr 2e-4 → 8.2e-5 (factor = sqrt(512/3072) ≈ 0.408). Warmup adjusted from 40ep to 33ep to match paper's 10K steps.
+1. **Batch size**: Paper uses 3072, we use 512 (64 × 8 GPUs). Single-node H100 cluster cannot match paper's 3072 without more nodes. **LR is sqrt-scaled** (see [LR Scaling Rationale](#lr-scaling-rationale)): paper's 6.25e-4 → 2.55e-4, start_lr 2e-4 → 8.2e-5 (factor = sqrt(512/3072) ≈ 0.408). Warmup adjusted to 33ep to match paper's 10K steps.
 2. **Total training steps**: Paper uses 240,000 total steps at batch 3072. Our 20+80 epochs × 300 ipe = 30,000 steps at batch 512 = ~6.25M samples vs paper's ~737M. **Our training is ~2.4% of paper's compute budget.** Expect lower absolute performance, but the method ranking should still hold.
 3. **Pretraining dataset**: MIMIC 525K echo-only vs V-3.6M diverse natural video. Domain restriction likely improves echo downstream performance but hurts transfer to other tasks.
 4. **Same-size teacher/student**: Paper explores smaller teachers successfully; we use ViT-L → ViT-L for both stages (no compute savings but simpler to set up).

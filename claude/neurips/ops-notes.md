@@ -66,8 +66,8 @@ The initial SALT S1+S2 runs (jobs 379, 388, 391, 392) had several hyperparameter
 | Parameter | SALT Paper | Our Initial Config | Fixed Config | Impact |
 |-----------|-----------|-------------------|-------------|--------|
 | **S2 Loss** | L1 (SALT paper Eq 2.1: \|\|...\|\|_1) | L1 (`loss_exp: 1.0`) | L1 (`loss_exp: 1.0`) | Was incorrectly changed to 2.0, now reverted |
-| **Peak LR** | 0.000625 | 1.75e-4 | 6.25e-4 | 3.6× too low → undertrained |
-| **Start LR** | 0.0002 | 3.33e-5 | 2.0e-4 | 6× too low |
+| **Peak LR** | 0.000625 | 1.75e-4 | 2.55e-4 (sqrt-scaled) | v1 too low; v2 unscaled; v3 sqrt-scaled |
+| **Start LR** | 0.0002 | 3.33e-5 | 8.2e-5 (sqrt-scaled) | v1 too low; v2 unscaled; v3 sqrt-scaled |
 | **Final LR** | 1e-6 (cosine decay) | 1.75e-4 (constant) | 1e-6 | No LR decay → never fine-tunes |
 | **Weight decay ramp** | 0.04→0.4 (cosine) | 0.04→0.04 (constant) | 0.04→0.4 | Missing regularization ramp |
 | **ipe_scale** | 1.0 | 1.25 | 1.0 | 25% phantom steps (SALT paper explicitly disables) |
@@ -85,12 +85,17 @@ The initial SALT S1+S2 runs (jobs 379, 388, 391, 392) had several hyperparameter
 - `app/salt/train.py`: Stage 2 teacher/student forward mode changed to single-level (`training_mode=False`) unless `n_output_distillation` is explicitly set. SALT paper uses standard V-JEPA embeddings, NOT V-JEPA 2.1 hierarchical output.
 - `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f-hp.yaml`: `loss_exp` reverted to 1.0, `pred_num_heads` fixed from 12 to 16
 
-**Additional discrepancies found in round 2 audit (not yet fixed in configs):**
-- Warmup: 12,000 steps (40 epochs × 300 ipe) vs paper's 10,000. Should reduce to ~33 epochs.
-- LR not scaled for batch size: using paper's 6.25e-4 with 512 batch (paper uses 3072). Should scale down by sqrt(512/3072) ≈ 0.41 → lr ≈ 2.6e-4.
+**Files fixed (round 3, 2026-04-07, LR batch-size scaling):**
+- `configs/train/vitl16/pretrain-salt-s1-mimic-224px-16f-hp.yaml`: warmup 40→33, lr 6.25e-4→2.55e-4, start_lr 2e-4→8.2e-5
+- `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f-hp.yaml`: same warmup/LR changes
+- `claude/architecture/salt-training-reference.md`: updated to match sqrt-scaled values
+
+**LR scaling decision:** sqrt scaling chosen over linear. Paper's 6.25e-4 at batch 3072 → 2.55e-4 at batch 512 (factor = sqrt(512/3072) ≈ 0.408). Linear would give 1.04e-4, which is even lower than v1's accidentally-low 1.75e-4. Prior S1 loss curves suggest unscaled 6.25e-4 is too high (worse final loss than 1.75e-4), and linear may be too conservative for only 20 S1 epochs. V-JEPA 2 uses linear scaling but at a smaller reduction (3×, not 6×). See `claude/architecture/salt-training-reference.md` § "LR Scaling Rationale" for full analysis.
+
+**Remaining deliberate deviation:**
 - ImageNet-21K init for S1 teacher: deliberate for controlled comparison, but deviates from paper (trains from scratch).
 
-**Implication:** SALT results from jobs 379/388/391/392 had MULTIPLE misconfigurations (hierarchical output, wrong loss direction, wrong num_heads, wrong LR/WD, wrong ipe_scale). A retrain with fully corrected configs is needed before drawing any conclusions about SALT's performance.
+**Implication:** SALT results from jobs 379/388/391/392 (v1) and 416/417 (v2) all had misconfigurations. Jobs 445/446 (v3) are the first fully corrected runs. No conclusions about SALT's performance should be drawn from prior jobs.
 
 ## Probe result extraction
 
