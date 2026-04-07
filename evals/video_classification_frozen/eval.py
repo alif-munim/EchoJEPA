@@ -1158,6 +1158,12 @@ def run_one_epoch(
                             labels_np, probs_np, multi_class="ovr", average="macro",
                             labels=expected_labels,
                         )
+                        # Macro-averaged OVR AUPRC for multi-class
+                        from sklearn.preprocessing import label_binarize
+                        labels_bin = label_binarize(labels_np, classes=expected_labels)
+                        auprc_arr[h] = average_precision_score(
+                            labels_bin, probs_np, average="macro",
+                        )
                 except ValueError as e:
                     if h == 0:
                         logger.warning(f"AUROC failed for head {h}: {e}")
