@@ -45,6 +45,10 @@
 - [x] CAMUS segmentation probes at e100: MAE 0.827, BYOL 0.825, JEPA 0.815 (ranking inversion confirmed)
 - [x] EchoBench LVEF at e100: JEPA −20%, BYOL −22%, MAE −51% (MAE collapses on functional tasks)
 - [x] EchoBench CAMUS at e100: JEPA −10%, MAE −13%, BYOL −29% (JEPA most robust on both tasks)
+- [x] Pediatric zero-shot at e100: JEPA Pearson=0.670, MAE 0.617, BYOL 0.500 (JEPA leads transfer)
+- [x] Pediatric EchoBench at e100: JEPA −9%, MAE −8%, BYOL −19%
+- [x] Speckle probing at e100: BYOL 0.716 < JEPA 0.848 < MAE 0.885 (ordering CHANGED from pt50 — init confound)
+- [x] Model registry updated with e100 models (JEPA-IN21K-e100, BYOL-L-e100, MAE-L-e99)
 
 ---
 
@@ -89,10 +93,10 @@
 |---------|------------|----------------|
 | **§1 Intro** | Framing complete | Writing |
 | **§2 Design** | 3-way comparison defined, init-matched | Writing |
-| **§3 Core finding** | END LVEF + CAMUS at e100 for all 3 models. Ranking inversion confirmed. | **UHN LVEF, RVSP, Pediatric probes** (P0 #2-3) |
+| **§3 Core finding** | END LVEF + CAMUS + Pediatric ZS at e100. Ranking inversion confirmed (JEPA leads functional, MAE leads spatial). | **UHN LVEF, RVSP** (P0 #2-3, HyperPod) |
 | **§4.1 6-condition** | Complete (12 models × 6 conditions) | Writing + Fig 2a |
 | **§4.2 Severity gradient** | Complete (13 models × 5 fractions) | Writing + Fig 2b,c |
-| **§4.3 Speckle probing** | Done on pt50 models (ICML rebuttal) | **Re-run on e100 init-matched models** (P1 #7) |
+| **§4.3 Speckle probing** | **DONE** at e100. Ordering changed: BYOL < JEPA < MAE (was JEPA < BYOL < MAE at pt50). Init confound. | Revise narrative |
 | **§4.4 Autocorrelation sweep** | **DONE** — hypothesis not supported. Appendix result. | — |
 | **§4.5 SALT** | Invalidated | **Retrain** (P1 #5) |
 | **§5 EchoBench** | **DONE** — LVEF + CAMUS at e100 init-matched. JEPA most robust on both. | Writing + figures |

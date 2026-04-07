@@ -125,7 +125,13 @@ Two orthogonal axes: the 6-condition experiment varies the *type* of temporal di
 
 ### 4.3 Speckle probing
 
-JEPA encodes 23% less speckle (partial R²=0.674 vs 0.875). Monotonic: JEPA < BYOL < MAE. Directly measures frame-varying noise retention in representations.
+**pt50 result (ICML rebuttal):** JEPA 0.674 < BYOL 0.775 < MAE 0.875. Monotonic — JEPA encodes least speckle.
+
+**e100 init-matched result (2026-04-07):** BYOL 0.716 < JEPA 0.848 < MAE 0.885. **Ordering changed** — BYOL now encodes least speckle, JEPA is in the middle. The pt50 result was confounded by JEPA's unfair 235ep init (already heavily refined representations).
+
+**Revised interpretation:** MAE consistently encodes the most speckle across both comparisons. BYOL encodes the least at e100 (which is surprising — may relate to BYOL's global pooling discarding fine-grained spatial noise). JEPA is intermediate. The clean "JEPA filters noise" narrative doesn't hold with init-matched models — the advantage is more nuanced.
+
+**For the paper:** Report the e100 numbers. The JEPA < BYOL < MAE monotonic ordering was an artifact of the init confound. The honest result is: MAE retains the most noise, BYOL the least, JEPA intermediate. Combined with EchoBench (JEPA most robust), this suggests JEPA's robustness comes from representation quality, not just noise filtering.
 
 ### 4.4 Noise autocorrelation sweep (completed — APPENDIX, not main text)
 

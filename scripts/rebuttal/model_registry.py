@@ -63,6 +63,31 @@ ALL_MODELS = {
         "type": "videomae",
         "group": "pt50",
     },
+    # --- e100 init-matched comparison (NeurIPS primary) ---
+    "JEPA-IN21K-e100": {
+        "checkpoint": "checkpoints/jepa_in21k_vitl_e100.pt",
+        "model_name": "vit_large",
+        "checkpoint_key": "target_encoder",
+        "kwargs": {"uniform_power": True, "use_rope": True},
+        "type": "vjepa",
+        "group": "e100",
+    },
+    "BYOL-L-e100": {
+        "checkpoint": "checkpoints/byol_vitl_imagenet_v2_e100.pt",
+        "model_name": "vit_large",
+        "checkpoint_key": "target_encoder",
+        "kwargs": {"uniform_power": True, "use_rope": True},
+        "type": "vjepa",
+        "group": "e100",
+    },
+    "MAE-L-e99": {
+        "checkpoint": "checkpoints/videomae_l_mimic_ep99.pth",
+        "model_name": None,
+        "checkpoint_key": None,
+        "kwargs": {},
+        "type": "videomae",
+        "group": "e100",
+    },
     # --- System-level baselines ---
     "EchoPrime": {
         "checkpoint": "checkpoints/echo_prime_encoder.pt",
@@ -87,6 +112,7 @@ MODEL_GROUPS = {
     "fully-trained": ["JEPA-G", "JEPA-L", "MAE-L"],
     "pt50": ["JEPA-L-pt50", "BYOL-L-pt50", "MAE-L-pt50"],
     "controlled": ["JEPA-L-pt50", "BYOL-L-pt50", "MAE-L-pt50"],  # alias
+    "e100": ["JEPA-IN21K-e100", "BYOL-L-e100", "MAE-L-e99"],
     "all-5": ["JEPA-G", "JEPA-L", "MAE-L", "EchoPrime", "PanEcho"],
     "baselines": ["EchoPrime", "PanEcho"],
 }
