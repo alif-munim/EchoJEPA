@@ -65,7 +65,7 @@ ALL_MODELS = {
     },
     # --- e100 init-matched comparison (NeurIPS primary) ---
     "JEPA-IN21K-e100": {
-        "checkpoint": "checkpoints/jepa_in21k_vitl_e100.pt",
+        "checkpoint": "checkpoints/jepa_in21k_vitl_e95.pt",
         "model_name": "vit_large",
         "checkpoint_key": "target_encoder",
         "kwargs": {"uniform_power": True, "use_rope": True},
@@ -87,6 +87,23 @@ ALL_MODELS = {
         "kwargs": {},
         "type": "videomae",
         "group": "e100",
+    },
+    # --- SALT (frozen teacher) ---
+    "SALT-S2v1-e79": {
+        "checkpoint": "checkpoints/pretrain/mimic/salt_s2v1_e79.pt",
+        "model_name": "vit_large",
+        "checkpoint_key": "encoder",
+        "kwargs": {"uniform_power": True, "use_rope": True},
+        "type": "vjepa",
+        "group": "salt",
+    },
+    "SALT-S2v3-e79": {
+        "checkpoint": "checkpoints/pretrain/mimic/salt_s2_vitl_224px_16f/latest.pt",
+        "model_name": "vit_large",
+        "checkpoint_key": "encoder",
+        "kwargs": {"uniform_power": True, "use_rope": True},
+        "type": "vjepa",
+        "group": "salt",
     },
     # --- System-level baselines ---
     "EchoPrime": {
@@ -114,6 +131,7 @@ MODEL_GROUPS = {
     "controlled": ["JEPA-L-pt50", "BYOL-L-pt50", "MAE-L-pt50"],  # alias
     "e100": ["JEPA-IN21K-e100", "BYOL-L-e100", "MAE-L-e99"],
     "all-5": ["JEPA-G", "JEPA-L", "MAE-L", "EchoPrime", "PanEcho"],
+    "salt": ["SALT-S2v1-e79", "SALT-S2v3-e79"],
     "baselines": ["EchoPrime", "PanEcho"],
 }
 
