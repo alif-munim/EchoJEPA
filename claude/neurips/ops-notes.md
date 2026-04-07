@@ -65,7 +65,7 @@ The initial SALT S1+S2 runs (jobs 379, 388, 391, 392) had several hyperparameter
 
 | Parameter | SALT Paper | Our Initial Config | Fixed Config | Impact |
 |-----------|-----------|-------------------|-------------|--------|
-| **S2 Loss** | L2/MSE (V-JEPA objective) | L1 (`loss_exp: 1.0`) | L2 (`loss_exp: 2.0`) | Different optimization landscape |
+| **S2 Loss** | L1 (SALT paper Eq 2.1: \|\|...\|\|_1) | L1 (`loss_exp: 1.0`) | L1 (`loss_exp: 1.0`) | Was incorrectly changed to 2.0, now reverted |
 | **Peak LR** | 0.000625 | 1.75e-4 | 6.25e-4 | 3.6× too low → undertrained |
 | **Start LR** | 0.0002 | 3.33e-5 | 2.0e-4 | 6× too low |
 | **Final LR** | 1e-6 (cosine decay) | 1.75e-4 (constant) | 1e-6 | No LR decay → never fine-tunes |
@@ -75,12 +75,22 @@ The initial SALT S1+S2 runs (jobs 379, 388, 391, 392) had several hyperparameter
 | **Resize aspect** | [0.75, 1.35] | [0.9, 1.1] | [0.75, 1.35] | Less aspect variation |
 | **Batch size** | 3072 | 512 (64×8) | 512 (GPU-limited) | 6× smaller — cannot fix without more GPUs |
 
-**Files fixed:**
+**Files fixed (round 1, 2026-04-06):**
 - `app/salt/train.py`: `loss_exp` default changed from 1.0 to 2.0
 - `configs/train/vitl16/pretrain-salt-s1-mimic-224px-16f-hp.yaml`: LR, WD, ipe_scale, augmentation
 - `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f-hp.yaml`: LR, WD, ipe_scale, augmentation, loss_exp
 
-**Implication:** SALT results from jobs 379/388/391/392 may be artificially weak due to these mismatches. The frozen teacher ceiling finding (loss plateau, weight convergence) may still be real, but the absolute performance gap vs JEPA/BYOL/MAE is partly attributable to misconfiguration. A retrain with fixed configs is needed before drawing final conclusions.
+**Files fixed (round 2, 2026-04-07, after full paper audit):**
+- `app/salt/train.py`: `loss_exp` default reverted to 1.0 (SALT paper uses L1, not L2 — the round 1 "fix" was wrong)
+- `app/salt/train.py`: Stage 2 teacher/student forward mode changed to single-level (`training_mode=False`) unless `n_output_distillation` is explicitly set. SALT paper uses standard V-JEPA embeddings, NOT V-JEPA 2.1 hierarchical output.
+- `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f-hp.yaml`: `loss_exp` reverted to 1.0, `pred_num_heads` fixed from 12 to 16
+
+**Additional discrepancies found in round 2 audit (not yet fixed in configs):**
+- Warmup: 12,000 steps (40 epochs × 300 ipe) vs paper's 10,000. Should reduce to ~33 epochs.
+- LR not scaled for batch size: using paper's 6.25e-4 with 512 batch (paper uses 3072). Should scale down by sqrt(512/3072) ≈ 0.41 → lr ≈ 2.6e-4.
+- ImageNet-21K init for S1 teacher: deliberate for controlled comparison, but deviates from paper (trains from scratch).
+
+**Implication:** SALT results from jobs 379/388/391/392 had MULTIPLE misconfigurations (hierarchical output, wrong loss direction, wrong num_heads, wrong LR/WD, wrong ipe_scale). A retrain with fully corrected configs is needed before drawing any conclusions about SALT's performance.
 
 ## Probe result extraction
 

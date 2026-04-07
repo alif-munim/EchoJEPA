@@ -187,7 +187,7 @@ def main(args, resume_preempt=False):
 
     # -- LOSS
     cfgs_loss = args.get("loss", {})
-    loss_exp = cfgs_loss.get("loss_exp", 2.0)  # Default to L2/MSE (matches V-JEPA objective)
+    loss_exp = cfgs_loss.get("loss_exp", 1.0)  # Default to L1 (SALT paper Eq 2.1 uses ||...||_1; V-JEPA also uses L1)
 
     # -- OPTIMIZATION
     cfgs_opt = args.get("optimization")
@@ -596,21 +596,26 @@ def main(args, resume_preempt=False):
                             #  Stage 2: Frozen-teacher latent prediction
                             # ============================================
 
-                            # Frozen teacher: FULL unmasked forward (hierarchical)
+                            # Frozen teacher: FULL unmasked forward
+                            # SALT paper uses single-level output (training_mode=False).
+                            # V-JEPA 2.1 hierarchical output (training_mode=True) is NOT
+                            # part of the SALT recipe. Use training_mode=True only if
+                            # n_output_distillation is explicitly set in config.
+                            use_hier = n_output_distillation is not None
                             with torch.no_grad():
-                                h = teacher_encoder(clips, training_mode=True)
-                                # h: list of [B, N_total, 4*teacher_embed_dim]
-                                h = [normalize_and_concat(hi, teacher_embed_dim) for hi in h]
+                                h = teacher_encoder(clips, training_mode=use_hier)
+                                if use_hier:
+                                    h = [normalize_and_concat(hi, teacher_embed_dim) for hi in h]
 
-                            # Student encoder: visible patches only (hierarchical)
-                            z = encoder(clips, masks_enc, training_mode=True)
+                            # Student encoder: visible patches only
+                            z = encoder(clips, masks_enc, training_mode=use_hier)
 
                             # Predictor: predict teacher latents at masked positions
                             z_pred, _ = predictor(z, masks_enc, masks_pred)
 
-                            # MSE loss on masked patch predictions (matches V-JEPA objective)
-                            # SALT paper: "The JEPA objective is used to optimize the student"
-                            # V-JEPA uses L2/MSE. loss_exp=2 → MSE, loss_exp=1 → L1.
+                            # Loss on masked patch predictions
+                            # SALT paper Eq 2.1: ||...||_1 (L1). V-JEPA also uses L1.
+                            # loss_exp=1 → L1 (default, matches paper), loss_exp=2 → L2.
                             loss, n = 0, 0
                             for fpc_idx, (zp_fpc, h_fpc, mp_fpc) in enumerate(
                                 zip(z_pred, h, masks_pred)

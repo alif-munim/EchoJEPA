@@ -32,7 +32,7 @@ data_aug:
   reprob: 0.0
 
 loss:
-  loss_exp: 2.0                     # L2/MSE loss (matches V-JEPA objective per SALT paper; was 1.0/L1)
+  loss_exp: 1.0                     # L1 loss (SALT paper Eq 2.1: ||...||_1; V-JEPA also uses L1)
 
 mask:
   - aspect_ratio: [0.75, 1.5]
@@ -66,7 +66,7 @@ model:
   teacher_checkpoint: /opt/dlami/nvme/checkpoints/pretrain/mimic/salt_s1_vitl_224px_16f/latest.pt
   pred_depth: 12
   pred_embed_dim: 384
-  pred_num_heads: 12
+  pred_num_heads: 16                # SALT paper Table A.2: 16 heads for all predictor sizes (was 12)
   use_mask_tokens: true
   num_mask_tokens: 10
   zero_init_mask_tokens: true
