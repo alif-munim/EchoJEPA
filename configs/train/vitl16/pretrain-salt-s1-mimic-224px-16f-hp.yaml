@@ -72,9 +72,9 @@ optimization:
   epochs: 20                       # S1=20 + S2=80 = 100 total (~1:4 split per SALT paper findings)
   ipe: 300
   ipe_scale: 1.0                   # SALT paper: 1.0 (no virtual early stopping; was 1.25)
-  warmup: 40
-  start_lr: 2.0e-4                 # SALT paper: 0.0002 (was 3.33e-5)
-  lr: 6.25e-4                      # SALT paper: 0.000625 (was 1.75e-4)
+  warmup: 33                        # SALT paper: 10K steps → 10000/300ipe = 33ep (was 40ep = 12K steps)
+  start_lr: 8.2e-5                 # SALT paper: 2e-4, scaled by sqrt(512/3072)=0.408 for batch 512
+  lr: 2.55e-4                      # SALT paper: 6.25e-4, scaled by sqrt(512/3072)=0.408 for batch 512
   final_lr: 1.0e-6                 # SALT paper: 1e-6 cosine decay (was 1.75e-4 constant)
   weight_decay: 0.04
   final_weight_decay: 0.4          # SALT paper: 0.04→0.4 cosine ramp (was 0.04 constant)
