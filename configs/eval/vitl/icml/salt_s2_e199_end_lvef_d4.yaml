@@ -11,7 +11,7 @@ tasks_per_node: 8
 num_workers: 8
 
 eval_name: video_classification_frozen
-resume_checkpoint: true
+resume_checkpoint: false
 tag: icml-salt-s2-e199-end-lvef-d4
 
 experiment:
