@@ -41,6 +41,10 @@
 - [x] Init confound discovered and documented (JEPA pt50 = fully-trained 235ep init)
 - [x] EchoBench static perturbation framing issue documented
 - [x] SALT implementation fully audited against paper — all fixes applied to configs
+- [x] Noise autocorrelation sweep completed — hypothesis not supported (static noise worst, not iid). Demoted to appendix.
+- [x] CAMUS segmentation probes at e100: MAE 0.827, BYOL 0.825, JEPA 0.815 (ranking inversion confirmed)
+- [x] EchoBench LVEF at e100: JEPA −20%, BYOL −22%, MAE −51% (MAE collapses on functional tasks)
+- [x] EchoBench CAMUS at e100: JEPA −10%, MAE −13%, BYOL −29% (JEPA most robust on both tasks)
 
 ---
 
@@ -50,10 +54,10 @@
 
 | # | Experiment | Why | Compute | Depends On |
 |---|-----------|-----|---------|-----------|
-| 1 | **Noise autocorrelation sweep** | Causal proof — sweep noise temporal correlation from static to iid. The unique NeurIPS contribution. | ~2 days on A100s | Existing END LVEF probes (done) |
-| 2 | **5-task probes for JEPA IN21K e100** | Primary comparison table needs UHN LVEF, RVSP, CAMUS segmentation, Pediatric — not just END LVEF | ~2 days on 8 GPUs or HyperPod | JEPA IN21K e100 checkpoint (done) |
-| 3 | **5-task probes for BYOL e100 + MAE e99** | Complete the init-matched 3-way comparison across all tasks | ~2 days on 8 GPUs or HyperPod | Existing checkpoints (done) |
-| 4 | **EchoBench at e100** | §5 noise robustness needs init-matched results (current results use wrong JEPA init) | ~4 hrs on A100s | e100 END LVEF probes (done) |
+| ~~1~~ | ~~Noise autocorrelation sweep~~ | ~~Causal proof~~ | — | **DONE** — hypothesis not supported. Static noise worst. Demoted to appendix. |
+| 2 | **5-task probes for JEPA IN21K e100** | Primary comparison table needs UHN LVEF, RVSP, Pediatric (CAMUS + END LVEF done) | ~1-2 days on HyperPod | JEPA IN21K e100 checkpoint (done) |
+| 3 | **5-task probes for BYOL e100 + MAE e99** | Complete the 3-way on UHN LVEF, RVSP, Pediatric | ~1-2 days on HyperPod | Existing checkpoints (done) |
+| ~~4~~ | ~~EchoBench at e100~~ | — | — | **DONE** — JEPA most robust on both LVEF (−20%) and CAMUS (−10%). |
 
 ### P1 — Strengthens paper (week 2-3)
 
@@ -85,13 +89,13 @@
 |---------|------------|----------------|
 | **§1 Intro** | Framing complete | Writing |
 | **§2 Design** | 3-way comparison defined, init-matched | Writing |
-| **§3 Core finding** | END LVEF probes at e100 for all 3 models | **UHN LVEF, RVSP, CAMUS, Pediatric probes** (P0 #2-3) |
+| **§3 Core finding** | END LVEF + CAMUS at e100 for all 3 models. Ranking inversion confirmed. | **UHN LVEF, RVSP, Pediatric probes** (P0 #2-3) |
 | **§4.1 6-condition** | Complete (12 models × 6 conditions) | Writing + Fig 2a |
 | **§4.2 Severity gradient** | Complete (13 models × 5 fractions) | Writing + Fig 2b,c |
 | **§4.3 Speckle probing** | Done on pt50 models (ICML rebuttal) | **Re-run on e100 init-matched models** (P1 #7) |
-| **§4.4 Autocorrelation sweep** | Not started | **Implementation + run** (P0 #1) |
+| **§4.4 Autocorrelation sweep** | **DONE** — hypothesis not supported. Appendix result. | — |
 | **§4.5 SALT** | Invalidated | **Retrain** (P1 #5) |
-| **§5 EchoBench** | Done on pt50 models (ICML rebuttal) | **Re-run on e100 init-matched models** (P0 #4) |
+| **§5 EchoBench** | **DONE** — LVEF + CAMUS at e100 init-matched. JEPA most robust on both. | Writing + figures |
 | **§6 Discussion** | Framing complete | Writing |
 | **Appendix** | Training dynamics, frame shuffling tables | Fetal US (P1 #6), figures |
 

@@ -162,11 +162,27 @@ JEPA encodes 23% less speckle (partial R²=0.674 vs 0.875). Monotonic: JEPA < BY
 
 **⚠️ FRAMING:** All perturbations are **spatially static** (same corruption map every frame — code: `echo_perturbations.py`, all maps broadcast via `unsqueeze(0).unsqueeze(0)`). EchoBench tests **clinical image quality degradation**, NOT frame-varying speckle. Include one sentence: "These perturbations are spatially static, simulating fixed clinical artifacts. The frame-varying component of ultrasound noise (speckle) is addressed by the representation-level analysis in §4."
 
-**LVEF robustness table.** JEPA -19% avg, MAE -37%, BYOL -40%.
+**LVEF robustness (init-matched e100, EchoNet-Dynamic):**
 
-**Segmentation robustness table.** Rankings invert: MAE most robust (-8%), JEPA -10%, BYOL -25%.
+| | Clean R² | Avg severe drop |
+|---|---------|----------------|
+| JEPA IN21K e100 | **0.591** | **−20%** |
+| BYOL e100 | 0.468 | −22% |
+| MAE e99 | 0.445 | **−51%** |
 
-**Key insight:** Clean performance fails to predict robustness. All three converge on clean CAMUS (<1pp); under severe perturbation, 32pp gap emerges.
+MAE collapses under depth attenuation (R²=0.090) and haze (0.162).
+
+**Segmentation robustness (init-matched e100, CAMUS):**
+
+| | Clean Dice | Avg severe drop |
+|---|-----------|----------------|
+| MAE e99 | **0.827** | −13% |
+| JEPA IN21K e100 | 0.815 | **−10%** |
+| BYOL e100 | 0.825 | −29% |
+
+**Key insight:** Clean ranking inverts (MAE leads segmentation, JEPA leads LVEF) but robustness ranking does NOT — JEPA is most robust on BOTH tasks. Clean performance fails to predict robustness. BYOL is consistently the most fragile under perturbation.
+
+**Connection to §4:** MAE's increasing fragility on LVEF with more training (pt50: −37% → e99: −51%) is consistent with MAE converging to purely spatial representations — more training makes MAE better on clean spatial tasks but more brittle on noisy functional tasks.
 
 ---
 
