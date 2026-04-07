@@ -36,13 +36,19 @@ Target: 9 pages main text + references + appendix. Representation Learning / SSL
 
 ## Section 3: The Prediction Target Determines What Is Encoded (~1.5 pages)
 
-**Core finding table:** 3-way (or 4-way if SALT included) comparison across all 5 tasks. JEPA leads functional tasks; MAE leads spatial tasks. Rankings invert.
+**Core finding table (init-matched e100, 2026-04-07):**
 
-**Cross-dataset amplification:** JEPA's advantage grows from +2.5pp R² in-distribution (UHN) → +12.6pp cross-dataset (EchoNet-Dynamic) → +10.3pp cross-population (Pediatric zero-shot).
+| Task | Type | JEPA IN21K e100 | BYOL e100 | MAE e99 |
+|------|------|-----------------|-----------|---------|
+| END LVEF | Functional (R²) | **0.591** | 0.468 | 0.445 |
+| Pediatric ZS | Functional (Pearson) | **0.670** | 0.500 | 0.617 |
+| CAMUS seg | Spatial (Dice) | 0.815 | 0.825 | **0.827** |
 
-**Clinical impact:** Pathology-stratified analysis. JEPA advantage 8× larger on reduced EF (<40%).
+Ranking inversion confirmed: JEPA leads functional, MAE leads spatial. Still need: UHN LVEF, RVSP (HyperPod).
 
-**Statistical validation:** Bootstrap CIs for all pairwise comparisons. All significant.
+**Cross-dataset amplification:** JEPA's advantage grows with distribution shift — strongest on cross-population pediatric zero-shot (+0.053 Pearson over MAE).
+
+**Statistical validation:** Bootstrap CIs needed for init-matched results (rerun from ICML rebuttal).
 
 ---
 
@@ -52,7 +58,7 @@ Target: 9 pages main text + references + appendix. Representation Learning / SSL
 
 ### 4.1 Frame shuffling: 6-condition (Figure 2a)
 
-6 temporal disruption conditions with increasing severity. JEPA IN21K results complete; BYOL/MAE running.
+6 temporal disruption conditions with increasing severity. All 12 models complete (JEPA/BYOL/MAE × 4 epochs).
 
 **JEPA IN21K at e100 (init-matched):**
 
@@ -80,7 +86,20 @@ Monotonic gradient confirmed: clean ≈ tubelet ≈ matched > reverse > shuffle 
 
 The consolidation pattern (§4.2) holds across all 6 conditions: e50 shows the largest drop (clean→matched_frame: −46%), e100 the smallest (−19%).
 
-**Figure 2a recommendation:** Bar chart of R² across 6 conditions for JEPA e100 / BYOL e100 / MAE e99. Shows monotonic gradient + cross-model differences at a glance.
+**Cross-model comparison at convergence (6-condition):**
+
+| Condition | JEPA e100 | BYOL e100 | MAE e99 |
+|-----------|-----------|-----------|---------|
+| clean | **0.591** | 0.468 | 0.445 |
+| tubelet | **0.582** | 0.402 | 0.424 |
+| reverse | **0.539** | 0.373 | 0.431 |
+| matched | **0.580** | 0.415 | 0.419 |
+| shuffle | **0.484** | 0.291 | 0.422 |
+| matched_frame | **0.477** | 0.280 | 0.449 |
+
+Three distinct profiles: JEPA gentle slope, BYOL steep slope, MAE flat. JEPA matched_frame (0.477) > BYOL clean (0.468).
+
+**Figure 2a:** Bar chart of this table.
 
 ### 4.2 Severity gradient × training dynamics (Figure 2b,c — KEY RESULT)
 
@@ -123,15 +142,23 @@ Two orthogonal axes: the 6-condition experiment varies the *type* of temporal di
 - **Fig 2c (appendix or main):** Degradation % vs epoch — training dynamics showing MAE transient + JEPA consolidation
 - **Appendix:** Full 13-model × 5-fraction and 12-model × 6-condition tables
 
-### 4.3 Speckle probing
+### 4.3 Effective dimensionality (NEW — replaces speckle probing as main mechanistic evidence)
 
-**pt50 result (ICML rebuttal):** JEPA 0.674 < BYOL 0.775 < MAE 0.875. Monotonic — JEPA encodes least speckle.
+| Model | Effective Dim (d_eff) | Usage of 1024-dim space |
+|-------|-----------------------|------------------------|
+| BYOL e100 | 209 | 20% |
+| JEPA IN21K e100 | 197 | 19% |
+| MAE e99 | **63** | **6%** |
 
-**e100 init-matched result (2026-04-07):** BYOL 0.716 < JEPA 0.848 < MAE 0.885. **Ordering changed** — BYOL now encodes least speckle, JEPA is in the middle. The pt50 result was confounded by JEPA's unfair 235ep init (already heavily refined representations).
+**Key finding:** MAE representations occupy a **3× lower-dimensional subspace** than JEPA/BYOL. Pixel reconstruction produces redundant features; latent prediction encourages diversity. This directly explains MAE's functional task weakness — limited effective capacity for encoding complex temporal/functional information.
 
-**Revised interpretation:** MAE consistently encodes the most speckle across both comparisons. BYOL encodes the least at e100 (which is surprising — may relate to BYOL's global pooling discarding fine-grained spatial noise). JEPA is intermediate. The clean "JEPA filters noise" narrative doesn't hold with init-matched models — the advantage is more nuanced.
+**For the paper:** "We compute the effective dimensionality of each model's representations (exponential of the spectral entropy; Garrido et al., 2023). MAE representations occupy a 3× lower-dimensional subspace (d_eff=63) than JEPA (197) or BYOL (209), indicating that pixel reconstruction produces highly redundant features while latent prediction encourages representational diversity."
 
-**For the paper:** Report the e100 numbers. The JEPA < BYOL < MAE monotonic ordering was an artifact of the init confound. The honest result is: MAE retains the most noise, BYOL the least, JEPA intermediate. Combined with EchoBench (JEPA most robust), this suggests JEPA's robustness comes from representation quality, not just noise filtering.
+### 4.3b Speckle probing + temporal consistency (appendix)
+
+**Demoted to appendix.** Init-matched results (BYOL 0.716 < JEPA 0.848 < MAE 0.885) do not support the "JEPA filters noise" narrative from the ICML rebuttal (which was an init confound). Temporal consistency also doesn't support it (BYOL 0.976 > JEPA 0.954 ≈ MAE 0.950). See `experiments/representation-analysis.md` for full results including layer-wise and token-level probing.
+
+**Honest framing:** "MAE retains the most high-frequency texture information, BYOL the least. The modest difference between JEPA and MAE (0.848 vs 0.885) suggests that noise filtering is a contributing but not primary factor in JEPA's advantage."
 
 ### 4.4 Noise autocorrelation sweep (completed — APPENDIX, not main text)
 
@@ -186,9 +213,20 @@ MAE collapses under depth attenuation (R²=0.090) and haze (0.162).
 | JEPA IN21K e100 | 0.815 | **−10%** |
 | BYOL e100 | 0.825 | −29% |
 
-**Key insight:** Clean ranking inverts (MAE leads segmentation, JEPA leads LVEF) but robustness ranking does NOT — JEPA is most robust on BOTH tasks. Clean performance fails to predict robustness. BYOL is consistently the most fragile under perturbation.
+**Pediatric zero-shot robustness (EchoBench, 368 videos):**
 
-**Connection to §4:** MAE's increasing fragility on LVEF with more training (pt50: −37% → e99: −51%) is consistent with MAE converging to purely spatial representations — more training makes MAE better on clean spatial tasks but more brittle on noisy functional tasks.
+| | Clean Pearson | Avg severe Pearson drop |
+|---|-------------|------------------------|
+| JEPA IN21K e100 | **0.670** | **−9%** |
+| MAE e99 | 0.617 | −8% |
+| BYOL e100 | 0.500 | −19% |
+
+**Key insights:**
+1. Clean ranking inverts (MAE leads segmentation, JEPA leads LVEF/Pediatric) but robustness ranking does NOT — JEPA is most robust on LVEF and CAMUS, competitive on Pediatric. Clean performance fails to predict robustness.
+2. BYOL is consistently the most fragile under perturbation across all 3 tasks (−22%, −29%, −19%).
+3. MAE's fragility is task-specific: collapses on LVEF (−51%) but robust on CAMUS (−13%) and Pediatric (−8%). Consistent with spatial representations being noise-tolerant for spatial tasks but brittle for functional tasks.
+
+**Connection to §4:** MAE's low effective dimensionality (d_eff=63 vs JEPA's 197) explains its selective fragility — redundant pixel-level features provide robustness for spatial tasks but insufficient diversity for functional tasks under noise.
 
 ---
 

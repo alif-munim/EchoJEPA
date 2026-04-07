@@ -48,7 +48,12 @@
 - [x] Pediatric zero-shot at e100: JEPA Pearson=0.670, MAE 0.617, BYOL 0.500 (JEPA leads transfer)
 - [x] Pediatric EchoBench at e100: JEPA −9%, MAE −8%, BYOL −19%
 - [x] Speckle probing at e100: BYOL 0.716 < JEPA 0.848 < MAE 0.885 (ordering CHANGED from pt50 — init confound)
+- [x] Layer-wise speckle probing: BYOL filters most across depth (−31%), MAE retains most (−4%)
+- [x] Token-level speckle probing: MAE 0.941 > JEPA 0.926 > BYOL 0.891
+- [x] Temporal consistency: BYOL 0.976 > JEPA 0.954 > MAE 0.950 (JEPA filtering hypothesis NOT supported)
+- [x] Effective dimensionality: BYOL 209, JEPA 197, MAE 63 (MAE 3× lower — key mechanistic finding)
 - [x] Model registry updated with e100 models (JEPA-IN21K-e100, BYOL-L-e100, MAE-L-e99)
+- [x] VideoMAE token extraction fixed (hook on model.norm for pre-pooled tokens)
 
 ---
 
@@ -96,7 +101,7 @@
 | **§3 Core finding** | END LVEF + CAMUS + Pediatric ZS at e100. Ranking inversion confirmed (JEPA leads functional, MAE leads spatial). | **UHN LVEF, RVSP** (P0 #2-3, HyperPod) |
 | **§4.1 6-condition** | Complete (12 models × 6 conditions) | Writing + Fig 2a |
 | **§4.2 Severity gradient** | Complete (13 models × 5 fractions) | Writing + Fig 2b,c |
-| **§4.3 Speckle probing** | **DONE** at e100. Ordering changed: BYOL < JEPA < MAE (was JEPA < BYOL < MAE at pt50). Init confound. | Revise narrative |
+| **§4.3 Effective dim + speckle** | **DONE.** d_eff: MAE 63, JEPA 197, BYOL 209. Speckle probing demoted to appendix. Temporal consistency done. | Writing |
 | **§4.4 Autocorrelation sweep** | **DONE** — hypothesis not supported. Appendix result. | — |
 | **§4.5 SALT** | Invalidated | **Retrain** (P1 #5) |
 | **§5 EchoBench** | **DONE** — LVEF + CAMUS at e100 init-matched. JEPA most robust on both. | Writing + figures |
