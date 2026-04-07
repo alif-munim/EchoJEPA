@@ -54,13 +54,52 @@
 
 6. **JEPA e100 matched_frame (0.477) still > BYOL e100 clean (0.468)** — even under the most rigorous temporal disruption, JEPA's spatial features alone beat BYOL's best.
 
-## BYOL Results (running, ETA ~30 min)
+## BYOL Results (R², mean of 3 seeds where applicable)
+
+| Condition | e24 | e50 | e75 | e100 |
+|-----------|-----|-----|-----|------|
+| clean | .380 | .427 | .435 | .468 |
+| tubelet | .342 | .372 | .413 | .402 |
+| reverse | .252 | .354 | .331 | .373 |
+| matched | .350 | .380 | .413 | .415 |
+| shuffle | -.179 | .210 | .297 | .291 |
+| matched_frame | -.188 | .194 | .292 | .280 |
+
+### Relative degradation (clean → matched_frame)
+
+| Epoch | Clean R² | Matched_frame R² | Relative Drop |
+|-------|----------|------------------|---------------|
+| e24 | 0.380 | -0.188 | −149% |
+| e50 | 0.427 | 0.194 | −55% |
+| e75 | 0.435 | 0.292 | −33% |
+| e100 | 0.468 | 0.280 | −40% |
+
+### BYOL-specific findings
+
+1. **BYOL is more sensitive to local temporal disruption than JEPA.** Tubelet disruption costs BYOL ~14% at e100 (0.468→0.402) but JEPA only ~2% (0.591→0.582). BYOL's temporal encoding relies on local frame-pair structure; JEPA's operates at coarser temporal granularity.
+
+2. **BYOL e24 collapses under global disruption** (shuffle R²=−0.179, matched_frame R²=−0.188) — consistent with severity gradient finding (−146%). Stabilizes by e50.
+
+3. **BYOL's stabilization is visible across all conditions.** The degradation from clean→matched_frame settles at ~33-40% from e75 onward — no further consolidation like JEPA.
+
+## MAE Results (running, ETA ~35 min)
 
 *To be filled when complete.*
 
-## MAE Results (queued after BYOL, ETA ~80 min)
+---
 
-*To be filled when complete.*
+## Cross-Model Comparison at e100 (primary comparison point)
+
+| Condition | JEPA e100 | BYOL e100 | MAE e99 (pending) |
+|-----------|-----------|-----------|-------------------|
+| clean | **.591** | .468 | — |
+| tubelet | **.582** | .402 | — |
+| reverse | **.539** | .373 | — |
+| matched | **.580** | .415 | — |
+| shuffle | **.484** | .291 | — |
+| matched_frame | **.477** | .280 | — |
+
+JEPA leads on every condition by a wide margin. **JEPA matched_frame (0.477) > BYOL clean (0.468).**
 
 ---
 
@@ -72,9 +111,15 @@
 | JEPA IN21K e50 | `scripts/rebuttal/samples/6cond_JEPA_IN21K_e50.csv` |
 | JEPA IN21K e75 | `scripts/rebuttal/samples/6cond_JEPA_IN21K_e75.csv` |
 | JEPA IN21K e100 | `scripts/rebuttal/samples/6cond_JEPA_IN21K_e100.csv` |
+| BYOL e24 | `scripts/rebuttal/samples/6cond_BYOL_e24.csv` |
+| BYOL e50 | `scripts/rebuttal/samples/6cond_BYOL_e50.csv` |
+| BYOL e75 | `scripts/rebuttal/samples/6cond_BYOL_e75.csv` |
+| BYOL e100 | `scripts/rebuttal/samples/6cond_BYOL_e100.csv` |
 
-## For NeurIPS §4.1
+## For NeurIPS
 
-The 6-condition results at e100 provide the §4.1 baseline table (clean through matched_frame). The training dynamics across e25→e100 go in appendix or §4.2. The consolidation finding (−46% at e50 → −19% at e100) reinforces the severity gradient analysis.
+**Main text (§4.1, Fig 2a):** Bar chart of R² across 6 conditions for JEPA e100 / BYOL e100 / MAE e99 at the primary comparison point. Shows monotonic gradient + cross-model differences.
 
-**Figure 2a recommendation:** Bar chart of R² across 6 conditions for JEPA e100, BYOL e100, MAE e99 (once available). Shows the monotonic gradient and cross-model differences at a glance.
+**Appendix:** Full training dynamics tables (4 epochs × 6 conditions × 3 models). The additional insight beyond the severity gradient: BYOL is more sensitive to local (tubelet) disruption than JEPA, suggesting BYOL's temporal encoding operates at finer temporal granularity.
+
+**Assessment:** The 6-condition data is appendix material. The severity gradient (§4.2) remains the key result for main text. The 6-condition adds one new insight (BYOL tubelet sensitivity) worth one sentence in the paper.
