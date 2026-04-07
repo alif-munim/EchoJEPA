@@ -1,58 +1,135 @@
 # Speckle Probing (Information Probing)
 
-**Date:** 2026-03-31
-**Status:** Complete.
-**NeurIPS section:** §4 (Mechanistic Evidence)
+**Date:** 2026-03-31 (initial), revised 2026-04-07
+**Status:** Complete. **The original ICML rebuttal interpretation has been retracted** — see "Retraction" section.
+**NeurIPS section:** §4 (Mechanistic Evidence) — but as a *non-load-bearing* result, not a primary mechanism.
 
 ---
 
-## Overview
+## ⚠️ Retraction Notice (2026-04-07)
 
-Linear probes trained to predict ultrasound acquisition properties (speckle energy, mean intensity, texture variance) from frozen encoder embeddings. Measures how much stochastic noise each SSL objective retains in its representations. Partial R² controlling for intensity confound isolates texture-specific (speckle) information.
+The ICML rebuttal claim that **"JEPA encodes 23% less speckle than MAE"** was based on a confounded comparison:
 
-## Setup
+- **JEPA-L pt50** in the ICML rebuttal = a 235-epoch fully-trained checkpoint mislabeled as "pt50". It had 4.7× more pretraining than the BYOL/MAE pt50 baselines.
+- **BYOL-L pt50** = 50 epochs of training, IN21K init.
+- **MAE-L pt50** = 50 epochs of training, IN21K init.
 
-**Data:** EchoNet-Dynamic training set, 2,554 clips
-**Features:** Mean-pooled frozen embeddings (1024-dim for all ViT-L models)
-**Probing:** Ridge regression, 5-fold cross-validation
-**Speckle measure:** Mean high-frequency power (FFT magnitude above Nyquist/2)
-**Confound control:** Partial R² after conditioning on mean intensity (speckle-intensity correlation r=0.530)
+When init-matched at e100 (all three models with the same IN21K initialization and ~100 epochs of training):
 
-| Model | Encoder Checkpoint |
-|-------|-------------------|
-| JEPA-L pt50 | `checkpoints/echojepa-l-pt50.pt` |
-| BYOL-L pt50 | `checkpoints/byol_vitl_imagenet_v2_e50.pt` |
-| MAE-L pt50 | `checkpoints/videomae_l_mimic_ep50.pth` |
+| Comparison | JEPA | BYOL | MAE | JEPA−MAE gap |
+|---|---|---|---|---|
+| ICML rebuttal pt50 (confounded) | 0.674 | 0.775 | 0.875 | **−0.201 (−23%)** |
+| **e100 init-matched (canonical)** | **0.848** | **0.716** | **0.885** | **−0.037 (−4%)** |
 
-## Results
+**Two things changed:**
+1. The gap shrank from −23% to −4% (essentially nothing).
+2. **The ranking changed**: under init-matching, BYOL is the *best* speckle filter, not JEPA.
 
-### Nuisance Variable Probing (R²)
+The "JEPA filters speckle via EMA target averaging" narrative is **not supported by init-matched data**. Do not cite the 0.674/0.875 numbers in any current document.
 
-| Variable | JEPA | BYOL | MAE |
-|----------|------|------|-----|
+---
+
+## Canonical Results (e100, init-matched)
+
+**Models:** All three are ViT-L, IN21K-initialized, trained on MIMIC-IV-Echo for ~100 epochs. JEPA = JEPA-IN21K e100, BYOL = BYOL e100, MAE = MAE e99.
+
+### Mean-pooled features, partial R² (speckle | intensity)
+
+| Model | Speckle Partial R² |
+|-------|--------------------|
+| MAE e99 | **0.885** |
+| JEPA IN21K e100 | 0.848 |
+| BYOL e100 | **0.716** |
+
+### Layer-wise speckle probing (depth profile)
+
+| Layer | JEPA | BYOL | MAE |
+|-------|------|------|-----|
+| 1 | 0.838 | 0.889 | 0.840 |
+| 6 | 0.790 | 0.885 | 0.884 |
+| 12 | 0.784 | 0.754 | 0.849 |
+| 18 | 0.766 | 0.613 | 0.813 |
+| 24 | 0.759 | 0.617 | 0.808 |
+| **Δ depth** | **−9%** | **−31%** | **−4%** |
+
+BYOL filters most aggressively across depth (the global contrastive objective drives progressive abstraction). JEPA filters modestly. MAE retains pixel-level detail throughout.
+
+### Token-level speckle probing
+
+Per-patch prediction from individual spatial token embeddings to local 16×16 speckle energy:
+
+| Model | Token Speckle R² |
+|-------|-----------------|
+| MAE e99 | **0.941** |
+| JEPA IN21K e100 | 0.926 |
+| BYOL e100 | 0.891 |
+
+Same ordering as mean-pooled.
+
+---
+
+## Caveats with the Speckle Metric Itself
+
+(Identified during 2026-04-07 web session analysis)
+
+1. **High-frequency power conflates speckle with anatomy.** The metric is "mean FFT magnitude above Nyquist/2", which captures both stochastic noise (speckle) AND deterministic fine-scale structure (valve leaflets, trabeculations, papillary muscles). A model that retains anatomical detail will look like it "retains speckle".
+
+2. **Cleaner test: temporal consistency.** Frame-to-frame cosine similarity of embeddings should detect whether models filter frame-specific noise (which is what EMA averaging is supposed to do). See `representation-analysis.md` §5.
+
+| Model | Temporal Cosine Sim |
+|-------|---------------------|
+| BYOL e100 | **0.976** |
+| JEPA IN21K e100 | 0.954 |
+| MAE e99 | 0.950 |
+
+JEPA and MAE are **essentially identical** on temporal consistency. The "JEPA filters frame-varying noise via EMA" hypothesis is **not supported** by this metric either.
+
+3. **Cleanest test: noise autocorrelation sweep** (`experiments/noise-autocorrelation-sweep.md`). Result: static spatial noise is the *worst* perturbation for all models, opposite of the EMA-filtering prediction.
+
+---
+
+## What the Mechanism Actually Is (Revised)
+
+Three hypotheses were tested for "why does JEPA outperform MAE on functional tasks". Status:
+
+| Hypothesis | Evidence | Verdict |
+|-----------|---------|---------|
+| "JEPA filters frame-varying noise via EMA target averaging" | speckle probing, temporal consistency, autocorrelation sweep | **❌ Not supported.** Multiple independent tests fail to support this. |
+| "JEPA encodes temporal dynamics that MAE doesn't" | frame shuffling (3 regimes), severity gradient | **✅ Supported.** JEPA consolidates temporal encoding (−17% post-shuffle at e100); MAE abandons it (−4% — invariant because there's nothing to disrupt). |
+| "JEPA uses representational capacity more efficiently" | effective dimensionality (spectral entropy) | **✅ Supported.** JEPA d_eff=197, BYOL d_eff=209, MAE d_eff=63. MAE 3× lower → wastes capacity on redundant pixel-level features. |
+
+**Revised mechanistic story for §4 of the NeurIPS paper:**
+
+The prediction target determines two things: (1) **what temporal structure is encoded** (frame shuffling: JEPA consolidates, MAE abandons, BYOL stabilizes), and (2) **how efficiently the representational space is used** (effective dimensionality: MAE uses 6% of its embed dim vs JEPA/BYOL ~20%). JEPA's advantage is **NOT primarily about noise filtering** — it's about learning diverse, temporally-structured features that transfer well to functional tasks. MAE's pixel reconstruction objective produces redundant, low-dimensional, temporally-invariant representations that excel at spatial tasks but lack the diversity needed for functional tasks.
+
+**Speckle probing should be reported as a secondary result** (§4 appendix), not as a primary mechanism. The main mechanistic evidence is effective dimensionality + frame shuffling.
+
+---
+
+## ICML Rebuttal Reference (Historical, Confounded)
+
+For historical reference only. **Do not cite these numbers in current documents.**
+
+**Setup:** EchoNet-Dynamic train, 2,554 clips, ridge probes 5-fold CV, partial R² controlling for mean intensity.
+
+| Variable | JEPA pt50* | BYOL pt50 | MAE pt50 |
+|----------|------------|-----------|----------|
 | Speckle energy (raw) | 0.764 | 0.835 | 0.910 |
 | Mean intensity | 0.998 | 0.984 | 0.995 |
-| Texture variance | 0.956 | 0.970 | 0.975 |
-| **Speckle energy (partial R², controlling for intensity)** | **0.674** | 0.775 | **0.875** |
+| Speckle (partial, controlling for intensity) | **0.674** | 0.775 | **0.875** |
 
-### Target Variable Probing (R²)
+\*JEPA "pt50" was actually a 235-epoch checkpoint.
 
-| Variable | JEPA | BYOL | MAE |
-|----------|------|------|-----|
-| EF | -0.093 | -0.430 | 0.075 |
-| ESV | 0.100 | -0.112 | 0.291 |
-| EDV | 0.073 | -0.155 | 0.172 |
+**Claim made at the time:** JEPA encodes 23% less speckle than MAE; ordering JEPA < BYOL < MAE.
 
-EF not linearly decodable from mean-pooled embeddings — requires spatial attention (attentive probe). ESV/EDV favor MAE (spatial volume = anatomical information).
+**Why the claim broke:** With init-matched models at e100, the JEPA−MAE gap collapsed from 0.201 to 0.037, and BYOL became the lowest speckle encoder. The "ordering" was an artifact of JEPA's extra training, not a property of the JEPA objective.
 
-## Key Finding
-
-**JEPA encodes 23% less speckle than MAE** (partial R²=0.674 vs 0.875). The ordering is monotonic and matches the noise-filtering prediction: JEPA (0.674) < BYOL (0.775) < MAE (0.875). 
-
-**Mechanism:** The EMA target encoder produces prediction targets that average over stochastic frame-to-frame speckle variation. Features tracking speckle are unrewarded during JEPA/BYOL training and progressively suppressed. MAE must reconstruct pixels including speckle, so it retains this information.
+---
 
 ## References
 
-**Source:** `claude/rebuttals/10-rebuttal-experiment-results.md` §6e
-**Script:** `scripts/rebuttal/information_probing.py`
-**Data:** `scripts/rebuttal/samples/information_probing_{JEPA,BYOL,MAE}-L-pt50.npz`
+- **Canonical (current):** `claude/neurips/experiments/representation-analysis.md` — full e100 init-matched analysis
+- **NeurIPS framing:** `claude/neurips/paper-outline.md` §4 (Mechanism)
+- **Historical (do not cite):** `claude/rebuttals/10-rebuttal-experiment-results.md` §6e
+- **Scripts:** `scripts/rebuttal/information_probing.py`, `scripts/rebuttal/representation_analysis.py`
+- **Data (e100):** `scripts/rebuttal/samples/representation_analysis_*.npz`

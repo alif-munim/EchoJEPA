@@ -49,15 +49,31 @@ Bootstrap CIs (n=53K, 10K resamples): JEPA-BYOL ΔR²=+0.025 [+0.018, +0.033]; J
 
 ### 2a. EchoNet-Dynamic LVEF (7.5K train / 1,277 test, public)
 
+#### pt50 (rebuttal) — JEPA had unfair init advantage
+
 | Model | Test R² | Test Pearson | Test MAE |
 |-------|---------|-------------|----------|
-| **EchoJEPA-L** | **0.552** | **0.753** | **5.938** |
-| EchoBYOL-L | 0.440 | 0.669 | 6.666 |
-| EchoMAE-L | 0.351 | 0.609 | 7.283 |
+| **EchoJEPA-L** (pt50, **235ep init confound**) | **0.552** | **0.753** | **5.938** |
+| EchoBYOL-L (pt50, IN21K init) | 0.440 | 0.669 | 6.666 |
+| EchoMAE-L (pt50, IN21K init) | 0.351 | 0.609 | 7.283 |
 
-Bootstrap CIs: JEPA-MAE ΔR²=+0.201 [+0.168, +0.235]; JEPA-BYOL Δr=+0.083 [+0.055, +0.114]. JEPA advantage **amplifies** on external data (+45% in-dist → +57% cross-dataset).
+Bootstrap CIs (rebuttal): JEPA-MAE ΔR²=+0.201 [+0.168, +0.235]; JEPA-BYOL Δr=+0.083 [+0.055, +0.114].
 
-**Source:** `rebuttals/10-*` §3a
+**⚠️ Init confound discovered post-rebuttal**: the "JEPA pt50" checkpoint was actually a 235-epoch fully-trained model, while BYOL/MAE pt50 were 50-epoch IN21K-init checkpoints. The pt50 numbers above overstate JEPA's advantage. See e100 init-matched results below.
+
+#### e100 init-matched (canonical, all IN21K-init at ~100 epochs)
+
+| Model | Test R² | Test Pearson | Test MAE |
+|-------|---------|-------------|----------|
+| **EchoJEPA-IN21K e100** | **0.591** | **0.771** | **5.77** |
+| EchoBYOL e100 | 0.468 | 0.690 | 6.41 |
+| EchoMAE e99 | 0.445 | 0.674 | 6.58 |
+| **SALT v1 e79** (frozen teacher) | 0.414 | 0.659 | 6.66 |
+| Predict-mean | — | — | 9.90 |
+
+**Ranking is preserved** (JEPA > BYOL > MAE > SALT) but the absolute gaps are smaller than the pt50 rebuttal numbers suggested. The init-matched numbers are the **canonical NeurIPS results**.
+
+**Source:** `claude/neurips/experiments/representation-analysis.md` (canonical), rebuttal pt50 numbers from `rebuttals/10-*` §3a, SALT from `experiments/salt-comparison.md`
 
 ### 2b. Pathology-Stratified LVEF (EchoNet-Dynamic, 1,277 test)
 
@@ -116,20 +132,48 @@ JEPA retains most absolute signal post-shuffle. BYOL collapses catastrophically 
 
 ---
 
-## 5. Speckle Probing — Information Probing (NeurIPS §4)
+## 5. Representation-Level Analysis (NeurIPS §4 — Mechanistic Evidence)
 
-Linear probes predicting speckle energy from frozen embeddings (EchoNet-Dynamic, 2,554 clips, 5-fold CV):
+### ⚠️ The ICML rebuttal speckle claim is RETRACTED (init confound)
 
-| Metric | JEPA | BYOL | MAE |
-|--------|------|------|-----|
-| Speckle energy (raw R²) | 0.764 | 0.835 | 0.910 |
-| Mean intensity (R²) | 0.998 | 0.984 | 0.995 |
-| **Speckle (partial R², controlling for intensity)** | **0.674** | 0.775 | **0.875** |
+The ICML rebuttal numbers (JEPA 0.674, BYOL 0.775, MAE 0.875, "23% less speckle") used a confounded JEPA "pt50" that was actually a 235-epoch checkpoint. With init-matched e100 models, the gap shrinks dramatically and the ranking changes:
 
-JEPA encodes 23% less speckle than MAE. Monotonic ordering matches prediction. Mechanism: EMA target averages over frame-to-frame speckle variation.
+| Comparison | JEPA | BYOL | MAE | JEPA−MAE gap |
+|---|---|---|---|---|
+| ICML rebuttal pt50 (confounded) | 0.674 | 0.775 | 0.875 | −0.201 (23%) |
+| **e100 init-matched (canonical)** | **0.848** | **0.716** | **0.885** | **−0.037 (4%)** |
 
-**Source:** `rebuttals/10-*` §6e
-**Data:** `scripts/rebuttal/samples/information_probing_{model}.npz`
+Under init-matching, BYOL is the *best* speckle filter, not JEPA. The "JEPA filters speckle via EMA target averaging" narrative is **not supported**.
+
+### Canonical mechanism: effective dimensionality
+
+The real mechanistic finding (e100 init-matched, computed via spectral entropy on [N_videos, D] embedding matrices):
+
+| Model | Effective Dimensionality | % of embed_dim (1024) |
+|-------|--------------------------|----------------------|
+| BYOL e100 | **209** | 20% |
+| JEPA IN21K e100 | **197** | 19% |
+| MAE e99 | **63** | 6% |
+
+**MAE representations occupy a 3× lower-dimensional subspace than JEPA/BYOL.** Pixel reconstruction produces highly redundant features — many dimensions encode similar pixel-level information. Latent prediction objectives (JEPA, BYOL) encourage representational diversity. This explains MAE's weakness on functional tasks: with only 63 effective dimensions, there's less capacity for encoding complex temporal/functional information.
+
+### Other supporting analyses (e100 init-matched)
+
+- **Layer-wise speckle**: BYOL filters most aggressively across depth (−31% from layer 1 to 24); JEPA modest (−9%); MAE retains throughout (−4%)
+- **Token-level speckle**: MAE 0.941 > JEPA 0.926 > BYOL 0.891 (same ranking as mean-pooled)
+- **Temporal consistency**: BYOL 0.976 > JEPA 0.954 > MAE 0.950 (JEPA and MAE essentially identical, contradicting EMA filtering hypothesis)
+- **Noise autocorrelation sweep**: static spatial noise is the *worst* perturbation for all models, opposite of EMA-filtering prediction
+
+**Three hypotheses for "why JEPA outperforms MAE on functional tasks":**
+
+| Hypothesis | Status |
+|---|---|
+| EMA filters frame-varying noise | ❌ Not supported (multiple tests) |
+| JEPA encodes temporal dynamics MAE doesn't | ✅ Supported (frame shuffling, severity gradient) |
+| JEPA uses representational capacity more efficiently | ✅ Supported (effective dimensionality) |
+
+**Source:** `claude/neurips/experiments/representation-analysis.md` (canonical), `claude/neurips/experiments/speckle-probing.md` (with retraction)
+**Data:** `scripts/rebuttal/samples/representation_analysis_*.npz`
 
 ---
 
@@ -206,6 +250,45 @@ Multi-view +3.9pp R² over best single view.
 
 **Caveat:** B uses V-JEPA 2.1 (different architecture version + more epochs); L→G confounds data scale.
 **Source:** `rebuttals/10-*` §2
+
+---
+
+## 9. SALT — Frozen Teacher vs EMA Self-Distillation (NeurIPS §3 row)
+
+SALT (Li et al., Apple 2025) replaces JEPA's co-evolving EMA teacher with a frozen pixel-reconstruction teacher. Tested as a fourth row in the controlled comparison.
+
+### EchoNet-Dynamic LVEF — full e100 init-matched comparison (test set)
+
+| Method | Test MAE | Test R² | Test Pearson |
+|---|---|---|---|
+| **JEPA-IN21K e100** | **5.77** | **0.591** | **0.771** |
+| BYOL e100 | 6.41 | 0.468 | 0.690 |
+| MAE e99 | 6.58 | 0.445 | 0.674 |
+| **SALT v1 e79** (best variant) | **6.66** | **0.414** | **0.659** |
+| Predict-mean | 9.90 | — | — |
+
+**Headline:** Same ranking as the rebuttal three-way comparison at pt50, now confirmed at e100 with init-matching. SALT is the worst SSL method.
+
+**Conservative interpretation:** Replacing JEPA's co-evolving EMA teacher with a frozen pixel-reconstruction teacher (SALT) reduces LVEF R² from 0.591 to 0.414 (−30%), placing it below all three EMA-based objectives. This suggests co-evolution of the target encoder contributes to representation quality independent of the prediction target.
+
+### SALT variant robustness (appendix)
+
+Three SALT variants tested. All land in the same neighborhood:
+
+| Variant | Predictor arch | Hyperparameters | S2 epochs | Test MAE | Test R² |
+|---|---|---|---|---|---|
+| v1 e79 (best) | hierarchical 4-layer | LR 1.75e-4 const, weak aug | 80 | **6.66** | **0.414** |
+| v1 e199 | hierarchical 4-layer | (same as v1, extended) | 200 | 7.02 | 0.360 |
+| v3 e79 | single-level (paper-spec) | LR 2.55e-4 cosine, paper aug | 80 | 7.03 | 0.348 |
+
+The SALT failure is robust to predictor architecture and hyperparameter regime — not an artifact of any particular implementation choice.
+
+**Caveats:**
+- v1 e79 → v1 e199 regression (more training hurts) is most parsimoniously explained by overfitting from constant LR (no decay) on a small homogeneous dataset, NOT by a SALT-specific pathology.
+- We do NOT have evidence that SALT inherits speckle from the frozen pixel-reconstruction teacher. The original speckle-pollution argument depends on the retracted ICML rebuttal claim (see §5 above).
+
+**Source:** `claude/neurips/experiments/salt-comparison.md` (full writeup)
+**Configs:** `configs/eval/vitl/icml/salt_s2_*_predavg.yaml`
 
 ---
 

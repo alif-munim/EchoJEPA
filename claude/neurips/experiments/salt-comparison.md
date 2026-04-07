@@ -1,0 +1,150 @@
+# SALT Comparison — Frozen Teacher vs EMA Self-Distillation
+
+**Date:** 2026-04-07
+**Status:** Complete (3 SALT variants × pred-avg test set)
+**NeurIPS section:** §3 (Three-way comparison) — adds a fourth row as a mechanistic probe
+
+---
+
+## Question
+
+The SALT paper (Apple, 2025) replaces V-JEPA's co-evolving EMA teacher with a frozen pixel-reconstruction teacher, claiming compute-efficiency without loss of representation quality. Does SALT match V-JEPA on echocardiography under matched compute and data conditions?
+
+---
+
+## Setup
+
+**Three SALT variants tested**, all ViT-L pretrained on MIMIC-IV-Echo (525K clips), IN21K initialized for Stage 1, then SALT Stage 2 student training:
+
+| Variant | Pretrain config | S2 epochs | Predictor architecture | Hyperparameters |
+|---|---|---|---|---|
+| **v1 e79** | original (pre-fix) configs | 80 | hierarchical 4-layer (4096-dim) | LR 1.75e-4 constant, weak augmentation |
+| **v1 e199** | same as v1, extended | 200 | hierarchical 4-layer | LR 1.75e-4 constant, weak augmentation |
+| **v3 e79** | -hp configs (paper-spec) | 80 | single-level (1024-dim) | LR 2.55e-4 sqrt-scaled cosine, paper augmentation |
+
+**Probe protocol:** d=4 attentive probe, 6-head HP grid, 20 epochs on EchoNet-Dynamic train (7,460 videos). Pred-avg inference on EchoNet-Dynamic test (1,277 videos).
+
+---
+
+## Results
+
+### EchoNet-Dynamic LVEF — full e100 baseline + SALT comparison
+
+All test set numbers, all init-matched at ~100 epochs (or equivalent):
+
+| Method | Predictor | Test MAE | Test R² | Test Pearson | vs predict-mean MAE |
+|---|---|---|---|---|---|
+| **JEPA-IN21K e100** | EMA self-distillation | **5.77** | **0.591** | **0.771** | −41.7% |
+| BYOL e100 | EMA self-distillation | 6.41 | 0.468 | 0.690 | −35.3% |
+| MAE e99 | (no teacher, pixel reconstruction) | 6.58 | 0.445 | 0.674 | −33.5% |
+| **SALT v1 e79** | **frozen pixel-reconstruction teacher** | **6.66** | **0.414** | **0.659** | **−32.7%** |
+| SALT v1 e199 | (same, extended) | 7.02 | 0.360 | 0.626 | −29.0% |
+| SALT v3 e79 | (paper-spec single-level) | 7.03 | 0.348 | 0.617 | −29.0% |
+| Predict-mean | — | 9.90 | — | — | — |
+
+### The publishable finding
+
+Under init-matched, compute-matched, data-matched conditions:
+
+> **JEPA > BYOL > MAE > SALT** on EchoNet-Dynamic LVEF.
+
+The ranking is the same as the rebuttal three-way comparison at pt50, now confirmed at e100 with init-matching. SALT is the **worst SSL method** by every metric (R², Pearson, MAE).
+
+### One-line summary for the paper
+
+**Replacing JEPA's co-evolving EMA teacher with a frozen pixel-reconstruction teacher (SALT) reduces LVEF R² from 0.591 to 0.414 (−30%), placing it below all three EMA-based objectives. This suggests co-evolution of the target encoder contributes to representation quality independent of the prediction target choice.**
+
+---
+
+## What This Does and Does Not Say
+
+### Does say
+- **EMA teacher dynamics matter for functional task performance.** SALT keeps the prediction target the same (latent prediction with masked tokens) but freezes the teacher. The performance gap is therefore attributable to teacher dynamics, not prediction target.
+- **The result is robust.** v1 (hierarchical, weak aug) and v3 (paper-spec single-level) both land in the same neighborhood (R² 0.41 and 0.35). The SALT failure is not an artifact of any specific implementation choice.
+
+### Does NOT say
+- **It does NOT confirm any speckle-pollution mechanism.** The original ICML rebuttal claim that "JEPA filters speckle via EMA" was retracted after init-matched probing showed JEPA−MAE speckle gap is only 4%, not 23%, with BYOL being the best speckle filter (see `speckle-probing.md`). Do not frame SALT through speckle.
+- **It does NOT mean SALT is broken in general.** The SALT paper's results on natural video (V-3.6M, K710, SSv2) may be valid. The compute regime is different: paper batch 3072 / 240K steps vs our batch 512 / 24K steps. SALT may need more optimization to surface its claimed advantages.
+- **It does NOT mean the v1 e79 → e199 regression is a SALT-specific pathology.** The more parsimonious explanation is overfitting from constant LR (no decay) on a small homogeneous dataset. JEPA/BYOL avoid this through EMA implicit regularization. SALT has no such mechanism.
+
+---
+
+## Conservative Framing (Web Session Recommendation)
+
+After extensive analysis (this session + a parallel web Claude session), the agreed-upon framing is:
+
+1. **Single SALT row** in the main comparison table, using the best variant (v1 e79).
+2. **Two sentences in the methods/results.** Don't oversell.
+3. **No speckle pollution argument.** It depends on retracted claims.
+4. **No e199 regression in main text.** Confounded by constant LR; appendix only with caveat.
+5. **No v1 vs v3 architectural delta in main text.** Appendix as a robustness check at most.
+
+### Recommended paper text
+
+> "We additionally evaluated SALT (Li et al., 2025), which replaces JEPA's co-evolving EMA teacher with a frozen pixel-reconstruction teacher. Under matched conditions (same ViT-L, MIMIC-IV-Echo, IN21K initialization, ~100 epochs), SALT achieves R²=0.414 on EchoNet-Dynamic LVEF, below all three EMA-based objectives (JEPA 0.591, BYOL 0.468, MAE 0.445). This suggests that co-evolution of the target encoder contributes to functional task performance independent of the prediction target choice."
+
+Two sentences. One row in the main table. That's all SALT deserves in the paper.
+
+---
+
+## Robustness Check (Appendix Material)
+
+The fact that v1 e79 (hierarchical, weak aug) and v3 e79 (single-level, paper-spec) land at essentially the same place (R² 0.414 and 0.348, MAE 6.66 and 7.03) is a useful robustness check:
+
+> "SALT performance is robust to predictor architecture (single-level vs hierarchical) and to extending training (e79 vs e199), indicating the gap to EMA-based methods is intrinsic to the frozen-teacher mechanism rather than an artifact of any particular implementation choice."
+
+This is one sentence in the appendix.
+
+---
+
+## Open Question (Not Required for Paper)
+
+**Does SALT inherit MAE's low effective dimensionality from its frozen pixel-reconstruction teacher?**
+
+The canonical mechanism for MAE's functional task underperformance is now **effective dimensionality collapse** (MAE d_eff=63 vs JEPA/BYOL ~200). SALT's Stage 1 teacher is trained with pixel reconstruction → its representation may have low effective dimensionality → the student is forced to predict targets in a low-dim space → SALT inherits the dimensionality bottleneck.
+
+**This is testable in ~1 hour:** run effective dimensionality estimation on SALT v1 e79 features.
+
+- **If SALT d_eff is in the 60-100 range** → dimensionality-collapse hypothesis supported. SALT inherits MAE's structural weakness through the frozen teacher. This would be a meaningful mechanistic finding.
+- **If SALT d_eff is ~200 like JEPA/BYOL** → SALT's failure is purely about teacher dynamics (lacks the implicit regularization of EMA). The web Claude framing stands as the only explanation.
+
+This experiment is not required for the paper (the conservative framing works either way), but it would be a clean mechanistic story if it pans out.
+
+---
+
+## Configs and Reproduction
+
+### Pretraining configs
+- **v1 (original):** `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f.yaml` (stale, kept for historical reference)
+- **v3 (paper-spec):** `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f-hp.yaml`
+- **HyperPod jobs:** v1 = job 388 (S2), v3 = job 446 (S2v2)
+
+### Probe configs (EchoNet-Dynamic d=4 attentive)
+- `configs/eval/vitl/icml/salt_s2_e79_end_lvef_d4.yaml` (v1 e79 probe training)
+- `configs/eval/vitl/icml/salt_s2_e199_end_lvef_d4.yaml` (v1 e199 probe training)
+
+### Pred-avg configs (test set inference)
+- `configs/eval/vitl/icml/salt_s2_e79_end_lvef_d4_predavg.yaml`
+- `configs/eval/vitl/icml/salt_s2_e199_end_lvef_d4_predavg.yaml`
+- `configs/eval/vitl/neurips/salt_s2v3_echonet_lvef_d4_predavg.yaml` (v3, on HyperPod)
+
+**Note:** All EchoNet-Dynamic pred-avg configs must use `study_sampling: false` because each video IS a study (no multi-clip-per-study grouping). Setting `study_sampling: true` causes broken study_id extraction and groups all 1,280 clips into 1 fake study, making R² undefined.
+
+### Probe checkpoints
+- `evals/vitl/icml/salt_s2_e79_end_lvef_224/.../best.pt`
+- `evals/vitl/icml/salt_s2_e199_end_lvef_224/.../best.pt`
+- `s3://sagemaker-hyperpod-lifecycle.../runs/salt_s2v3_echonet_lvef_454/probe/best.pt`
+
+### Encoder checkpoints
+- `checkpoints/salt_s2_vitl_e79.pt` (v1)
+- `checkpoints/salt_s2_vitl_e199.pt` (v1 extended)
+- `s3://...salt_s2v2_pretrain_446/checkpoints/e79.pt` (v3)
+
+---
+
+## References
+
+- **Paper:** Li et al., "Rethinking JEPA: Compute-Efficient Video SSL with Frozen Teachers", Apple, 2025. `claude/papers/vjepa-salt/arxiv.tex`
+- **Implementation reference:** `claude/architecture/salt-training-reference.md`
+- **Audit and bug fixes:** Commits `755a319` (HP fixes), `0eaf0ab` (loss/hierarchical revert), `71bd4e5` (predictor init fix)
+- **Companion mechanism doc:** `claude/neurips/experiments/representation-analysis.md`

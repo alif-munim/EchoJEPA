@@ -103,7 +103,8 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 | 8 | **Noise robustness — CAMUS (3×3)** | JEPA/BYOL/MAE | MAE -8% avg, JEPA -10%, BYOL -25% | §5 EchoBench | `rebuttals/10-*` §5o |
 | 9 | **Noise robustness — Pediatric ZS (3×2)** | JEPA/BYOL/MAE | JEPA highest at all severity levels | §5 EchoBench | `rebuttals/10-*` §5n |
 | 10 | **Frame shuffling (6 conditions)** | JEPA/BYOL/MAE | JEPA 0.365 post-shuffle; BYOL collapses to 0.099 | §4 Mechanism | `rebuttals/experiments/frame-shuffling.md` |
-| 11 | **Speckle probing (partial R²)** | JEPA/BYOL/MAE | JEPA 0.674, BYOL 0.775, MAE 0.875 | §4 Mechanism | `rebuttals/10-*` §6e |
+| ~~11~~ | ~~Speckle probing (partial R², pt50)~~ | ~~JEPA/BYOL/MAE~~ | ~~JEPA 0.674, BYOL 0.775, MAE 0.875~~ — **RETRACTED** (init confound). e100 init-matched: BYOL 0.716 < JEPA 0.848 < MAE 0.885 (gap is 4%, not 23%, and ranking changed). Demoted to non-load-bearing. See `experiments/speckle-probing.md` and `experiments/representation-analysis.md`. | §4 (secondary) | `experiments/representation-analysis.md` |
+| 11b | **Effective dimensionality (e100, init-matched)** | JEPA/BYOL/MAE | MAE 63 vs JEPA 197 vs BYOL 209. **MAE 3× lower → real mechanism for functional task underperformance.** | §4 Mechanism (PRIMARY) | `experiments/representation-analysis.md` |
 | 12 | **Pathology-stratified LVEF** | JEPA/BYOL/MAE | JEPA advantage 8× larger on reduced EF | §3 Clinical | `rebuttals/10-*` §6d |
 | 13 | **Bootstrap CIs (UHN 53K)** | JEPA/BYOL/MAE | All 6 pairwise CIs exclude zero | §3 Stats | `rebuttals/10-*` §6a |
 | 14 | **Bootstrap CIs (END 1,277)** | JEPA/BYOL/MAE | All 3 pairwise CIs exclude zero | §3 Stats | `rebuttals/10-*` §3a |

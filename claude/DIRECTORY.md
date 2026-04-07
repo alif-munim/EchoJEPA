@@ -111,7 +111,8 @@ Standalone experiment writeups with full results, methodology, scripts, checkpoi
 | `frame-shuffling.md` | 6-condition temporal ablation (clean, tubelet, reverse, matched, shuffle, matched_frame) × 3 models. BYOL collapses to R²=0.099 under matched_frame |
 | `three-way-comparison.md` | Core 3-way results: LVEF (53K test), RVSP (5K test), CAMUS (50 patients) with bootstrap CIs |
 | `noise-robustness.md` | EchoBench: LVEF + CAMUS + Pediatric under 3 perturbations × 3 severities. Anatomy-function robustness dissociation |
-| `speckle-probing.md` | Information probing: JEPA encodes 23% less speckle (partial R²=0.674 vs 0.875) |
+| `speckle-probing.md` | Information probing. **⚠️ ICML "23% less speckle" claim retracted (init confound)** — e100 init-matched gap is only 4% (JEPA 0.848 vs MAE 0.885), and BYOL (0.716) is actually the lowest. Noise-filtering mechanism not supported. See `representation-analysis.md` for canonical analysis. |
+| `representation-analysis.md` | **Canonical e100 mechanistic analysis.** Effective dimensionality (MAE 63 vs JEPA 197 vs BYOL 209), layer-wise speckle, token-level speckle, temporal consistency, noise autocorrelation sweep. The real mechanism is dimensionality, not noise filtering. |
 | `cross-dataset-transfer.md` | EchoNet-Dynamic (1,277 test) + Pediatric zero-shot from UHN and END probes |
 | `clinical-stratification.md` | Pathology-stratified LVEF: JEPA advantage 8× larger on reduced EF (<40%) |
 | `multi-view-ablation.md` | RVSP single-view vs multi-view + noise robustness. MV halves degradation |

@@ -83,7 +83,7 @@ The original plan was to use this as "causal proof" that frame-varying noise det
 
 ### What IS supported
 
-- **Speckle probing (§4.3):** JEPA encodes 23% less REAL speckle. This still holds — real speckle (from acquisition) is different from synthetic noise (added post-acquisition).
+- ~~**Speckle probing (§4.3):** JEPA encodes 23% less REAL speckle.~~ **❌ RETRACTED.** The original ICML rebuttal claim was based on a confounded JEPA "pt50" that was actually a 235-epoch checkpoint. Init-matched e100 results show JEPA−MAE gap is only 4% (0.848 vs 0.885), and BYOL is the lowest speckle encoder (0.716). The "JEPA filters speckle" hypothesis is **not supported** by current evidence. See `experiments/speckle-probing.md` and `experiments/representation-analysis.md`.
 - **Frame shuffling (§4.1-4.2):** Three temporal encoding regimes. Untouched by this result.
 - **EchoBench (§5):** Uses static perturbations. Now better explained — static noise is the worst case, and JEPA handles it best.
 

@@ -469,6 +469,39 @@ python -m evals.main --fname configs/eval/vitl/icml/salt_s2_e199_end_lvef_d4.yam
 
 Update the probe config's `checkpoint:` field to point to your new `salt_s2_vitl_latest.pt` and expect LVEF test R² > 0.28 (the MAE pt50 baseline) as a minimum sanity threshold. If it's below MAE pt50, something is wrong.
 
+### Actual SALT results we have observed (2026-04-07)
+
+For comparison with future runs, here are the test-set results from the three SALT variants we have trained, all on EchoNet-Dynamic LVEF (1,277 test videos, d=4 attentive probe with pred-avg inference):
+
+| Variant | Predictor | S2 epochs | Test MAE | Test R² | Test Pearson |
+|---|---|---|---|---|---|
+| **v1 e79** (best) | hierarchical | 80 | **6.66** | **0.414** | **0.659** |
+| v1 e199 (extended) | hierarchical | 200 | 7.02 | 0.360 | 0.626 |
+| v3 e79 (paper-spec) | single-level | 80 | 7.03 | 0.348 | 0.617 |
+
+For context (e100 init-matched controlled baselines from the rebuttal three-way comparison):
+
+| Method | Test MAE | Test R² | Test Pearson |
+|---|---|---|---|
+| **JEPA-IN21K e100** | **5.77** | **0.591** | **0.771** |
+| BYOL e100 | 6.41 | 0.468 | 0.690 |
+| MAE e99 | 6.58 | 0.445 | 0.674 |
+| Best SALT (v1 e79) | 6.66 | 0.414 | 0.659 |
+
+**Headline:** Under matched conditions (ViT-L, MIMIC-IV-Echo, IN21K init, ~100 epochs), all SALT variants underperform all three EMA-based SSL objectives on EchoNet-Dynamic LVEF. The gap to the best baseline (JEPA-IN21K) is ~1 EF point on test MAE and ~0.18 R².
+
+**Important caveats** (do not over-interpret):
+
+1. **The v1 e79 → e199 regression is most parsimoniously explained by overfitting** from constant LR (no decay) on a small homogeneous dataset, NOT by a SALT-specific pathology. JEPA/BYOL avoid this through EMA implicit regularization.
+
+2. **The "frozen pixel-reconstruction teacher inherits speckle" hypothesis is NOT supported** by current evidence. The original ICML rebuttal speckle claim (JEPA filters 23% more speckle than MAE) was retracted after init-matched probing showed the gap is only ~4% and the ranking changed (BYOL became the best speckle filter). Do not frame SALT failures through speckle pollution.
+
+3. **The v1 (hierarchical) vs v3 (single-level) results land at the same place** (R² 0.414 vs 0.348). The SALT failure is robust to predictor architecture. This is a useful robustness check but not a separate finding.
+
+4. **The conservative interpretation** (web Claude session, 2026-04-07): "Replacing JEPA's co-evolving EMA teacher with a frozen pixel-reconstruction teacher (SALT) reduces LVEF R² from 0.591 to 0.414 (−30%), placing it below all three EMA-based objectives. This suggests co-evolution of the target encoder contributes to representation quality independent of the prediction target." Two sentences. One row in the comparison table.
+
+See `claude/neurips/experiments/salt-comparison.md` for the full writeup.
+
 ---
 
 ## Key File Locations
