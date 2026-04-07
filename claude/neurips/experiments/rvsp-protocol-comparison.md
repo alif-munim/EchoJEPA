@@ -132,6 +132,61 @@ BYOL drops by **−33pp R²** when given a second view to attend over with d=4 m
 
 **Multi-view fusion is a reproducible 2.5–4pp R² gain across hemodynamic and morphological tasks** when both views provide complementary information. The protocol change is task-agnostic — it just needs `VideoGroupDataset`, `num_views: 2`, `use_factorized: true`, and a CSV with paired view paths.
 
+## Compute Cost Comparison
+
+Per-epoch and total wall-clock times extracted from training logs (all on 8× A100 80GB):
+
+### LVEF probes (10K rebuttal subset, 20 epochs)
+
+| Setup | Probe | Views | Per-epoch | Total (20 ep) | Source |
+|-------|-------|-------|-----------|---------------|--------|
+| MAE pt50 single-view A4C | d=4 | A4C only | ~7.0 min | ~140 min (2.3 hr) | HyperPod job 274 |
+| **JEPA pt50 biplane** | **d=4 multi-view** | **A4C + A2C** | **~7.5 min** | **~150 min (2.5 hr)** | **HyperPod job 310** |
+| BYOL pt50 biplane | d=4 multi-view | A4C + A2C | ~7.3 min | ~146 min (2.4 hr) | HyperPod job 311 |
+
+**Multi-view overhead at d=4 on small data: ~+7% per epoch (~30 sec).** Negligible.
+
+### RVSP probes (full 41K, different protocols)
+
+| Setup | Probe | Views | Train Data | Per-epoch | Total | Source |
+|-------|-------|-------|-----------|-----------|-------|--------|
+| **Rebuttal d=4 multi-view** | **d=4** | **A4C + PSAX** | **41K** | **~46 min** | **~15.3 hr (20 ep)** | `evals/vitl/icml/rvsp/.../icml-echojepa-l-pt50-rvsp-d4-full/` |
+| **NatMed d=1 single-view** | **d=1** | **single-view** | **41K** | **~10 min** | **~2.5 hr (15 ep)** | `evals/vitg-384/.../rvsp-echojepa-l/` |
+
+**d=4 multi-view is ~4.6× slower per epoch than d=1 single-view at the full 41K scale.** The cost stacks: more views × more clips per view × deeper probe stack. The biplane LVEF runs were cheap because they used the small 10K subset.
+
+### Pred avg inference (5,103 test studies × ~20 clips per study)
+
+| Model | Pred avg time |
+|-------|--------------|
+| EchoJEPA-G | ~37 min |
+| EchoJEPA-L | ~37 min |
+
+(Scoring all clips per study and averaging at metric time. Each model in `run_pred_avg.sh rvsp`.)
+
+### Total cost per L pt50 RVSP probe
+
+| Protocol | Training | Inference | Total |
+|---|---|---|---|
+| d=4 multi-view (rebuttal) | **15.3 hr** | ~10 min | **15.5 hr** |
+| d=1 + pred avg (NatMed) | **2.5 hr** | **~37 min** | **3.1 hr** |
+
+**Strategy E (d=1 + pred avg) is ~5× cheaper end-to-end than d=4 multi-view per model on the full 41K RVSP train set.** For 5 manuscript models:
+- Strategy E: ~15.5 hr total
+- d=4 multi-view: ~77.5 hr total
+- Difference: ~62 hr GPU time per task
+
+For both RVSP and biplane LVEF on full UHN train (~35K each), switching all 5 manuscript models to d=4 multi-view = ~150 hr GPU time = ~19 GPU-days on 8× A100. Significant but feasible over a week.
+
+### Where the cost comes from
+
+The d=4 multi-view cost is dominated by three multipliers vs d=1 single-view:
+1. **Probe depth**: d=4 has 4 self-attention blocks (each with their own cross-attention) vs d=1 has only 1 cross-attention layer. ~3× FLOPs in the probe.
+2. **Multi-view input**: 2 views × 2 clips = 4 forward passes through the encoder per study (vs 1 in single-view).
+3. **Joint attention**: factorized cross-attention computes interactions across all view-clip tokens simultaneously, not separately.
+
+These multiply roughly to ~4-5× per epoch, matching the observed ~46 min vs ~10 min ratio.
+
 ## Findings
 
 1. **For RVSP, d=4 multi-view is the better protocol.** The total advantage over d=1 + pred avg is +5.2pp R² confounded, ~+7pp R² unconfounded estimate.
@@ -150,11 +205,13 @@ BYOL drops by **−33pp R²** when given a second view to attend over with d=4 m
 
 Three options, ordered by scientific value:
 
-1. **Use d=4 multi-view for both RVSP AND biplane LVEF** — strongest evidence-based choice. Multi-view fusion is now demonstrated on two different physiological tasks with consistent +2.5–4pp gains. Methods justification: "for tasks where multiple anatomical views provide complementary information, we use d=4 attentive probes with factorized cross-attention; for single-view tasks, we use d=1 attentive probes with prediction averaging."
-2. **Use d=4 multi-view for RVSP only** — minimal change, recovers ~5pp on headline RV pillar.
-3. **Stick with d=1 + pred avg uniformly** — clean single-protocol story but leaves performance on the table.
+1. **Use d=4 multi-view for both RVSP AND biplane LVEF** — strongest evidence-based choice. Multi-view fusion is now demonstrated on two different physiological tasks with consistent +2.5–4pp gains. Methods justification: "for tasks where multiple anatomical views provide complementary information, we use d=4 attentive probes with factorized cross-attention; for single-view tasks, we use d=1 attentive probes with prediction averaging." **Compute cost: ~150 GPU-hours** (5 models × 2 tasks × ~15 hr per task on full UHN train).
+2. **Use d=4 multi-view for RVSP only** — minimal change, recovers ~5pp on headline RV pillar. **Compute cost: ~75 GPU-hours** (5 models × 1 task).
+3. **Stick with d=1 + pred avg uniformly** — clean single-protocol story but leaves performance on the table. **Compute cost: zero (already done).**
 
-The biplane LVEF data pipeline is fully built and probes are trained, so option 1 is essentially zero-cost relative to option 2.
+The biplane LVEF data pipeline is fully built and rebuttal probes (10K subset) are trained on S3. For the manuscript-quality result, retraining on the full 35K UHN train is required (~5-8 hr per model on 8× A100).
+
+Compute cost is meaningful but not prohibitive. The 150 GPU-hour difference between option 1 and option 3 is ~19 GPU-days on 8× A100, recoverable in under a week. The trade-off is whether that compute is better spent on protocol uniformity gains (~5pp R²) or on other manuscript experiments.
 
 ### For the NeurIPS paper
 
