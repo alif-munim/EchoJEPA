@@ -1,6 +1,6 @@
 # SALT Training Reference — Complete Specification
 
-Complete training settings, hyperparameters, and operational details for running SALT pretraining correctly. This is the authoritative checklist — every value here has been verified against the paper (`claude/papers/vjepa-salt/arxiv.tex`, Li et al., Apple 2025) and the current codebase (as of commit `71bd4e5`).
+Complete training settings, hyperparameters, and operational details for running SALT pretraining correctly. This is the authoritative checklist — every value here has been verified against the paper (`claude/papers/vjepa-salt/arxiv.tex`, Li et al., Apple 2025) and the current codebase (as of commit `38c4f50`).
 
 **Use `-hp.yaml` configs, never the plain configs.** The non-`-hp` configs are stale and contain documented hyperparameter errors.
 
@@ -171,9 +171,9 @@ optimization:
   epochs: 20                       # S1 = 20, S2 = 80, total 100 (see teacher/student split below)
   ipe: 300                         # iterations per epoch (300 is the "compute unit" in our config)
   ipe_scale: 1.0                   # NO virtual early stopping (paper §5). Was 1.25 in original (WRONG)
-  warmup: 40                       # warmup epochs. Paper: 10000 steps total → 40 epochs × 300 ipe = 12000 (close)
-  start_lr: 2.0e-4                 # Paper: 0.0002. Original: 3.33e-5 (WRONG)
-  lr: 6.25e-4                      # Paper: 0.000625 (peak LR). Original: 1.75e-4 (WRONG)
+  warmup: 33                       # Paper: 10K steps → 10000/300ipe = 33ep. (Old: 40ep = 12K steps)
+  start_lr: 8.2e-5                 # Paper: 2e-4, sqrt-scaled for batch 512: 2e-4 × sqrt(512/3072) = 8.2e-5
+  lr: 2.55e-4                      # Paper: 6.25e-4 (batch 3072), sqrt-scaled: 6.25e-4 × sqrt(512/3072) = 2.55e-4
   final_lr: 1.0e-6                 # Paper: 1e-6 (cosine decay). Original: 1.75e-4 constant (WRONG)
   weight_decay: 0.04               # Paper: 0.04 (start)
   final_weight_decay: 0.4          # Paper: 0.4 (end, cosine ramp). Original: 0.04 constant (WRONG)
@@ -254,9 +254,9 @@ optimization:
   epochs: 80                       # S2 = 80 (with S1 = 20 → 100 total, ~1:4 split per paper §5.4)
   ipe: 300
   ipe_scale: 1.0
-  warmup: 40
-  start_lr: 2.0e-4
-  lr: 6.25e-4
+  warmup: 33                       # 10K steps → 10000/300ipe = 33ep
+  start_lr: 8.2e-5                 # Paper 2e-4 × sqrt(512/3072)
+  lr: 2.55e-4                      # Paper 6.25e-4 × sqrt(512/3072)
   final_lr: 1.0e-6
   weight_decay: 0.04
   final_weight_decay: 0.4
@@ -391,7 +391,7 @@ Before launching a new SALT run, verify:
 4. **Teacher checkpoint exists**: For Stage 2, the Stage 1 `latest.pt` is reachable.
 5. **No old S2 checkpoints in output dir**: `salt_s2_vitl_e*.pt` from previous runs must be deleted — they have incompatible predictor shapes.
 6. **ImageNet-21K init**: Stage 1 config has `force_load_pretrain: true` and `anneal_ckpt` points to a valid ViT-L checkpoint.
-7. **Hyperparameter spot-check**: `lr=6.25e-4`, `final_wd=0.4`, `ipe_scale=1.0`, `betas=[0.9, 0.95]`, `grad_clip=0.02`, `loss_exp=1.0`.
+7. **Hyperparameter spot-check**: `lr=2.55e-4` (sqrt-scaled), `start_lr=8.2e-5`, `warmup=33`, `final_wd=0.4`, `ipe_scale=1.0`, `betas=[0.9, 0.95]`, `grad_clip=0.02`, `loss_exp=1.0`.
 8. **Masking**: Two mask blocks with `spatial_scale` 0.15 and 0.7 respectively.
 9. **Stage flag**: `model.stage: 1` for S1, `model.stage: 2` for S2 — no other values.
 
@@ -399,7 +399,7 @@ Before launching a new SALT run, verify:
 
 ## Known Deviations From Paper (That We Cannot Fix)
 
-1. **Batch size**: Paper uses 3072, we use 512 (64 × 8 GPUs). Larger batch → faster convergence per epoch. Single-node H100 cluster cannot match paper's 3072 without more nodes.
+1. **Batch size**: Paper uses 3072, we use 512 (64 × 8 GPUs). Single-node H100 cluster cannot match paper's 3072 without more nodes. **LR is sqrt-scaled accordingly**: paper's 6.25e-4 → 2.55e-4, start_lr 2e-4 → 8.2e-5 (factor = sqrt(512/3072) ≈ 0.408). Warmup adjusted from 40ep to 33ep to match paper's 10K steps.
 2. **Total training steps**: Paper uses 240,000 total steps at batch 3072. Our 20+80 epochs × 300 ipe = 30,000 steps at batch 512 = ~6.25M samples vs paper's ~737M. **Our training is ~2.4% of paper's compute budget.** Expect lower absolute performance, but the method ranking should still hold.
 3. **Pretraining dataset**: MIMIC 525K echo-only vs V-3.6M diverse natural video. Domain restriction likely improves echo downstream performance but hurts transfer to other tasks.
 4. **Same-size teacher/student**: Paper explores smaller teachers successfully; we use ViT-L → ViT-L for both stages (no compute savings but simpler to set up).
@@ -483,13 +483,13 @@ Update the probe config's `checkpoint:` field to point to your new `salt_s2_vitl
 | Temporal mask scale | 1.0 | 1.0 | ✅ |
 | Mask aspect ratio | [0.75, 1.5] | [0.75, 1.5] | ✅ |
 | Batch size | **3072** | **512** (64 × 8 GPUs) | ❌ GPU-limited |
-| Start LR | 0.0002 | 2.0e-4 | ✅ |
-| LR (peak) | 0.000625 | 6.25e-4 | ✅ |
+| Start LR | 0.0002 | 8.2e-5 (sqrt-scaled for batch 512) | ✅ scaled |
+| LR (peak) | 0.000625 | 2.55e-4 (sqrt-scaled for batch 512) | ✅ scaled |
 | Final LR | 1e-6 | 1.0e-6 | ✅ |
 | Start WD | 0.04 | 0.04 | ✅ |
 | End WD | 0.4 | 0.4 | ✅ |
 | Clip grad | 0.02 | 0.02 | ✅ |
-| Warmup steps | 10,000 | 12,000 (40 ep × 300 ipe) | ✅ close |
+| Warmup steps | 10,000 | 9,900 (33 ep × 300 ipe) | ✅ close |
 | AdamW β₁ | 0.9 | 0.9 | ✅ |
 | AdamW β₂ | 0.95 | 0.95 | ✅ |
 | Learning rate schedule | Cosine | Cosine | ✅ |
