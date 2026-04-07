@@ -145,17 +145,18 @@ The ICML rebuttal numbers (JEPA 0.674, BYOL 0.775, MAE 0.875, "23% less speckle"
 
 Under init-matching, BYOL is the *best* speckle filter, not JEPA. The "JEPA filters speckle via EMA target averaging" narrative is **not supported**.
 
-### Canonical mechanism: effective dimensionality
+### Effective dimensionality (REVISED 2026-04-07)
 
-The real mechanistic finding (e100 init-matched, computed via spectral entropy on [N_videos, D] embedding matrices):
+⚠️ **Prior numbers retracted.** Consistent 4-model comparison with `scripts/rebuttal/rankme.py` (500 EchoNet-Dynamic test videos, same code/GPU, HyperPod jobs 510/525):
 
 | Model | Effective Dimensionality | % of embed_dim (1024) |
 |-------|--------------------------|----------------------|
-| BYOL e100 | **209** | 20% |
-| JEPA IN21K e100 | **197** | 19% |
-| MAE e99 | **63** | 6% |
+| JEPA IN21K e95 | **245.3** | 24.0% |
+| BYOL e100 | **220.7** | 21.6% |
+| MAE e99 | **206.4** | 20.2% |
+| SALT v1 e79 | **202.7** | 19.8% |
 
-**MAE representations occupy a 3× lower-dimensional subspace than JEPA/BYOL.** Pixel reconstruction produces highly redundant features — many dimensions encode similar pixel-level information. Latent prediction objectives (JEPA, BYOL) encourage representational diversity. This explains MAE's weakness on functional tasks: with only 63 effective dimensions, there's less capacity for encoding complex temporal/functional information.
+All four models are in the **200-245 range**. The prior MAE=63 (Goodfire report) is not reproducible with the consistent pipeline and should not be cited. Effective dimensionality does **not** explain MAE's weakness — the gap is modest (~20%), not 3×.
 
 ### Other supporting analyses (e100 init-matched)
 
@@ -170,10 +171,12 @@ The real mechanistic finding (e100 init-matched, computed via spectral entropy o
 |---|---|
 | EMA filters frame-varying noise | ❌ Not supported (multiple tests) |
 | JEPA encodes temporal dynamics MAE doesn't | ✅ Supported (frame shuffling, severity gradient) |
-| JEPA uses representational capacity more efficiently | ✅ Supported (effective dimensionality) |
+| JEPA uses representational capacity more efficiently | ❌ Not supported (revised). All models 200-245 range. |
+
+**Surviving mechanism:** Temporal structure encoding is the only supported explanation. JEPA consolidates temporal information during training; MAE abandons it. This is independent of representational capacity.
 
 **Source:** `claude/neurips/experiments/representation-analysis.md` (canonical), `claude/neurips/experiments/speckle-probing.md` (with retraction)
-**Data:** `scripts/rebuttal/samples/representation_analysis_*.npz`
+**Data:** `scripts/rebuttal/samples/rankme_all.csv` (4-model consistent comparison)
 
 ---
 

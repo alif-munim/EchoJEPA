@@ -96,13 +96,13 @@ Three hypotheses were tested for "why does JEPA outperform MAE on functional tas
 |-----------|---------|---------|
 | "JEPA filters frame-varying noise via EMA target averaging" | speckle probing, temporal consistency, autocorrelation sweep | **❌ Not supported.** Multiple independent tests fail to support this. |
 | "JEPA encodes temporal dynamics that MAE doesn't" | frame shuffling (3 regimes), severity gradient | **✅ Supported.** JEPA consolidates temporal encoding (−17% post-shuffle at e100); MAE abandons it (−4% — invariant because there's nothing to disrupt). |
-| "JEPA uses representational capacity more efficiently" | effective dimensionality (spectral entropy) | **✅ Supported.** JEPA d_eff=197, BYOL d_eff=209, MAE d_eff=63. MAE 3× lower → wastes capacity on redundant pixel-level features. |
+| "JEPA uses representational capacity more efficiently" | effective dimensionality (spectral entropy) | **❌ Not supported (revised 2026-04-07).** Consistent 4-model RankMe (`scripts/rebuttal/rankme.py`): JEPA 245, BYOL 221, MAE 206, SALT 203. All in the 200-245 range — no 3× collapse. Prior MAE=63 not reproducible. |
 
 **Revised mechanistic story for §4 of the NeurIPS paper:**
 
-The prediction target determines two things: (1) **what temporal structure is encoded** (frame shuffling: JEPA consolidates, MAE abandons, BYOL stabilizes), and (2) **how efficiently the representational space is used** (effective dimensionality: MAE uses 6% of its embed dim vs JEPA/BYOL ~20%). JEPA's advantage is **NOT primarily about noise filtering** — it's about learning diverse, temporally-structured features that transfer well to functional tasks. MAE's pixel reconstruction objective produces redundant, low-dimensional, temporally-invariant representations that excel at spatial tasks but lack the diversity needed for functional tasks.
+The prediction target determines **what temporal structure is encoded** (frame shuffling: JEPA consolidates, MAE abandons, BYOL stabilizes). Effective dimensionality is similar across all models (200-245), so the difference is in feature *content*, not capacity. JEPA's advantage is about learning temporally-structured features that transfer well to functional tasks, not about noise filtering or representational diversity.
 
-**Speckle probing should be reported as a secondary result** (§4 appendix), not as a primary mechanism. The main mechanistic evidence is effective dimensionality + frame shuffling.
+**Speckle probing should be reported as a secondary result** (§4 appendix), not as a primary mechanism. The main mechanistic evidence is frame shuffling. Effective dimensionality is no longer a supporting mechanism.
 
 ---
 

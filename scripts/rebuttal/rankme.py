@@ -88,7 +88,7 @@ def load_encoder(cfg, device, resolution=224, frames=16):
         state = ckpt.get("model", ckpt)
         state = _convert_pretrain_to_finetune_state_dict(state, model.state_dict())
         model.load_state_dict(state, strict=False)
-        model.eval().to(device)
+        model.float().eval().to(device)  # float32 to avoid H100 cuBLAS bf16 errors
 
         def capture_tokens(module, input, output):
             token_storage["tokens"] = output.detach()
@@ -135,11 +135,12 @@ def extract_embedding(model, clip, device, is_videomae, token_storage):
     clip = clip.to(device)
 
     if is_videomae:
+        # Force float32 to avoid H100 cuBLAS bf16 errors with VideoMAE
         token_storage.clear()
-        model.forward_features(clip)
+        model.forward_features(clip.float())
         if "tokens" not in token_storage:
             return None
-        tokens = token_storage["tokens"].squeeze(0)  # [N, D]
+        tokens = token_storage["tokens"].squeeze(0).float()  # [N, D]
     else:
         tokens = model(clip).squeeze(0)  # [N, D]
 

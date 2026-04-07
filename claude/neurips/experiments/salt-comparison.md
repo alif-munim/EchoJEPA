@@ -97,18 +97,22 @@ This is one sentence in the appendix.
 
 ---
 
-## Open Question (Not Required for Paper)
+## Resolved: Effective Dimensionality (2026-04-07)
 
 **Does SALT inherit MAE's low effective dimensionality from its frozen pixel-reconstruction teacher?**
 
-The canonical mechanism for MAE's functional task underperformance is now **effective dimensionality collapse** (MAE d_eff=63 vs JEPA/BYOL ~200). SALT's Stage 1 teacher is trained with pixel reconstruction → its representation may have low effective dimensionality → the student is forced to predict targets in a low-dim space → SALT inherits the dimensionality bottleneck.
+**Answer: No.** RankMe (spectral entropy) on 500 EchoNet-Dynamic test videos, same script (`scripts/rebuttal/rankme.py`), same GPU:
 
-**This is testable in ~1 hour:** run effective dimensionality estimation on SALT v1 e79 features.
+| Model | RankMe Eff Dim | Usage |
+|-------|---------------|-------|
+| JEPA e95 | 245.3 | 24.0% |
+| BYOL e100 | 220.7 | 21.6% |
+| MAE e99 | 206.4 | 20.2% |
+| SALT v1 e79 | 202.7 | 19.8% |
 
-- **If SALT d_eff is in the 60-100 range** → dimensionality-collapse hypothesis supported. SALT inherits MAE's structural weakness through the frozen teacher. This would be a meaningful mechanistic finding.
-- **If SALT d_eff is ~200 like JEPA/BYOL** → SALT's failure is purely about teacher dynamics (lacks the implicit regularization of EMA). The web Claude framing stands as the only explanation.
+All four models are in the **200-245 range**. SALT's effective dimensionality (203) is essentially identical to MAE's (206) — no collapse. The prior MAE=63 number (from Goodfire report) is not reproducible with this pipeline and should not be cited.
 
-This experiment is not required for the paper (the conservative framing works either way), but it would be a clean mechanistic story if it pans out.
+**Implication:** SALT's gap to JEPA is purely about **teacher dynamics** (lacks EMA co-evolution), not representational capacity. The student has enough capacity to learn diverse features, but without the evolving teacher signal, those features don't organize into useful temporal/functional structure. This supports the "co-evolution" framing — no dimensionality-based mechanism needed.
 
 ---
 

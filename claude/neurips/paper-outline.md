@@ -142,17 +142,20 @@ Two orthogonal axes: the 6-condition experiment varies the *type* of temporal di
 - **Fig 2c (appendix or main):** Degradation % vs epoch — training dynamics showing MAE transient + JEPA consolidation
 - **Appendix:** Full 13-model × 5-fraction and 12-model × 6-condition tables
 
-### 4.3 Effective dimensionality (NEW — replaces speckle probing as main mechanistic evidence)
+### 4.3 Effective dimensionality (REVISED — demoted from primary mechanism)
+
+⚠️ **Prior numbers retracted.** Consistent 4-model comparison with `scripts/rebuttal/rankme.py` (500 EchoNet-Dynamic test videos, same code/GPU, jobs 510/525):
 
 | Model | Effective Dim (d_eff) | Usage of 1024-dim space |
 |-------|-----------------------|------------------------|
-| BYOL e100 | 209 | 20% |
-| JEPA IN21K e100 | 197 | 19% |
-| MAE e99 | **63** | **6%** |
+| JEPA IN21K e95 | 245.3 | 24.0% |
+| BYOL e100 | 220.7 | 21.6% |
+| MAE e99 | 206.4 | 20.2% |
+| SALT v1 e79 | 202.7 | 19.8% |
 
-**Key finding:** MAE representations occupy a **3× lower-dimensional subspace** than JEPA/BYOL. Pixel reconstruction produces redundant features; latent prediction encourages diversity. This directly explains MAE's functional task weakness — limited effective capacity for encoding complex temporal/functional information.
+**Revised finding:** All four models are in the **200-245 range**. There is no 3× collapse for MAE. The prior MAE=63 (from Goodfire report) is not reproducible and should not be cited. JEPA has moderately higher diversity (245 vs 206 for MAE), but this ~20% gap does not explain the much larger downstream performance differences. Effective dimensionality is **not** the primary mechanism.
 
-**For the paper:** "We compute the effective dimensionality of each model's representations (exponential of the spectral entropy; Garrido et al., 2023). MAE representations occupy a 3× lower-dimensional subspace (d_eff=63) than JEPA (197) or BYOL (209), indicating that pixel reconstruction produces highly redundant features while latent prediction encourages representational diversity."
+**For the paper (if included at all — appendix candidate):** "Effective dimensionality (RankMe; Garrido et al., 2023) is broadly similar across models (200-245), with JEPA showing moderately higher feature diversity. The modest gap suggests that JEPA's advantage on functional tasks arises from *what* is encoded (temporal dynamics; see §4.2) rather than representational capacity."
 
 ### 4.3b Speckle probing + temporal consistency (appendix)
 
@@ -226,7 +229,7 @@ MAE collapses under depth attenuation (R²=0.090) and haze (0.162).
 2. BYOL is consistently the most fragile under perturbation across all 3 tasks (−22%, −29%, −19%).
 3. MAE's fragility is task-specific: collapses on LVEF (−51%) but robust on CAMUS (−13%) and Pediatric (−8%). Consistent with spatial representations being noise-tolerant for spatial tasks but brittle for functional tasks.
 
-**Connection to §4:** MAE's low effective dimensionality (d_eff=63 vs JEPA's 197) explains its selective fragility — redundant pixel-level features provide robustness for spatial tasks but insufficient diversity for functional tasks under noise.
+**Connection to §4:** MAE's selective fragility is best explained by its lack of temporal structure encoding (frame shuffling: MAE abandons temporal information, JEPA consolidates it). Effective dimensionality is similar across models (200-245 range), so the explanation is in feature *content*, not capacity.
 
 ---
 

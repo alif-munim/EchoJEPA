@@ -4,61 +4,100 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
 #SBATCH --gres=gpu:1
-#SBATCH --time=02:00:00
+#SBATCH --time=04:00:00
 #SBATCH --output=/tmp/rankme-%j.out
 #SBATCH --error=/tmp/rankme-%j.out
 #SBATCH -w ip-10-0-50-184
 
-# RankMe effective dimensionality: SALT v1 e79
-# Tests dimensionality-collapse hypothesis: does SALT inherit MAE's low eff_dim?
-# Reference values (from prior analysis): BYOL 209, JEPA 197, MAE 63
+# RankMe effective dimensionality: all 4 models run sequentially
+# Download checkpoint → run RankMe → delete checkpoint → next model
+# Tests dimensionality-collapse hypothesis for SALT
 
 set -euo pipefail
 
 REPO_DIR="/opt/vjepa2"
 S3_BASE="s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts"
+CKPT_DIR="$REPO_DIR/checkpoints"
+NVME_TMP="/opt/dlami/nvme/rankme_tmp"
+OUT="$REPO_DIR/scripts/rebuttal/samples/rankme_all.csv"
 
 cd "$REPO_DIR"
 export PYTHONUNBUFFERED=1
 export PATH="/opt/vjepa2-312/bin:$PATH"
+export LD_LIBRARY_PATH="/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cuda_runtime/lib:/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cudnn/lib:/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/nccl/lib:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:$LD_LIBRARY_PATH"
 
-# LD_LIBRARY_PATH fix for H100 bf16
-export LD_LIBRARY_PATH="/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/usr/local/cuda-12.6/compat:$LD_LIBRARY_PATH"
+# Use NVMe for temp checkpoint downloads (26TB free vs 2GB on root)
+mkdir -p "$NVME_TMP"
 
-# Clean up failed JEPA download that filled disk
-rm -f "$REPO_DIR/checkpoints/jepa_in21k_vitl_e95.pt"
+# Clean up any leftover large checkpoints from failed runs on root
+rm -f "$CKPT_DIR/jepa_in21k_vitl_e95.pt"
+rm -f "$CKPT_DIR/byol_vitl_imagenet_v2_e100.pt"
+rm -f "$CKPT_DIR/videomae_l_mimic_ep99.pth"
 
-echo "=== Setting up SALT v1 e79 checkpoint ==="
-
-# SALT v1 e79 — should already be on node from probe job 465
-if [ ! -f "$REPO_DIR/checkpoints/pretrain/mimic/salt_s2v1_e79.pt" ]; then
-    echo "Downloading SALT v1 e79..."
-    aws s3 cp "$S3_BASE/runs/salt_s2_pretrain_388/checkpoints/e79.pt" \
-        "$REPO_DIR/checkpoints/pretrain/mimic/salt_s2v1_e79.pt"
-fi
-
-ls -lh "$REPO_DIR/checkpoints/pretrain/mimic/salt_s2v1_e79.pt"
-
-# Use EchoNet test set (S3 paths) — 1277 videos, sample 500
+# EchoNet test CSV
 CSV="$REPO_DIR/data/csv/echonet_dynamic_test_s3_raw.csv"
 if [ ! -f "$CSV" ]; then
-    echo "Downloading EchoNet test CSV..."
     aws s3 cp "$S3_BASE/data/csv/echonet_dynamic_test_s3_raw.csv" "$CSV"
 fi
 
-echo "=== Running RankMe on SALT v1 ==="
-echo "CSV: $CSV"
-wc -l "$CSV"
+echo "=== RankMe: 4-model sequential run ==="
+echo "CSV: $CSV ($(wc -l < "$CSV") videos)"
+echo ""
 
-python scripts/rebuttal/rankme.py \
-    --models SALT-S2v1-e79 \
-    --csv "$CSV" \
-    --device cuda:0 \
-    --n_videos 500 \
-    --output scripts/rebuttal/samples/rankme_salt.csv
+# Write CSV header
+mkdir -p "$(dirname "$OUT")"
+echo "model,eff_dim_rankme,participation_ratio,embed_dim,usage_pct,top10_energy_pct,top50_energy_pct,n_videos" > "$OUT"
 
-echo "=== Done ==="
+run_model() {
+    local NAME="$1" S3_PATH="$2" LOCAL_PATH="$3"
+    local NVME_PATH="$NVME_TMP/$(basename "$LOCAL_PATH")"
 
-# Upload results to S3
-aws s3 cp scripts/rebuttal/samples/rankme_salt.csv \
-    "$S3_BASE/results/rankme_salt.csv" 2>/dev/null || true
+    echo "============================================================"
+    echo "[$NAME] Downloading checkpoint to NVMe..."
+    echo "============================================================"
+    aws s3 cp "$S3_PATH" "$NVME_PATH" --quiet
+    ls -lh "$NVME_PATH"
+
+    # Symlink into expected location
+    mkdir -p "$(dirname "$LOCAL_PATH")"
+    ln -sf "$NVME_PATH" "$LOCAL_PATH"
+
+    echo "[$NAME] Running RankMe..."
+    python scripts/rebuttal/rankme.py \
+        --models "$NAME" \
+        --csv "$CSV" \
+        --device cuda:0 \
+        --n_videos 500 \
+        --output "/tmp/rankme_${NAME}.csv"
+
+    # Append result (skip header) to combined output
+    tail -1 "/tmp/rankme_${NAME}.csv" >> "$OUT"
+
+    echo "[$NAME] Cleaning up checkpoint..."
+    rm -f "$NVME_PATH" "$LOCAL_PATH"
+    echo "[$NAME] Done."
+    echo ""
+}
+
+# 1-3 already completed from job 510. Copy results into combined CSV.
+for prev in SALT-S2v1-e79 JEPA-IN21K-e100 BYOL-L-e100; do
+    if [ -f "/tmp/rankme_${prev}.csv" ]; then
+        echo "[$prev] Using cached result from job 510"
+        tail -1 "/tmp/rankme_${prev}.csv" >> "$OUT"
+    fi
+done
+
+# 4. MAE e99 (failed in job 510 with cuBLAS error — now fixed with float32)
+run_model "MAE-L-e99" \
+    "$S3_BASE/runs/videomae_resume_e54_354/training_folder/checkpoint-99.pth" \
+    "$CKPT_DIR/videomae_l_mimic_ep99.pth"
+
+echo "============================================================"
+echo "FINAL COMBINED RESULTS"
+echo "============================================================"
+cat "$OUT"
+
+# Upload to S3
+aws s3 cp "$OUT" "$S3_BASE/results/rankme_all.csv" 2>/dev/null || true
+
+echo "=== All done ==="

@@ -51,7 +51,7 @@
 - [x] Layer-wise speckle probing: BYOL filters most across depth (−31%), MAE retains most (−4%)
 - [x] Token-level speckle probing: MAE 0.941 > JEPA 0.926 > BYOL 0.891
 - [x] Temporal consistency: BYOL 0.976 > JEPA 0.954 > MAE 0.950 (JEPA filtering hypothesis NOT supported)
-- [x] Effective dimensionality: BYOL 209, JEPA 197, MAE 63 (MAE 3× lower — key mechanistic finding)
+- [x] Effective dimensionality: ⚠️ REVISED — JEPA 245, BYOL 221, MAE 206, SALT 203 (all 200-245 range, no collapse; prior MAE=63 not reproducible; `scripts/rebuttal/rankme.py`)
 - [x] Model registry updated with e100 models (JEPA-IN21K-e100, BYOL-L-e100, MAE-L-e99)
 - [x] VideoMAE token extraction fixed (hook on model.norm for pre-pooled tokens)
 
@@ -101,7 +101,7 @@
 | **§3 Core finding** | END LVEF + CAMUS + Pediatric ZS at e100. Ranking inversion confirmed (JEPA leads functional, MAE leads spatial). | **UHN LVEF, RVSP** (P0 #2-3, HyperPod) |
 | **§4.1 6-condition** | Complete (12 models × 6 conditions) | Writing + Fig 2a |
 | **§4.2 Severity gradient** | Complete (13 models × 5 fractions) | Writing + Fig 2b,c |
-| **§4.3 Effective dim + speckle** | **DONE.** d_eff: MAE 63, JEPA 197, BYOL 209. Speckle probing demoted to appendix. Temporal consistency done. | Writing |
+| **§4.3 Effective dim + speckle** | **REVISED.** Prior d_eff numbers retracted. Consistent 4-model RankMe: JEPA 245, BYOL 221, MAE 206, SALT 203 (all 200-245, no collapse). Demoted to appendix. Speckle + temporal consistency unchanged. | Writing |
 | **§4.4 Autocorrelation sweep** | **DONE** — hypothesis not supported. Appendix result. | — |
 | **§4.5 SALT** | Invalidated | **Retrain** (P1 #5) |
 | **§5 EchoBench** | **DONE** — LVEF + CAMUS at e100 init-matched. JEPA most robust on both. | Writing + figures |

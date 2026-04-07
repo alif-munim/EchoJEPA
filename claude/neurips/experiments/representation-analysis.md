@@ -7,17 +7,26 @@
 
 ## 1. Effective Dimensionality (spectral entropy)
 
-Computed as exp(-Σ σ̄ᵢ log σ̄ᵢ) where σ̄ᵢ are normalized singular values of the [N_videos, D] embedding matrix. Higher = more diverse/informative features.
+Computed as exp(-Σ σ̄ᵢ log σ̄ᵢ) where σ̄ᵢ are normalized singular values of the [N_videos, D] mean-pooled embedding matrix. Higher = more diverse/informative features. Script: `scripts/rebuttal/rankme.py`.
 
-| Model | Effective Dim | Embed Dim | Usage |
-|-------|-------------|-----------|-------|
-| BYOL e100 | **209** | 1024 | 20% |
-| JEPA IN21K e100 | **197** | 1024 | 19% |
-| MAE e99 | **63** | 1024 | 6% |
+### Consistent 4-model comparison (2026-04-07, job 510/525)
 
-**Key finding:** MAE representations occupy a 3× lower-dimensional subspace than JEPA/BYOL. Pixel reconstruction produces highly redundant features — many dimensions encode similar pixel-level information. Latent prediction objectives (JEPA, BYOL) encourage representational diversity.
+All models run with the same script, same 500 EchoNet-Dynamic test videos (S3-streamed, seed=42), same GPU (node 184 H100). This supersedes the prior numbers.
 
-**Mechanistic interpretation:** MAE's low effective dimensionality explains its weakness on functional tasks. With only 63 effective dimensions, there's less capacity for encoding complex temporal/functional information. JEPA and BYOL are close (~197 vs 209), consistent with both using objectives that encourage feature diversity.
+| Model | Effective Dim | Embed Dim | Usage | Top-10 SV Energy | Top-50 SV Energy |
+|-------|-------------|-----------|-------|-----------------|-----------------|
+| JEPA IN21K e95 | **245.3** | 1024 | 24.0% | 66.7% | 89.5% |
+| BYOL e100 | **220.7** | 1024 | 21.6% | 65.2% | 90.7% |
+| MAE e99 | **206.4** | 1024 | 20.2% | 73.0% | 93.2% |
+| SALT v1 e79 | **202.7** | 1024 | 19.8% | 71.3% | 92.0% |
+
+**Key finding:** All four models are in the **200-245 range**. There is no dramatic dimensionality collapse for MAE or SALT. JEPA has the highest diversity (245), followed by BYOL (221), MAE (206), and SALT (203). The gap is modest (~20%), not the 3× difference previously reported.
+
+**SALT dimensionality-collapse hypothesis: NOT SUPPORTED.** SALT's effective dimensionality (203) is essentially identical to MAE's (206), and both are in the same ballpark as JEPA/BYOL. The frozen pixel-reconstruction teacher does not constrain the student to a low-dimensional subspace. SALT's gap to JEPA on downstream tasks is about teacher dynamics (lack of co-evolving EMA target), not representational capacity.
+
+**Retraction of prior numbers:** The earlier values (BYOL 209, JEPA 197, MAE 63) were computed with a different methodology/dataset (Goodfire report) and are not reproducible with the consistent pipeline above. The MAE=63 result in particular does not hold — MAE's effective dimensionality on EchoNet-Dynamic test videos is 206, comparable to the other models. All downstream analysis that relied on the "MAE 3× lower" claim should be revised.
+
+**Revised interpretation:** The spectral structure differs subtly — MAE and SALT concentrate more energy in their top singular values (73% and 71% in top-10, vs JEPA's 67%) — but the overall effective dimensionality is similar. The difference between JEPA and MAE/SALT is in *what* gets encoded (temporal structure, functional features), not in *how much capacity* is used. See frame shuffling (§3) for the temporal encoding evidence.
 
 ---
 
@@ -111,11 +120,11 @@ Three hypotheses tested and their status:
 |-----------|---------|---------|
 | "JEPA filters frame-varying noise via EMA" | Speckle probing, temporal consistency, autocorrelation sweep | **Not supported.** BYOL filters more noise; temporal consistency is similar for JEPA/MAE; static noise is worst. |
 | "JEPA encodes temporal dynamics that MAE doesn't" | Frame shuffling (3 regimes), severity gradient | **Supported.** JEPA consolidates temporal encoding (−17% at convergence); MAE abandons it (−4%). |
-| "JEPA uses representational capacity more efficiently" | Effective dimensionality | **Supported.** JEPA d_eff=197, MAE d_eff=63. MAE wastes capacity on redundant pixel-level features. |
+| "JEPA uses representational capacity more efficiently" | Effective dimensionality | **Not supported (revised).** All models are in the 200-245 range (JEPA 245, BYOL 221, MAE 206, SALT 203). The prior MAE=63 number is not reproducible. Differences are in spectral concentration, not total dimensionality. |
 
 **Revised mechanistic story for §4:**
 
-The prediction target determines two things: (1) **what temporal structure is encoded** (frame shuffling: JEPA consolidates, MAE abandons, BYOL stabilizes) and (2) **how efficiently the representational space is used** (effective dimensionality: MAE 3× lower than JEPA/BYOL). JEPA's advantage is NOT primarily about noise filtering — it's about learning diverse, temporally-structured features that transfer well to functional tasks. MAE's pixel reconstruction objective produces redundant, low-dimensional, temporally-invariant representations that excel at spatial tasks but lack the diversity needed for functional tasks.
+JEPA's advantage is about **temporal structure encoding**, not noise filtering or representational capacity. Frame shuffling shows JEPA consolidates temporal information (−17% at convergence) while MAE abandons it (−4%). Effective dimensionality is similar across all models (200-245 range), ruling out capacity-based explanations. SALT's performance gap (frozen teacher, no EMA co-evolution) further isolates teacher dynamics as the key variable. The prediction target determines *what* temporal structure is encoded, not *how much* capacity is available.
 
 ---
 
@@ -123,7 +132,7 @@ The prediction target determines two things: (1) **what temporal structure is en
 
 | Experiment | Files |
 |-----------|-------|
-| Effective dimensionality | `scripts/rebuttal/samples/rankme_e100.csv` |
+| Effective dimensionality (4-model) | `scripts/rebuttal/samples/rankme_all.csv` (job 510/525, consistent pipeline) |
 | Speckle probing (mean-pooled) | `scripts/rebuttal/samples/speckle_probing_{JEPA_IN21K_e100,BYOL_e100,MAE_e99}.png` |
 | Layer-wise speckle | `scripts/rebuttal/samples/layerwise_speckle_{JEPA-IN21K-e100,BYOL-L-e100,MAE-L-e99}.csv` |
 | Token-level speckle | `scripts/rebuttal/samples/token_speckle_{JEPA-IN21K-e100,BYOL-L-e100,MAE-L-e99}.csv` |
