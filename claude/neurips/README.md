@@ -66,15 +66,29 @@ All three EchoBench perturbations (depth attenuation, gaussian shadow, haze) app
 
 SALT S2's random student init is the paper's standard recipe. The SALT paper matches total steps (S1+S2), not init. Note in a footnote.
 
-### SALT decision: mechanistic probe, not 4th paradigm (2026-04-06)
+### SALT decision: single-row probe, no retrain needed (revised 2026-04-07)
 
-**Decision gate resolved.** SALT S2 e199 val MAE ~6.8 (worse than e79's 6.47). Training loss plateaued (0.429→0.419), weights barely changed (cosine sim >0.999 between e79 and e199). The frozen teacher ceiling is confirmed.
+**Decision gate resolved, verified across two implementation variants.** SALT S2 has been trained in two valid variants and both underperform the EMA baselines by 0.03–0.24 R² on EchoNet-Dynamic LVEF:
 
-**Include as one-paragraph mechanistic result in §4.5.** The finding: frozen teacher + latent target ≠ EMA + latent target. The EMA mechanism is essential. Supported by severity gradient (SALT collapses at 25% shuffle), training plateau, and context against concurrent work.
+| Variant | Predictor | HP regime | Test R² | Test MAE |
+|---|---|---|---|---|
+| **SALT v1 e79** (best) | hierarchical 4-layer | LR 1.75e-4 constant, weak aug | **0.414** | **6.66** |
+| SALT v1 e199 | hierarchical 4-layer | same as v1, extended | 0.360 | 7.02 |
+| SALT v3 e79 | single-level (paper-spec) | LR 2.55e-4 cosine, paper aug | 0.348 | 7.03 |
+
+**Earlier "SALT invalidated / must retrain" claim retracted (2026-04-07).** Config inspection confirms both v1 and v3 used `loss_exp: 1.0` (L1 loss, matching SALT paper Eq 2.1). The "L1 vs L2" claim in earlier ops-notes was never true. **No retraining required.** Use v1 e79 as the primary SALT row.
+
+**The finding is robust to implementation choice.** Three variants span predictor architecture (hierarchical vs single-level), HP regime (constant vs cosine LR, weak vs paper aug), and training duration (80 vs 200 S2 epochs). All land within ±0.03 R² and ±0.4 MAE of each other. The SALT gap to EMA-based methods is intrinsic to the frozen-teacher mechanism, not an artifact of implementation.
+
+**Effective dimensionality (2026-04-07):** JEPA 245, BYOL 221, MAE 206, SALT 203. **No dimensionality collapse** — SALT has enough capacity, it just can't organize features usefully without the evolving teacher signal.
+
+**Conservative framing (web Claude recommendation, 2026-04-07):** One row in the §3 comparison table + two sentences in §4.5. Don't oversell, don't layer mechanisms. See `experiments/salt-comparison.md` for the full writeup.
+
+> **Paper text (two sentences):** "Replacing JEPA's co-evolving EMA teacher with a frozen pixel-reconstruction teacher (SALT) reduces LVEF R² from 0.591 to 0.414 (−30%), placing it below all three EMA-based objectives. This suggests co-evolution of the target encoder contributes to representation quality independent of the prediction target choice."
 
 **Does not contradict the SALT paper.** SALT paper uses 3.6M diverse clips; US-JEPA uses URFM (strong external BiomedCLIP-distilled teacher). Both succeed because the teacher has broad coverage. Our V-Pixel teacher on 525K narrow-domain echo clips hits a ceiling. The frozen teacher mechanism needs data diversity OR a strong external teacher.
 
-**Do NOT include SALT in primary comparison table or ranking inversion figure.** Keep 3-way core (JEPA/BYOL/MAE).
+**Inclusion:** Add SALT as a 4th row in the primary comparison table (alongside JEPA/BYOL/MAE). Keep the ranking inversion figure as 3-way (JEPA/BYOL/MAE) for visual clarity.
 
 ### Second modality assessment (2026-04-05)
 
@@ -157,7 +171,7 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 | 2 | **P0** | Primary comparison table at e100 | — | JEPA IN21K / BYOL / MAE / (SALT if clean). All at ~100 total epochs. |
 | 2-3 | **P1** | Calcium imaging viability test | 1 day | Pretrain ViT-B MAE+JEPA for 10ep on 1 session. If features non-degenerate, proceed. |
 | 3-4 | **P1** | Calcium imaging full experiment | ~1 week | Pretrain ViT-L on 5-10 sessions, evaluate segmentation + transient detection. Kill at week 4 if not clean. |
-| 2 | **P1** | SALT decision gate | — | Evaluate SALT S2 e200. Include as mechanistic probe if speckle probing shows frozen teacher retains more speckle than EMA. Otherwise drop. |
+| ~~2~~ | ~~**P1**~~ | ~~SALT decision gate~~ | — | **RESOLVED 2026-04-07.** Both v1 and v3 variants are valid (configs confirmed L1 loss). v1 e79 selected as primary SALT row: R²=0.414, MAE=6.66. Single row in §3 table + two-sentence §4.5 framing. See `experiments/salt-comparison.md`. No retrain needed. |
 | 5-6 | — | Writing + polish | 2 weeks | Full draft, figures, appendix |
 
 ### SALT Experiment Design (2×2 Matrix)

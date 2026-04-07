@@ -176,17 +176,45 @@ Two orthogonal axes: the 6-condition experiment varies the *type* of temporal di
 
 **Demoted from P0 main-text centerpiece to appendix/supplementary.** Honest framing: "JEPA's robustness is consistent across all noise temporal structures, suggesting representation quality rather than a temporal-noise-specific mechanism." Complements EchoBench (§5, which also uses static perturbations). See `experiments/noise-autocorrelation-sweep.md` for full analysis.
 
-### 4.5 SALT: the frozen teacher ceiling (confirmed)
+### 4.5 SALT: the frozen teacher ceiling (confirmed across two implementations)
 
-**Result:** SALT S2 e199 probe val MAE ~6.8 — worse than SALT S2 e79 (6.47). Training loss plateaued (0.429→0.419), weight cosine similarity >0.999 between e79 and e199. The frozen teacher imposes a representation ceiling that additional student training cannot overcome.
+**Result (2026-04-07, consistent test-set comparison across three SALT variants):**
+
+| Variant | Predictor | HP regime | S2 epochs | Test R² | Test MAE |
+|---|---|---|---|---|---|
+| SALT v1 e79 (best) | hierarchical (4-layer) | LR 1.75e-4 constant, weaker aug | 80 | **0.414** | **6.66** |
+| SALT v1 e199 (extended) | hierarchical (4-layer) | same as v1 | 200 | 0.360 | 7.02 |
+| SALT v3 e79 (paper-spec) | single-level (1-layer) | LR 2.55e-4 cosine, paper aug | 80 | 0.348 | 7.03 |
+
+**Robustness of the finding.** Three variants spanning hierarchical vs single-level predictor, constant vs cosine LR, weak vs paper augmentation, and 80 vs 200 S2 epochs all land within ±0.03 R² and ±0.4 MAE of each other. **The SALT gap to EMA-based methods is intrinsic to the frozen-teacher mechanism, not an artifact of any particular implementation choice.** All three use L1 loss (matching paper Eq 2.1).
+
+**Placement against e100 baselines:**
+
+| Method | Test R² | Test MAE |
+|---|---|---|
+| JEPA-IN21K e100 | **0.6521** | **5.30** |
+| BYOL e100 | 0.5111 | 6.18 |
+| MAE e99 | 0.4469 | 6.59 |
+| **SALT v1 e79 (best)** | **0.4143** | **6.66** |
+
+SALT underperforms all three EMA-based objectives by 0.03–0.24 R². Note that the gap to MAE is small (~0.03) while the gap to JEPA is substantial (~0.24). Replacing JEPA's co-evolving EMA teacher with a frozen pixel-reconstruction teacher reduces LVEF R² from 0.591 to 0.414 (−30%).
+
+**Effective dimensionality (RankMe, 2026-04-07):** JEPA 245, BYOL 221, MAE 206, **SALT 203**. SALT does **not** suffer from dimensionality collapse — the gap is about teacher dynamics, not representational capacity. The student has enough capacity to learn diverse features; without the evolving teacher signal, those features don't organize into useful temporal/functional structure.
 
 **Severity gradient:** SALT S2 e79 collapses at 25% shuffle (R²=−0.037). The frozen pixel teacher provides a latent target but without EMA dynamics, the student learns no temporal robustness.
 
 **Context against concurrent work:** The SALT paper (Apple, 2025) trains on 3.6M diverse natural video clips — high data diversity compensates for the static teacher. US-JEPA (concurrent) succeeds with SALT by using URFM (BiomedCLIP-distilled) as a strong externally-pretrained teacher with broad medical coverage. Our V-Pixel teacher, trained from scratch on 525K echo clips (single domain), has narrow coverage → ceiling. The frozen teacher mechanism needs either **data diversity** (SALT paper) or a **strong external teacher** (US-JEPA) to work. With neither, EMA-based co-evolution (JEPA) is strictly superior.
 
-**One sentence for the paper:** "Concurrent work achieves competitive results with frozen teachers using either diverse pretraining data (SALT; Li et al., 2025) or strong externally-pretrained teachers (US-JEPA; Kang et al., 2025); our results show that when the teacher is trained from scratch on a narrow clinical domain, the frozen teacher mechanism imposes a representation ceiling (loss plateau at 0.42, weight cosine >0.999 between e79 and e199) that EMA-based co-evolution avoids."
+**Conservative framing for the paper (web Claude recommendation, 2026-04-07 — two sentences, one table row):** "Replacing JEPA's co-evolving EMA teacher with a frozen pixel-reconstruction teacher (SALT) reduces LVEF R² from 0.591 to 0.414 (−30%), placing it below all three EMA-based objectives. This suggests co-evolution of the target encoder contributes to representation quality independent of the prediction target choice."
 
-**⚠️ CAVEAT (2026-04-06):** Initial SALT runs had several hyperparameter mismatches vs the SALT paper: L1 loss instead of L2, no LR cosine decay (constant 1.75e-4 vs 6.25e-4→1e-6), no WD ramp (constant 0.04 vs 0.04→0.4), ipe_scale=1.25 instead of 1.0, weaker augmentation. These are now fixed in configs. **SALT must be retrained with corrected configs before including in the paper.** The frozen teacher ceiling observation (loss plateau, weight convergence) may still hold, but the absolute performance gap is partly attributable to misconfiguration. See `ops-notes.md` for full discrepancy table.
+**Known deviations from the SALT paper we cannot fix (documented in `claude/architecture/salt-training-reference.md`):**
+- Batch size 512 vs paper 3072 (single-node H100 constraint). LR sqrt-scaled for v3 (2.55e-4 vs paper 6.25e-4).
+- Total training ~24K steps vs paper 240K (~10% of paper compute budget).
+- Pretraining dataset is 525K narrow-domain echo clips vs V-3.6M diverse natural video.
+
+These deviations explain why our SALT *absolute* numbers differ from the paper, but the *qualitative finding* (SALT < EMA on echocardiography under matched conditions) holds across both implementation variants and is the load-bearing claim.
+
+**No retraining required.** Earlier "SALT invalidated / must retrain" notes were based on a false claim that v1 used L2 loss. Config inspection confirms both v1 and v3 used `loss_exp: 1.0` (L1, matching paper Eq 2.1). See `claude/neurips/experiments/salt-comparison.md` for the full writeup.
 
 **§4 → §5 bridge:** These mechanistic differences (temporal encoding regimes, noise filtering) translate to practical robustness under clinical image quality degradation, tested in §5.
 

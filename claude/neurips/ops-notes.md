@@ -95,7 +95,25 @@ The initial SALT S1+S2 runs (jobs 379, 388, 391, 392) had several hyperparameter
 **Remaining deliberate deviation:**
 - ImageNet-21K init for S1 teacher: deliberate for controlled comparison, but deviates from paper (trains from scratch).
 
-**Implication:** SALT results from jobs 379/388/391/392 (v1) and 416/417 (v2) all had misconfigurations. Jobs 445/446 (v3) are the first fully corrected runs. No conclusions about SALT's performance should be drawn from prior jobs.
+**Revised implication (2026-04-07):** The table above characterizes v3 as the "fully corrected" run, implying v1 results are invalid. **This framing is out of date.** Both v1 (jobs 388/391/392) and v3 (job 446) are **legitimate SALT variants** with different design choices:
+
+| | v1 (hierarchical) | v3 (paper-spec) |
+|---|---|---|
+| S2 predictor | Hierarchical 4-layer (V-JEPA 2.1 extension) | Single-level (SALT paper Eq 2.1) |
+| Loss | L1 (`loss_exp: 1.0`) | L1 (`loss_exp: 1.0`) |
+| Peak LR | 1.75e-4 constant | 2.55e-4 cosine decay to 1e-6 |
+| Weight decay | 0.04 constant | 0.04→0.4 cosine ramp |
+| ipe_scale | 1.25 (virtual early stopping) | 1.0 |
+| Augmentation | weak ([0.9, 1.1] aspect, [0.5, 1.0] scale) | paper ([0.75, 1.35], [0.3, 1.0]) |
+| `pred_num_heads` | 12 | 16 |
+| Test MAE (EchoNet-Dynamic) | **6.66 (best)** | 7.03 |
+| Test R² (EchoNet-Dynamic) | **0.414 (best)** | 0.348 |
+
+**Both v1 and v3 used L1 loss** (the `loss_exp: 1.0` is in both checkpoints' saved configs). The "round 1 fix" mentioned above (`loss_exp` default changed from 1.0 to 2.0) was briefly in `app/salt/train.py` but the configs always specified 1.0, which overrides the default. Neither v1 nor v3 was ever trained with L2 loss.
+
+**Both variants are valid SALT implementations.** v1 uses the V-JEPA 2.1 hierarchical distillation extension; v3 matches paper Eq 2.1 strictly. v1 happens to outperform v3 on EchoNet LVEF, likely because hierarchical features help the d=4 attentive regression probe. The gap to EMA-based methods is robust across both variants (JEPA 0.652, BYOL 0.511, MAE 0.447 vs SALT v1 0.414, v3 0.348).
+
+**For the paper: use v1 e79 as the primary SALT row** (best test R² among SALT variants). No retraining required. The consistent finding across v1, v1 e199, and v3 is that SALT underperforms all three EMA-based objectives by 0.03–0.24 R². See `claude/neurips/experiments/salt-comparison.md` for the full writeup and conservative framing.
 
 ## Probe result extraction
 

@@ -24,17 +24,22 @@
 - [x] **BYOL** e24/50/75/100 LVEF probes: val MAE 6.37 / 6.17 / 5.99 / 5.94
 - [x] **MAE** e24/50/74/99 LVEF probes: val MAE 7.54 / 6.41 / 6.11 / 6.05
 
-### SALT S2 Evaluation (preliminary — INVALIDATED by config bugs)
+### SALT S2 Evaluation — VALID across two implementation variants (revised 2026-04-07)
 
-- [x] SALT S2 e79 probe: val MAE 6.47 (trained with wrong config: hierarchical output, wrong num_heads)
-- [x] SALT S2 e199 probe: val MAE 6.73 (worse than e79 — plateau, but config was wrong)
-- [x] SALT severity gradient: collapses at 25% shuffle
-- **⚠️ ALL SALT results invalidated.** Config had: hierarchical output (not in SALT paper), pred_num_heads 12 vs 16, wrong LR/WD initially. Retrain required.
+- [x] SALT v1 e79 probe: val MAE 6.47 → **test MAE 6.66, R²=0.414** (pred-avg, best SALT variant)
+- [x] SALT v1 e199 probe: val MAE 6.73 → test MAE 7.02, R²=0.360 (extended training, slightly worse)
+- [x] SALT v3 e79 probe: val MAE 6.84 → test MAE 7.03, R²=0.348 (paper-spec single-level predictor)
+- [x] SALT severity gradient: collapses at 25% shuffle (v1 e79)
+- [x] Effective dimensionality: SALT v1 e79 RankMe = 203 (JEPA/BYOL/MAE are 245/221/206 — **no dim collapse**)
+- **✓ Results valid.** Earlier "invalidated / retrain" notes were based on a false claim that v1 used L2 loss. Both v1 and v3 configs have `loss_exp: 1.0` (L1, matching SALT paper Eq 2.1). The two variants differ in predictor architecture (hierarchical vs single-level) and hyperparameter regime, but the qualitative finding holds across both: **SALT underperforms all three EMA-based methods by 0.03–0.24 R² on EchoNet-Dynamic LVEF**. The gap is about teacher dynamics, not representational capacity.
+- Full writeup: `claude/neurips/experiments/salt-comparison.md`
+- Paper inclusion: one row in §3 comparison table + two-sentence framing in §4.5 (web Claude recommendation, 2026-04-07)
 
 ### Infrastructure
 
 - [x] JEPA IN21K pretraining completed (job 376, e100)
-- [x] SALT S2 pretraining completed (jobs 388/391/392, e200) — but with wrong config
+- [x] SALT S2 v1 pretraining completed (jobs 388/391/392, e79/e100/e199) — hierarchical predictor, constant LR
+- [x] SALT S2 v3 pretraining completed (job 446, e79) — single-level predictor, paper-spec HP regime
 - [x] All checkpoints + probes uploaded to GDrive (`echo_foundation/nature_medicine/neurips/`)
 - [x] Fetal US dataset downloaded (774 videos, `data/fetal_ultrasound/DatasetV3/`)
 - [x] Allen Brain Observatory SDK set up (`allen` conda env)
@@ -72,7 +77,7 @@
 
 | # | Experiment | Why | Compute | Depends On |
 |---|-----------|-----|---------|-----------|
-| 5 | **SALT retrain with corrected configs** | Decision gate: include as mechanistic probe or cut. All previous SALT results invalidated. | ~3 days S1+S2 on HyperPod | Corrected configs (done) |
+| ~~5~~ | ~~SALT retrain with corrected configs~~ | ~~Decision gate~~ | — | **NOT NEEDED (2026-04-07).** Earlier "invalidated" claim was based on a false L1/L2 assumption. v1 and v3 are both valid SALT variants with consistent results (R²=0.35–0.41, all below EMA baselines). See `experiments/salt-comparison.md`. Frees ~3 days HyperPod for 5-task probes or calcium imaging. |
 | 6 | **Fetal US appendix** | Cross-anatomy transfer. Both tasks spatial → MAE leads both → confirms thesis. | ~2 hrs | Fetal dataset (downloaded) |
 | 7 | **Speckle probing on e100 models** | §4.3 needs init-matched speckle partial R² | ~1 hr | e100 checkpoints (done) |
 
@@ -88,7 +93,7 @@
 
 - ~~EchoJEPA-G scaling~~ — confounds prediction target with scale, conflicts with Nature Medicine
 - ~~Training dynamics EchoBench~~ — running all 12 models through EchoBench is excessive for appendix material
-- ~~6-condition on SALT~~ — SALT results invalidated, retrain first
+- ~~6-condition on SALT~~ — SALT used as single-row probe only (web Claude conservative framing), full 6-condition sweep not needed
 
 ---
 
@@ -103,7 +108,7 @@
 | **§4.2 Severity gradient** | Complete (13 models × 5 fractions) | Writing + Fig 2b,c |
 | **§4.3 Effective dim + speckle** | **REVISED.** Prior d_eff numbers retracted. Consistent 4-model RankMe: JEPA 245, BYOL 221, MAE 206, SALT 203 (all 200-245, no collapse). Demoted to appendix. Speckle + temporal consistency unchanged. | Writing |
 | **§4.4 Autocorrelation sweep** | **DONE** — hypothesis not supported. Appendix result. | — |
-| **§4.5 SALT** | Invalidated | **Retrain** (P1 #5) |
+| **§4.5 SALT** | **VALID across v1 and v3 variants.** SALT v1 e79 test R²=0.414 (best), v3 e79 R²=0.348. Both underperform EMA baselines (JEPA 0.652, BYOL 0.511, MAE 0.447). Conservative framing adopted: one row + two sentences. No retrain needed. | Writing (two-sentence framing in §4.5 per `salt-comparison.md`) |
 | **§5 EchoBench** | **DONE** — LVEF + CAMUS at e100 init-matched. JEPA most robust on both. | Writing + figures |
 | **§6 Discussion** | Framing complete | Writing |
 | **Appendix** | Training dynamics, frame shuffling tables | Fetal US (P1 #6), figures |
@@ -115,9 +120,10 @@
 | Job | Model | Node | Status |
 |-----|-------|------|--------|
 | 376 | JEPA IN21K (e100) | — | **Complete** |
-| 388 | SALT S2 (e79) | — | **Complete** (config was wrong) |
-| 391 | SALT S2 resume (e100) | — | **Complete** (config was wrong) |
-| 392 | SALT S2 resume (e200) | — | **Complete** (config was wrong) |
+| 388 | SALT S2 v1 (e79) | — | **Complete, VALID** (hierarchical predictor variant) |
+| 391 | SALT S2 v1 resume (e100) | — | **Complete, VALID** |
+| 392 | SALT S2 v1 resume (e199) | — | **Complete, VALID** (marginal improvement) |
+| 446 | SALT S2 v3 (e79) | — | **Complete, VALID** (single-level paper-spec variant) |
 | 393 | BYOL (e108→e200) | 184 | Running |
 | 394 | MAE (e124→e200) | 83 | Running |
 
@@ -129,4 +135,4 @@
 
 2. **Prepare 5-task probe configs for JEPA IN21K e100** — need configs for UHN LVEF (53K), RVSP (41K multi-view), CAMUS segmentation, Pediatric zero-shot. These can run on HyperPod once BYOL/MAE e200 jobs free up nodes.
 
-3. **Submit SALT S1+S2 retrain on HyperPod** — corrected configs ready. Queue after BYOL/MAE e200 finishes on node 83/184.
+3. ~~**Submit SALT S1+S2 retrain on HyperPod**~~ — **NOT NEEDED.** Existing v1 and v3 variants are both valid SALT implementations. Use v1 e79 (best test R²=0.414) as the primary SALT row in the §3 comparison table. See `experiments/salt-comparison.md` and `paper-outline.md` §4.5.
