@@ -596,12 +596,11 @@ def main(args, resume_preempt=False):
                             #  Stage 2: Frozen-teacher latent prediction
                             # ============================================
 
-                            # Frozen teacher: FULL unmasked forward
-                            # SALT paper uses single-level output (training_mode=False).
-                            # V-JEPA 2.1 hierarchical output (training_mode=True) is NOT
-                            # part of the SALT recipe. Use training_mode=True only if
-                            # n_output_distillation is explicitly set in config.
-                            use_hier = n_output_distillation is not None
+                            # SALT paper (Eq 2.1) uses single-level patch-token prediction.
+                            # V-JEPA 2.1 hierarchical output is an optional extension enabled
+                            # by setting `n_output_distillation > 1` in the config. Default
+                            # (None → 1 in init_salt_student_model) = single-level per paper.
+                            use_hier = n_output_distillation is not None and n_output_distillation > 1
                             with torch.no_grad():
                                 h = teacher_encoder(clips, training_mode=use_hier)
                                 if use_hier:

@@ -206,8 +206,12 @@ def init_salt_student_model(
     # Determine teacher embed dim for output projection
     teacher_embed_dim = teacher_encoder.backbone.embed_dim
     student_embed_dim = student_encoder.backbone.embed_dim
-    # The predictor needs to know how many hierarchical layers to handle
-    n_hier = n_output_distillation if n_output_distillation is not None else 4
+    # SALT paper (Eq 2.1) uses single-level patch-token prediction — the predictor
+    # produces one token per masked position with dim = teacher_embed_dim.
+    # n_output_distillation defaults to 1 (single-level) to match the paper.
+    # Setting n_output_distillation > 1 enables V-JEPA 2.1's hierarchical feature
+    # distillation extension, which is NOT part of the SALT paper recipe.
+    n_hier = n_output_distillation if n_output_distillation is not None else 1
     teacher_hier_dim = teacher_embed_dim * n_hier
 
     predictor_kwargs = dict(
@@ -228,9 +232,8 @@ def init_salt_student_model(
         use_activation_checkpointing=use_activation_checkpointing,
         return_all_tokens=False,
         teacher_embed_dim=teacher_hier_dim,
+        n_output_distillation=n_hier,  # Always pass so predictor matches train.py hier mode
     )
-    if n_output_distillation is not None:
-        predictor_kwargs["n_output_distillation"] = n_output_distillation
 
     predictor = vit_pred.__dict__["vit_predictor"](**predictor_kwargs)
     predictor = PredictorMultiSeqWrapper(predictor)
