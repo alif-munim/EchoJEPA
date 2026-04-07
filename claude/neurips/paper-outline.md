@@ -127,9 +127,18 @@ Two orthogonal axes: the 6-condition experiment varies the *type* of temporal di
 
 JEPA encodes 23% less speckle (partial R²=0.674 vs 0.875). Monotonic: JEPA < BYOL < MAE. Directly measures frame-varying noise retention in representations.
 
-### 4.4 Noise autocorrelation sweep (planned — P0 week 1)
+### 4.4 Noise autocorrelation sweep (completed — APPENDIX, not main text)
 
-Sweep temporal correlation of synthetic noise from τ=∞ (static) to τ=0 (iid per-frame). If the MAE/JEPA ranking inverts as noise becomes more frame-varying → causal proof. Implement by modifying `scripts/rebuttal/echo_perturbations.py`.
+**Result did NOT support the original hypothesis.** Static noise (τ=∞) is most damaging for all models; frame-varying noise (τ→0) self-averages and is less harmful. JEPA is most robust at every τ, but the pattern is the same for all models. This means JEPA's advantage is about general representation quality, not specifically about temporal noise filtering.
+
+| τ | JEPA e100 | BYOL e100 | MAE e99 |
+|---|-----------|-----------|---------|
+| clean | 0.591 | 0.468 | 0.445 |
+| ∞ (static) | 0.422 (−29%) | 0.262 (−44%) | −0.122 (−127%) |
+| 4.0 (optimal) | 0.574 (−3%) | 0.345 (−26%) | 0.171 (−62%) |
+| 0.0 (iid) | 0.508 (−14%) | 0.270 (−42%) | 0.253 (−43%) |
+
+**Demoted from P0 main-text centerpiece to appendix/supplementary.** Honest framing: "JEPA's robustness is consistent across all noise temporal structures, suggesting representation quality rather than a temporal-noise-specific mechanism." Complements EchoBench (§5, which also uses static perturbations). See `experiments/noise-autocorrelation-sweep.md` for full analysis.
 
 ### 4.5 SALT: the frozen teacher ceiling (confirmed)
 
