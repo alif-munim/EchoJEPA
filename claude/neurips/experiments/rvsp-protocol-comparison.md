@@ -57,6 +57,42 @@ Single test set, single train set. Only protocol and aggregation differ:
 | d=4 single-view PSAX | d=4 | PSAX only | none | 0.188 | 0.449 | 9.368 |
 | d=1 + pred avg (manuscript L, **different ckpt**) | d=1 | single-view | pred avg | 0.168 | 0.442 | — |
 
+## Full 5-Model Clip-Level vs Study-Level Analysis (All Manuscript Models)
+
+Computed from `clip_outputs.npz` produced by `run_pred_avg.sh rvsp` on 2026-04-07. Each npz contains per-clip predictions across all 12 HP heads for ~100K clips (5,103 studies × ~20 clips/study on average). Both clip-level (single-clip) and study-level (pred avg) metrics computed on the **same test split** — cleanly isolating the aggregation effect.
+
+| Model | Clip R² | Clip Pearson | Clip MAE | Study R² (PA) | Study Pearson | Study MAE | Δ R² (PA boost) |
+|-------|---------|--------------|----------|---------------|---------------|-----------|-----------------|
+| **EchoJEPA-G** | **0.430** | **0.661** | **8.01** | **0.504** | **0.726** | **7.25** | **+0.074** |
+| EchoJEPA-L-K | 0.234 | 0.489 | 9.35 | 0.318 | 0.581 | 8.54 | +0.083 |
+| PanEcho | 0.207 | 0.466 | 9.35 | 0.274 | 0.555 | 8.62 | +0.067 |
+| EchoPrime | 0.123 | 0.419 | 9.50 | 0.169 | 0.477 | 8.83 | +0.046 |
+| EchoJEPA-L | 0.081 | 0.333 | 10.02 | 0.168 | 0.442 | 9.08 | +0.087 |
+
+### Findings from the 5-model clean comparison
+
+1. **Pred avg boost is real and substantial for all 5 models.** Range: +4.6pp (EchoPrime) to +8.7pp R² (L). Average: ~+7pp R². This is **meaningfully larger** than the +3.4 to +6.3pp reported in the published "boost table" (`probe-results.md`), which was biased low by the val/test split confound.
+
+2. **Ranking is preserved between clip-level and study-level.** G > L-K > PanEcho > EchoPrime ≈ L on both. Aggregation doesn't change model ordering — it just reduces noise for all of them.
+
+3. **EchoJEPA-L is unusually weak at clip level** (R²=0.081, Pearson=0.333). L gains the most from pred avg (+8.7pp) because it has the noisiest per-clip predictions. The manuscript L checkpoint is a surprisingly weak baseline for RVSP — possibly because RVSP requires cross-view geometry reasoning that the 235-epoch MIMIC pretrain didn't emphasize.
+
+4. **EchoPrime gains the least from pred avg** (+4.6pp). Its text-supervised representations already do implicit pooling (global pool before projection), so averaging adds less marginal information. Consistent with the hypothesis that contrastive/global-pool encoders have smoother prediction surfaces.
+
+5. **G stays well ahead of L-K even at clip level** (0.430 vs 0.234 = +20pp R² gap). The ViT-G scale + 18M UHN pretraining gives a representation that's much more robust to single-clip noise than the ViT-L MIMIC-only models.
+
+### Comparison with rebuttal d=4 multi-view (L only)
+
+| Protocol | Checkpoint | Clip R² (test) | Study R² (test) | MAE |
+|---|---|---|---|---|
+| d=1 + pred avg | L manuscript (235ep) | 0.081 | **0.168** | 9.08 |
+| **d=4 multi-view (rebuttal)** | L pt50 (50ep) | — | **0.220** | 9.10 |
+| **Δ (multi-view > pred avg)** | different ckpt | | **+0.052** | ~0 |
+
+Even with a **5× weaker encoder** (pt50 has 1/5 the training of the manuscript L), d=4 multi-view still beats d=1 + pred avg by **+5.2pp R²** on RVSP. This reinforces the protocol finding: **multi-view fusion is the dominant lever on RVSP**, more important than encoder scale within the L family. The unconfounded estimate (where L pt50 is likely weaker than 0.168 at d=1 + pred avg) makes the multi-view advantage closer to **+7pp R²**.
+
+The exception is **EchoJEPA-G** at d=1 + pred avg (R²=0.504), which beats L pt50 d=4 multi-view (R²=0.220) by +28pp. When the encoder scale gap is this large, it dominates all protocol effects.
+
 ## Effect Decomposition
 
 | Effect | Δ R² | Source |

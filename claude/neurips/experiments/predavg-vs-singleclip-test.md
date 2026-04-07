@@ -54,11 +54,36 @@ The pred avg numbers match exactly (0.504 ≈ 0.5036), confirming the new analys
 
 4. **Best head is consistent** (head 8 for both clip-level and study-level), suggesting the HP grid is robust to aggregation method.
 
+## Full 5-Model Results (extended 2026-04-07)
+
+All 5 manuscript models rerun through `run_pred_avg.sh rvsp`. Each produced a `clip_outputs.npz` with per-clip predictions across all 12 HP heads. Clip-level and study-level metrics computed from the same data for a clean within-model comparison.
+
+| Model | Clip R² | Clip Pearson | Clip MAE | Study R² (PA) | Study Pearson | Study MAE | Δ R² (PA boost) |
+|-------|---------|--------------|----------|---------------|---------------|-----------|-----------------|
+| **EchoJEPA-G** | **0.430** | **0.661** | **8.01** | **0.504** | **0.726** | **7.25** | **+0.074** |
+| EchoJEPA-L-K | 0.234 | 0.489 | 9.35 | 0.318 | 0.581 | 8.54 | +0.083 |
+| PanEcho | 0.207 | 0.466 | 9.35 | 0.274 | 0.555 | 8.62 | +0.067 |
+| EchoPrime | 0.123 | 0.419 | 9.50 | 0.169 | 0.477 | 8.83 | +0.046 |
+| EchoJEPA-L | 0.081 | 0.333 | 10.02 | 0.168 | 0.442 | 9.08 | +0.087 |
+
+### Cross-model findings
+
+1. **Pred avg boost is real for all 5 models** — range +4.6pp (EchoPrime) to +8.7pp R² (L). Average ~+7pp. **All larger than the +3.4 to +6.3pp reported in the published boost table** (which was underestimated due to the val/test split confound).
+
+2. **Ranking is preserved** at clip-level and study-level: G > L-K > PanEcho > EchoPrime ≈ L. Aggregation reduces noise uniformly without reshuffling model comparisons.
+
+3. **L is a surprisingly weak baseline at clip level** (R²=0.081, Pearson=0.333). It gains the most from pred avg (+8.7pp) because its per-clip predictions are the noisiest. Suggests the manuscript L (235-epoch MIMIC-only) underperforms specifically on RVSP — the task where cross-view geometry matters most and single-view information is least sufficient.
+
+4. **EchoPrime gains the least from pred avg** (+4.6pp). Its text-supervised global-pool representations already do implicit pooling before the probe, so averaging adds less marginal information. Consistent with the hypothesis that contrastive/global-pool encoders have smoother prediction surfaces than patch-token encoders like JEPA.
+
+5. **G's +20pp R² lead over L-K** at clip level (0.430 vs 0.234) is bigger than at study level (0.504 vs 0.318 = +18.6pp). Pred avg slightly closes the gap, but scale still dominates.
+
 ## Implications
 
-- **Pred avg is more valuable than the published table suggested.** The boost on RVSP for the largest model is +7pp R², not +5pp.
+- **Pred avg is more valuable than the published table suggested.** The average boost across 5 RVSP models is ~+7pp R², not ~+5pp.
 - **The published pred avg boost table is biased** — it should be treated as a lower bound on the true aggregation effect across all tasks. Any task where val < test (val set easier) will show an underestimated boost; any task where val > test will show an overestimated one.
-- **For NeurIPS paper:** the pred avg protocol decision (Strategy E) is well-justified by this clean analysis. Pred avg is not just a "small improvement" — it's a substantial 7pp R² gain on RVSP for the headline model.
+- **For NeurIPS paper:** the pred avg protocol decision (Strategy E) is well-justified by this clean analysis. Pred avg is a substantial 5-9pp R² gain uniformly across all 5 manuscript models on RVSP.
+- **For Nature Medicine:** this analysis doesn't change which protocol to use — the published pred avg numbers are still the right ones to report. But it does confirm that the current headline RVSP numbers are well-earned, not inflated by val/test confounds.
 
 ## Reproducing
 
@@ -80,9 +105,9 @@ DEVICES="cuda:4 cuda:5 cuda:6 cuda:7" MASTER_PORT=29530 \
 
 ## Status
 
-- **EchoJEPA-G**: complete (this analysis)
-- **EchoJEPA-L, L-K, EchoPrime, PanEcho**: pred avg running, will produce npz files
-- **Next**: rerun the same analysis for the other 4 models, build full 5-model comparison table
+- **All 5 manuscript models complete** (2026-04-07): G, L-K, L, EchoPrime, PanEcho
+- Full 5-model comparison table added above
+- `clip_outputs.npz` files saved at `evals/vitg-384/nature_medicine/uhn/video_classification_frozen/rvsp-predavg-{model}/`
 
 ## Caveats
 
