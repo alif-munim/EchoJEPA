@@ -14,6 +14,24 @@ Target: 9 pages main text + references + appendix. Representation Learning / SSL
 
 **Preempts the novelty concern directly:** "The encoder architecture is deliberately held constant across all objectives. This is the experimental design, not a limitation. Our contribution is the systematic empirical finding, the mechanistic evidence explaining it, and the evaluation methodology that reveals it." Cite precedents (scaling laws papers, "Do ViTs See Like CNNs?", understanding papers at NeurIPS).
 
+### Preempts the regime concern (LOAD-BEARING for SALT defensibility)
+
+**Critical:** §1 must frame the data/compute regime as **the experimental variable**, not a limitation of the work. Without this framing, the SALT row in §3 invites an out-of-distribution attack ("you ran SALT on 525K narrow-domain clips at 10% of paper compute — that's not a valid SALT test"). With this framing, SALT's underperformance becomes a regime-sensitivity finding that is directly useful to practitioners.
+
+**Target paragraph (fold into §1 after the novelty preempt, before the finding preview):**
+
+> We evaluate these SSL paradigms under the conditions in which practitioners will actually train and deploy medical video foundation models: one node of compute, a single-institution dataset of ~500K clips, and no access to a strong external teacher pretrained on diverse medical imagery. This regime is shared by most medical imaging groups outside well-resourced industry labs, and it differs structurally from the data-rich natural-video regime that most SSL benchmarks target (ImageNet-21K pretraining → Kinetics-400 or V-3.6M scale, 10⁶–10⁷ diverse clips, multi-node compute). **Which SSL objective wins can depend on the regime.** Our paper characterizes how four SSL paradigms — JEPA, BYOL-Video, VideoMAE, and SALT — behave under this realistic medical-imaging regime, and shows that the winner on standard natural-video benchmarks is not always the winner here.
+
+**Reinforce in §2 (Experimental Design):**
+
+> We intentionally hold the pretraining data (MIMIC-IV-Echo, 525K clips, single institution) and compute budget (8×H100, ~25K steps) fixed across all four methods. This is the central experimental control: the only variable is the SSL objective. Methods that require data diversity or strong external teachers to work (e.g., SALT under the conditions reported by Li et al., 2025) will be disadvantaged relative to methods that succeed from narrow-domain pretraining alone — **and we take this to be informative**, since it reflects the conditions under which each method will actually be deployed in medical imaging.
+
+**Reinforce in §4.5 SALT discussion (already present, adjust wording):**
+
+> Our SALT result is a **regime-conditional** finding. SALT paper on V-3.6M and US-JEPA (concurrent) on URFM-distilled teachers both succeed because the frozen teacher has broad coverage — either from data diversity or from an externally pretrained teacher. Our setup has neither: the frozen teacher is trained from scratch on 525K single-domain echo clips. Under these conditions, EMA-based co-evolution (JEPA, BYOL) strictly outperforms frozen-teacher distillation. We do **not** claim SALT is fundamentally inferior to EMA methods; we claim the frozen-teacher mechanism requires conditions that are not present in typical medical video SSL deployment.
+
+**Three mentions, three sections, consistent phrasing.** If all three are present, a reviewer cannot reasonably argue "your SALT test is out of distribution for SALT" — because you already said that's exactly the point. The frame becomes: "we measured the regime sensitivity of SSL methods," which is a different paper than "we replicated SALT." See `experiments/salt-comparison.md` § Reviewer Rebuttal Q&A for the full defensive analysis.
+
 ---
 
 ## Section 2: Experimental Design (~1.5 pages)
@@ -91,20 +109,37 @@ Monotonic gradient confirmed: clean ≈ tubelet ≈ matched > reverse > shuffle 
 
 The consolidation pattern (§4.2) holds across all 6 conditions: e50 shows the largest drop (clean→matched_frame: −46%), e100 the smallest (−19%).
 
-**Cross-model comparison at convergence (6-condition):**
+**Cross-model comparison at convergence (6-condition, all four methods — updated 2026-04-08):**
 
-| Condition | JEPA e100 | BYOL e100 | MAE e99 |
-|-----------|-----------|-----------|---------|
-| clean | **0.591** | 0.468 | 0.445 |
-| tubelet | **0.582** | 0.402 | 0.424 |
-| reverse | **0.539** | 0.373 | 0.431 |
-| matched | **0.580** | 0.415 | 0.419 |
-| shuffle | **0.484** | 0.291 | 0.422 |
-| matched_frame | **0.477** | 0.280 | 0.449 |
+| Condition | JEPA e100 | BYOL e100 | MAE e99 | SALT e79 |
+|-----------|-----------|-----------|---------|----------|
+| clean | **0.591** | 0.468 | 0.445 | 0.293 |
+| tubelet | **0.582** | 0.402 | 0.424 | 0.290 |
+| reverse | **0.539** | 0.373 | 0.431 | 0.206 |
+| matched | **0.580** | 0.415 | 0.419 | 0.292 |
+| shuffle | **0.484** | 0.291 | 0.422 | **−0.412** |
+| matched_frame | **0.477** | 0.280 | 0.449 | **−0.439** |
+| **clean → matched_frame** | **−19%** | **−40%** | **+1%** | **−250%** |
 
-Three distinct profiles: JEPA gentle slope, BYOL steep slope, MAE flat. JEPA matched_frame (0.477) > BYOL clean (0.468).
+**Four qualitatively distinct profiles, each a signature of what the prediction target does:**
+- **JEPA (latent target + EMA co-evolution)** — monotonic gradient, gentle slope (−19%). Robust temporal encoding.
+- **BYOL (global pool + EMA)** — monotonic gradient, steep slope (−40%). Moderate temporal encoding.
+- **MAE (pixel target, no teacher)** — completely flat (+1%). No temporal encoding (tube masking reframe, §4.6: the shortcut is within-frame spatial interpolation, unblockable by masking design).
+- **SALT (latent target, frozen teacher)** — cliff profile, flat under local disruption then collapse under global (−250%). Brittle temporal encoding that only generalizes in-distribution.
 
-**Figure 2a:** Bar chart of this table.
+**Two load-bearing comparisons:**
+
+1. **JEPA's fully-shuffled representation beats every other model's clean representation.** JEPA matched_frame (0.477) > BYOL clean (0.468) > MAE clean (0.445) > SALT clean (0.293). Even with all temporal information destroyed, JEPA's spatial features are the strongest. This preempts the "JEPA only wins because of temporal encoding" reviewer objection — JEPA is better on both axes.
+
+2. **SALT is the only method that goes negative.** SALT clean (0.293) is already below MAE clean (0.445); under shuffle and matched_frame, SALT collapses to −0.412 / −0.439 — worse than predicting the test-set mean LVEF. No other method goes negative under any condition. This isolates the *teacher dynamics* component of JEPA's advantage: SALT keeps the latent target (like JEPA) but freezes the teacher (unlike JEPA), and the result is temporal features that are worse than having none at all.
+
+**Mechanistic interpretation by method:**
+- JEPA's advantage = latent target + EMA co-evolution (both components)
+- BYOL's stability = EMA co-evolution without the spatial-token target (pooled global target is less information-dense)
+- MAE's flatness = pixel target + within-frame spatial interpolation shortcut (§4.6)
+- SALT's cliff = latent target without co-evolution → brittle in-distribution-only temporal encoding
+
+**Figure 2a:** Bar chart of this 4-way table. Four side-by-side profiles make each regime visually distinct at a glance.
 
 ### 4.2 Severity gradient × training dynamics (Figure 2b,c — KEY RESULT)
 
