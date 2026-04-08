@@ -63,17 +63,29 @@ Bootstrap CIs (rebuttal): JEPA-MAE ΔR²=+0.201 [+0.168, +0.235]; JEPA-BYOL Δr=
 
 #### e100 init-matched (canonical, all IN21K-init at ~100 epochs)
 
-| Model | Test R² | Test Pearson | Test MAE |
-|-------|---------|-------------|----------|
-| **EchoJEPA-IN21K e100** | **0.591** | **0.771** | **5.77** |
-| EchoBYOL e100 | 0.468 | 0.690 | 6.41 |
-| EchoMAE e99 | 0.445 | 0.674 | 6.58 |
-| **SALT v1 e79** (frozen teacher) | 0.414 | 0.659 | 6.66 |
-| Predict-mean | — | — | 9.90 |
+| Model | Test R² [95% CI] | Test Pearson [95% CI] | Test MAE |
+|-------|-----------------|----------------------|----------|
+| **EchoJEPA-IN21K e100** | **0.652** [0.608, 0.691] | **0.808** [0.781, 0.832] | **5.32** |
+| EchoBYOL e100 | 0.511 [0.452, 0.564] | 0.720 [0.680, 0.756] | 6.18 |
+| EchoMAE e99 | 0.447 [0.389, 0.500] | 0.688 [0.645, 0.728] | 6.59 |
+| **SALT v1 e79** (frozen teacher) | 0.416 [0.347, 0.478] | 0.659 [0.613, 0.702] | 6.66 |
 
-**Ranking is preserved** (JEPA > BYOL > MAE > SALT) but the absolute gaps are smaller than the pt50 rebuttal numbers suggested. The init-matched numbers are the **canonical NeurIPS results**.
+Bootstrap 95% CIs (n=1,277, 10K resamples, all 4 models paired on same samples — SALT aggregated from 1,280 clips to 1,277 videos).
 
-**Source:** `claude/neurips/experiments/representation-analysis.md` (canonical), rebuttal pt50 numbers from `rebuttals/10-*` §3a, SALT from `experiments/salt-comparison.md`
+**Pairwise differences (all paired bootstrap):**
+
+| Comparison | ΔR² [95% CI] | Δr [95% CI] | R² sig? | r sig? |
+|-----------|-------------|------------|---------|--------|
+| JEPA vs BYOL | +0.141 [+0.109, +0.175] | +0.088 [+0.066, +0.111] | **SIG** | **SIG** |
+| JEPA vs MAE | +0.205 [+0.164, +0.247] | +0.120 [+0.090, +0.152] | **SIG** | **SIG** |
+| JEPA vs SALT | +0.237 [+0.188, +0.289] | +0.149 [+0.116, +0.184] | **SIG** | **SIG** |
+| BYOL vs MAE | +0.064 [+0.016, +0.110] | +0.032 [-0.001, +0.066] | **SIG** | n.s. |
+| BYOL vs SALT | +0.096 [+0.042, +0.151] | +0.061 [+0.025, +0.098] | **SIG** | **SIG** |
+| MAE vs SALT | +0.032 [-0.022, +0.086] | +0.029 [-0.010, +0.066] | n.s. | n.s. |
+
+**Ranking preserved** (JEPA >> BYOL > MAE ≈ SALT). All JEPA pairwise comparisons highly significant. MAE and SALT are statistically equivalent.
+
+**Source:** Bootstrap computed 2026-04-08 from `clip_outputs.npz` files in `evals/vitl/icml/`. SALT had 1,280 clips (3 videos with duplicate clips) aggregated to 1,277 by averaging. See `experiments/representation-analysis.md` (canonical), SALT from `experiments/salt-comparison.md`.
 
 ### 2b. Pathology-Stratified LVEF (EchoNet-Dynamic, 1,277 test)
 
@@ -262,17 +274,18 @@ SALT (Li et al., Apple 2025) replaces JEPA's co-evolving EMA teacher with a froz
 
 ### EchoNet-Dynamic LVEF — full e100 init-matched comparison (test set)
 
+Uses bootstrap-verified numbers (see §2a above for full CIs table):
+
 | Method | Test MAE | Test R² | Test Pearson |
 |---|---|---|---|
-| **JEPA-IN21K e100** | **5.77** | **0.591** | **0.771** |
-| BYOL e100 | 6.41 | 0.468 | 0.690 |
-| MAE e99 | 6.58 | 0.445 | 0.674 |
-| **SALT v1 e79** (best variant) | **6.66** | **0.414** | **0.659** |
-| Predict-mean | 9.90 | — | — |
+| **JEPA-IN21K e100** | **5.32** | **0.652** | **0.808** |
+| BYOL e100 | 6.18 | 0.511 | 0.720 |
+| MAE e99 | 6.59 | 0.447 | 0.688 |
+| **SALT v1 e79** (best variant) | **6.66** | **0.416** | **0.659** |
 
-**Headline:** Same ranking as the rebuttal three-way comparison at pt50, now confirmed at e100 with init-matching. SALT is the worst SSL method.
+**Headline:** Same ranking as the rebuttal three-way comparison at pt50, now confirmed at e100 with init-matching. JEPA significantly outperforms all alternatives (all pairwise CIs exclude zero). MAE and SALT are statistically equivalent.
 
-**Conservative interpretation:** Replacing JEPA's co-evolving EMA teacher with a frozen pixel-reconstruction teacher (SALT) reduces LVEF R² from 0.591 to 0.414 (−30%), placing it below all three EMA-based objectives. This suggests co-evolution of the target encoder contributes to representation quality independent of the prediction target.
+**Conservative interpretation:** Replacing JEPA's co-evolving EMA teacher with a frozen pixel-reconstruction teacher (SALT) reduces LVEF R² from 0.652 to 0.416 (−36%), placing it statistically equivalent to MAE. This suggests co-evolution of the target encoder contributes to representation quality independent of the prediction target.
 
 ### SALT variant robustness (appendix)
 
