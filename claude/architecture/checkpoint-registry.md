@@ -45,7 +45,8 @@ EchoPrime and PanEcho checkpoints are loaded at runtime by their respective mode
 | `vjepa2_vitg384_meta.pt` | `vitg-384.pt` | Meta V-JEPA 2 ViT-G 384px | EchoJEPA-G (pt280_an81) |
 | `vjepa2_1_vitl_meta.pt` | `vjepa2_1_vitl.pt` | Meta V-JEPA 2.1 ViT-L | EchoJEPA-L run125 |
 | `vjepa2_1_vitb_meta.pt` | `vjepa2_1_vitb.pt` | Meta V-JEPA 2.1 ViT-B | EchoJEPA-B |
-| `vitl_imagenet21k.pt` | `vitl_in21k.pt` | ImageNet-21K ViT-L (timm) | EchoBYOL-L init |
+| `vitl_imagenet21k.pt` | `vitl_in21k.pt` | ImageNet-21K ViT-L (timm) | EchoBYOL-L, EchoJEPA-L in21k, EchoMAE-L init (+ S3: `vitl_raw.pth`) |
+| `vitb_imagenet1k.pt` | `vitb_in1k.pt` | ImageNet-1K ViT-B (torchvision `vit_b_16-c867db91.pth`, DeIT recipe, 81.07% top-1) | ViT-B JEPA/BYOL/VideoMAE MIMIC pretraining (in1k-hp configs). Upload to S3 as `vitb_raw.pth` for HyperPod sbatches. See `pretraining-and-cooldown.md` § ImageNet Initialization for the remap script. |
 
 ## Probe Checkpoints
 
@@ -172,7 +173,8 @@ Models per task: echojepa-g, echojepa-b, echojepa-l-k, echoprime, panecho. (echo
 | EchoJEPA-L (pt210_an25) | Local only (MIMIC pretraining on A100 node) |
 | EchoJEPA-L-K (pt220_an55) | Local only |
 | VideoMAE ep99/ep163 | Downloaded from CY's checkpoint share |
-| ImageNet-21K ViT-L | `timm` model registry |
+| ImageNet-21K ViT-L | `timm` model registry (local: `vitl_in21k.pt`; S3: `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/checkpoints/vitl_raw.pth`) |
+| ImageNet-1K ViT-B | `torchvision.models.ViT_B_16_Weights.IMAGENET1K_V1` (local: `vitb_in1k.pt`; S3: upload as `checkpoints/vitb_raw.pth` before launching ViT-B sbatches) |
 
 ## Intermediate Pretraining Checkpoints
 

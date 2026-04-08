@@ -153,6 +153,87 @@ Two mask generators per sample: one with many small blocks (8 × 15%), one with 
 - Resets: epoch=0, iteration=0, EMA schedule from step 0, fresh optimizer
 - Predictor weights are NOT loaded (reinitialized) unless present in checkpoint
 
+### ImageNet Initialization (image ViT -> video ViT)
+
+The same `force_load_pretrain: true` + `anneal_ckpt` path also accepts a **flat image-ViT state dict** (no `encoder`/`predictor` wrapper keys) for starting pretraining from ImageNet weights instead of from scratch. This is how we do controlled cross-method comparisons (JEPA vs BYOL vs VideoMAE, all starting from the same image-ViT init).
+
+**Supported trainers:** `app/vjepa`, `app/byol_video`, `app/salt` (each has the same load logic at `train.py:327-380` / `360-395` / `386-428`). The external VideoMAE trainer (`evals/.../VideoMAE/run_mae_pretraining.py`) takes it via `--finetune` after a separate remap step; see `scripts/videomae_pretrain_mimic_matched.sbatch` and `scripts/videomae_pretrain_mimic_vitb.sbatch` for the inline adapter.
+
+**Required checkpoint format** — flat state dict using `src/models/vision_transformer.py` key names (same convention as `checkpoints/vitl_in21k.pt` and `checkpoints/vitb_in1k.pt`):
+
+```
+patch_embed.proj.weight    (D, 3, 16, 16)   # Conv2d — inflated to Conv3d at load time
+patch_embed.proj.bias      (D,)
+blocks.{i}.norm1.weight    (D,)
+blocks.{i}.norm1.bias      (D,)
+blocks.{i}.attn.qkv.weight (3*D, D)         # fused QKV
+blocks.{i}.attn.qkv.bias   (3*D,)
+blocks.{i}.attn.proj.weight (D, D)
+blocks.{i}.attn.proj.bias   (D,)
+blocks.{i}.norm2.weight    (D,)
+blocks.{i}.norm2.bias      (D,)
+blocks.{i}.mlp.fc1.weight  (4*D, D)
+blocks.{i}.mlp.fc1.bias    (4*D,)
+blocks.{i}.mlp.fc2.weight  (D, 4*D)
+blocks.{i}.mlp.fc2.bias    (D,)
+norm.weight                (D,)              # final LayerNorm
+norm.bias                  (D,)
+cls_token                  (1, 1, D)         # ignored at load time
+pos_embed                  (1, 197, D)       # ignored when use_rope=true
+```
+
+**At load time (done automatically by the trainers):**
+1. Detect flat format (no `encoder` wrapper key) and drop `head.*` / `fc_norm.*`
+2. Inflate `patch_embed.proj.weight` 4D -> 5D: `pe.unsqueeze(2).repeat(1,1,tubelet_size,1,1) / tubelet_size`
+3. Load into `encoder.backbone` (not `encoder`, because the trainer wraps the ViT in a `MultiSeqWrapper`)
+4. Copy loaded weights to `target_encoder` (so EMA target matches online encoder at step 0)
+
+**Requirements on the config:**
+- `use_rope: true` — required, because the 2D ImageNet `pos_embed: (1, 197, D)` does not match the 3D video `pos_embed: (1, T*H*W/t, D)`. With RoPE, the video ViT has no learned `pos_embed` parameter, so the ImageNet entry becomes an unexpected key and is silently dropped. Without RoPE, loading errors on shape mismatch.
+- `model_name` must match the source architecture (e.g. `vit_base` for a 768-dim ViT-B source).
+
+**Building a new init checkpoint from torchvision:**
+
+```python
+import re, torch
+tv = torch.hub.load_state_dict_from_url(
+    'https://download.pytorch.org/models/vit_b_16-c867db91.pth',
+    model_dir='/tmp', map_location='cpu',
+)
+out = {}
+for k, v in tv.items():
+    if k == 'class_token':           out['cls_token'] = v
+    elif k == 'conv_proj.weight':    out['patch_embed.proj.weight'] = v
+    elif k == 'conv_proj.bias':      out['patch_embed.proj.bias']   = v
+    elif k == 'encoder.pos_embedding': out['pos_embed'] = v
+    elif k == 'encoder.ln.weight':   out['norm.weight'] = v
+    elif k == 'encoder.ln.bias':     out['norm.bias']   = v
+    elif k.startswith('encoder.layers.encoder_layer_'):
+        i = int(re.match(r'encoder\.layers\.encoder_layer_(\d+)\.', k).group(1))
+        sub = k.split('.', 4)[4]
+        mp = {
+            'ln_1.weight': f'blocks.{i}.norm1.weight',
+            'ln_1.bias':   f'blocks.{i}.norm1.bias',
+            'ln_2.weight': f'blocks.{i}.norm2.weight',
+            'ln_2.bias':   f'blocks.{i}.norm2.bias',
+            'self_attention.in_proj_weight':  f'blocks.{i}.attn.qkv.weight',
+            'self_attention.in_proj_bias':    f'blocks.{i}.attn.qkv.bias',
+            'self_attention.out_proj.weight': f'blocks.{i}.attn.proj.weight',
+            'self_attention.out_proj.bias':   f'blocks.{i}.attn.proj.bias',
+            'mlp.linear_1.weight': f'blocks.{i}.mlp.fc1.weight',
+            'mlp.linear_1.bias':   f'blocks.{i}.mlp.fc1.bias',
+            'mlp.linear_2.weight': f'blocks.{i}.mlp.fc2.weight',
+            'mlp.linear_2.bias':   f'blocks.{i}.mlp.fc2.bias',
+        }
+        out[mp[sub]] = v
+    # heads.* dropped silently
+torch.save(out, 'checkpoints/vitb_in1k.pt')
+```
+
+Verify the load works cleanly: instantiate `vit_base(use_rope=True)`, inflate `patch_embed.proj.weight`, call `load_state_dict(..., strict=False)` — expect **0 missing keys** and **exactly 2 unexpected** (`cls_token`, `pos_embed`).
+
+**Example configs:** `configs/train/vitb16/pretrain-jepa-mimic-224px-16f-in1k-hp.yaml`, `configs/train/vitb16/pretrain-byol-mimic-224px-16f-in1k-hp.yaml`, `configs/train/vitl16/pretrain-jepa-mimic-224px-16f-in21k-hp.yaml`.
+
 ### Checkpoint Contents
 ```python
 {

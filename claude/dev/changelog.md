@@ -6,6 +6,27 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-04-08
+
+### Added ViT-B ImageNet-1K init path for JEPA / BYOL / VideoMAE
+
+**What:** Built `checkpoints/vitb_in1k.pt` (343 MB) from torchvision `ViT_B_16_Weights.IMAGENET1K_V1` (DeIT recipe, 81.07% top-1) by remapping keys to the flat EchoJEPA convention (same format as `vitl_in21k.pt` / `vitl_raw.pth`). Dry-run load into `vit_base(use_rope=True)`: 0 missing, exactly 2 unexpected (`cls_token`, `pos_embed` — correctly ignored).
+
+**Why:** Three-way cross-method comparison at ViT-B scale needs all three methods starting from the same image-ViT init, matching the ViT-L `vitl_in21k.pt` pattern already used for EchoJEPA-L in21k / EchoBYOL-L / EchoMAE-L.
+
+**Trainer support:** `app/vjepa`, `app/byol_video`, `app/salt` already had the flat-init code path (`force_load_pretrain: true` + `anneal_ckpt:` at `train.py:327-380` etc., including the Conv2d -> Conv3d `patch_embed` inflation) from the ViT-L in21k work. The external VideoMAE trainer uses the inline adapter in `scripts/videomae_pretrain_mimic_matched.sbatch`, which is shape-generic and works for 768-dim sources unchanged.
+
+**Files added:**
+- `configs/train/vitb16/pretrain-jepa-mimic-224px-16f-in1k-hp.yaml` — JEPA ViT-B, 100 epochs, matches ViT-L in21k recipe (pred_depth 12 -> 6, act ckpt off)
+- `configs/train/vitb16/pretrain-byol-mimic-224px-16f-in1k-hp.yaml` — BYOL ViT-B, 100 epochs, constant EMA 0.99925
+- `scripts/videomae_pretrain_mimic_vitb.sbatch` — clone of `videomae_pretrain_mimic_matched.sbatch` with ViT-L -> ViT-B swaps (model import, `--model` flag, S3 init pointer). Prereq: upload `vitb_in1k.pt` to S3 as `checkpoints/vitb_raw.pth`.
+
+**Caveat (inherited from ViT-L VideoMAE run):** VideoMAE's `Attention` uses `qkv = Linear(..., bias=False)` + separate `q_bias` / `v_bias` params. The sbatch adapter walks target keys looking for matches, so the fused source `attn.qkv.bias` is silently dropped and `q_bias` / `v_bias` remain at zero init. ~96% of encoder params still load cleanly. Kept identical to ViT-L for parity.
+
+**Docs:** New "ImageNet Initialization (image ViT -> video ViT)" section in `claude/architecture/pretraining-and-cooldown.md` (checkpoint format, load-time transforms, `use_rope` requirement, inline torchvision remap script). `vitb_imagenet1k.pt` added to `claude/architecture/checkpoint-registry.md` Init Weights table.
+
+---
+
 ## 2026-03-29 (Session 37)
 
 ### Bug 017c: Single-view LVEF probe z-score mismatch
