@@ -203,29 +203,46 @@ For the e100 controlled comparison (all ImageNet-21K init):
 
 ---
 
-## 9. Probe Checkpoints (EchoNet-Dynamic LVEF)
+## 9. Probe Checkpoints
 
-These are the frozen probes used for frame shuffling and noise robustness. **Trained on JEPA§2 (Meta V-JEPA 2 init), not JEPA§1 (ImageNet init).** Will need new probes for the ImageNet-init controlled comparison.
+### EchoNet-Dynamic LVEF (e100 init-matched, canonical)
+
+| Model | S3 Path | EFS Path | Notes |
+|-------|---------|----------|-------|
+| JEPA IN21K e100 | `CLEAN/probes/end_lvef_e100/jepa_in21k_e100/best.pt` | TBD | R²=0.591 |
+| BYOL e100 | `CLEAN/probes/end_lvef_e100/byol_e100/best.pt` | TBD | R²=0.468 |
+| MAE e99 | `CLEAN/probes/end_lvef_e100/mae_e99/best.pt` | TBD | R²=0.445 |
+| SALT v1 e79 | EFS: `evals/vitl/icml/salt_s2_e79_end_lvef_224/.../best.pt` | — | R²=0.414 |
+
+### EchoNet-Dynamic LVEF (pt50 rebuttal, JEPA init confounded)
 
 | Model | S3 Path | Notes |
 |-------|---------|-------|
-| JEPA (Meta init) | `CLEAN/probes/end_lvef_pt50/echojepa_l_pt50/best.pt` | Head 3, d=4 attentive |
-| BYOL | `CLEAN/probes/end_lvef_pt50/echobyol_l_pt50/best.pt` | Head 1, d=4 attentive |
-| MAE | `CLEAN/probes/end_lvef_pt50/echomae_l_pt50/best.pt` | Head 5, d=4 attentive |
-| JEPA (ImageNet init) | — | **Pending** (job 376 finishes ~Apr 6) |
-| SALT S2 e79 | EFS: `evals/vitl/icml/salt_s2_e79_end_lvef_224/.../best.pt` | Val MAE 6.47 |
-| SALT S2 e49 | EFS: `evals/vitl/icml/salt_s2_e49_end_lvef_224/.../best.pt` | Trained on other machine |
+| JEPA (Meta init, confounded) | `CLEAN/probes/end_lvef_pt50/echojepa_l_pt50/best.pt` | Head 3, d=4 attentive. **Do not use for NeurIPS.** |
+| BYOL pt50 | `CLEAN/probes/end_lvef_pt50/echobyol_l_pt50/best.pt` | Head 1, d=4 attentive |
+| MAE pt50 | `CLEAN/probes/end_lvef_pt50/echomae_l_pt50/best.pt` | Head 5, d=4 attentive |
+
+### CAMUS Segmentation (e100 init-matched)
+
+| Model | S3 Path | EFS Path | Test Dice | Best Config |
+|-------|---------|----------|-----------|-------------|
+| JEPA IN21K e100 | `CLEAN/probes/camus_segmentation/jepa_in21k_e100/best_decoder.pt` | `results/segmentation/jepa_in21k_e100/lr5e-02_wd1e-04/best_decoder.pt` | 0.815 | lr5e-2, wd1e-4 |
+| BYOL e100 | `CLEAN/probes/camus_segmentation/byol_e100/best_decoder.pt` | `results/segmentation/byol_e100/lr5e-02_wd1e-04/best_decoder.pt` | 0.825 | lr5e-2, wd1e-4 |
+| MAE e99 | `CLEAN/probes/camus_segmentation/mae_e99/best_decoder.pt` | `results/segmentation/mae_e99/lr1e-02_wd1e-04/best_decoder.pt` | 0.827 | lr1e-2, wd1e-4 |
+
+Grid summaries (7 HP configs per model) also on S3 at `CLEAN/probes/camus_segmentation/{model}/grid_summary.json`.
 
 ---
 
 ## 10. Key Decision: Initialization Confound
 
-The ICML rebuttal used JEPA§2 (Meta V-JEPA 2 init) while BYOL and MAE used ImageNet-21K init. This is a confound — JEPA got a video-SSL head start.
+The ICML rebuttal used JEPA§2 (Meta V-JEPA 2 init) while BYOL and MAE used ImageNet-21K init. This was a confound — JEPA got a video-SSL head start. The ICML speckle probing claim ("23% less speckle") is **retracted** under init-matching (gap shrinks to 4%).
 
-For NeurIPS, all models should use **ImageNet-21K init** (§1/§3/§4). The JEPA§1 e100 checkpoint exists on S3. New probes will need to be trained on it.
+For NeurIPS, all models use **ImageNet-21K init** at e100. The surviving mechanism is **temporal structure encoding** (frame shuffling), not speckle filtering.
 
-**Action items:**
-1. Verify JEPA§1 e100 loads correctly into the probe pipeline
-2. Train LVEF/RVSP/CAMUS probes on JEPA§1 e100
-3. Run frame shuffling + noise robustness with JEPA§1 probes
-4. Compare results to ICML rebuttal numbers (JEPA§2) — if rankings hold despite different init, that's evidence the finding is robust
+**Completed:**
+1. ~~Verify JEPA§1 e100 loads correctly~~ — Done (job 376)
+2. ~~Train LVEF probes on JEPA§1 e100~~ — Done (EchoNet-Dynamic R²=0.591)
+3. ~~Train CAMUS probes on all e100 models~~ — Done (JEPA 0.815, BYOL 0.825, MAE 0.827)
+4. Run frame shuffling + noise robustness with e100 probes — **Pending**
+5. Run speckle probing with e100 encoders — **Done** (retracted: gap is 4% not 23%)
