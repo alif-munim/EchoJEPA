@@ -117,6 +117,7 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 | 8 | **Noise robustness — CAMUS (3×3)** | JEPA/BYOL/MAE | MAE -8% avg, JEPA -10%, BYOL -25% | §5 EchoBench | `rebuttals/10-*` §5o |
 | 9 | **Noise robustness — Pediatric ZS (3×2)** | JEPA/BYOL/MAE | JEPA highest at all severity levels | §5 EchoBench | `rebuttals/10-*` §5n |
 | 10 | **Frame shuffling (6 conditions)** | JEPA/BYOL/MAE | JEPA 0.365 post-shuffle; BYOL collapses to 0.099 | §4 Mechanism | `rebuttals/experiments/frame-shuffling.md` |
+| 10b | **Tube masking does not prevent the shortcut** (2026-04-08 reframe) | MAE ViT-L | VideoMAE ViT-L pretrained with `tube mask @ 0.9` (canonical Tong 2022). MAE e99 still invariant (−4%, flat across 6 conditions). Shortcut is within-frame spatial interpolation, not cross-frame copying. No masking fix possible → drops frame-gap MAE ViT-B pilot. | §4.6 Mechanism (new subsection) | `experiments/tube-masking-failure.md`, `paper-outline.md` §4.6 |
 | ~~11~~ | ~~Speckle probing (partial R², pt50)~~ | ~~JEPA/BYOL/MAE~~ | ~~JEPA 0.674, BYOL 0.775, MAE 0.875~~ — **RETRACTED** (init confound). e100 init-matched: BYOL 0.716 < JEPA 0.848 < MAE 0.885 (gap is 4%, not 23%, and ranking changed). Demoted to non-load-bearing. See `experiments/speckle-probing.md` and `experiments/representation-analysis.md`. | §4 (secondary) | `experiments/representation-analysis.md` |
 | 11b | **Effective dimensionality (e100, init-matched)** | JEPA/BYOL/MAE/SALT | ⚠️ **REVISED:** Consistent 4-model RankMe (`scripts/rebuttal/rankme.py`): JEPA 245, BYOL 221, MAE 206, SALT 203. All 200-245 range — **no 3× collapse**. Prior MAE=63 not reproducible. Demoted from primary mechanism. | §4 (appendix) | `experiments/representation-analysis.md` |
 | 12 | **Pathology-stratified LVEF** | JEPA/BYOL/MAE | JEPA advantage 8× larger on reduced EF | §3 Clinical | `rebuttals/10-*` §6d |
@@ -290,6 +291,9 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 | File | Experiment | NeurIPS Section |
 |------|-----------|----------------|
 | `frame-shuffling.md` | 6-condition temporal ablation | §4 Mechanism |
+| `severity-gradient.md` | 5-fraction shuffle × 4 epochs × 3+1 models | §4.2 Mechanism |
+| `6-condition-shuffling.md` | 6-condition × 4 epochs × 3 models | §4.1 Mechanism |
+| `tube-masking-failure.md` | Reframe: tube mask @ 0.9 cannot prevent MAE's shortcut | §4.6 Mechanism |
 | `three-way-comparison.md` | LVEF + RVSP + CAMUS core results | §3 Core Finding |
 | `noise-robustness.md` | EchoBench: 3 perturbations × 3 severities | §5 EchoBench |
 | `speckle-probing.md` | Information probing: partial R² | §4 Mechanism |

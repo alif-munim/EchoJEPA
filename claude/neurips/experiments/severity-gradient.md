@@ -65,6 +65,16 @@ SALT S2 e79 collapses from R²=0.293 to −0.397 (−235%). Already negative at 
 
 The trajectory e24 (−20%) → e50 (−313%) → e74 (−15%) → e99 (−4%) shows MAE doesn't simply "fail to learn temporal features." It learns them, maximally exploits them, catastrophically depends on them, then abandons them entirely in favor of spatial features. This training dynamics effect is invisible from any single checkpoint.
 
+### 6. Tube masking cannot prevent the shortcut (2026-04-08 reframe)
+
+VideoMAE ViT-L was pretrained with **tube masking, 90%** (`--mask_type tube --mask_ratio 0.9` in all three VideoMAE MIMIC sbatches — the canonical Tong et al. 2022 recipe that masks the same spatial patches across every frame). Tube masking is the community-standard defense against temporal shortcuts in video MAE — it was designed specifically to prevent a model from reconstructing a masked patch by copying from adjacent frames.
+
+Yet MAE e99 still converges to near-complete temporal invariance (−4%). This rules out **cross-frame** spatial copying as the mechanism of the MAE shortcut. The remaining path is **within-frame** spatial interpolation — reconstructing a masked patch from its visible spatial neighbors at the same timestep, which is trivial on spatially redundant echo anatomy. Frame-gap masking (mask entire frame positions) does not fix this either, because it addresses the same cross-frame-copying hypothesis that tube masking already rules out. Only whole-frame masking (no visible tokens at some timesteps) would force temporal reasoning, and it risks training collapse.
+
+**Implication:** the temporal shortcut is intrinsic to pixel reconstruction on spatially redundant video, not an artifact of masking design. No masking trick fixes it — the prediction target is the bottleneck.
+
+Full writeup: `experiments/tube-masking-failure.md`.
+
 ---
 
 ## Init and Epoch Matching

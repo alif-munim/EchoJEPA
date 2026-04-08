@@ -54,7 +54,12 @@ Ranking inversion confirmed: JEPA leads functional, MAE leads spatial. Still nee
 
 ## Section 4: Mechanistic Evidence (~2.5 pages)
 
-**Central claim:** The prediction target doesn't just determine what is encoded — it determines what *survives training*. We identify three qualitatively distinct temporal encoding regimes, invisible from single-checkpoint evaluation.
+**Central claim:** The prediction target doesn't just determine what is encoded — it determines what *survives training*. We identify three qualitatively distinct temporal encoding regimes, invisible from single-checkpoint evaluation. Four lines of evidence support the claim that the MAE temporal collapse is intrinsic to pixel reconstruction on spatially redundant video, not an artifact of architecture or masking design:
+
+1. **Severity gradient + training dynamics** (§4.1–4.2, behavioral) — three encoding regimes, MAE's transient-then-invariant trajectory
+2. **Reconstruction visualization** (§4.X, internal) — direct visual evidence that MAE reconstructs masked patches from within-frame spatial context rather than temporal context — *pending*
+3. **Temporal attention analysis** (§4.X, architectural) — MAE's temporal attention heads collapse to single-frame by convergence — *pending*
+4. **Tube masking failure** (§4.6, reframe) — the community-standard fix for temporal shortcuts does not work — evidence that the cause is the objective, not the masking
 
 ### 4.1 Frame shuffling: 6-condition (Figure 2a)
 
@@ -215,6 +220,21 @@ SALT underperforms all three EMA-based objectives by 0.03–0.24 R². Note that 
 These deviations explain why our SALT *absolute* numbers differ from the paper, but the *qualitative finding* (SALT < EMA on echocardiography under matched conditions) holds across both implementation variants and is the load-bearing claim.
 
 **No retraining required.** Earlier "SALT invalidated / must retrain" notes were based on a false claim that v1 used L2 loss. Config inspection confirms both v1 and v3 used `loss_exp: 1.0` (L1, matching paper Eq 2.1). See `claude/neurips/experiments/salt-comparison.md` for the full writeup.
+
+### 4.6 Tube masking does not prevent the shortcut (2026-04-08 reframe)
+
+**The masking objection, preempted.** A natural reviewer question for §4.2 is "would a different masking strategy prevent MAE's temporal collapse?" Our VideoMAE ViT-L was pretrained with **tube masking at 90% mask ratio** (Tong et al., 2022) — the canonical recipe that masks the same spatial patches across every frame, designed explicitly to prevent a model from reconstructing a masked patch by copying from adjacent frames. Confirmed in `scripts/videomae_pretrain_mimic*.sbatch` (`--mask_type tube --mask_ratio 0.9`). And yet the temporal shortcut persists — MAE e99 is invariant across all six shuffle conditions (−4% under full shuffle, matched_frame R² = 0.449 ≈ clean 0.445).
+
+**What this rules out.** Tube masking blocks the one temporal shortcut it was designed to block (cross-frame patch copying). The fact that MAE still collapses tells us the shortcut is not cross-frame copying. The remaining path is **within-frame spatial interpolation**: adjacent spatial patches in echocardiography are highly correlated (smooth tissue boundaries, gradually varying speckle, coherent chamber geometry at any instant), so pixel reconstruction has a trivial spatial-only solution — reconstruct a masked patch from its visible spatial neighbors at the same timestep. Tube masking does not address this because it leaves visible patches at every timestep; it only constrains *which* spatial positions are visible, not *that* some timesteps are invisible.
+
+**What this means.** No masking intervention can fix MAE's temporal collapse on spatially redundant video. Frame-gap masking (mask entire frame positions) does not help — it addresses the same cross-frame-copying hypothesis that tube masking already rules out. The only masking strategy that would force temporal reasoning is whole-frame masking with no visible tokens at some timesteps, and that risks training collapse on pixel reconstruction (no information within a masked frame to reconstruct from). **The prediction target itself is the bottleneck.** JEPA avoids the shortcut *by design*, not by masking: the EMA teacher's targets are abstract latent embeddings, so there is no "spatial interpolation in latent space" that corresponds to copying adjacent-patch pixel values. Matching the teacher's latent requires producing the same high-level features — which for echo videos means encoding the temporal dynamics that distinguish one clip from another.
+
+**Paper text (two sentences):**
+> Our MAE uses tube masking (Tong et al., 2022), which prevents cross-frame patch copying, yet the temporal shortcut persists: MAE e99 is invariant to frame shuffling (−4% under full shuffle, flat across all six disruption conditions). This indicates the shortcut arises from within-frame spatial redundancy rather than temporal copying, and cannot be resolved by masking design alone — the pixel-reconstruction objective, not the masking strategy, is the bottleneck.
+
+**Strength of the finding.** This elevates §4 from "MAE is temporally flat on this dataset" (an observation any reviewer could dismiss as insufficient masking) to "tube masking — the community-standard defense — fails, and the pixel-reconstruction objective cannot be rescued by masking design." The reframe is the failure of an existing, well-known intervention, which is more persuasive than proposing a novel intervention that happens to also fail.
+
+**Dropped experiments.** Frame-gap MAE intervention (ViT-B pilot) cancelled 2026-04-08 — the hypothesis it was testing is refuted by the existing ViT-L tube-masking run. Saves ~2 days HyperPod compute; reallocated to reconstruction visualization, temporal attention analysis, and writing. See `experiments/tube-masking-failure.md` for full writeup.
 
 **§4 → §5 bridge:** These mechanistic differences (temporal encoding regimes, noise filtering) translate to practical robustness under clinical image quality degradation, tested in §5.
 

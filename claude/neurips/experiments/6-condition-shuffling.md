@@ -110,6 +110,8 @@
 
 3. **MAE e50 tubelet (0.255) > MAE e50 clean (0.141).** This anomaly suggests that at mid-training, the temporal shortcut MAE learned actually *hurts* clean performance — the model overfits to frame-to-frame consistency. Disrupting local temporal structure forces the model to rely on spatial features, which are more useful.
 
+4. **MAE's flatness at e99 is not a masking-design artifact (2026-04-08).** Our VideoMAE ViT-L used tube masking 90% — the canonical Tong et al. 2022 recipe that masks the same spatial patches across every frame, designed specifically to prevent a model from copying a masked patch from an adjacent frame. Yet the shortcut persists. This rules out cross-frame spatial copying and points to **within-frame** spatial interpolation (reconstructing masked patches from visible spatial neighbors at the same timestep) as the actual mechanism. Since adjacent spatial patches in echo are highly correlated, pixel reconstruction has a trivial spatial-only solution that tube masking cannot block. See `experiments/tube-masking-failure.md` for the full reframe.
+
 ---
 
 ## Cross-Model Comparison at Convergence (primary comparison point)
