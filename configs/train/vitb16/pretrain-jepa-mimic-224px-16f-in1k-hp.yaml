@@ -1,0 +1,90 @@
+# V-JEPA 2.0 ViT-B pretraining on MIMIC-IV-Echo — ImageNet-1K init, HyperPod 1-node
+# Matched to pretrain-jepa-mimic-224px-16f-in21k-hp.yaml (the ViT-L recipe).
+# Swaps: vit_large -> vit_base, vitl_in21k.pt -> vitb_in1k.pt, pred_depth 12 -> 6
+# (half the encoder depth, so half the predictor depth), activation checkpointing off.
+app: vjepa
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 80G
+folder: /opt/dlami/nvme/checkpoints/pretrain/mimic/vjepa2_vitb_224px_16f_in1k
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /opt/dlami/nvme/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
+  batch_size: 128                   # Match ViT-L config (128 × 8 = 1024 effective)
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_base
+  pred_depth: 6                     # Half of ViT-L's 12 (matches calcium vitb recipe)
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: false  # ViT-B fits without checkpointing
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true                    # Required — ignores the 2D ImageNet pos_embed
+  zero_init_mask_tokens: true
+
+optimization:
+  is_anneal: false
+  # ImageNet-1K init via flat state dict at checkpoints/vitb_in1k.pt.
+  # Loader at app/vjepa/train.py:327 inflates patch_embed.proj 4D -> 5D
+  # and drops cls_token / pos_embed (unexpected when use_rope=true).
+  force_load_pretrain: true
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/vitb_in1k.pt
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  ipe: 300
+  ipe_scale: 1.25
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  warmup: 40
+  epochs: 100                       # Match ViT-L comparison point (e100 total)

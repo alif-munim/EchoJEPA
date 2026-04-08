@@ -1,0 +1,78 @@
+# BYOL-Video ViT-B pretraining on MIMIC-IV-Echo — ImageNet-1K init, HyperPod 1-node
+# Matched to pretrain-byol-mimic-224px-16f.yaml (the ViT-L ImageNet-init recipe),
+# with HyperPod-style /opt/dlami/nvme paths.
+# Swaps: vit_large -> vit_base, vitl_in21k.pt -> vitb_in1k.pt,
+# activation checkpointing off (ViT-B fits without).
+app: byol_video
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 80G
+folder: /opt/dlami/nvme/checkpoints/pretrain/mimic/byol_vitb_224px_16f_in1k
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /opt/dlami/nvme/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
+  batch_size: 128                   # 128 × 8 GPUs = 1024 effective (matches JEPA-B)
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  num_clips: 2                      # rho=2 temporal clips per video
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_base
+  uniform_power: true
+  use_activation_checkpointing: false  # ViT-B fits without checkpointing
+  use_rope: true                    # Required — ignores the 2D ImageNet pos_embed
+  # BYOL projector/predictor MLP dimensions
+  proj_hidden_dim: 4096
+  proj_dim: 256
+  pred_hidden_dim: 4096
+
+optimization:
+  is_anneal: false
+  # ImageNet-1K init via flat state dict at checkpoints/vitb_in1k.pt.
+  # Loader at app/byol_video/train.py:360 inflates patch_embed.proj 4D -> 5D
+  # and drops cls_token / pos_embed (unexpected when use_rope=true).
+  force_load_pretrain: true
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/vitb_in1k.pt
+
+  # Constant EMA matched to V-JEPA. BYOL paper's [0.996, 1.0] schedule caused the
+  # target encoder to freeze on this dataset (see claude/dev/ byol training notes);
+  # constant EMA keeps target tracking online encoder throughout training.
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+
+  ipe: 300
+  ipe_scale: 1.25
+
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+
+  warmup: 40
+  epochs: 100                       # Match JEPA-B comparison point (e100 total)
