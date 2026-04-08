@@ -139,33 +139,183 @@ All four models are in the **200-245 range**. SALT's effective dimensionality (2
 
 ---
 
-## Configs and Reproduction
+## Complete Artifacts Inventory (detailed, 2026-04-08)
+
+**S3 bucket abbreviations:**
+- `HYP` = `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts`
+
+### Encoder checkpoints (all verified 2026-04-08)
+
+All four SALT v1 checkpoints have the same structural signature: `stage: 2` (SALT S2), 8 `norms_block.{0,1,2,3}.{weight,bias}` keys (hierarchical 4-layer predictor head — the v1 signature; v3 single-level has at most 1 `norms_block` entry), ViT-L encoder (304M params), 3.98 GB file size. V-JEPA epoch convention: stored `epoch = N+1` means N epochs completed.
+
+| Name | Local path | S3 path | Stored epoch | Completed epochs | Variant | Size | Date |
+|---|---|---|---|---|---|---|---|
+| `salt_s2_vitl_e29.pt` | `checkpoints/salt_s2_vitl_e29.pt` | `HYP/runs/salt_s2_pretrain_388/checkpoints/e29.pt` | 30 | 29 | v1 (hierarchical) | 3.98 GB | Apr 5 |
+| `salt_s2_vitl_e49.pt` | `checkpoints/salt_s2_vitl_e49.pt` | `HYP/runs/salt_s2_pretrain_388/checkpoints/e49.pt` | 50 | 49 | v1 (hierarchical) | 3.98 GB | Apr 5 |
+| **`salt_s2_vitl_e79.pt`** | `checkpoints/salt_s2_vitl_e79.pt` | `HYP/runs/salt_s2_pretrain_388/checkpoints/e79.pt` | 80 | 79 | v1 (hierarchical) | 3.98 GB | Apr 5 |
+| `salt_s2_vitl_e199.pt` | `checkpoints/salt_s2_vitl_e199.pt` | `HYP/runs/salt_s2_resume_e100_392/checkpoints/e199.pt` | 200 | 199 | v1 (hierarchical) | 3.98 GB | Apr 6 |
+
+**Primary encoder for NeurIPS: `salt_s2_vitl_e79.pt`** (locked 2026-04-08). See § FINAL DECISION above for rationale.
+
+**Full S2 v1 epoch series on S3** (every 5 epochs): `HYP/runs/salt_s2_pretrain_388/checkpoints/e{4,9,14,19,24,29,34,39,44,49,54,59,64,69,74,79}.pt` (S2 1→80), `HYP/runs/salt_s2_resume_e80_391/checkpoints/e{84,89,94,99}.pt` (S2 80→100), `HYP/runs/salt_s2_resume_e100_392/checkpoints/e{104,109,...,199}.pt` (S2 100→200).
+
+**S2 v3 encoder** (paper-spec single-level predictor, S3-only, not mirrored locally): `HYP/runs/salt_s2v2_pretrain_446/checkpoints/e79.pt`. Used only for the appendix robustness row; do not re-run on new tasks per the locked decision.
+
+**Stage 1 (V-Pixel teacher) checkpoints:** `HYP/runs/salt_s1_pretrain_379/checkpoints/e{4,9,14,19}.pt` + `latest.pt` (= e20). Both v1 and v3 use the same S1 teacher. Teacher is frozen during S2 — see `app/salt/train.py:377` for the DDP-unwrapping fix.
 
 ### Pretraining configs
-- **v1 (original):** `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f.yaml` (stale, kept for historical reference)
-- **v3 (paper-spec):** `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f-hp.yaml`
-- **HyperPod jobs:** v1 = job 388 (S2), v3 = job 446 (S2v2)
 
-### Probe configs (EchoNet-Dynamic d=4 attentive)
-- `configs/eval/vitl/icml/salt_s2_e79_end_lvef_d4.yaml` (v1 e79 probe training)
-- `configs/eval/vitl/icml/salt_s2_e199_end_lvef_d4.yaml` (v1 e199 probe training)
+| Variant | Config path | Key settings |
+|---|---|---|
+| S1 teacher (local) | `configs/train/vitl16/pretrain-salt-s1-mimic-224px-16f.yaml` | Pixel reconstruction, 20 epochs, IN21K init (`vitl_in21k.pt`), batch 128 × 8 GPUs |
+| S1 teacher (HyperPod) | `configs/train/vitl16/pretrain-salt-s1-mimic-224px-16f-hp.yaml` | Same, `/opt/dlami/nvme` paths |
+| **S2 v1 (primary)** | `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f.yaml` | Hierarchical 4-layer predictor, LR 1.75e-4 constant, weak augmentation, random student init, `loss_exp: 1.0` (L1) |
+| S2 v1 extended | `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f-resume-e80-hp.yaml` → `...-resume-e100-hp.yaml` | v1 resume chain: e80 → e100 → e199 |
+| S2 v3 (paper-spec) | `configs/train/vitl16/pretrain-salt-s2-mimic-224px-16f-hp.yaml` | Single-level predictor, LR 2.55e-4 sqrt-scaled cosine, paper augmentation, `loss_exp: 1.0` (L1) |
 
-### Pred-avg configs (test set inference)
-- `configs/eval/vitl/icml/salt_s2_e79_end_lvef_d4_predavg.yaml`
-- `configs/eval/vitl/icml/salt_s2_e199_end_lvef_d4_predavg.yaml`
-- `configs/eval/vitl/neurips/salt_s2v3_echonet_lvef_d4_predavg.yaml` (v3, on HyperPod)
+**Loss verification:** Both v1 and v3 use `loss_exp: 1.0` (L1 loss, matching SALT paper Eq 2.1). Verified by config inspection 2026-04-07. The earlier "v1 was L2 and therefore invalid" claim was retracted on the same date — see `claude/neurips/experiments/salt-comparison.md` (this doc) change history.
 
-**Note:** All EchoNet-Dynamic pred-avg configs must use `study_sampling: false` because each video IS a study (no multi-clip-per-study grouping). Setting `study_sampling: true` causes broken study_id extraction and groups all 1,280 clips into 1 fake study, making R² undefined.
+### HyperPod training jobs
 
-### Probe checkpoints
-- `evals/vitl/icml/salt_s2_e79_end_lvef_224/.../best.pt`
-- `evals/vitl/icml/salt_s2_e199_end_lvef_224/.../best.pt`
-- `s3://sagemaker-hyperpod-lifecycle.../runs/salt_s2v3_echonet_lvef_454/probe/best.pt`
+| Job ID | Stage | Variant | Epochs | Node | Status | S3 prefix |
+|---|---|---|---|---|---|---|
+| 379 | S1 teacher | — | 0 → 20 | — | Complete | `HYP/runs/salt_s1_pretrain_379/` |
+| 388 | S2 v1 | hierarchical | 0 → 80 | — | Complete | `HYP/runs/salt_s2_pretrain_388/` |
+| 391 | S2 v1 resume | hierarchical | 80 → 100 | — | Complete | `HYP/runs/salt_s2_resume_e80_391/` |
+| 392 | S2 v1 resume | hierarchical | 100 → 200 | — | Complete | `HYP/runs/salt_s2_resume_e100_392/` |
+| 446 | S2 v3 | single-level | 0 → 80 | — | Complete | `HYP/runs/salt_s2v2_pretrain_446/` |
 
-### Encoder checkpoints
-- `checkpoints/salt_s2_vitl_e79.pt` (v1)
-- `checkpoints/salt_s2_vitl_e199.pt` (v1 extended)
-- `s3://...salt_s2v2_pretrain_446/checkpoints/e79.pt` (v3)
+### Probe checkpoints (EchoNet-Dynamic LVEF, d=4 attentive)
+
+All probes are 6-head HP grid (LR × WD), 20 training epochs, same d=4 attentive regressor architecture. `target_mean: 55.7776`, `target_std: 12.4072` (z-scored train label statistics). Each probe has six heads indexed 0–5 with different hyperparameters; the `best_val_acc_per_head` array picks the best head per checkpoint.
+
+| Variant | Encoder | Probe path | Heads | Best head | Best val MAE | Test R² (pred-avg) | Test MAE (pred-avg) |
+|---|---|---|---|---|---|---|---|
+| v1 e29 | `salt_s2_vitl_e29.pt` | `evals/vitl/icml/salt_s2_e29_end_lvef_224/video_classification_frozen/icml-salt-s2-e29-end-lvef-d4/best.pt` | 6 | — | 7.82 | — (not evaluated) | — |
+| **v1 e79** (primary) | `salt_s2_vitl_e79.pt` | `evals/vitl/icml/salt_s2_e79_end_lvef_224/video_classification_frozen/icml-salt-s2-e79-end-lvef-d4/best.pt` | 6 | 2 | **6.47** | **0.414** | **6.66** |
+| v1 e199 (extended) | `salt_s2_vitl_e199.pt` | `evals/vitl/icml/salt_s2_e199_end_lvef_224/video_classification_frozen/icml-salt-s2-e199-end-lvef-d4/best.pt` | 6 | — | 6.73 | 0.360 | 7.02 |
+| v3 e79 (S3 only) | `HYP/runs/salt_s2v2_pretrain_446/.../e79.pt` | `HYP/runs/salt_s2v3_echonet_lvef_454/probe/best.pt` | 6 | — | ~6.84 | 0.348 | 7.03 |
+
+**Note on e49 probe:** a local probe checkpoint at `evals/vitl/icml/salt_s2_e49_end_lvef_224/.../best.pt` was mentioned in earlier versions of `checkpoint-inventory.md` §9 but is **not** present in the current filesystem. Only e29, e79, and e199 probes exist locally. If e49 evaluation is needed later, train from the existing `salt_s2_vitl_e49.pt` encoder using the same config template.
+
+**Val vs test MAE offset:** all three SALT probes show a ~0.2–0.3 MAE gap between val and test (6.47 → 6.66, 6.73 → 7.02, 6.84 → 7.03) consistent with the JEPA/BYOL/MAE probes in this pipeline. No anomaly.
+
+### Probe training and inference configs
+
+| Purpose | Config path | Notes |
+|---|---|---|
+| v1 e29 probe training | `configs/eval/vitl/icml/salt_s2_e29_end_lvef_d4.yaml` | d=4 attentive, 6-head HP grid, 20 epochs |
+| v1 e49 probe training | `configs/eval/vitl/icml/salt_s2_e49_end_lvef_d4.yaml` | Config exists, probe not trained yet |
+| **v1 e79 probe training** | `configs/eval/vitl/icml/salt_s2_e79_end_lvef_d4.yaml` | Primary |
+| v1 e199 probe training | `configs/eval/vitl/icml/salt_s2_e199_end_lvef_d4.yaml` | Extended variant |
+| **v1 e79 pred-avg inference** | `configs/eval/vitl/icml/salt_s2_e79_end_lvef_d4_predavg.yaml` | Used for test-set R²=0.414 |
+| v1 e199 pred-avg inference | `configs/eval/vitl/icml/salt_s2_e199_end_lvef_d4_predavg.yaml` | — |
+| v3 pred-avg inference | `configs/eval/vitl/neurips/salt_s2v3_echonet_lvef_d4_predavg.yaml` | HyperPod-only |
+
+**Pred-avg config gotcha:** All EchoNet-Dynamic pred-avg configs must use `study_sampling: false` because each EchoNet-Dynamic video IS a study (no multi-clip-per-study grouping). Setting `study_sampling: true` causes broken study_id extraction and groups all 1,280 clips into 1 fake study, making R² undefined. Verified across all three SALT pred-avg configs.
+
+### Frame-shuffling and representation-analysis result CSVs
+
+All result CSVs live in `scripts/rebuttal/samples/` (gitignored by `*.csv` rule — not tracked in git; raw data lives on EFS only, interpretation in markdown is what gets versioned). Always recomputable from the checkpoints + configs above if needed.
+
+| Script | CSV output | Log | Status | Notes |
+|---|---|---|---|---|
+| `scripts/rebuttal/frame_shuffle_severity.py` (registered as `SALT-S2-e79` in `ALL_CONFIGS`) | `scripts/rebuttal/samples/severity_SALT_e79.csv` | `severity_SALT_e79.log`, `severity_SALT_e79.json` | Complete (2026-04-05) | 5 fractions × 3 seeds = 13 rows + header. Used in §4.2 severity gradient matrix. |
+| `scripts/rebuttal/frame_shuffle_6cond.py` (uses same registry) | `scripts/rebuttal/samples/6cond_SALT_e79.csv` | `6cond_SALT_e79.log` | **Complete (2026-04-08)** | 6 conditions × {1 det, 3 seeds} = 14 rows + header. Used in §4.1 cross-model 4-way table. |
+| `scripts/rebuttal/rankme.py` | (aggregated, no per-model CSV) | — | Complete (2026-04-07) | Single RankMe score: 202.7 (20% of 1024-dim space). In §4.3 effective-dim table. |
+| `scripts/rebuttal/information_probing.py` | (integrated with other models) | — | Complete | Speckle probing partial R² — SALT not the primary focus here. |
+
+**Registry entry for reproducibility** (`scripts/rebuttal/frame_shuffle_severity.py:82-89`):
+
+```python
+"SALT-S2-e79": {
+    "encoder_type": "vjepa",
+    "encoder_checkpoint": "checkpoints/salt_s2_vitl_e79.pt",
+    "encoder_model_name": "vit_large",
+    "encoder_key": "encoder",
+    "probe_checkpoint": "evals/vitl/icml/salt_s2_e79_end_lvef_224/"
+                        "video_classification_frozen/icml-salt-s2-e79-end-lvef-d4/best.pt",
+},
+```
+
+Both `frame_shuffle_severity.py` and `frame_shuffle_6cond.py` import this registry, so the same encoder+probe pair drives both experiments — verified end-to-end by matching clean R² to 4 decimal places (severity fraction=0.00 row = 0.2926; 6cond clean row = 0.2926).
+
+### Result tables (authoritative numbers)
+
+**EchoNet-Dynamic LVEF — 6-condition frame shuffling, SALT-S2-e79** (1,277 test videos, 3 seeds for stochastic conditions; from `scripts/rebuttal/samples/6cond_SALT_e79.csv`, cliff profile):
+
+| Condition | R² (mean) | R² σ | Pearson (mean) | MAE (mean) | ΔR² vs clean |
+|---|---|---|---|---|---|
+| clean | 0.2926 | — (deterministic) | 0.5643 | 7.35 | — |
+| tubelet | 0.2902 | 0.0051 | 0.5633 | 7.38 | −0.8% |
+| reverse | 0.2062 | — (deterministic) | 0.5139 | 7.92 | −29.6% |
+| matched | 0.2915 | 0.0078 | 0.5636 | 7.37 | −0.4% |
+| **shuffle** | **−0.4116** | 0.0094 | 0.4604 | 10.25 | **−241%** |
+| **matched_frame** | **−0.4393** | 0.0523 | 0.4910 | 10.44 | **−250%** |
+
+Interpretation: **cliff profile** — flat under local disruption (tubelet, matched, even reverse holds ~70% of clean R²), catastrophic under global frame-level disruption. The cliff happens at the tubelet granularity boundary: tubelet/matched permutations respect the 2-frame tubelet unit (SALT's pretraining patch-embed granularity), while shuffle/matched_frame operate below that boundary. SALT learned tubelet-level temporal features the frozen teacher provided but has no mechanism to generalize below the tubelet unit. Note σ on matched_frame (0.052) is ~5× the other stochastic conditions due to fixed permutation choice per seed; all three seeds are still strongly negative (−0.495, −0.455, −0.368). See `claude/neurips/experiments/6-condition-shuffling.md` for the full interpretation and connection to the §4.1 4-way table.
+
+**EchoNet-Dynamic LVEF — severity gradient, SALT-S2-e79** (1,277 test videos, 3 seeds per non-zero fraction; from `scripts/rebuttal/samples/severity_SALT_e79.csv`):
+
+| Fraction shuffled | R² (mean) | Pearson (mean) | MAE (mean) |
+|---|---|---|---|
+| 0.00 | 0.2926 | 0.5643 | 7.35 |
+| 0.25 | −0.0368 | 0.4381 | 8.56 |
+| 0.50 | −0.2771 | 0.4537 | 9.67 |
+| 0.75 | −0.3821 | 0.4547 | 10.13 |
+| 1.00 | −0.3968 | 0.4645 | 10.23 |
+
+**Severity gradient collapses at just 25% shuffle** (R² goes negative). Compare to JEPA e100 (5 fractions: 0.591 → 0.542 → 0.507 → 0.485 → 0.488, stays positive and nearly flat 50%→100%), BYOL e100 (0.468 → 0.410 → 0.336 → 0.300 → 0.291, monotonic decay but stays positive), MAE e99 (0.445 → 0.421 → 0.436 → 0.414 → 0.428, flat). SALT is the only method that crosses zero at any fraction, and it does so at the lightest disruption level.
+
+**Effective dimensionality (RankMe, 500 EchoNet-Dynamic videos):**
+
+| Model | RankMe d_eff | % of 1024-dim space |
+|---|---|---|
+| JEPA IN21K e95 | 245.3 | 24.0% |
+| BYOL e100 | 220.7 | 21.6% |
+| MAE e99 | 206.4 | 20.2% |
+| **SALT v1 e79** | **202.7** | **19.8%** |
+
+SALT's effective dimensionality is essentially identical to MAE's (202.7 vs 206.4) — the student has comparable representational capacity. The cliff is NOT a capacity collapse; it is a feature-organization failure attributable to the frozen teacher. All four models are in the 200–245 range; the prior MAE=63 claim (Goodfire report) is not reproducible and should not be cited.
+
+### Training convergence diagnostics (for the Q1 "undertrained?" rebuttal)
+
+From `salt_s2_vitl_e79.pt` → `salt_s2_vitl_e199.pt` (2.5× more S2 training):
+
+| Metric | e79 | e199 | Δ | Interpretation |
+|---|---|---|---|---|
+| Test R² (END LVEF) | 0.414 | 0.360 | **−0.054** | Regression (if undertrained, should improve) |
+| Val MAE | 6.47 | 6.73 | +0.26 | Regression |
+| Test MAE (pred-avg) | 6.66 | 7.02 | +0.36 | Regression |
+| S2 training loss (flat from e100 onward) | 0.429 | 0.419 | −0.010 | Loss barely decreases after e100 — optimization converged |
+| Weight cosine similarity between checkpoints (all blocks) | — | >0.999 | — | Encoder weights are essentially unchanged e100→e199 — optimization has nothing left to do |
+
+**Interpretation:** SALT at e79 is optimization-converged. The e79 → e199 regression in downstream performance, combined with flat training loss and near-identical encoder weights, rules out "undertraining" as the cause of SALT's underperformance. The most parsimonious explanation is overfitting to frozen teacher targets from constant-LR training on a small homogeneous dataset — a failure mode JEPA/BYOL avoid through EMA implicit regularization that SALT inherently lacks.
+
+### Known deviations from the SALT paper
+
+Documented in `claude/architecture/salt-training-reference.md`. Cannot be fixed without >10× more compute or a different dataset:
+
+| Deviation | Our value | Paper value | Impact |
+|---|---|---|---|
+| Batch size | 512 (per-node) | 3072 | LR sqrt-scaled for v3 (2.55e-4 vs paper 6.25e-4); v1 uses constant 1.75e-4 |
+| Total S1+S2 training steps | ~24K | ~240K (240K S2 per paper Table 1) | ~10% of paper absolute compute |
+| Pretraining dataset | MIMIC-IV-Echo, 525K single-domain echo clips | V-3.6M, 3.6M diverse natural video | Narrow-domain teacher has narrow coverage |
+| Student init | Random (per paper recipe) | Random (per paper recipe) | Matches paper; disadvantage relative to our IN21K-initialized JEPA/BYOL/MAE baselines |
+| Hierarchical norms training | v1: `norms_block` layers in teacher untrained (S1 uses `training_mode=False`) | Paper specifies dense supervision training mode | v3 single-level variant doesn't use these layers and also underperforms (R²=0.348), bridging the v1 concern |
+
+These deviations explain why our SALT *absolute* numbers differ from the paper. They do NOT explain the cliff profile or the e79→e199 regression, which are robust to each variant and to extended training. The *qualitative finding* — SALT < EMA-based methods under our matched conditions — holds across both implementation variants and is the load-bearing claim for §4.5.
+
+### Commit history (for provenance)
+
+| Commit | Date | Change |
+|---|---|---|
+| `755a319` | 2026-04-04 | HP fixes for SALT training (batch, LR, augmentation) |
+| `0eaf0ab` | 2026-04-05 | Loss function and hierarchical predictor revert |
+| `71bd4e5` | 2026-04-05 | Predictor initialization fix |
+| `db67dc8` | 2026-04-07 | Retract "SALT invalidated / must retrain" framing (L1 loss confirmed for both v1 and v3) |
+| `48d4bb7` | 2026-04-08 | Lock SALT v1 e79 as primary NeurIPS checkpoint |
+| `b805600` | 2026-04-08 | Add 6-condition SALT results + reviewer-defense Q&A + §1 regime framing |
 
 ---
 
