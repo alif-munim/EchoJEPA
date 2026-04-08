@@ -66,6 +66,10 @@ All three EchoBench perturbations (depth attenuation, gaussian shadow, haze) app
 
 SALT S2's random student init is the paper's standard recipe. The SALT paper matches total steps (S1+S2), not init. Note in a footnote.
 
+### 🔒 Final SALT checkpoint: v1 e79 (locked 2026-04-08)
+
+**Use `checkpoints/salt_s2_vitl_e79.pt` for ALL final NeurIPS experiments.** Test R²=0.414, MAE=6.66 on END LVEF — the best of three SALT variants evaluated (v1 e79, v1 e199, v3 e79). Do **not** re-run v3 or e199 on new downstream tasks. For new tasks (UHN LVEF, RVSP, CAMUS, Pediatric ZS, EchoBench, frame shuffling, speckle probing), clone the JEPA-IN21K-e100 config and swap the encoder checkpoint. v3 and e199 stay as appendix robustness rows on END LVEF only. Full rationale: `experiments/salt-comparison.md` § FINAL DECISION.
+
 ### SALT decision: single-row probe, no retrain needed (revised 2026-04-07)
 
 **Decision gate resolved, verified across two implementation variants.** SALT S2 has been trained in two valid variants and both underperform the EMA baselines by 0.03–0.24 R² on EchoNet-Dynamic LVEF:

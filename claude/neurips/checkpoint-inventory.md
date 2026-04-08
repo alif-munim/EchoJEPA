@@ -124,11 +124,21 @@ Not part of the NeurIPS controlled comparison (different architecture version). 
 
 ---
 
-## 6. SALT — Trained (S1 complete, S2 e100 complete, e200 in progress)
+## 6. SALT — Complete (v1 + v3 variants)
 
 **Init:** S1 teacher: `vitl_in21k.pt` (ImageNet-21K). S2 student: random init (per SALT paper recipe).
 **Code:** `app/salt/` (built 2026-04-04, DDP fix 2026-04-05)
 **Configs:** `configs/train/vitl16/pretrain-salt-s{1,2}-mimic-224px-16f-hp.yaml`
+
+### 🔒 Primary SALT checkpoint for final experiments: SALT v1 e79
+
+All NeurIPS tables and figures use **`salt_s2_vitl_e79.pt`** (v1, hierarchical predictor, LR 1.75e-4 constant). Best test R²=0.414, MAE=6.66 on EchoNet-Dynamic. See `experiments/salt-comparison.md` for the full decision rationale. v1 e199 and v3 e79 remain as appendix robustness lines on END LVEF only — do not re-run them on other tasks.
+
+| Variant | Encoder path | END LVEF probe | S2 epochs | Test R² | Test MAE | Role |
+|---|---|---|---|---|---|---|
+| **v1 e79** (primary) | EFS: `checkpoints/salt_s2_vitl_e79.pt` | `evals/vitl/icml/salt_s2_e79_end_lvef_224/.../best.pt` | 80 | **0.414** | **6.66** | Main §3 table row, all downstream experiments |
+| v1 e199 | EFS: `checkpoints/salt_s2_vitl_e199.pt` | `evals/vitl/icml/salt_s2_e199_end_lvef_224/.../best.pt` | 200 | 0.360 | 7.02 | Appendix robustness (END LVEF only) |
+| v3 e79 | S3: `HYP/runs/salt_s2v2_pretrain_446/checkpoints/e79.pt` | S3: `HYP/runs/salt_s2v3_echonet_lvef_454/probe/best.pt` | 80 | 0.348 | 7.03 | Appendix robustness (END LVEF only, paper-spec single-level predictor) |
 
 ### Stage 1 (V-Pixel teacher, 20 epochs, ImageNet init)
 
@@ -136,19 +146,25 @@ Not part of the NeurIPS controlled comparison (different architecture version). 
 |-------|---------|-----|------|
 | e4, e9, e14, e19, latest (e20) | `HYP/runs/salt_s1_pretrain_379/checkpoints/` | Job 379 | Apr 5 |
 
-### Stage 2 (Frozen-teacher student, random init)
+### Stage 2 v1 (hierarchical predictor, constant LR, weak aug)
 
 | Epoch | S3 Path | Run | Date |
 |-------|---------|-----|------|
 | e4–e79 (every 5ep) + latest (e80) | `HYP/runs/salt_s2_pretrain_388/checkpoints/` | Job 388 | Apr 5 |
 | e80→e100 | `HYP/runs/salt_s2_resume_e80_391/checkpoints/` | Job 391 | Apr 5 |
-| e100→e200 | `HYP/runs/salt_s2_resume_e100_392/checkpoints/` | Job 392 (running) | Apr 5+ |
+| e100→e199 | `HYP/runs/salt_s2_resume_e100_392/checkpoints/` | Job 392 | Apr 5-6 |
 
-**Compute budget:** S1=20ep (21K steps) + S2=200ep (205K steps) = 226K total steps. Matches SALT paper's ~240K recommended budget.
+### Stage 2 v3 (single-level predictor, paper-spec cosine LR + augmentation)
 
-**Implementation note:** S2 DDP fix applied — frozen teacher must not be wrapped in DDP (`app/salt/train.py:377`). Hierarchical `norms_block` layers in teacher were never trained (S1 uses `training_mode=False`); may affect S2 target quality. See SALT validation notes in conversation.
+| Epoch | S3 Path | Run | Date |
+|-------|---------|-----|------|
+| e4–e79 (every 5ep) | `HYP/runs/salt_s2v2_pretrain_446/checkpoints/` | Job 446 | Apr 7 |
 
-**Decision pending:** SALT inclusion in NeurIPS paper depends on e200 results. If SALT < JEPA at e200, include as mechanistic evidence (frozen teacher misses temporal dynamics). If SALT ≈ JEPA, include as one row. If SALT > JEPA, reassess. Do not over-invest evaluation time until e200 results are in.
+**Compute budget:** S1=20ep (21K steps) + S2=200ep (205K steps) = 226K total steps. Matches SALT paper's ~240K recommended budget. (Still ~10% of paper absolute budget due to batch-size difference — see `salt-comparison.md` for full deviation notes.)
+
+**Implementation note:** S2 DDP fix applied — frozen teacher must not be wrapped in DDP (`app/salt/train.py:377`). Hierarchical `norms_block` layers in teacher were never trained (S1 uses `training_mode=False`); this is a known deviation from the paper but consistent across both v1 and v3. Both variants use `loss_exp: 1.0` (L1, matching paper Eq 2.1) — the earlier "v1 used L2" claim was retracted after config inspection (2026-04-07).
+
+**Decision: RESOLVED (2026-04-08).** SALT underperforms all three EMA baselines by 0.03–0.24 R². Included as a single row in the §3 comparison table (v1 e79) plus two sentences in §4.5. The finding is robust across v1/v3 predictor architectures, HP regimes, and training lengths — all three variants land within ±0.03 R² of each other and all below MAE's 0.445. Full writeup: `experiments/salt-comparison.md`.
 
 ---
 

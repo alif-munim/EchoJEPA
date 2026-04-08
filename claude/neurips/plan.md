@@ -94,7 +94,7 @@
 
 - ~~EchoJEPA-G scaling~~ — confounds prediction target with scale, conflicts with Nature Medicine
 - ~~Training dynamics EchoBench~~ — running all 12 models through EchoBench is excessive for appendix material
-- ~~6-condition on SALT~~ — SALT used as single-row probe only (web Claude conservative framing), full 6-condition sweep not needed
+- ~~~~6-condition on SALT~~~~ — **UN-DROPPED 2026-04-08.** Running SALT-S2-e79 through the 6-condition sweep on EchoNet-Dynamic to strengthen the §4 mechanism evidence. Matches the §4 table structure (JEPA/BYOL/MAE at convergence + SALT as a fourth mechanistic probe). Output: `scripts/rebuttal/samples/6cond_SALT_e79.csv`.
 - ~~Frame-gap MAE intervention (ViT-B pilot)~~ — **cancelled 2026-04-08.** Our VideoMAE ViT-L was already pretrained with tube masking 90% (canonical Tong et al. 2022 recipe), which blocks cross-frame patch copying by construction. Yet MAE e99 is still invariant to frame shuffling (−4%, flat across all six conditions). The temporal shortcut must therefore arise from **within-frame spatial interpolation** (reconstructing a masked patch from its visible spatial neighbors at the same timestep), which neither tube masking nor frame-gap masking can prevent. The frame-gap experiment was testing a hypothesis the existing ViT-L run already refutes. Saves ~2 days HyperPod compute. The finding reframes §4 from "MAE is temporally flat" to "tube masking, the community-standard defense, fails — the prediction target is the bottleneck." See `experiments/tube-masking-failure.md` and `paper-outline.md` §4.6.
 
 ---

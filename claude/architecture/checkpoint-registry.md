@@ -27,6 +27,14 @@ All model and probe checkpoints used across the project. Descriptive symlinks in
 |------------------|---------------|-------------|------------------|--------|-------|
 | `echobyol_l_mimic_latest.pt` | `byol_vitl_latest.pt` | ViT-L (304M) | MIMIC-IV-Echo | 45/240 (v2) | ICML rebuttal contrastive comparison. H100 2-node (Job 241). ImageNet-21k init, constant EMA 0.99925. S3: `s3://sagemaker-echojepa-h100-march-0d224785-bucket/checkpoints/byol-vitl-imagenet-v2/` |
 
+### SALT (frozen-teacher pixel-reconstruction → latent student)
+
+| Descriptive name | Original path | Architecture | Pretraining data | Epochs | Notes |
+|------------------|---------------|-------------|------------------|--------|-------|
+| `salt_s2_vitl_e79.pt` **(primary)** | `checkpoints/salt_s2_vitl_e79.pt` | ViT-L (304M), v1 hierarchical predictor | MIMIC-IV-Echo | S1:20 + S2:79 | **Primary SALT checkpoint for NeurIPS** (locked 2026-04-08). Best of three SALT variants. END LVEF test R²=0.414, MAE=6.66. Constant LR 1.75e-4, weak aug. See `claude/neurips/experiments/salt-comparison.md` § FINAL DECISION. |
+| `salt_s2_vitl_e199.pt` | `checkpoints/salt_s2_vitl_e199.pt` | ViT-L (304M), v1 hierarchical | MIMIC-IV-Echo | S1:20 + S2:199 | Appendix robustness line on END LVEF only (R²=0.360). Extended v1 run; marginally worse than e79 due to overfitting from constant LR. Do not use for new tasks. |
+| SALT v3 e79 (S3-only) | `HYP/runs/salt_s2v2_pretrain_446/checkpoints/e79.pt` | ViT-L (304M), v3 single-level predictor | MIMIC-IV-Echo | S1:20 + S2:79 | Appendix robustness line on END LVEF only (R²=0.348). Paper-spec single-level predictor + cosine LR + paper augmentation. Do not use for new tasks. |
+
 ### External Models (not self-supervised by us)
 
 EchoPrime and PanEcho checkpoints are loaded at runtime by their respective model adapters. They are not stored in `checkpoints/encoders/` — each adapter downloads or expects a fixed path.
