@@ -177,17 +177,80 @@ Your labels already match the UHN class scheme:
 
 No remapping needed.
 
-### 5.4 Create CSVs for each task
+### 5.4 View and color filtering (CRITICAL)
 
-Create one CSV per task:
+The probes were trained on **view-filtered, B-mode only** clips. You must filter your CSVs to include only task-relevant views and exclude all Doppler clips. Using unfiltered data will degrade performance.
+
+**Required view filters per task:**
+
+| Task | Allowed Views | Color Filter |
+|------|--------------|-------------|
+| MR Severity | A4C, A2C, A3C, PLAX | B-mode only (no color/spectral/tissue Doppler) |
+| TR Severity | A4C, Subcostal, PLAX | B-mode only |
+| AR Severity | A4C, A2C, A3C, PLAX | B-mode only |
+| AS Severity | PLAX, PSAX-AV, A3C | B-mode only |
+
+**How to filter your data:**
+
+**Option A: Use DICOM metadata (preferred if available).** If your DICOM headers or reporting system has view labels, filter directly. Map your institution's view names to the categories above.
+
+**Option B: Run our view + color classifiers.** We provide ConvNeXt-Small classifiers trained on 607 annotated UHN studies (27K clips). These classify each video into 13 echo views (A2C, A3C, A4C, A5C, PLAX, PSAX-AV, PSAX-PM, PSAX-MV, PSAX-AP, Subcostal, SSN, TEE, Exclude) and predict whether color Doppler is present (binary).
+
+The classifier checkpoints are on GDrive:
 ```
-data/csv/ucmc_mr_severity_test.csv
-data/csv/ucmc_tr_severity_test.csv
-data/csv/ucmc_ar_severity_test.csv
-data/csv/ucmc_as_severity_test.csv
+gdrive:echo_foundation/nature_medicine/chicago/classifiers/
+├── view_convnext_small_336px.pt       # 13-class view classifier
+└── color_convnext_small_336px.pt      # Binary color classifier
 ```
 
-### 5.5 Study-level prediction averaging (recommended)
+To run classification on your videos:
+```bash
+python preprocessing/classify_views.py \
+    --input_dir /data/ucmc/mp4s \
+    --output_csv /data/ucmc/classifications.csv \
+    --view_checkpoint classifier/checkpoints/view_convnext_small_336px.pt \
+    --color_checkpoint classifier/checkpoints/color_convnext_small_336px.pt \
+    --num_frames 5 --batch_size 32
+```
+
+This produces a CSV with columns:
+```
+path, view, view_confidence, color, color_confidence
+```
+
+Then filter for each task. Example for MR severity:
+```python
+import pandas as pd
+
+clf = pd.read_csv("/data/ucmc/classifications.csv")
+labels = pd.read_csv("/data/ucmc/mr_labels.csv")  # your labels
+
+# B-mode only (color = "No") + task-relevant views
+mr_allowed = ["A4C", "A2C", "A3C", "PLAX"]
+mr_clips = clf[(clf["color"] == "No") & (clf["view"].isin(mr_allowed))]
+
+# Join with labels and write space-delimited CSV (no header)
+merged = mr_clips.merge(labels, on="path")
+with open("data/csv/ucmc_mr_severity_test.csv", "w") as f:
+    for _, row in merged.iterrows():
+        f.write(f"{row['path']} {row['label']}\n")
+```
+
+Repeat for each task with the appropriate view list.
+
+**Option C: No filtering (not recommended).** If you cannot classify views, you can include all clips. Prediction averaging will dilute irrelevant views, but expect 3-8 pp lower AUROC compared to filtered results.
+
+### 5.5 Create CSVs for each task
+
+After filtering, create one CSV per task:
+```
+data/csv/ucmc_mr_severity_test.csv    # A4C, A2C, A3C, PLAX — B-mode only
+data/csv/ucmc_tr_severity_test.csv    # A4C, Subcostal, PLAX — B-mode only
+data/csv/ucmc_ar_severity_test.csv    # A4C, A2C, A3C, PLAX — B-mode only
+data/csv/ucmc_as_severity_test.csv    # PLAX, PSAX-AV, A3C — B-mode only
+```
+
+### 5.6 Study-level prediction averaging (recommended)
 
 To get study-level predictions (averaging across all clips per study), organize your video paths so each study's clips are in a directory named with the study ID:
 
