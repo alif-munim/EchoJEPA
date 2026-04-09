@@ -156,10 +156,19 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 - **SALT S2 collapses dramatically** — 0.29→-0.40, steepest relative drop. Frozen teacher doesn't maintain temporal features.
 - **Training dynamics insight:** MAE's temporal encoding is transient — present early, lost by convergence. This is a novel finding.
 
-### In Progress / Queued (2026-04-05)
+### Completed (2026-04-08) — Cross-Dataset MR Transfer
+
+| # | Experiment | Models | Key Result | Source |
+|---|-----------|--------|-----------|--------|
+| 21 | **MR severity cross-dataset (UHN→MIMIC)** | EchoJEPA-G (two probes) | AUROC 0.806 (MIMIC) vs 0.799 (UHN→MIMIC), −0.9% | `experiments/mr-cross-dataset-transfer.md` |
+| 22 | **ViT-B temporal shortcut pilot** | Standard MAE vs Frame-Gap MAE | IN PROGRESS (jobs 570/571, ~2026-04-10) | `experiments/vitb-temporal-shortcut-pilot.md` |
+
+### In Progress / Queued (2026-04-08)
 
 | Experiment | Status | Location | ETA |
 |-----------|--------|----------|-----|
+| **ViT-B Standard MAE pilot** | RUNNING (job 570, node 83) | `scripts/videomae_pilot_standard_vitb.sbatch` | ~43 hrs (~2026-04-10) |
+| **ViT-B Frame-Gap MAE pilot** | RUNNING (job 571, node 184) | `scripts/videomae_pilot_framegap_vitb.sbatch` | ~43 hrs (~2026-04-10) |
 | **SALT S2 e29 probe** | Training on GPUs 5-7 | `configs/eval/vitl/icml/salt_s2_e29_end_lvef_d4.yaml` | ~4 hrs |
 | **JEPA IN21K (100ep)** | Epoch ~80/100 on HyperPod | Job 376, node 184 | ~7 hrs |
 | **SALT S2 e80→e100** | Running on HyperPod | Job 391, node 83 | ~2 hrs |
@@ -304,6 +313,8 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 | `cross-dataset-transfer.md` | EchoNet-Dynamic + Pediatric | §3 Transfer |
 | `clinical-stratification.md` | Pathology-stratified LVEF | §3 Clinical |
 | `multi-view-ablation.md` | RVSP single-view vs multi-view | Appendix |
+| `mr-cross-dataset-transfer.md` | MR severity: UHN vs MIMIC probes on MIMIC test | §3 Transfer |
+| `vitb-temporal-shortcut-pilot.md` | Standard MAE vs Frame-Gap MAE ViT-B: temporal shortcut hypothesis | §4 Mechanism |
 
 ## Datasets
 

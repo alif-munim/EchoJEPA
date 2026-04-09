@@ -127,6 +127,8 @@ BYOL collapses on cross-population transfer from END (R²=-0.847).
 
 ## 4. Temporal Ablation — Frame Shuffling (NeurIPS §4)
 
+### 4a. ICML Rebuttal 6-condition (pt50, confounded JEPA init)
+
 6 disruption conditions on EchoNet-Dynamic test (1,277 videos), LVEF R²:
 
 | Condition | JEPA | BYOL | MAE |
@@ -138,9 +140,76 @@ BYOL collapses on cross-population transfer from END (R²=-0.847).
 | shuffle (mean, 3 seeds) | **0.365** | 0.174 | 0.318 |
 | matched_frame (RoPE remap) | **0.324** | 0.099 | 0.286 |
 
-JEPA retains most absolute signal post-shuffle. BYOL collapses catastrophically (-79% under matched_frame). MAE degrades least in relative terms because it had little temporal signal to begin with.
-
 **Source:** `rebuttals/experiments/frame-shuffling.md` (full writeup with 24 log files)
+
+### 4b. Init-matched Severity Gradient (NeurIPS canonical, 4 models × 4 epochs)
+
+Partial frame shuffling at 0/25/50/75/100%, 3 seeds per fraction. R² (mean):
+
+| Fraction | JEPA e100 | BYOL e100 | MAE e99 | SALT e79 |
+|----------|-----------|-----------|---------|----------|
+| 0.00 | **0.591** | 0.468 | 0.445 | 0.296 |
+| 0.25 | **0.542** | 0.410 | 0.421 | 0.048 |
+| 0.50 | **0.507** | 0.336 | 0.436 | -0.161 |
+| 0.75 | **0.485** | 0.300 | 0.414 | -0.256 |
+| 1.00 | **0.488** | 0.291 | 0.428 | -0.270 |
+
+Four distinct profiles: JEPA gentle slope (−17%), BYOL steep (−38%), MAE flat (−4%), SALT cliff (−191%).
+
+### 4c. Init-matched 6-Condition (NeurIPS canonical, 4 models at convergence)
+
+| Condition | JEPA e100 | BYOL e100 | MAE e99 | SALT e79 |
+|-----------|-----------|-----------|---------|----------|
+| clean | **.591** | .468 | .445 | .296 |
+| tubelet | **.582** | .402 | .424 | .294 |
+| reverse | **.539** | .373 | .431 | .120 |
+| matched | **.580** | .415 | .419 | .296 |
+| shuffle | **.484** | .291 | .422 | −.283 |
+| matched_frame | **.477** | .280 | .449 | −.310 |
+
+### 4d. Training Dynamics — Full 4-model × 4-epoch matrix
+
+Training dynamics frame shuffling complete for all 4 models across 4 comparable epochs (~24/50/74/99). Full results in `experiments/severity-gradient.md` and `experiments/6-condition-shuffling.md`.
+
+**SALT training dynamics (S2 e4/e29/e54/e79):** The cliff profile persists at every training stage. No consolidation — unlike JEPA (−42%→−17%), SALT stays at −187% to −256% from e29 onward. The frozen teacher cannot drive temporal consolidation.
+
+**Source:** `claude/neurips/experiments/severity-gradient.md`, `claude/neurips/experiments/6-condition-shuffling.md`
+
+### 4e. CAMUS Segmentation Frame Shuffling (spatial task control)
+
+Same shuffling protocol applied to **segmentation** (per-frame spatial task) on CAMUS test set (100 samples = 50 patients × 2 views). Frozen encoder + frozen LinearSegDecoder. All CIs: paired bootstrap, n=100, 10K resamples.
+
+**Severity gradient (% Dice degradation from clean):**
+
+| Shuffle % | JEPA e100 | BYOL e100 | MAE e99 | SALT e79 |
+|-----------|-----------|-----------|---------|----------|
+| 25% | 1.6% [1.1, 2.0] | 1.3% [0.9, 1.7] | 2.1% [1.7, 2.5] | 0.8% [0.5, 1.1] |
+| 50% | 3.6% [2.9, 4.3] | 2.7% [2.2, 3.3] | 4.9% [4.1, 5.6] | 2.1% [1.5, 2.6] |
+| 100% | 7.0% [6.0, 8.0] | 6.0% [5.2, 6.7] | **8.6% [7.6, 9.6]** | 4.9% [4.0, 5.8] |
+
+**6-condition (% Dice degradation from clean):**
+
+| Condition | JEPA e100 | BYOL e100 | MAE e99 | SALT e79 |
+|-----------|-----------|-----------|---------|----------|
+| reverse | **14.5% [13.4, 15.7]** | 12.2% [11.0, 13.4] | 12.7% [11.6, 13.8] | 11.9% [10.6, 13.3] |
+| tubelet | 5.8% [5.0, 6.7] | 4.6% [3.9, 5.3] | 5.5% [4.6, 6.3] | 5.0% [4.1, 5.9] |
+| shuffle | 7.1% [6.0, 8.1] | 6.0% [5.2, 6.7] | 8.5% [7.5, 9.5] | 4.8% [4.0, 5.7] |
+| matched_frame | 7.6% [6.6, 8.5] | 7.1% [6.2, 7.9] | 8.5% [7.6, 9.3] | 5.7% [4.8, 6.6] |
+
+**Tracked extraction (Version A vs B) — isolating content vs temporal encoding:**
+
+After shuffling, extract features where ED/ES content actually landed (inverse permutation) instead of the original fixed position. Separates content misalignment from temporal encoding disruption.
+
+| Model | A drop (orig pos) | B drop (tracked) | Interpretation |
+|-------|-------------------|------------------|----------------|
+| JEPA | 5.8% | 5.5% | B ~ A — position-invariant features |
+| BYOL | 4.9% | **14.3%** | B >> A — decoder position-locked via RoPE |
+| MAE | 7.0% | **10.3%** | B > A — moderately position-dependent |
+| SALT | 3.7% | **2.8%** | B < A — content was the main issue |
+
+**Key findings:** (1) Reverse is catastrophic (12–15%), ~2× worse than full shuffle — temporal direction matters even for segmentation. (2) MYO is most sensitive structure (MAE: 12.7% degradation). (3) SALT degrades least (4.9–5.7%), MAE most (8.5–8.6%). (4) Segmentation is NOT temporally invariant — predicted <2% but actual 5–9%. (5) JEPA/SALT learn position-invariant spatial features; BYOL/MAE are position-locked (tracked extraction worse than original).
+
+**Source:** `claude/neurips/experiments/camus-frame-shuffling.md`
 
 ---
 
@@ -194,29 +263,37 @@ All four models are in the **200-245 range**. The prior MAE=63 (Goodfire report)
 
 ## 6. Noise Robustness — EchoBench (NeurIPS §5)
 
-### 6a. LVEF Robustness (EchoNet-Dynamic, R², clean → severe)
+**Full details:** `experiments/echobench-e100.md` (4-model bootstrap CIs, checkpoints, scripts, issues)
 
-| Perturbation | JEPA | BYOL | MAE |
-|---|---|---|---|
-| Depth attenuation | 0.552→0.361 (-35%) | 0.440→0.145 (-67%) | 0.351→0.233 (-34%) |
-| Acoustic shadow | 0.552→0.478 (-13%) | 0.440→0.247 (-44%) | 0.351→0.280 (-20%) |
-| Haze artifact | 0.552→0.502 (-9%) | 0.440→0.398 (-10%) | 0.351→0.147 (-58%) |
-| **Average drop** | **-19%** | **-40%** | **-37%** |
+### 6a. LVEF Robustness (EchoNet-Dynamic, 1,277 test, R² with 95% bootstrap CIs)
 
-JEPA under severe noise still outperforms MAE's clean baseline on all 3 perturbation types.
+**Init-matched e100 models (authoritative, 4-model):**
 
-### 6b. CAMUS Segmentation Robustness (Dice, clean → severe)
+| Condition | JEPA | BYOL | MAE | SALT |
+|---|---|---|---|---|
+| clean | **0.591** [0.538, 0.638] | 0.465 [0.401, 0.523] | 0.445 [0.377, 0.505] | 0.293 [0.215, 0.362] |
+| depth_atten/severe | **0.396** [0.321, 0.463] | 0.342 [0.288, 0.392] | 0.090 [0.051, 0.129] | 0.137 [0.094, 0.179] |
+| shadow/severe | **0.457** [0.385, 0.518] | 0.320 [0.240, 0.390] | 0.400 [0.340, 0.455] | 0.208 [0.128, 0.278] |
+| haze/severe | **0.553** [0.498, 0.603] | 0.431 [0.368, 0.488] | 0.159 [0.099, 0.217] | 0.217 [0.145, 0.283] |
 
-| Perturbation | JEPA | BYOL | MAE |
-|---|---|---|---|
-| Depth attenuation | 0.815→0.681 (-16%) | 0.821→0.425 (-48%) | 0.822→0.749 (-9%) |
-| Acoustic shadow | 0.815→0.708 (-13%) | 0.821→0.614 (-25%) | 0.822→0.728 (-11%) |
-| Haze artifact | 0.815→0.800 (-2%) | 0.821→0.804 (-2%) | 0.822→0.794 (-3%) |
-| **Average drop** | **-10%** | **-25%** | **-8%** |
+Robustness ranking (LVEF): JEPA > BYOL > SALT > MAE. MAE collapses under depth attenuation (0.090) and haze (0.159).
 
-**Anatomy-function dissociation in robustness:** JEPA most robust on function (-19% LVEF), MAE most robust on anatomy (-8% CAMUS). Different objectives are robust on different task types.
+### 6b. CAMUS Segmentation Robustness (100 samples, Dice with 95% bootstrap CIs)
 
-### 6c. Pediatric Zero-Shot Robustness (Pearson, UHN probes)
+| Condition | JEPA | BYOL | MAE | SALT |
+|---|---|---|---|---|
+| clean | 0.815 [0.801, 0.829] | 0.823 [0.811, 0.835] | **0.827** [0.814, 0.838] | 0.777 [0.759, 0.794] |
+| depth_atten/severe | **0.683** [0.663, 0.703] | 0.368 [0.345, 0.391] | 0.654 [0.625, 0.681] | 0.508 [0.486, 0.529] |
+| shadow/severe | 0.717 [0.697, 0.736] | 0.587 [0.556, 0.616] | **0.737** [0.717, 0.755] | 0.645 [0.621, 0.668] |
+| haze/severe | 0.794 [0.778, 0.808] | **0.815** [0.804, 0.826] | 0.778 [0.763, 0.792] | 0.767 [0.749, 0.785] |
+
+| | JEPA | BYOL | MAE | SALT |
+|---|---|---|---|---|
+| **Avg severe drop** | **10.3%** [9.4, 11.3] | 28.4% [26.8, 29.9] | 12.6% [11.4, 13.8] | 17.6% [16.4, 18.9] |
+
+Robustness ranking (CAMUS): JEPA (10.3%) > MAE (12.6%) > SALT (17.6%) >> BYOL (28.4%).
+
+### 6c. Pediatric Zero-Shot Robustness (Pearson, UHN probes, pt50)
 
 | Perturbation | JEPA | BYOL | MAE |
 |---|---|---|---|
@@ -227,7 +304,7 @@ JEPA under severe noise still outperforms MAE's clean baseline on all 3 perturba
 
 JEPA highest at every severity level.
 
-### 6d. RVSP Multi-View Noise Robustness (Pearson, 5,103 test)
+### 6d. RVSP Multi-View Noise Robustness (Pearson, 5,103 test, pt50)
 
 | | Multi-view severe | A4C severe | PSAX severe |
 |---|---|---|---|
@@ -235,7 +312,11 @@ JEPA highest at every severity level.
 
 Multi-view at severe ≈ single-view clean. Cross-view integration nearly halves degradation.
 
-**Source:** `rebuttals/10-*` §5m, §5n, §5o, §6c
+### 6e. Key finding (4-model)
+
+**JEPA is most robust on BOTH tasks.** Clean performance fails to predict robustness: MAE leads clean CAMUS (0.827) but JEPA has lowest avg severe drop (10.3%). BYOL catastrophically collapses under depth attenuation on CAMUS (0.823→0.368, −55%). MAE collapses on functional tasks (LVEF R²: 0.445→0.090 under depth attenuation).
+
+**Source:** `experiments/echobench-e100.md` (e100 4-model), `rebuttals/10-*` §5m, §5n, §5o, §6c (pt50 3-model)
 
 ---
 
@@ -305,6 +386,22 @@ The SALT failure is robust to predictor architecture and hyperparameter regime �
 
 **Source:** `claude/neurips/experiments/salt-comparison.md` (full writeup)
 **Configs:** `configs/eval/vitl/icml/salt_s2_*_predavg.yaml`
+
+---
+
+## 10. MR Severity Cross-Dataset Transfer (NeurIPS §3 — Hemodynamic Generalization)
+
+Two MR severity probes (same frozen EchoJEPA-G encoder, same d=1 attentive architecture), one trained on MIMIC, one on UHN. Tested on MIMIC MR test set (1,003 studies, pred-avg).
+
+| Probe | Accuracy | Balanced Acc | Quad Kappa | Macro AUROC |
+|-------|----------|-------------|------------|-------------|
+| **MIMIC (in-distribution)** | **0.591** | **0.391** | **0.538** | **0.806** |
+| UHN (cross-dataset) | 0.531 | 0.341 | 0.410 | 0.799 |
+
+**Headline:** AUROC nearly preserved cross-institution (−0.9%). The UHN probe's ranking ability transfers; only classification thresholds degrade. Both probes fail on Severe (n=56, class imbalance).
+
+**Source:** `claude/neurips/experiments/mr-cross-dataset-transfer.md`
+**Artifacts:** `s3://.../runs/echojepa_g_mr_compare_549/logs/mr_comparison.csv`
 
 ---
 

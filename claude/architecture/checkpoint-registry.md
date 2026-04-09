@@ -157,6 +157,17 @@ Each task has `{model}/best.pt` and `{model}/latest.pt`. Models: echojepa-g, ech
 | `edv/` | End-diastolic volume |
 | `esv/` | End-systolic volume |
 
+### Nature Medicine Cross-Institution MR Probes (HyperPod, S3 only)
+
+d=1 attentive probes, 16 multihead HP sweep, EchoJEPA-G encoder (`pt-280-an81.pt`). MR severity 4-class.
+
+| Probe | Training Data | Epochs | Best Val Acc | Job | S3 Path |
+|-------|---------------|--------|-------------|-----|---------|
+| MIMIC MR | MIMIC-IV-Echo MR labels | 35 | 57.87% | 436 | `runs/echojepa_g_mitral_regurg_436/.../echojepa-g-mitral-regurg/best.pt` |
+| UHN MR severity | UHN MR severity labels | 28 (stopped 29/35) | 69.99% (e22) | 443 | `runs/echojepa_g_mr_severity_uhn_443/.../echojepa-g-mr-severity-uhn/best.pt` |
+
+Cross-dataset comparison (job 549): MIMIC AUROC 0.806, UHN→MIMIC AUROC 0.799. See `claude/neurips/experiments/mr-cross-dataset-transfer.md`.
+
 ### Nature Medicine MIMIC Probes (`checkpoints/probes/mimic/`)
 
 d=1 attentive probes, study-level sampling + prediction averaging. 35 epochs for most tasks.

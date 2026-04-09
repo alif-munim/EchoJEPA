@@ -9,13 +9,13 @@
 
 ## Complete Results Matrix (R², mean of 3 seeds)
 
-| Fraction | JEPA e25 | JEPA e50 | JEPA e75 | JEPA e100 | BYOL e24 | BYOL e50 | BYOL e75 | BYOL e100 | MAE e24 | MAE e50 | MAE e74 | MAE e99 | SALT S2 e79 |
-|----------|----------|----------|----------|-----------|----------|----------|----------|-----------|---------|---------|---------|---------|-------------|
-| 0.00 | 0.383 | 0.503 | 0.537 | **0.591** | 0.380 | 0.427 | 0.435 | 0.468 | 0.221 | 0.141 | 0.390 | 0.445 | 0.293 |
-| 0.25 | 0.362 | 0.419 | 0.465 | **0.542** | 0.119 | 0.360 | 0.388 | 0.410 | 0.214 | 0.091 | 0.356 | 0.421 | -0.037 |
-| 0.50 | 0.340 | 0.327 | 0.402 | **0.507** | -0.080 | 0.278 | 0.329 | 0.336 | 0.205 | -0.103 | 0.347 | 0.436 | -0.277 |
-| 0.75 | 0.332 | 0.293 | 0.378 | **0.485** | -0.160 | 0.220 | 0.309 | 0.300 | 0.182 | -0.271 | 0.320 | 0.414 | -0.382 |
-| 1.00 | 0.331 | 0.290 | 0.370 | **0.488** | -0.173 | 0.219 | 0.304 | 0.291 | 0.176 | -0.301 | 0.330 | 0.428 | -0.397 |
+| Fraction | JEPA e25 | JEPA e50 | JEPA e75 | JEPA e100 | BYOL e24 | BYOL e50 | BYOL e75 | BYOL e100 | MAE e24 | MAE e50 | MAE e74 | MAE e99 | SALT e4 | SALT e29 | SALT e54 | SALT e79 |
+|----------|----------|----------|----------|-----------|----------|----------|----------|-----------|---------|---------|---------|---------|---------|----------|----------|----------|
+| 0.00 | 0.383 | 0.503 | 0.537 | **0.591** | 0.380 | 0.427 | 0.435 | 0.468 | 0.221 | 0.141 | 0.390 | 0.445 | 0.007 | 0.277 | **0.330** | 0.296 |
+| 0.25 | 0.362 | 0.419 | 0.465 | **0.542** | 0.119 | 0.360 | 0.388 | 0.410 | 0.214 | 0.091 | 0.356 | 0.421 | -0.007 | -0.096 | 0.080 | 0.048 |
+| 0.50 | 0.340 | 0.327 | 0.402 | **0.507** | -0.080 | 0.278 | 0.329 | 0.336 | 0.205 | -0.103 | 0.347 | 0.436 | -0.015 | -0.327 | -0.158 | -0.161 |
+| 0.75 | 0.332 | 0.293 | 0.378 | **0.485** | -0.160 | 0.220 | 0.309 | 0.300 | 0.182 | -0.271 | 0.320 | 0.414 | -0.019 | -0.418 | -0.260 | -0.256 |
+| 1.00 | 0.331 | 0.290 | 0.370 | **0.488** | -0.173 | 0.219 | 0.304 | 0.291 | 0.176 | -0.301 | 0.330 | 0.428 | -0.019 | -0.432 | -0.286 | -0.270 |
 
 ## Relative Degradation (clean → fully shuffled)
 
@@ -24,7 +24,12 @@
 | **JEPA IN21K** | −14% | −42% | −31% | **−17%** |
 | **BYOL** | −146% | −49% | −30% | −38% |
 | **MAE** | −20% | −313% | −15% | **−4%** |
-| **SALT S2** | — | — | −235% (e79) | — |
+| **SALT S2 e4** | −371%* | — | — | — |
+| **SALT S2 e29** | — | −256% | — | — |
+| **SALT S2 e54** | — | — | −187% | — |
+| **SALT S2 e79** | — | — | — | −191% |
+
+*e4 clean R²=0.007, essentially noise — degradation percentage is meaningless.
 
 ---
 
@@ -53,9 +58,29 @@ This suggests e50 is a critical training phase where temporal and spatial featur
 
 JEPA e100 fully shuffled (R²=0.488) > BYOL e100 clean (0.468) > MAE e99 clean (0.445). Even with all temporal information destroyed, JEPA's spatial features are the strongest. The advantage is not just temporal — latent prediction produces better features on both axes.
 
-### 4. SALT confirms EMA is essential for temporal robustness
+### 4. SALT training dynamics: no consolidation, only cliff (2026-04-08)
 
-SALT S2 e79 collapses from R²=0.293 to −0.397 (−235%). Already negative at 25% shuffle (−0.037). The frozen pixel teacher provides a latent target but without EMA dynamics, the student learns no temporal robustness. This isolates the EMA mechanism as the key ingredient.
+Full 4-checkpoint SALT training dynamics (S2 epochs 4/29/54/79, comparable total epochs ~24/49/74/99):
+
+| Fraction | SALT e4 | SALT e29 | SALT e54 | SALT e79 |
+|----------|---------|----------|----------|----------|
+| 0.00 | 0.007 | 0.277 | **0.330** | 0.296 |
+| 0.25 | -0.007 | -0.096 | 0.080 | 0.048 |
+| 0.50 | -0.015 | -0.327 | -0.158 | -0.161 |
+| 0.75 | -0.019 | -0.418 | -0.260 | -0.256 |
+| 1.00 | -0.019 | -0.432 | -0.286 | -0.270 |
+
+**Key dynamics:**
+
+1. **e4 is baseline noise.** Clean R²=0.007 — the encoder has barely learned anything. All shuffle fractions near zero. Confirms probe quality: degradation at e29+ is real signal.
+
+2. **e29 has the steepest collapse** (0.277→−0.432, −256%). This is SALT's "e50 crisis" — peak temporal fragility. But unlike JEPA/BYOL/MAE, SALT never recovers from this peak.
+
+3. **e54 has the highest clean R² (0.330)** but still collapses (−187%). e54→e79 shows slight *regression* in clean R² (0.330→0.296). SALT's best representation is at mid-training, not convergence.
+
+4. **No consolidation — the critical contrast with JEPA.** JEPA: −42% at e50 → −17% at e100 (consolidation). SALT: −256% at e29 → −187% at e54 → −191% at e79 (flat after peak, no recovery). The frozen teacher cannot drive temporal consolidation because it provides fixed targets — there's no co-evolving signal to push the student toward more robust representations.
+
+5. **Already negative at 25% shuffle from e29 onward.** SALT e29 goes to −0.096 at 25% shuffle (JEPA e50: +0.419 at 25%). The cliff profile emerges immediately once the encoder starts learning temporal features.
 
 **Extended training confirms the ceiling (2026-04-06):** SALT S2 e199 probe val MAE ~6.8 — *worse* than e79 (6.47). Training loss plateaued (0.429→0.419), weight cosine similarity >0.999 between e79 and e199. The frozen teacher imposes a representation ceiling that 2.5× more student training cannot overcome.
 
@@ -79,12 +104,12 @@ Full writeup: `experiments/tube-masking-failure.md`.
 
 ## Init and Epoch Matching
 
-| Model | Init | Epochs evaluated |
-|-------|------|-----------------|
-| JEPA IN21K | ImageNet-21K | 25, 50, 75, 100 |
-| BYOL | ImageNet-21K | 24, 50, 75, 100 |
-| MAE | ImageNet | 24, 50, 74, 99 |
-| SALT S2 | Random (student) | 79 (= S1:20 + S2:79 = 99 total) |
+| Model | Init | Epochs evaluated | Comparable total epochs |
+|-------|------|-----------------|------------------------|
+| JEPA IN21K | ImageNet-21K | 25, 50, 75, 100 | 25, 50, 75, 100 |
+| BYOL | ImageNet-21K | 24, 50, 75, 100 | 24, 50, 75, 100 |
+| MAE | ImageNet | 24, 50, 74, 99 | 24, 50, 74, 99 |
+| SALT S2 | Random (student) | S2: 4, 29, 54, 79 | 24, 49, 74, 99 (S1:20 + S2:N) |
 
 JEPA IN21K is init-matched with BYOL/MAE. Slight epoch misalignment (24 vs 25, 74 vs 75, 99 vs 100) due to checkpoint availability — negligible.
 
@@ -92,13 +117,14 @@ JEPA IN21K is init-matched with BYOL/MAE. Slight epoch misalignment (24 vs 25, 7
 
 ## NeurIPS Framing
 
-**Central claim for §4:** The prediction target determines not just what is encoded, but what *survives training*. Three qualitatively distinct temporal encoding regimes emerge from a shared instability at e50:
+**Central claim for §4:** The prediction target determines not just what is encoded, but what *survives training*. Four qualitatively distinct temporal encoding regimes:
 
-1. **JEPA consolidates** temporal encoding into an efficient, robust representation
-2. **BYOL stabilizes** at a fixed, moderate level of temporal dependence
-3. **MAE abandons** temporal encoding entirely, converging to purely spatial features
+1. **JEPA consolidates** temporal encoding into an efficient, robust representation (−17% at convergence)
+2. **BYOL stabilizes** at a fixed, moderate level of temporal dependence (−38%)
+3. **MAE abandons** temporal encoding entirely, converging to purely spatial features (−4%)
+4. **SALT never consolidates** — frozen teacher produces brittle temporal features that plateau at −191% without recovery
 
-**One-paragraph text:** "We identify three qualitatively distinct temporal encoding regimes shaped by the prediction target. All three objectives exhibit fragile temporal encoding during early training, but diverge in resolution: EMA-based latent prediction (JEPA) consolidates temporal features into a robust representation (−17% degradation under full shuffle at convergence); global self-distillation (BYOL) stabilizes at moderate temporal dependence (−38%); and pixel reconstruction (MAE) abandons temporal encoding entirely (−4%), converging to purely spatial features after a transient phase of catastrophic temporal reliance at mid-training. These dynamics are invisible from single-checkpoint evaluation."
+**One-paragraph text:** "We identify four qualitatively distinct temporal encoding regimes shaped by the prediction target and teacher dynamics. All objectives exhibit fragile temporal encoding during early training, but diverge in resolution: EMA-based latent prediction (JEPA) consolidates temporal features into a robust representation (−17% degradation under full shuffle at convergence); global self-distillation (BYOL) stabilizes at moderate temporal dependence (−38%); pixel reconstruction (MAE) abandons temporal encoding entirely (−4%), converging to purely spatial features after a transient phase of catastrophic temporal reliance at mid-training; and latent prediction with a frozen teacher (SALT) produces brittle temporal features that collapse under global disruption (−191%) without the consolidation that EMA co-evolution enables. These dynamics are invisible from single-checkpoint evaluation."
 
 ## Figure Plan
 
@@ -108,8 +134,9 @@ JEPA IN21K is init-matched with BYOL/MAE. Slight epoch misalignment (24 vs 25, 7
 - MAE's V-shape: −20% → −313% → −15% → −4%
 - JEPA's arc: −14% → −42% → −31% → −17%
 - BYOL's recovery: −146% → −49% → −30% → −38%
+- SALT's plateau: noise → −256% → −187% → −191% (no consolidation)
 
-**Appendix:** Full 13-model × 5-fraction results table.
+**Appendix:** Full 16-model × 5-fraction results table.
 
 ---
 
@@ -130,3 +157,7 @@ JEPA IN21K is init-matched with BYOL/MAE. Slight epoch misalignment (24 vs 25, 7
 | MAE e74 | `scripts/rebuttal/samples/severity_MAE_e74.csv` |
 | MAE e99 | `scripts/rebuttal/samples/severity_MAE_e99.csv` |
 | SALT S2 e79 | `scripts/rebuttal/samples/severity_SALT_e79.csv` |
+| SALT S2 e4 | `scripts/rebuttal/samples/severity_SALT_S2_e4.csv` |
+| SALT S2 e29 | `scripts/rebuttal/samples/severity_SALT_S2_e29.csv` |
+| SALT S2 e54 | `scripts/rebuttal/samples/severity_SALT_S2_e54.csv` |
+| SALT S2 e79 (rerun) | `scripts/rebuttal/samples/severity_SALT_S2_e79.csv` |

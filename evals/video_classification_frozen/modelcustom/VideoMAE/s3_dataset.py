@@ -31,6 +31,44 @@ class TubeMaskingGenerator:
         return mask
 
 
+class FrameGapMaskingGenerator:
+    """Temporal gap masking: visible patches only in early context frames,
+    all patches masked in gap + target frames. Forces temporal reasoning
+    by preventing spatial interpolation across the gap.
+
+    With 8 temporal positions and gap=2: context=[t0,t1,t2], gap=[t3,t4],
+    target=[t5,t6,t7]. ~27% visible in context, 0% visible in gap+target.
+    Overall mask_ratio preserved at the requested value (default 0.9).
+    """
+    def __init__(self, input_size, clip_size, mask_ratio, temporal_gap=2):
+        self.frames, self.height, self.width = input_size
+        self.tubelet_t, self.tubelet_h, self.tubelet_w = clip_size
+        self.mask_ratio = mask_ratio
+        self.num_patches_per_frame = (self.height // self.tubelet_h) * (self.width // self.tubelet_w)
+        self.num_temporal_patches = self.frames // self.tubelet_t
+        self.total_patches = self.num_patches_per_frame * self.num_temporal_patches
+        self.temporal_gap = temporal_gap
+
+        T = self.num_temporal_patches
+        self.n_target = (T - temporal_gap) // 2
+        self.n_context = T - temporal_gap - self.n_target
+        assert self.n_context > 0, f"Not enough temporal positions for gap={temporal_gap} with T={T}"
+
+    def __call__(self):
+        S = self.num_patches_per_frame
+        total_masked = int(self.mask_ratio * self.total_patches)
+        total_visible = self.total_patches - total_masked
+
+        # Start all-masked, then unmask random patches in context frames only
+        mask = np.ones(self.total_patches, dtype=np.float64)
+        context_size = self.n_context * S
+        visible_count = min(total_visible, context_size)
+        perm = np.random.permutation(context_size)
+        mask[perm[:visible_count]] = 0
+
+        return mask
+
+
 def _parse_first_field(line: str) -> str:
     line = line.strip()
     if not line or line.startswith("#"):
@@ -42,7 +80,8 @@ def _parse_first_field(line: str) -> str:
 
 class VideoDataset(Dataset):
     def __init__(self, data_paths, frames_per_clip=16, target_fps=8, crop_size=224,
-                 mask_ratio=0.9, rrc_scale=(0.5, 1.0), rrc_ratio=(0.9, 1.1),
+                 mask_ratio=0.9, mask_type='tube', temporal_gap=2,
+                 rrc_scale=(0.5, 1.0), rrc_ratio=(0.9, 1.1),
                  max_sample_retries=50):
         self.samples = []
         if isinstance(data_paths, str):
@@ -63,11 +102,19 @@ class VideoDataset(Dataset):
         self.max_sample_retries = int(max_sample_retries)
         self.s3_client = None
         
-        self.masked_position_generator = TubeMaskingGenerator(
-            input_size=(self.frames_per_clip, self.crop_size, self.crop_size),
-            clip_size=(2, 16, 16),
-            mask_ratio=mask_ratio
-        )
+        if mask_type == 'frame_gap':
+            self.masked_position_generator = FrameGapMaskingGenerator(
+                input_size=(self.frames_per_clip, self.crop_size, self.crop_size),
+                clip_size=(2, 16, 16),
+                mask_ratio=mask_ratio,
+                temporal_gap=temporal_gap
+            )
+        else:
+            self.masked_position_generator = TubeMaskingGenerator(
+                input_size=(self.frames_per_clip, self.crop_size, self.crop_size),
+                clip_size=(2, 16, 16),
+                mask_ratio=mask_ratio
+            )
         self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         
         default_tmp = "/dev/shm" if os.path.exists("/dev/shm") else "/tmp"

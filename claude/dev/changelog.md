@@ -8,6 +8,27 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ## 2026-04-08
 
+### ViT-B Temporal Shortcut Pilot — Standard MAE vs Frame-Gap MAE
+
+**What:** Implemented `FrameGapMaskingGenerator` in `s3_dataset.py` and launched two parallel ViT-B VideoMAE pretraining runs (100 epochs, random init, MIMIC-IV-Echo 525K clips):
+
+- **Job 570** (node 83): Standard tube masking (baseline)
+- **Job 571** (node 184): Frame-gap masking (intervention)
+
+Frame-gap masking splits 8 temporal positions into context[t0:t3], gap[t3:t5], target[t5:t8]. Visible patches only in context frames (~27%), gap+target all masked. Overall 90% mask ratio preserved. Prevents spatial interpolation across the temporal gap, forcing temporal reasoning.
+
+**Why:** Test temporal shortcut hypothesis — MAE transiently learns temporal features (~e50) then abandons them by convergence because tube masking allows spatial interpolation. Frame-gap masking should force temporal feature retention.
+
+**Code changes:**
+- `evals/video_classification_frozen/modelcustom/VideoMAE/s3_dataset.py` — Added `FrameGapMaskingGenerator`, `VideoDataset` now accepts `mask_type` and `temporal_gap`
+- `evals/video_classification_frozen/modelcustom/VideoMAE/run_mae_pretraining.py` — Added `'frame_gap'` to `--mask_type` choices, added `--temporal_gap` arg
+- `scripts/videomae_pilot_standard_vitb.sbatch` — Standard MAE ViT-B, node 83
+- `scripts/videomae_pilot_framegap_vitb.sbatch` — Frame-Gap MAE ViT-B, node 184
+
+**Docs:** `claude/neurips/experiments/vitb-temporal-shortcut-pilot.md`
+
+**Training config:** BS 1024 (32×8 GPU × 4 accum), LR 6e-4, warmup 10 epochs, checkpoints at e25/e50/e75/e100. ~26 min/epoch, ~43 hrs total per model. ETA ~2026-04-10.
+
 ### Added ViT-B ImageNet-1K init path for JEPA / BYOL / VideoMAE
 
 **What:** Built `checkpoints/vitb_in1k.pt` (343 MB) from torchvision `ViT_B_16_Weights.IMAGENET1K_V1` (DeIT recipe, 81.07% top-1) by remapping keys to the flat EchoJEPA convention (same format as `vitl_in21k.pt` / `vitl_raw.pth`). Dry-run load into `vit_base(use_rope=True)`: 0 missing, exactly 2 unexpected (`cls_token`, `pos_embed` — correctly ignored).
@@ -24,6 +45,43 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 **Caveat (inherited from ViT-L VideoMAE run):** VideoMAE's `Attention` uses `qkv = Linear(..., bias=False)` + separate `q_bias` / `v_bias` params. The sbatch adapter walks target keys looking for matches, so the fused source `attn.qkv.bias` is silently dropped and `q_bias` / `v_bias` remain at zero init. ~96% of encoder params still load cleanly. Kept identical to ViT-L for parity.
 
 **Docs:** New "ImageNet Initialization (image ViT -> video ViT)" section in `claude/architecture/pretraining-and-cooldown.md` (checkpoint format, load-time transforms, `use_rope` requirement, inline torchvision remap script). `vitb_imagenet1k.pt` added to `claude/architecture/checkpoint-registry.md` Init Weights table.
+
+### UHN MR severity probe — trained, stopped early, saved to S3
+
+**Job 443** (node 83): EchoJEPA-G d=1 attentive probe for UHN MR severity 4-class (None-Trivial/Mild/Moderate/Severe). Config: `configs/eval/vitg-384/nature_medicine/echojepa_g_mr_severity_uhn_hp.yaml`. Encoder: `pt-280-an81.pt` (ViT-G). Resumed from job 437 epoch 1.
+
+Training log (28 complete epochs, stopped during epoch 29/35):
+
+| Epoch | Train Acc | Val Acc |
+|-------|-----------|---------|
+| 1 | 65.47 | 65.32 |
+| 10 | 69.95 | 69.00 |
+| 22 | 71.07 | **69.99** (best) |
+| 28 | 71.58 | 69.94 |
+
+Cancelled at epoch 29 to free node 83. Checkpoint saved to S3:
+- `s3://.../runs/echojepa_g_mr_severity_uhn_443/training_folder/video_classification_frozen/echojepa-g-mr-severity-uhn/best.pt` (epoch 22, 4.9 GB)
+- `s3://.../runs/echojepa_g_mr_severity_uhn_443/training_folder/video_classification_frozen/echojepa-g-mr-severity-uhn/latest.pt` (epoch 28)
+- `s3://.../runs/echojepa_g_mr_severity_uhn_443/training_folder/video_classification_frozen/echojepa-g-mr-severity-uhn/log_r0.csv`
+
+### MR severity cross-dataset comparison (UHN probe vs MIMIC probe on MIMIC test)
+
+**Job 549** (node 184, 13 min): Both probes tested on MIMIC-IV-Echo MR test set (1,003 studies, prediction-averaged). Same frozen EchoJEPA-G encoder, same d=1 attentive probe architecture.
+
+| Probe | Accuracy | Balanced Acc | Quad Kappa | Macro AUROC |
+|-------|----------|-------------|------------|-------------|
+| MIMIC (in-distribution, job 436) | 0.591 | 0.391 | 0.538 | **0.806** |
+| UHN (cross-dataset, job 443) | 0.531 | 0.341 | 0.410 | **0.799** |
+
+**Key finding:** AUROC preserved cross-institution (−0.9%). The UHN probe's discrimination transfers; only classification thresholds degrade. Neither probe detects Severe (n=56).
+
+**Scripts:**
+- sbatch: `scripts/echojepa_g_mr_compare_mimic_test.sbatch`
+- UHN-on-MIMIC config: `configs/eval/vitg-384/nature_medicine/echojepa_g_mr_uhn_on_mimic_predavg.yaml`
+
+**Artifacts:** `s3://.../runs/echojepa_g_mr_compare_549/logs/{mr_comparison.csv,sklearn_comparison.log,mimic_probe_study_predictions.csv,uhn_probe_study_predictions.csv}`
+
+**Docs:** `claude/neurips/experiments/mr-cross-dataset-transfer.md`, `claude/neurips/completed-experiments.md` §10.
 
 ---
 

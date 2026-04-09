@@ -60,6 +60,24 @@ S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 | EchoJEPA-L (pt50-pt230) | `checkpoints/echojepa-l-pt{50,70,90,110,150,180,200,220}.pt` | Intermediate checkpoints |
 | EchoJEPA-L (anneal) | `checkpoints/echojepa-l-pt230-an{10,20,30}.pt` | Annealing phase |
 
+### SALT S2 v1 Pretraining Checkpoints (Frozen Teacher)
+
+S1 teacher: 20-epoch pixel-reconstruction model (frozen after S1). S2 student trains against frozen S1 targets.
+S2 checkpoints at e4/e29/e54/e79 correspond to total comparable epochs ~24/49/74/99.
+
+Pretraining run: HyperPod job 388. S3: `s3://.../vjepa2-artifacts/runs/salt_s2_pretrain_388/checkpoints/`
+
+| S2 Epoch | Total Epoch | Local Path | S3 Path | Notes |
+|----------|-------------|-----------|---------|-------|
+| 4 | ~24 | `checkpoints/pretrain/mimic/salt_s2v1_e4.pt` | `.../salt_s2_pretrain_388/checkpoints/e4.pt` | Training dynamics |
+| 29 | ~49 | `checkpoints/pretrain/mimic/salt_s2v1_e29.pt` | `.../salt_s2_pretrain_388/checkpoints/e29.pt` | Training dynamics |
+| 54 | ~74 | `checkpoints/pretrain/mimic/salt_s2v1_e54.pt` | `.../salt_s2_pretrain_388/checkpoints/e54.pt` | Training dynamics |
+| 79 | ~99 | `checkpoints/pretrain/mimic/salt_s2v1_e79.pt` | `.../salt_s2_pretrain_388/checkpoints/e79.pt` | **Primary SALT checkpoint (locked 2026-04-08)** |
+| 79 (alias) | ~99 | `checkpoints/salt_s2_vitl_e79.pt` | — | Symlink to above (ICML legacy path) |
+| 199 | ~219 | `checkpoints/pretrain/mimic/salt_s2v1_e199.pt` | `.../salt_s2_pretrain_388/checkpoints/e199.pt` | Extended training — *worse* than e79 (ceiling) |
+
+Checkpoint key: `encoder`. Model: `vit_large` (ViT-L, 304M params).
+
 ### EchoJEPA-B (V-JEPA 2.1)
 
 | Model | Checkpoint | Notes |
@@ -388,6 +406,30 @@ All probes: 6 HP heads, 20 epochs, raw LVEF labels (mean=55.78, std=12.41).
 | MAE | 7.54 | 6.41 | 6.11 | 6.05 |
 
 MAE improves more steeply (20% e24→e100) but BYOL leads at every checkpoint (ImageNet init head start). Both plateau after e75.
+
+### SALT S2 v1 Training Dynamics Probes — EchoNet-Dynamic LVEF (d=4 attentive, 224px)
+
+All probes: 6 HP heads, 20 epochs, raw LVEF labels. Trained on HyperPod (e4+e29: job 581 node 83; e54: job 590 node 184).
+
+| S2 Epoch | Config | Probe Path | Best Val MAE | Val R² | Val Pearson |
+|----------|--------|-----------|-------------|--------|-------------|
+| e4 | `configs/eval/vitl/neurips/salt_s2v1_e4_echonet_lvef_d4.yaml` | `evals/vitl/neurips/salt_s2v1_e4_echonet_lvef_d4/video_classification_frozen/neurips-salt-s2v1-e4-echonet-lvef-d4/best.pt` | 8.394 | — | — |
+| e29 | `configs/eval/vitl/neurips/salt_s2v1_e29_echonet_lvef_d4.yaml` | `evals/vitl/neurips/salt_s2v1_e29_echonet_lvef_d4/video_classification_frozen/neurips-salt-s2v1-e29-echonet-lvef-d4/best.pt` | 6.519 | 0.447 | — |
+| e54 | `configs/eval/vitl/neurips/salt_s2v1_e54_echonet_lvef_d4.yaml` | `evals/vitl/neurips/salt_s2v1_e54_echonet_lvef_d4/video_classification_frozen/neurips-salt-s2v1-e54-echonet-lvef-d4/best.pt` | 6.442 | 0.460 | 0.689 |
+| e79 | `configs/eval/vitl/neurips/salt_s2v1_echonet_lvef_d4.yaml` | `evals/vitl/neurips/salt_s2v1_echonet_lvef_d4/video_classification_frozen/neurips-salt-s2v1-echonet-lvef-d4/best.pt` | 6.47 | — | — |
+
+**e79 also has pred-avg inference config:** `configs/eval/vitl/neurips/salt_s2v1_echonet_lvef_d4_predavg.yaml` → Test MAE=6.66, R²=0.414, Pearson=0.659.
+
+**e79 ICML legacy probe path:** `evals/vitl/icml/salt_s2_e79_end_lvef_224/video_classification_frozen/icml-salt-s2-e79-end-lvef-d4/best.pt` (different probe, used in earlier frame shuffling runs).
+
+**Frame shuffling clean R² (from shuffling scripts, not probe val):**
+- e4: 0.007 (noise), e29: 0.277, e54: 0.330 (peak), e79: 0.296
+
+**Sbatch scripts:**
+- `scripts/salt_s2v1_probe_e4_e29.sbatch` — e4 + e29 probes on node 83 (job 581)
+- `scripts/salt_s2v1_probe_e54_node184.sbatch` — e54 probe on node 184 (job 590)
+- `scripts/salt_s2v1_shuffle_node83.sbatch` — e4 + e29 frame shuffling (job 646)
+- `scripts/salt_s2v1_shuffle_node184.sbatch` — e54 + e79 frame shuffling (job 647)
 
 ### EchoNet-Dynamic LVEF Test Inference (1,277 videos)
 

@@ -166,6 +166,8 @@ class CAMUSSegDataset(Dataset):
             "es_mask": gt_frames[es_sampled_idx],
             "ed_temporal_token": ed_temporal_token,
             "es_temporal_token": es_temporal_token,
+            "ed_sampled_idx": ed_sampled_idx,
+            "es_sampled_idx": es_sampled_idx,
             "patient_id": patient_id,
             "view": view,
         }

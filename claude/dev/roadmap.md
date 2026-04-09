@@ -42,7 +42,7 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 |---|------|--------|--------|-------|
 | 5 | **8 outcome tasks × 4 models** (mortality ×4, readmission, discharge, LOS, end-of-life) | ~4 days | **G 10/11 DONE** (PA complete). L-K/EP/Pan needs restart (chain killed). | Strategy E underperforms CY linear by 1-6pp. sklearn reproduction failed to close gap. |
 | 6 | **Biomarkers** (troponin, NT-proBNP, creatinine, lactate) × 4 models | ~1 day | **G PA DONE**, L-K/EP/Pan partial | R² very low (0.008-0.076). All models struggle. |
-| 7 | **Cross-institution** — more tasks beyond LVEF | ~hours/task | LVEF + 4 diseases DONE | §2.5 cross-site table. MR/TR severity feasible but 5→4 class mismatch needs post-hoc merge. |
+| 7 | **Cross-institution** — more tasks beyond LVEF | ~hours/task | LVEF + 4 diseases + **MR severity DONE** | §2.5 cross-site table. MR severity: UHN probe AUROC 0.799 on MIMIC test vs 0.806 in-distribution (−0.9%). Job 549. TR severity still feasible. |
 | 7b | **sklearn CY reproduction** | DONE | **NOT REPRODUCED** (2-5pp gap) | Solver convergence + L1 + HP range. CY's numbers used in manuscript. |
 
 ### P3: Novel/JEPA-Unique Experiments (Alif — blocks §2.5 trajectory + §2.8 ablation ‡ markers)

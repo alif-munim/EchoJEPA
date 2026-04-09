@@ -114,42 +114,49 @@
 
 ---
 
-## SALT-S2-e79 Results (added 2026-04-08)
+## SALT S2 Training Dynamics Results (added 2026-04-08)
 
-SALT v1 e79 (primary SALT checkpoint, hierarchical 4-layer predictor, S1:20 + S2:79). Added after the §4 tube-masking reframe to give SALT a fourth-mechanistic-probe row alongside JEPA/BYOL/MAE.
+Full 4-checkpoint SALT training dynamics (S2 epochs 4/29/54/79, comparable total epochs ~24/49/74/99). All use neurips-style d=4 attentive probes trained on the same pipeline.
 
-| Condition | R² (mean) | σ (3 seeds) | Pearson | MAE |
-|-----------|-----------|-------------|---------|-----|
-| clean | 0.2926 | — | 0.564 | 7.35 |
-| tubelet | 0.2902 | 0.005 | 0.563 | 7.38 |
-| reverse | 0.2062 | — | 0.514 | 7.92 |
-| matched | 0.2915 | 0.008 | 0.564 | 7.37 |
-| shuffle | **−0.4116** | 0.010 | 0.460 | 10.25 |
-| matched_frame | **−0.4393** | 0.052 | 0.491 | 10.44 |
+### SALT S2 Results (R², mean of 3 seeds where applicable)
+
+| Condition | e4 (~e24) | e29 (~e49) | e54 (~e74) | e79 (~e99) |
+|-----------|-----------|------------|------------|------------|
+| clean | 0.007 | 0.277 | **0.330** | 0.296 |
+| tubelet | 0.008 | 0.261 | 0.324 | 0.294 |
+| reverse | 0.005 | 0.202 | 0.223 | 0.120 |
+| matched | 0.007 | 0.257 | 0.320 | 0.296 |
+| shuffle | -0.021 | **-0.439** | -0.294 | -0.283 |
+| matched_frame | -0.020 | **-0.462** | -0.326 | -0.310 |
 
 ### Relative degradation (clean → matched_frame)
 
 | Epoch | Clean R² | Matched_frame R² | Relative Drop |
 |-------|----------|------------------|---------------|
-| e79 | 0.2926 | −0.4393 | **−250%** (largest of any model) |
+| e4 | 0.007 | -0.020 | n/a (noise) |
+| e29 | 0.277 | -0.462 | **−267%** |
+| e54 | 0.330 | -0.326 | **−199%** |
+| e79 | 0.296 | -0.310 | **−205%** |
 
-### SALT-specific findings
+### SALT training dynamics findings
 
-1. **Cliff profile.** SALT is essentially invariant to local disruption (tubelet −1%, matched −0.4%, both within noise of clean) but collapses catastrophically under global disruption (shuffle −241%, matched_frame −250%). This is qualitatively different from every other method tested — JEPA and BYOL show monotonic gradients, MAE is flat.
+1. **Cliff profile persists across all training stages.** From e29 onward, SALT shows the same signature: flat under local disruption (tubelet, matched within 1-5% of clean), catastrophic collapse under global disruption (shuffle/matched_frame go deeply negative). The cliff never softens.
 
-2. **SALT learned *some* temporal encoding — it just can't generalize.** If SALT had no temporal encoding (like converged MAE), tubelet/matched/reverse/shuffle/matched_frame would all stay near clean. If SALT had robust temporal encoding (like JEPA), the decay would be smooth. Instead, SALT holds up under exactly the disruptions it was exposed to during training (local 2-frame tubelet reordering ≈ no-op; fixed matched perm ≈ tubelet) but falls off a cliff under novel permutations. The frozen pixel teacher provided targets that encode frame ordering at some granularity, but the student only learned to match those targets under in-distribution frame arrangements.
+2. **e29 has the steepest collapse** (matched_frame −267%). This is SALT's "e50 crisis" — peak temporal fragility. But unlike JEPA (−42% → −17%), SALT never consolidates. The degradation plateaus at ~200% from e54 onward.
 
-3. **SALT reverse costs 30% R² — more than JEPA (−9%) but less than BYOL's worst.** Time reversal is a structured out-of-distribution disruption: the cardiac cycle runs backward, but frame-to-frame smoothness is preserved. SALT's sensitivity to reverse (larger than the gentle tubelet/matched disruptions but smaller than random shuffle) suggests it encodes *direction* of time, not just local smoothness. BYOL at e100 drops similarly (0.468 → 0.373 = −20%). JEPA is more robust to reverse (−9%) because the EMA teacher had continuous exposure to temporally coherent clips, letting JEPA's representation generalize to time-reversed input.
+3. **e54 has the highest clean R² (0.330)** but e54→e79 shows regression (0.330→0.296). SALT's best representation is at mid-training, not convergence — the frozen teacher's targets become less useful as the student saturates.
 
-4. **Clean R² (0.293) is the worst of all four methods** — below MAE's 0.445 by 0.15 R². Even before any temporal disruption, SALT has weaker representations than the worst EMA-based method.
+4. **Reverse sensitivity increases with training.** e29: −27%, e54: −32%, e79: −60%. SALT becomes progressively more sensitive to time reversal, the opposite of JEPA's consolidation. The frozen teacher's temporal encoding becomes increasingly brittle with more student training.
 
-5. **Matched_frame R² (−0.439) is lower than shuffle R² (−0.412).** This is the only model where matched_frame is worse than shuffle — for JEPA/BYOL/MAE, the two are approximately equal. The difference is small (0.03) and within the matched_frame standard deviation (σ=0.052), but may reflect SALT's fragility to worst-case temporal permutations.
+5. **No consolidation — the critical contrast with JEPA.** JEPA: −46%→−19% (6-cond matched_frame, e50→e100). SALT: −267%→−199%→−205% (e29→e54→e79). EMA co-evolution drives consolidation; frozen targets cannot.
 
-6. **SALT is the only method that goes negative** under any condition, and it goes negative under two (shuffle, matched_frame). Means predictions are worse than predicting the test-set mean LVEF.
+6. **SALT learned *some* temporal encoding — it just can't generalize.** Tubelet/matched stay near clean (local disruption ≈ no-op), but shuffle/matched_frame collapse. The frozen pixel teacher provided targets encoding frame ordering, but the student only learned to match those targets under in-distribution arrangements.
+
+7. **e4 is baseline noise** (clean R²=0.007). All conditions near zero. Confirms probe quality: degradation at e29+ is real signal.
 
 ### Connection to §4 tube-masking reframe
 
-The tube-masking reframe (`experiments/tube-masking-failure.md`) argued that MAE's temporal flatness is intrinsic to pixel reconstruction on spatially redundant video — the shortcut is within-frame spatial interpolation, not cross-frame copying. SALT's cliff profile adds a complementary mechanistic point:
+The tube-masking reframe (`experiments/tube-masking-failure.md`) argued that MAE's temporal flatness is intrinsic to pixel reconstruction on spatially redundant video. SALT's cliff profile adds a complementary mechanistic point:
 
 > **The frozen-teacher mechanism produces fragile temporal encoding.** SALT's teacher is itself a pixel-reconstruction model (S1), so the latent targets the student learns to match encode whatever temporal structure S1 happened to extract before it was frozen. Without EMA co-evolution, the student has no mechanism to *improve* that encoding during its own training — it can only memorize the targets the frozen teacher provides. The result is brittle temporal features that work on in-distribution frame arrangements and shatter under novel ones.
 
@@ -161,31 +168,31 @@ This is the *teacher dynamics* component of the §4.5 SALT discussion: JEPA's ad
 
 | Condition | JEPA e100 | BYOL e100 | MAE e99 | SALT e79 |
 |-----------|-----------|-----------|---------|----------|
-| clean | **.591** | .468 | .445 | .293 |
-| tubelet | **.582** | .402 | .424 | .290 |
-| reverse | **.539** | .373 | .431 | .206 |
-| matched | **.580** | .415 | .419 | .292 |
-| shuffle | **.484** | .291 | .422 | **−.412** |
-| matched_frame | **.477** | .280 | .449 | **−.439** |
+| clean | **.591** | .468 | .445 | .296 |
+| tubelet | **.582** | .402 | .424 | .294 |
+| reverse | **.539** | .373 | .431 | .120 |
+| matched | **.580** | .415 | .419 | .296 |
+| shuffle | **.484** | .291 | .422 | **−.283** |
+| matched_frame | **.477** | .280 | .449 | **−.310** |
 
 **Four qualitatively distinct profiles:**
 - **JEPA**: monotonic gradient, gentle slope (0.591 → 0.477, −19%)
 - **BYOL**: monotonic gradient, steep slope (0.468 → 0.280, −40%)
 - **MAE**: completely flat (0.445 → 0.449, +1%)
-- **SALT**: cliff — flat under local disruption, collapse under global (0.293 → −0.439, −250%)
+- **SALT**: cliff — flat under local disruption, collapse under global (0.296 → −0.310, −205%)
 
 **Key comparisons:**
-- JEPA matched_frame (0.477) > BYOL clean (0.468) > MAE clean (0.445) > SALT clean (0.293) — **JEPA's fully-shuffled representation beats every other model's clean representation**
+- JEPA matched_frame (0.477) > BYOL clean (0.468) > MAE clean (0.445) > SALT clean (0.296) — **JEPA's fully-shuffled representation beats every other model's clean representation**
 - MAE matched_frame (0.449) ≈ MAE clean (0.445) — frame order is irrelevant to MAE
 - SALT is the only model to go negative under any condition
-- Under full temporal disruption: JEPA (0.477) >> MAE (0.449) > BYOL (0.280) >> SALT (−0.439)
-- SALT clean (0.293) < MAE clean (0.445): even the weakest EMA-based method beats the best SALT variant, regardless of temporal disruption
+- Under full temporal disruption: JEPA (0.477) >> MAE (0.449) > BYOL (0.280) >> SALT (−0.310)
+- SALT clean (0.296) < MAE clean (0.445): even the weakest EMA-based method beats the best SALT variant, regardless of temporal disruption
 
 **Four-way profile summary:** each method has a signature response shape that reflects what the prediction target is doing.
 - *Latent target + EMA co-evolution* (JEPA) → robust temporal encoding, gentle degradation
 - *Global pool target + EMA* (BYOL) → moderate temporal encoding, steep degradation
 - *Pixel target, no teacher* (MAE) → no temporal encoding, flat invariance (tube masking does not block within-frame spatial interpolation; see `tube-masking-failure.md`)
-- *Latent target, frozen teacher* (SALT) → brittle temporal encoding, cliff collapse
+- *Latent target, frozen teacher* (SALT) → brittle temporal encoding, cliff collapse (no consolidation across training)
 
 ---
 
@@ -205,6 +212,10 @@ This is the *teacher dynamics* component of the §4.5 SALT discussion: JEPA's ad
 | MAE e50 | `scripts/rebuttal/samples/6cond_MAE_e50.csv` |
 | MAE e74 | `scripts/rebuttal/samples/6cond_MAE_e74.csv` |
 | MAE e99 | `scripts/rebuttal/samples/6cond_MAE_e99.csv` |
+| SALT S2 e4 | `scripts/rebuttal/samples/6cond_SALT_S2_e4.csv` |
+| SALT S2 e29 | `scripts/rebuttal/samples/6cond_SALT_S2_e29.csv` |
+| SALT S2 e54 | `scripts/rebuttal/samples/6cond_SALT_S2_e54.csv` |
+| SALT S2 e79 | `scripts/rebuttal/samples/6cond_SALT_S2_e79.csv` |
 
 ## For NeurIPS
 

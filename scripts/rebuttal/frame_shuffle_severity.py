@@ -87,6 +87,31 @@ ALL_CONFIGS = {
         "probe_checkpoint": "evals/vitl/icml/salt_s2_e79_end_lvef_224/"
                             "video_classification_frozen/icml-salt-s2-e79-end-lvef-d4/best.pt",
     },
+    # SALT S2 v1 training dynamics (S1:20 + S2:e4/e29/e54)
+    "SALT-S2-e4": {
+        "encoder_type": "vjepa",
+        "encoder_checkpoint": "checkpoints/pretrain/mimic/salt_s2v1_e4.pt",
+        "encoder_model_name": "vit_large",
+        "encoder_key": "encoder",
+        "probe_checkpoint": "evals/vitl/neurips/salt_s2v1_e4_echonet_lvef_d4/"
+                            "video_classification_frozen/neurips-salt-s2v1-e4-echonet-lvef-d4/best.pt",
+    },
+    "SALT-S2-e29": {
+        "encoder_type": "vjepa",
+        "encoder_checkpoint": "checkpoints/pretrain/mimic/salt_s2v1_e29.pt",
+        "encoder_model_name": "vit_large",
+        "encoder_key": "encoder",
+        "probe_checkpoint": "evals/vitl/neurips/salt_s2v1_e29_echonet_lvef_d4/"
+                            "video_classification_frozen/neurips-salt-s2v1-e29-echonet-lvef-d4/best.pt",
+    },
+    "SALT-S2-e54": {
+        "encoder_type": "vjepa",
+        "encoder_checkpoint": "checkpoints/pretrain/mimic/salt_s2v1_e54.pt",
+        "encoder_model_name": "vit_large",
+        "encoder_key": "encoder",
+        "probe_checkpoint": "evals/vitl/neurips/salt_s2v1_e54_echonet_lvef_d4/"
+                            "video_classification_frozen/neurips-salt-s2v1-e54-echonet-lvef-d4/best.pt",
+    },
     # JEPA IN21K (ImageNet-21K init, epoch-matched)
     "JEPA-IN21K-e25": {
         "encoder_type": "vjepa",

@@ -116,6 +116,8 @@ Standalone experiment writeups with full results, methodology, scripts, checkpoi
 | `cross-dataset-transfer.md` | EchoNet-Dynamic (1,277 test) + Pediatric zero-shot from UHN and END probes |
 | `clinical-stratification.md` | Pathology-stratified LVEF: JEPA advantage 8× larger on reduced EF (<40%) |
 | `multi-view-ablation.md` | RVSP single-view vs multi-view + noise robustness. MV halves degradation |
+| `mr-cross-dataset-transfer.md` | MR severity cross-institution: MIMIC probe vs UHN probe on MIMIC test. AUROC preserved cross-dataset (0.806 vs 0.799). Job 549 |
+| `vitb-temporal-shortcut-pilot.md` | ViT-B temporal shortcut hypothesis: Standard MAE vs Frame-Gap MAE. Tests whether tube masking causes temporal feature abandonment. Jobs 570/571 |
 
 ## goodfire/
 

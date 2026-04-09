@@ -42,8 +42,10 @@ def get_args():
     parser.add_argument('--decoder_depth', default=4, type=int,
                         help='depth of decoder')
 
-    parser.add_argument('--mask_type', default='tube', choices=['random', 'tube'],
+    parser.add_argument('--mask_type', default='tube', choices=['random', 'tube', 'frame_gap'],
                         type=str, help='masked strategy of video tokens/patches')
+    parser.add_argument('--temporal_gap', default=2, type=int,
+                        help='temporal gap (in tubelet positions) between context and target for frame_gap masking')
 
     parser.add_argument('--mask_ratio', default=0.75, type=float,
                         help='ratio of the visual tokens/patches need be masked')
@@ -188,7 +190,9 @@ def main(args):
         frames_per_clip=args.num_frames,
         target_fps=args.sampling_rate,   # <-- use the CLI arg
         crop_size=args.input_size,
-        mask_ratio=args.mask_ratio
+        mask_ratio=args.mask_ratio,
+        mask_type=args.mask_type,
+        temporal_gap=args.temporal_gap
     )
     print(f"Dataset loaded from s3_dataset.py with {len(dataset_train)} samples.")
     # ----------------------------------------
