@@ -1,13 +1,13 @@
-# Zero-shot pediatric LVEF: EchoJEPA-L e100 encoder + END LVEF d=4 probe
+# Reproduce: EchoJEPA-L e100 + END LVEF d=4 probe on END test set
 app: vjepa
-folder: /opt/dlami/nvme/evals/neurips/enp_zeroshot
+folder: /opt/dlami/nvme/evals/neurips/end_repro
 eval_name: video_classification_frozen
 resume_checkpoint: true
 val_only: true
-tag: neurips-echojepa-e100-enp-zeroshot
+tag: neurips-echojepa-e100-end-repro
 
 probe_checkpoint: /opt/dlami/nvme/probes/end_lvef_e100/jepa_in21k_e100/best.pt
-predictions_save_path: /opt/dlami/nvme/evals/neurips/enp_zeroshot/jepa_e100_predictions.csv
+predictions_save_path: /opt/dlami/nvme/evals/neurips/end_repro/jepa_e100_end_test_predictions.csv
 
 experiment:
   classifier:
@@ -18,8 +18,8 @@ experiment:
 
   data:
     dataset_type: VideoDataset
-    dataset_train: /opt/dlami/nvme/data/csv/echonet_pediatric_test_s3.csv
-    dataset_val: /opt/dlami/nvme/data/csv/echonet_pediatric_test_s3.csv
+    dataset_train: /opt/vjepa2/data/csv/echonet_dynamic_train_s3_raw.csv
+    dataset_val: /opt/vjepa2/data/csv/echonet_dynamic_test_s3_raw.csv
     resolution: 224
     frames_per_clip: 16
     frame_step: 2
