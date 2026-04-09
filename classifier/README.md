@@ -47,12 +47,17 @@ All classifier assets are mirrored to S3 for HyperPod and cross-institution acce
 
 ```
 s3://echodata25/neurips/classifiers/
-├── view_convnext_small_336px.pt        (567 MB — 13-class view classifier)
-├── color_convnext_small_336px.pt       (567 MB — binary color Doppler classifier)
+├── view_convnext_small_336px.pt                (567 MB — 13-class view classifier, UHN-trained)
+├── convnext_view_finetuned_chicago_best.pt     (189 MB — 13-class view classifier, finetuned on Chicago/UCMC data)
+├── color_convnext_small_336px.pt               (567 MB — binary color Doppler classifier)
 └── data/
     ├── view_labels_patient_split_s3.csv (13.6 MB — 27,227 rows, columns: filename,label,job_id,split,study_id,patient_id,split,mp4_path)
     └── color_labels_s3.csv             (9.8 MB — 23,116 rows, columns: filename,label,job_id,split,mp4_path)
 ```
+
+**View classifier variants:**
+- `view_convnext_small_336px.pt` — original, trained on UHN 22K clips. Used for 18M dataset inference.
+- `convnext_view_finetuned_chicago_best.pt` — finetuned on Chicago/UCMC data. Expected to transfer better to UCMC echo studies (different scanner manufacturers/conventions). Use this for Chicago external validation.
 
 **Data source:** UHN echocardiograms from 607 CVAT-annotated studies (~22K clips). Patient-disjoint train/val/test splits (80/10/10) via deidentified patient IDs. S3 video paths: `s3://echodata25/results/uhn_studies_22k_607/`.
 
