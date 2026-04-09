@@ -59,6 +59,18 @@ s3://echodata25/neurips/classifiers/
 - `view_convnext_small_336px.pt` — original, trained on UHN 22K clips. Used for 18M dataset inference.
 - `convnext_view_finetuned_chicago_best.pt` — finetuned on Chicago/UCMC data. Expected to transfer better to UCMC echo studies (different scanner manufacturers/conventions). Use this for Chicago external validation.
 
+**UHN test set benchmark (2,855 clips, 3-frame voting, 336px):**
+
+| Metric | UHN-only | Chicago-finetuned |
+|--------|----------|-------------------|
+| Accuracy | **0.826** | 0.817 |
+| F1 (macro) | **0.759** | 0.734 |
+| F1 (weighted) | **0.823** | 0.816 |
+| AUROC (macro) | **0.980** | 0.974 |
+| AUROC (weighted) | **0.981** | 0.979 |
+
+The UHN-only model is ~1 pp better on UHN data (expected — in-distribution). The Chicago-finetuned model trades marginal UHN performance for better UCMC transfer. Notable: SSN recall collapses in the Chicago model (F1 0.23 vs 0.62) due to sparse SSN examples in UCMC data, but SSN is unused by valve severity tasks.
+
 **Data source:** UHN echocardiograms from 607 CVAT-annotated studies (~22K clips). Patient-disjoint train/val/test splits (80/10/10) via deidentified patient IDs. S3 video paths: `s3://echodata25/results/uhn_studies_22k_607/`.
 
 **View classifier splits:** Train 21,529 / Val 2,843 / Test 2,855 = 27,227 total. 13 classes (A4C, PLAX, PSAX-AV, Exclude, A2C, Subcostal, TEE, PSAX-PM, A3C, A5C, PSAX-MV, PSAX-AP, SSN).
