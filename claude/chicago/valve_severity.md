@@ -199,16 +199,19 @@ The probes were trained on **view-filtered, B-mode only** clips. You must filter
 The classifier checkpoints are on GDrive:
 ```
 gdrive:echo_foundation/nature_medicine/chicago/classifiers/
-├── view_convnext_small_336px.pt       # 13-class view classifier (567 MB)
-└── color_convnext_small_336px.pt      # Binary color classifier (567 MB)
+├── convnext_view_finetuned_chicago_best.pt   # 13-class view classifier, finetuned on UCMC data (189 MB) ← USE THIS
+├── view_convnext_small_336px.pt              # 13-class view classifier, UHN-only (567 MB)
+└── color_convnext_small_336px.pt             # Binary color classifier (567 MB)
 ```
+
+**Use `convnext_view_finetuned_chicago_best.pt` for view classification** — it was finetuned on Chicago/UCMC data and will transfer better to your echo studies than the UHN-only model. The color classifier is the same for both.
 
 Download and place them locally:
 ```bash
 mkdir -p classifier/checkpoints
 # Copy from GDrive to:
-# classifier/checkpoints/view_convnext_small_336px.pt
-# classifier/checkpoints/color_convnext_small_336px.pt
+# classifier/checkpoints/convnext_view_finetuned_chicago_best.pt   (view — recommended)
+# classifier/checkpoints/color_convnext_small_336px.pt             (color)
 ```
 
 To run classification on your videos:
@@ -216,7 +219,7 @@ To run classification on your videos:
 python preprocessing/classify_views.py \
     --input_dir /data/ucmc/mp4s \
     --output_csv /data/ucmc/classifications.csv \
-    --view_checkpoint classifier/checkpoints/view_convnext_small_336px.pt \
+    --view_checkpoint classifier/checkpoints/convnext_view_finetuned_chicago_best.pt \
     --color_checkpoint classifier/checkpoints/color_convnext_small_336px.pt \
     --num_frames 5 --batch_size 32
 ```
