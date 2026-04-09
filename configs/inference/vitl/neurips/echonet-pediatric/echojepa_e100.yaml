@@ -1,0 +1,50 @@
+# Zero-shot pediatric LVEF: EchoJEPA-L e100 encoder + END LVEF d=4 probe
+app: vjepa
+folder: /opt/dlami/nvme/evals/neurips/enp_zeroshot
+eval_name: video_classification_frozen
+resume_checkpoint: true
+val_only: true
+tag: neurips-echojepa-e100-enp-zeroshot
+
+probe_checkpoint: /opt/dlami/nvme/probes/end_lvef_e100/jepa_in21k_e100/best.pt
+predictions_save_path: /opt/dlami/nvme/evals/neurips/enp_zeroshot/jepa_e100_predictions.csv
+
+experiment:
+  classifier:
+    task_type: regression
+    num_heads: 16
+    num_probe_blocks: 4
+    num_targets: 1
+
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /opt/dlami/nvme/data/csv/echonet_pediatric_test_s3.csv
+    dataset_val: /opt/dlami/nvme/data/csv/echonet_pediatric_test_s3.csv
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 2
+    num_segments: 2
+    num_views_per_segment: 1
+
+  optimization:
+    batch_size: 4
+    num_epochs: 1
+    use_bfloat16: true
+    use_pos_embed: false
+    multihead_kwargs:
+    - {lr: 0.0, start_lr: 0.0, final_lr: 0.0, warmup: 0.0, weight_decay: 0.0, final_weight_decay: 0.0}
+
+model_kwargs:
+  checkpoint: /opt/dlami/nvme/checkpoints/echojepa_l_in21k_e100.pt
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: target_encoder
+      model_name: vit_large
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true
+  wrapper_kwargs:
+    max_frames: 128
+    use_pos_embed: false

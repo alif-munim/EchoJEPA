@@ -1,0 +1,5 @@
+- [User profile](user_alif.md) — Alif Munim, EchoJEPA researcher, PyTorch/SageMaker
+- [HyperPod workflow](hyperpod_workflow.md) — git pull on controller → deploy.sh to both nodes → sbatch
+- [HyperPod monitoring](hyperpod_monitoring.md) — use srun --overlap from controller, not SSH/SSM; check CSV logs not stdout
+- [H100 cuBLAS fix](h100_cublas_fix.md) — LD_LIBRARY_PATH override required for bf16 on HyperPod H100s
+- [Always deploy before sbatch](feedback_deploy_before_sbatch.md) — MUST run ~/deploy.sh before every sbatch on HyperPod
