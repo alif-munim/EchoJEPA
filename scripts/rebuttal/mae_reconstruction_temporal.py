@@ -51,7 +51,7 @@ def parse_args():
     p.add_argument("--num_frames", type=int, default=16)
     p.add_argument("--frame_step", type=int, default=2)
     p.add_argument("--input_size", type=int, default=224)
-    p.add_argument("--decoder_depth", type=int, default=8)
+    p.add_argument("--decoder_depth", type=int, default=4)
     p.add_argument("--device", default="cuda:0")
     p.add_argument("--seed", type=int, default=42)
     return p.parse_args()
@@ -208,17 +208,24 @@ def main():
     # --- Step 2: Load VideoMAE model ---
     import sys
     sys.path.insert(0, "evals/video_classification_frozen/modelcustom/VideoMAE")
-    from timm.models import create_model
-    import modeling_pretrain  # noqa: F401 — registers models
+    from functools import partial
+    from modeling_pretrain import PretrainVisionTransformer
 
-    model_name = "pretrain_videomae_large_patch16_224"
-    print(f"Creating model: {model_name}")
-    model = create_model(
-        model_name,
-        pretrained=False,
-        drop_path_rate=0.0,
-        drop_block_rate=None,
+    print("Creating PretrainVisionTransformer (ViT-L)")
+    model = PretrainVisionTransformer(
+        img_size=224,
+        patch_size=16,
+        encoder_embed_dim=1024,
+        encoder_depth=24,
+        encoder_num_heads=16,
+        encoder_num_classes=0,
+        decoder_num_classes=1536,  # patch_size * patch_size * 3 / tubelet_size * tubelet_size ... = 16*16*2*3=1536
+        decoder_embed_dim=512,
         decoder_depth=args.decoder_depth,
+        decoder_num_heads=8,
+        mlp_ratio=4,
+        qkv_bias=True,
+        norm_layer=partial(torch.nn.LayerNorm, eps=1e-6),
     )
     msg = model.load_state_dict(state, strict=True)
     print(f"Load result: {msg}")

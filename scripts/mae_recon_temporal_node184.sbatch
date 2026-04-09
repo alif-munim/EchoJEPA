@@ -11,6 +11,9 @@
 
 set -uo pipefail
 
+# Fix cuBLAS bf16 on H100s
+export LD_LIBRARY_PATH="/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cuda_runtime/lib:/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cudnn/lib:${LD_LIBRARY_PATH:-}"
+
 REPO_DIR="/opt/vjepa2"
 PYTHON="/opt/vjepa2-312/bin/python3"
 SCRATCH="/opt/dlami/nvme"
@@ -59,7 +62,7 @@ for label in mae_e24 mae_e49 mae_e74 mae_e99; do
         --test_csv "${TEST_CSV}" \
         --label "${label}" \
         --save_dir "${SAVE_DIR}" \
-        --n_videos 100 --n_vis 5 \
+        --n_videos 100 --n_vis 10 \
         --device cuda:0
 done
 
