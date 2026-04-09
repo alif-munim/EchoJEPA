@@ -60,9 +60,27 @@ S3 bucket: `sagemaker-hyperpod-lifecycle-495467399120-usw2`
 | EchoJEPA-L (pt50-pt230) | `checkpoints/echojepa-l-pt{50,70,90,110,150,180,200,220}.pt` | Intermediate checkpoints |
 | EchoJEPA-L (anneal) | `checkpoints/echojepa-l-pt230-an{10,20,30}.pt` | Annealing phase |
 
-### SALT S2 v1 Pretraining Checkpoints (Frozen Teacher)
+### SALT S1 v1 Frozen Teacher
 
-S1 teacher: 20-epoch pixel-reconstruction model (frozen after S1). S2 student trains against frozen S1 targets.
+The SALT v1 frozen teacher is a 20-epoch Stage 1 pixel-reconstruction encoder (MAE-style), initialized from IN21K (`vitl_in21k.pt`), trained with weak augmentation (aspect ratio [0.9, 1.1], scale [0.5, 1.0]) and constant LR 1.75e-4. This teacher is frozen and used as the prediction target for all SALT v1 Stage 2 training.
+
+| | Details |
+|---|---------|
+| HyperPod job | 379 |
+| Epochs | 20 |
+| Architecture | ViT-L (304M), MAE decoder (depth=8, dim=512, heads=8) |
+| Init | `vitl_in21k.pt` (Kinetics-pretrained) |
+| Augmentation | Weak: aspect_ratio [0.9, 1.1], scale [0.5, 1.0] |
+| LR schedule | Constant 1.75e-4 (warmup 40 iters) |
+| S3 (durable) | `s3://echodata25/neurips/checkpoints/salt_s1_v1_teacher_e19.pt` |
+| S3 (HyperPod) | `HYP/runs/salt_s1_pretrain_379/checkpoints/latest.pt` |
+| NVMe path (transient) | `/opt/dlami/nvme/checkpoints/pretrain/mimic/salt_s1_vitl_224px_16f/latest.pt` |
+
+**Provenance verification:** S2 job 388 sbatch explicitly downloads from `salt_s1_pretrain_379/checkpoints/latest.pt`. Job log confirms staged file timestamp matches job 379 S3 upload (2026-04-05 03:33). The S1v2 runs (jobs 416, 445) used different configs (cosine LR, stronger augmentation) and are NOT this teacher.
+
+### SALT S2 v1 Pretraining Checkpoints
+
+S2 student trains against frozen S1 v1 teacher targets (job 379, see above).
 S2 checkpoints at e4/e29/e54/e79 correspond to total comparable epochs ~24/49/74/99.
 
 Pretraining run: HyperPod job 388. S3: `s3://.../vjepa2-artifacts/runs/salt_s2_pretrain_388/checkpoints/`

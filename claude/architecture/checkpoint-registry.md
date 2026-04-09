@@ -29,11 +29,19 @@ All model and probe checkpoints used across the project. Descriptive symlinks in
 
 ### SALT (frozen-teacher pixel-reconstruction → latent student)
 
+**S1 v1 Frozen Teacher:**
+
+| Descriptive name | S3 path | Architecture | Epochs | Notes |
+|------------------|---------|-------------|--------|-------|
+| `salt_s1_v1_teacher_e19.pt` | `s3://echodata25/neurips/checkpoints/salt_s1_v1_teacher_e19.pt` | ViT-L (304M), MAE decoder (d=8, dim=512) | 20 | **Frozen teacher for all SALT v1 S2 runs.** IN21K init, weak aug (aspect [0.9,1.1], scale [0.5,1.0]), constant LR 1.75e-4. HyperPod job 379. Also at `HYP/runs/salt_s1_pretrain_379/checkpoints/latest.pt`. |
+
+**S2 v1 Student Encoders:**
+
 | Descriptive name | Original path | Architecture | Pretraining data | Epochs | Notes |
 |------------------|---------------|-------------|------------------|--------|-------|
-| `salt_s2_vitl_e79.pt` **(primary)** | `checkpoints/salt_s2_vitl_e79.pt` | ViT-L (304M), v1 hierarchical predictor | MIMIC-IV-Echo | S1:20 + S2:79 | **Primary SALT checkpoint for NeurIPS** (locked 2026-04-08). Best of three SALT variants. END LVEF test R²=0.414, MAE=6.66. Constant LR 1.75e-4, weak aug. See `claude/neurips/experiments/salt-comparison.md` § FINAL DECISION. |
+| `salt_s2_vitl_e79.pt` **(primary)** | `checkpoints/salt_s2_vitl_e79.pt` | ViT-L (304M), v1 hierarchical predictor | MIMIC-IV-Echo | S1:20 + S2:79 | **Primary SALT checkpoint for NeurIPS** (locked 2026-04-08). Best of three SALT variants. END LVEF test R²=0.414, MAE=6.66. Constant LR 1.75e-4, weak aug. Teacher: S1 v1 job 379. See `claude/neurips/experiments/salt-comparison.md` § FINAL DECISION. |
 | `salt_s2_vitl_e199.pt` | `checkpoints/salt_s2_vitl_e199.pt` | ViT-L (304M), v1 hierarchical | MIMIC-IV-Echo | S1:20 + S2:199 | Appendix robustness line on END LVEF only (R²=0.360). Extended v1 run; marginally worse than e79 due to overfitting from constant LR. Do not use for new tasks. |
-| SALT v3 e79 (S3-only) | `HYP/runs/salt_s2v2_pretrain_446/checkpoints/e79.pt` | ViT-L (304M), v3 single-level predictor | MIMIC-IV-Echo | S1:20 + S2:79 | Appendix robustness line on END LVEF only (R²=0.348). Paper-spec single-level predictor + cosine LR + paper augmentation. Do not use for new tasks. |
+| SALT v3 e79 (S3-only) | `HYP/runs/salt_s2v2_pretrain_446/checkpoints/e79.pt` | ViT-L (304M), v3 single-level predictor | MIMIC-IV-Echo | S1:20 + S2:79 | Appendix robustness line on END LVEF only (R²=0.348). Paper-spec single-level predictor + cosine LR + paper augmentation. Uses S1v2 teacher (job 445), NOT the v1 teacher. Do not use for new tasks. |
 
 ### External Models (not self-supervised by us)
 
