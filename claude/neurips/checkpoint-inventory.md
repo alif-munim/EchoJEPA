@@ -1,6 +1,8 @@
 # NeurIPS Checkpoint Inventory
 
-Complete inventory of all pretraining checkpoints across objectives and initializations. Updated 2026-04-04.
+Complete inventory of all pretraining checkpoints across objectives and initializations. Updated 2026-04-09.
+
+> **WARNING (2026-04-09):** The JEPA encoder at `HYP/runs/vjepa_mimic_pretrain_125/.../e100.pt` (run 125) is **NOT** the canonical encoder used for probe training. The canonical encoder is from run 376 and lives at `CLEAN/encoders/jepa_in21k_vitl_e100.pt`. Using the wrong encoder with the correct probe produces near-random predictions. **Always use `CLEAN/encoders/` paths.** See `claude/neurips/canonical-checkpoints.md` for the definitive reference with md5 checksums.
 
 **S3 bucket abbreviations:**
 - `HYP`: `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts`
@@ -22,7 +24,7 @@ Complete inventory of all pretraining checkpoints across objectives and initiali
 |-------|---------|-----|------|------|
 | e0–e85 (every 5ep) | `HYP/runs/jepa_in21k_pretrain_376/checkpoints/e{0,5,...,85}.pt` | 376 (running) | Apr 5 | 234 |
 | e100 (expected) | `HYP/runs/jepa_in21k_pretrain_376/checkpoints/e100.pt` | 376 | ~Apr 6 | 234 |
-| e100 (old run, same init) | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e100.pt` | 125 | Jan 25 | 42 |
+| e100 (old run, same init) | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e100.pt` | 125 | Jan 25 | 42 | **DO NOT USE for NeurIPS — different md5 from canonical. Probes trained on run 376.** |
 | e110 | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e110.pt` | 125 | Jan 25 | 42 |
 | e120 | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e120.pt` | 125 | Jan 25 | 42 |
 | e130 | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e130.pt` | 125 | Jan 25 | 42 |
