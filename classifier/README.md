@@ -41,6 +41,29 @@ classifier/
 └── txt/                       # Patient lists, split summaries
 ```
 
+## S3 Mirrors
+
+All classifier assets are mirrored to S3 for HyperPod and cross-institution access:
+
+```
+s3://echodata25/neurips/classifiers/
+├── view_convnext_small_336px.pt        (567 MB — 13-class view classifier)
+├── color_convnext_small_336px.pt       (567 MB — binary color Doppler classifier)
+└── data/
+    ├── view_labels_patient_split_s3.csv (13.6 MB — 27,227 rows, columns: filename,label,job_id,split,study_id,patient_id,split,mp4_path)
+    └── color_labels_s3.csv             (9.8 MB — 23,116 rows, columns: filename,label,job_id,split,mp4_path)
+```
+
+**Data source:** UHN echocardiograms from 607 CVAT-annotated studies (~22K clips). Patient-disjoint train/val/test splits (80/10/10) via deidentified patient IDs. S3 video paths: `s3://echodata25/results/uhn_studies_22k_607/`.
+
+**View classifier splits:** Train 21,529 / Val 2,843 / Test 2,855 = 27,227 total. 13 classes (A4C, PLAX, PSAX-AV, Exclude, A2C, Subcostal, TEE, PSAX-PM, A3C, A5C, PSAX-MV, PSAX-AP, SSN).
+
+**Color classifier splits:** Train 7,396 / Val 8,204 / Test 7,516 = 23,116 total. Binary (No=14,445, Yes=8,671).
+
+**CSV format:** Both CSVs contain a `split` column (train/val/test) and an `mp4_path` column with S3 URIs. The training code filters by split at runtime.
+
+---
+
 ## First Frame Experiments (Image-Based)
 
 These used the old `archive/convnext_training.py` (single-GPU, local filesystem). See `train_convnext.py` for the current distributed trainer.
