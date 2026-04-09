@@ -246,18 +246,34 @@ All four models are in the **200-245 range**. The prior MAE=63 (Goodfire report)
 - **Temporal consistency**: BYOL 0.976 > JEPA 0.954 > MAE 0.950 (JEPA and MAE essentially identical, contradicting EMA filtering hypothesis)
 - **Noise autocorrelation sweep**: static spatial noise is the *worst* perturbation for all models, opposite of EMA-filtering prediction
 
-**Three hypotheses for "why JEPA outperforms MAE on functional tasks":**
+### Cross-temporal attention analysis (2026-04-09)
+
+Fraction of attention flowing between tokens at different temporal positions. Random baseline = 0.875. Lower = more within-frame (spatial) attention.
+
+**Epoch ~100:**
+
+| Model | Layers 0-1 | Layers 2-10 | Layers 11-23 | Overall |
+|-------|-----------|-------------|-------------|---------|
+| **SALT S2 e79** | **0.44-0.49** | **0.39-0.56** | 0.83-0.88 | **0.672** |
+| **JEPA e100** | **0.57-0.60** | 0.82-0.87 | 0.87-0.88 | **0.839** |
+| BYOL e100 | 0.77-0.86 | 0.81-0.86 | 0.87-0.88 | 0.855 |
+| MAE e99 | 0.86 | 0.82-0.87 | 0.87 | 0.861 |
+
+SALT develops the strongest spatial→temporal hierarchy: layers 0-10 are heavily within-frame, sharp transition at layer 11. JEPA shows a milder version (layers 0-1 only). BYOL and MAE show no spatial-first specialization. The hierarchy deepens with training: at SALT e29, only layer 0 is spatial-biased (0.27); by e79, the entire first half of the network specializes for spatial processing.
+
+**Four hypotheses for "why JEPA outperforms MAE on functional tasks":**
 
 | Hypothesis | Status |
 |---|---|
 | EMA filters frame-varying noise | ❌ Not supported (multiple tests) |
 | JEPA encodes temporal dynamics MAE doesn't | ✅ Supported (frame shuffling, severity gradient) |
 | JEPA uses representational capacity more efficiently | ❌ Not supported (revised). All models 200-245 range. |
+| Predictive objectives induce spatial→temporal layer specialization | ✅ Supported (cross-temporal attention analysis) |
 
-**Surviving mechanism:** Temporal structure encoding is the only supported explanation. JEPA consolidates temporal information during training; MAE abandons it. This is independent of representational capacity.
+**Surviving mechanisms:** Temporal structure encoding and spatial→temporal layer specialization. Predictive objectives (JEPA, SALT) force early layers to attend within-frame (spatial features) before integrating across time. This hierarchical processing may be the mechanism by which temporal dynamics are encoded more robustly — a model that first builds spatial features, then reasons temporally over them, captures cardiac dynamics more effectively than one that mixes both uniformly (MAE, BYOL).
 
-**Source:** `claude/neurips/experiments/representation-analysis.md` (canonical), `claude/neurips/experiments/speckle-probing.md` (with retraction)
-**Data:** `scripts/rebuttal/samples/rankme_all.csv` (4-model consistent comparison)
+**Source:** `claude/neurips/experiments/representation-analysis.md` §7 (canonical), `claude/neurips/experiments/speckle-probing.md` (with retraction)
+**Data:** `scripts/rebuttal/temporal_attention/{jepa_e100,byol_e100,mae_e99,salt_s2v1_e79,jepa_pt50,byol_pt50,mae_pt50,salt_s2v1_e29}_temporal_attention.csv`
 
 ---
 
