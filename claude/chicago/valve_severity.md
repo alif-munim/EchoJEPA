@@ -196,21 +196,19 @@ The probes were trained on **view-filtered, B-mode only** clips. You must filter
 
 **Option B: Run our view + color classifiers.** We provide ConvNeXt-Small classifiers trained on 607 annotated UHN studies (27K clips). These classify each video into 13 echo views (A2C, A3C, A4C, A5C, PLAX, PSAX-AV, PSAX-PM, PSAX-MV, PSAX-AP, Subcostal, SSN, TEE, Exclude) and predict whether color Doppler is present (binary).
 
-The classifier checkpoints are on S3 (and mirrored to GDrive):
+The classifier checkpoints are on GDrive:
 ```
-s3://echodata25/neurips/classifiers/
+gdrive:echo_foundation/nature_medicine/chicago/classifiers/
 ├── view_convnext_small_336px.pt       # 13-class view classifier (567 MB)
 └── color_convnext_small_336px.pt      # Binary color classifier (567 MB)
-
-gdrive:echo_foundation/nature_medicine/chicago/classifiers/
-├── view_convnext_small_336px.pt
-└── color_convnext_small_336px.pt
 ```
 
-Download from S3 (if you have AWS access):
+Download and place them locally:
 ```bash
-aws s3 cp s3://echodata25/neurips/classifiers/view_convnext_small_336px.pt classifier/checkpoints/
-aws s3 cp s3://echodata25/neurips/classifiers/color_convnext_small_336px.pt classifier/checkpoints/
+mkdir -p classifier/checkpoints
+# Copy from GDrive to:
+# classifier/checkpoints/view_convnext_small_336px.pt
+# classifier/checkpoints/color_convnext_small_336px.pt
 ```
 
 To run classification on your videos:
