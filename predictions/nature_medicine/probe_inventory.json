@@ -1,0 +1,917 @@
+{
+  "aov_mean_grad": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/aov_mean_grad/echojepa-g/best.pt",
+      "size_mb": 2997.6
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/aov_mean_grad/echojepa-l-k/best.pt",
+      "size_mb": 1586.1
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/aov_mean_grad/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/aov_mean_grad/panecho/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/aov_mean_grad/echojepa-b/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/aov_mean_grad/echojepa-l/best.pt",
+      "size_mb": 1586.1
+    }
+  },
+  "aov_vmax": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/aov_vmax/echojepa-g/best.pt",
+      "size_mb": 2997.6
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/aov_vmax/echojepa-l-k/best.pt",
+      "size_mb": 1586.1
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/aov_vmax/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/aov_vmax/panecho/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/aov_vmax/echojepa-b/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/aov_vmax/echojepa-l/best.pt",
+      "size_mb": 1586.1
+    }
+  },
+  "ar_severity": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/ar_severity/echojepa-g/best.pt",
+      "size_mb": 2998.4
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/ar_severity/echojepa-l-k/best.pt",
+      "size_mb": 1586.7
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/ar_severity/echoprime/best.pt",
+      "size_mb": 397.4
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/ar_severity/panecho/best.pt",
+      "size_mb": 893.1
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/ar_severity/echojepa-b/best.pt",
+      "size_mb": 893.1
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/ar_severity/echojepa-l/best.pt",
+      "size_mb": 1586.7
+    }
+  },
+  "as_severity": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/as_severity/echojepa-g/best.pt",
+      "size_mb": 2998.2
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/as_severity/echojepa-l-k/best.pt",
+      "size_mb": 1586.6
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/as_severity/echoprime/best.pt",
+      "size_mb": 397.4
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/as_severity/panecho/best.pt",
+      "size_mb": 893.0
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/as_severity/echojepa-b/best.pt",
+      "size_mb": 893.0
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/as_severity/echojepa-l/best.pt",
+      "size_mb": 1586.6
+    }
+  },
+  "cardiac_output": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/cardiac_output/echojepa-g/best.pt",
+      "size_mb": 2997.6
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/cardiac_output/echojepa-l-k/best.pt",
+      "size_mb": 1586.1
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/cardiac_output/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/cardiac_output/panecho/best.pt",
+      "size_mb": 892.7
+    }
+  },
+  "diastolic_function": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/diastolic_function/echojepa-g/best.pt",
+      "size_mb": 2998.2
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/diastolic_function/echojepa-l-k/best.pt",
+      "size_mb": 1586.6
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/diastolic_function/echoprime/best.pt",
+      "size_mb": 397.4
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/diastolic_function/panecho/best.pt",
+      "size_mb": 893.0
+    }
+  },
+  "disease_amyloidosis": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/disease_amyloidosis/echojepa-g/best.pt",
+      "size_mb": 2997.8
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/disease_amyloidosis/echojepa-l-k/best.pt",
+      "size_mb": 1586.3
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/disease_amyloidosis/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/disease_amyloidosis/panecho/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/disease_amyloidosis/echojepa-b/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/disease_amyloidosis/echojepa-l/best.pt",
+      "size_mb": 1586.3
+    }
+  },
+  "disease_bicuspid_av": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/disease_bicuspid_av/echojepa-g/best.pt",
+      "size_mb": 2997.8
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/disease_bicuspid_av/echojepa-l-k/best.pt",
+      "size_mb": 1586.3
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/disease_bicuspid_av/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/disease_bicuspid_av/panecho/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/disease_bicuspid_av/echojepa-b/best.pt",
+      "size_mb": 892.8
+    }
+  },
+  "disease_dcm": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/disease_dcm/echojepa-g/best.pt",
+      "size_mb": 2997.8
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/disease_dcm/echojepa-l-k/best.pt",
+      "size_mb": 1586.3
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/disease_dcm/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/disease_dcm/panecho/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/disease_dcm/echojepa-b/best.pt",
+      "size_mb": 892.8
+    }
+  },
+  "disease_hcm": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/disease_hcm/echojepa-g/best.pt",
+      "size_mb": 2997.8
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/disease_hcm/echojepa-l-k/best.pt",
+      "size_mb": 1586.3
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/disease_hcm/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/disease_hcm/panecho/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/disease_hcm/echojepa-b/best.pt",
+      "size_mb": 892.8
+    }
+  },
+  "disease_myxomatous_mv": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/disease_myxomatous_mv/echojepa-g/best.pt",
+      "size_mb": 2997.8
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/disease_myxomatous_mv/echojepa-l-k/best.pt",
+      "size_mb": 1586.3
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/disease_myxomatous_mv/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/disease_myxomatous_mv/panecho/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/disease_myxomatous_mv/echojepa-b/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/disease_myxomatous_mv/echojepa-l/best.pt",
+      "size_mb": 1586.3
+    }
+  },
+  "disease_rheumatic_mv": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/disease_rheumatic_mv/echojepa-g/best.pt",
+      "size_mb": 2997.8
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/disease_rheumatic_mv/echojepa-l-k/best.pt",
+      "size_mb": 1586.3
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/disease_rheumatic_mv/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/disease_rheumatic_mv/panecho/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/disease_rheumatic_mv/echojepa-b/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/disease_rheumatic_mv/echojepa-l/best.pt",
+      "size_mb": 1586.3
+    }
+  },
+  "disease_stemi": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/disease_stemi/echojepa-g/best.pt",
+      "size_mb": 2997.8
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/disease_stemi/echojepa-l-k/best.pt",
+      "size_mb": 1586.3
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/disease_stemi/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/disease_stemi/panecho/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/disease_stemi/echojepa-b/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/disease_stemi/echojepa-l/best.pt",
+      "size_mb": 1586.3
+    }
+  },
+  "disease_takotsubo": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/disease_takotsubo/echojepa-g/best.pt",
+      "size_mb": 2997.8
+    }
+  },
+  "edv": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/edv/echojepa-g/best.pt",
+      "size_mb": 2997.6
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/edv/echojepa-l-k/best.pt",
+      "size_mb": 1586.1
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/edv/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/edv/panecho/best.pt",
+      "size_mb": 892.7
+    }
+  },
+  "esv": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/esv/echojepa-g/best.pt",
+      "size_mb": 2997.6
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/esv/echojepa-l-k/best.pt",
+      "size_mb": 1586.1
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/esv/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/esv/panecho/best.pt",
+      "size_mb": 892.7
+    }
+  },
+  "lvef": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/lvef/echojepa-g/best.pt",
+      "size_mb": 2997.6
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/lvef/echojepa-l-k/best.pt",
+      "size_mb": 1586.1
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/lvef/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/lvef/panecho/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/lvef/echojepa-b/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/lvef/echojepa-l/best.pt",
+      "size_mb": 1586.1
+    }
+  },
+  "mr_severity": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mr_severity/echojepa-g/best.pt",
+      "size_mb": 2998.4
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mr_severity/echojepa-l-k/best.pt",
+      "size_mb": 1586.7
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mr_severity/echoprime/best.pt",
+      "size_mb": 397.4
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mr_severity/panecho/best.pt",
+      "size_mb": 893.1
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mr_severity/echojepa-b/best.pt",
+      "size_mb": 893.1
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/mr_severity/echojepa-l/best.pt",
+      "size_mb": 1586.7
+    }
+  },
+  "mv_ee_medial": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mv_ee_medial/echojepa-g/best.pt",
+      "size_mb": 2997.6
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mv_ee_medial/echojepa-l-k/best.pt",
+      "size_mb": 1586.1
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mv_ee_medial/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mv_ee_medial/panecho/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mv_ee_medial/echojepa-b/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/mv_ee_medial/echojepa-l/best.pt",
+      "size_mb": 1586.1
+    }
+  },
+  "rv_fac": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/rv_fac/echojepa-g/best.pt",
+      "size_mb": 2997.6
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/rv_fac/echojepa-l-k/best.pt",
+      "size_mb": 1586.1
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/rv_fac/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/rv_fac/panecho/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/rv_fac/echojepa-b/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/rv_fac/echojepa-l/best.pt",
+      "size_mb": 1586.1
+    }
+  },
+  "rv_function": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/rv_function/echojepa-g/best.pt",
+      "size_mb": 2998.4
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/rv_function/echojepa-l-k/best.pt",
+      "size_mb": 1586.7
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/rv_function/echoprime/best.pt",
+      "size_mb": 397.4
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/rv_function/panecho/best.pt",
+      "size_mb": 893.1
+    }
+  },
+  "rv_sp": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/rv_sp/echojepa-g/best.pt",
+      "size_mb": 2997.6
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/rv_sp/echojepa-l-k/best.pt",
+      "size_mb": 1586.1
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/rv_sp/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/rv_sp/panecho/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/rv_sp/echojepa-b/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/rv_sp/echojepa-l/best.pt",
+      "size_mb": 1586.1
+    }
+  },
+  "rvsp": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/rvsp/echojepa-g/best.pt",
+      "size_mb": 2997.6
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/rvsp/echojepa-l-k/best.pt",
+      "size_mb": 1586.1
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/rvsp/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/rvsp/panecho/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/rvsp/echojepa-b/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/rvsp/echojepa-l/best.pt",
+      "size_mb": 1586.1
+    }
+  },
+  "tapse": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/tapse/echojepa-g/best.pt",
+      "size_mb": 2997.6
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/tapse/echojepa-l-k/best.pt",
+      "size_mb": 1586.1
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/tapse/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/tapse/panecho/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/tapse/echojepa-b/best.pt",
+      "size_mb": 892.7
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/tapse/echojepa-l/best.pt",
+      "size_mb": 1586.1
+    }
+  },
+  "tr_severity": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/tr_severity/echojepa-g/best.pt",
+      "size_mb": 2998.4
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/tr_severity/echojepa-l-k/best.pt",
+      "size_mb": 1586.7
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/tr_severity/echoprime/best.pt",
+      "size_mb": 397.4
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/tr_severity/panecho/best.pt",
+      "size_mb": 893.1
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/tr_severity/echojepa-b/best.pt",
+      "size_mb": 893.1
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/tr_severity/echojepa-l/best.pt",
+      "size_mb": 1586.7
+    }
+  },
+  "trajectory_lvef": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/trajectory_lvef/echojepa-g/best.pt",
+      "size_mb": 2998.0
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/trajectory_lvef/echojepa-l-k/best.pt",
+      "size_mb": 1586.4
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/trajectory_lvef/echoprime/best.pt",
+      "size_mb": 397.3
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/trajectory_lvef/panecho/best.pt",
+      "size_mb": 892.9
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/trajectory_lvef/echojepa-l/best.pt",
+      "size_mb": 1586.4
+    }
+  },
+  "trajectory_lvef_onset": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/trajectory_lvef_onset/echojepa-g/best.pt",
+      "size_mb": 2997.8
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/trajectory_lvef_onset/echojepa-l-k/best.pt",
+      "size_mb": 1586.3
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/trajectory_lvef_onset/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/trajectory_lvef_onset/panecho/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-b": {
+      "efs": "checkpoints/probes/trajectory_lvef_onset/echojepa-b/best.pt",
+      "size_mb": 892.8
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/trajectory_lvef_onset/echojepa-l/best.pt",
+      "size_mb": 1586.3
+    }
+  },
+  "trajectory_lvef_v1": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/trajectory_lvef_v1/echojepa-g/best.pt",
+      "size_mb": 2998.0
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/trajectory_lvef_v1/echojepa-l-k/best.pt",
+      "size_mb": 1586.4
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/trajectory_lvef_v1/echoprime/best.pt",
+      "size_mb": 397.3
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/trajectory_lvef_v1/panecho/best.pt",
+      "size_mb": 892.9
+    },
+    "echojepa-l": {
+      "efs": "checkpoints/probes/trajectory_lvef_v1/echojepa-l/best.pt",
+      "size_mb": 1586.4
+    }
+  },
+  "trajectory_mr_severity_onset": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/trajectory_mr_severity_onset/echojepa-g/best.pt",
+      "size_mb": 2997.8
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/trajectory_mr_severity_onset/echojepa-l-k/best.pt",
+      "size_mb": 1586.3
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/trajectory_mr_severity_onset/echoprime/best.pt",
+      "size_mb": 397.2
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/trajectory_mr_severity_onset/panecho/best.pt",
+      "size_mb": 892.8
+    }
+  },
+  "mimic/creatinine": {
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mimic/creatinine/echojepa-b/best.pt",
+      "size_mb": 1115.8
+    },
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/creatinine/echojepa-g/best.pt",
+      "size_mb": 3747.0
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mimic/creatinine/echojepa-l-k/best.pt",
+      "size_mb": 1982.7
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mimic/creatinine/echoprime/best.pt",
+      "size_mb": 496.4
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mimic/creatinine/panecho/best.pt",
+      "size_mb": 1115.8
+    }
+  },
+  "mimic/discharge_destination": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/discharge_destination/echojepa-g/best.pt",
+      "size_mb": 3747.3
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mimic/discharge_destination/echojepa-l-k/best.pt",
+      "size_mb": 1982.9
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mimic/discharge_destination/echoprime/best.pt",
+      "size_mb": 496.5
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mimic/discharge_destination/panecho/best.pt",
+      "size_mb": 1115.9
+    }
+  },
+  "mimic/disease_afib": {
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mimic/disease_afib/echojepa-b/best.pt",
+      "size_mb": 1115.9
+    }
+  },
+  "mimic/ef_note_extracted": {
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mimic/ef_note_extracted/echojepa-b/best.pt",
+      "size_mb": 1115.8
+    }
+  },
+  "mimic/in_hospital_mortality": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/in_hospital_mortality/echojepa-g/best.pt",
+      "size_mb": 3747.3
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mimic/in_hospital_mortality/echojepa-l-k/best.pt",
+      "size_mb": 1982.9
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mimic/in_hospital_mortality/echoprime/best.pt",
+      "size_mb": 496.5
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mimic/in_hospital_mortality/panecho/best.pt",
+      "size_mb": 1115.9
+    }
+  },
+  "mimic/lactate": {
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mimic/lactate/echojepa-b/best.pt",
+      "size_mb": 1115.8
+    },
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/lactate/echojepa-g/best.pt",
+      "size_mb": 3747.0
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mimic/lactate/echojepa-l-k/best.pt",
+      "size_mb": 1982.7
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mimic/lactate/echoprime/best.pt",
+      "size_mb": 496.4
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mimic/lactate/panecho/best.pt",
+      "size_mb": 1115.8
+    }
+  },
+  "mimic/los_remaining": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/los_remaining/echojepa-g/best.pt",
+      "size_mb": 3747.0
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mimic/los_remaining/echojepa-l-k/best.pt",
+      "size_mb": 1982.7
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mimic/los_remaining/echoprime/best.pt",
+      "size_mb": 496.5
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mimic/los_remaining/panecho/best.pt",
+      "size_mb": 1115.8
+    }
+  },
+  "mimic/lvef_structured": {
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/lvef_structured/echojepa-g/best.pt",
+      "size_mb": 4996.1
+    }
+  },
+  "mimic/mitral_regurg": {},
+  "mimic/mortality_1yr": {
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mimic/mortality_1yr/echojepa-b/best.pt",
+      "size_mb": 1115.9
+    },
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/mortality_1yr/echojepa-g/best.pt",
+      "size_mb": 3747.3
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mimic/mortality_1yr/echojepa-l-k/best.pt",
+      "size_mb": 1982.9
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mimic/mortality_1yr/echoprime/best.pt",
+      "size_mb": 496.5
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mimic/mortality_1yr/panecho/best.pt",
+      "size_mb": 1115.9
+    }
+  },
+  "mimic/mortality_30d": {
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mimic/mortality_30d/echojepa-b/best.pt",
+      "size_mb": 1115.9
+    },
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/mortality_30d/echojepa-g/best.pt",
+      "size_mb": 3747.3
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mimic/mortality_30d/echojepa-l-k/best.pt",
+      "size_mb": 1982.9
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mimic/mortality_30d/echoprime/best.pt",
+      "size_mb": 496.5
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mimic/mortality_30d/panecho/best.pt",
+      "size_mb": 1115.9
+    }
+  },
+  "mimic/mortality_90d": {
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mimic/mortality_90d/echojepa-b/best.pt",
+      "size_mb": 1115.9
+    },
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/mortality_90d/echojepa-g/best.pt",
+      "size_mb": 3747.3
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mimic/mortality_90d/echojepa-l-k/best.pt",
+      "size_mb": 1982.9
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mimic/mortality_90d/echoprime/best.pt",
+      "size_mb": 496.5
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mimic/mortality_90d/panecho/best.pt",
+      "size_mb": 1115.9
+    }
+  },
+  "mimic/nt_probnp": {
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mimic/nt_probnp/echojepa-b/best.pt",
+      "size_mb": 1115.8
+    },
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/nt_probnp/echojepa-g/best.pt",
+      "size_mb": 3747.0
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mimic/nt_probnp/echojepa-l-k/best.pt",
+      "size_mb": 1982.7
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mimic/nt_probnp/echoprime/best.pt",
+      "size_mb": 496.4
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mimic/nt_probnp/panecho/best.pt",
+      "size_mb": 1115.8
+    }
+  },
+  "mimic/readmission_30d": {
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mimic/readmission_30d/echojepa-b/best.pt",
+      "size_mb": 1115.9
+    },
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/readmission_30d/echojepa-g/best.pt",
+      "size_mb": 3747.3
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mimic/readmission_30d/echojepa-l-k/best.pt",
+      "size_mb": 1982.9
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mimic/readmission_30d/echoprime/best.pt",
+      "size_mb": 496.5
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mimic/readmission_30d/panecho/best.pt",
+      "size_mb": 1115.9
+    }
+  },
+  "mimic/troponin_t": {
+    "echojepa-b": {
+      "efs": "checkpoints/probes/mimic/troponin_t/echojepa-b/best.pt",
+      "size_mb": 1115.8
+    },
+    "echojepa-g": {
+      "efs": "checkpoints/probes/mimic/troponin_t/echojepa-g/best.pt",
+      "size_mb": 3747.0
+    },
+    "echojepa-l-k": {
+      "efs": "checkpoints/probes/mimic/troponin_t/echojepa-l-k/best.pt",
+      "size_mb": 1982.7
+    },
+    "echoprime": {
+      "efs": "checkpoints/probes/mimic/troponin_t/echoprime/best.pt",
+      "size_mb": 496.4
+    },
+    "panecho": {
+      "efs": "checkpoints/probes/mimic/troponin_t/panecho/best.pt",
+      "size_mb": 1115.8
+    }
+  }
+}
