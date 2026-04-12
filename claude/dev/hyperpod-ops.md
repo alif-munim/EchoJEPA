@@ -1,43 +1,229 @@
 # HyperPod Cluster Operations Guide
 
-Operational guide for SageMaker HyperPod GPU clusters used for EchoJEPA training. Covers cluster setup, connectivity, environment deployment, and job submission. Distilled from the echojepa-h100-march setup (2026-03-26). Includes 12 troubleshooting issues with fixes (cuBLAS bf16 bug, CUDA_VISIBLE_DEVICES conflict, GradScaler, /dev/shm, S3 auth, etc.).
+Operational guide for SageMaker HyperPod GPU clusters used for EchoJEPA training. Covers cluster provisioning (step-by-step), connectivity, environment deployment, and job submission. Distilled from echojepa-h100-march (2026-03-26) and echojepa-h100-neurips (2026-04-12) setups. Includes 15 troubleshooting issues with fixes.
 
 ## Cluster Inventory
 
 | Cluster | ID | Instance Type | GPUs | Training Plan | Status |
 |---------|------|--------------|------|---------------|--------|
+| echojepa-h100-neurips | n9we8xfqjv3p | ml.p5.48xlarge | 8x H100 80GB | EchoJEPA-NeurIPS | InService |
 | echojepa-v10 | swcxoboj2tln | ml.p5e.48xlarge | 8x H200 | EchoJEPA | InService |
 | echojepa-h200 | 2paq9e2d06dk | ml.p5e.48xlarge | 8x H200 | EchoJEPA-H200 | InService |
-| echojepa-h100-march | yyepvbne5vzr | ml.p5.48xlarge | 8x H100 80GB | EchoJEPA-NMED-H100-V1 | InService |
+| echojepa-h100-march | yyepvbne5vzr | ml.p5.48xlarge | 8x H100 80GB | EchoJEPA-NeurIPS | InService (compute scaled to 0) |
 | echojepa-h100-nmed | 8186qucd36mr | ml.p5.48xlarge | 8x H100 80GB | EchoJEPA-NMED-H100-V1 | Failed |
 
-## Cluster Creation Checklist
+## Training Plans
 
-### Prerequisites
+| Plan Name | Instance Type | Instances | AZ | Start | End | Duration |
+|-----------|--------------|-----------|-----|-------|-----|----------|
+| EchoJEPA-NeurIPS | ml.p5.48xlarge | 1 | us-west-2c | 2026-04-12 | 2026-05-02 | 480h (two blocks: 144h + 336h) |
+| EchoJEPA-NMED-H100-V1 | ml.p5.48xlarge | 1 | us-west-2c | (expired) | (expired) | — |
+| EchoJEPA-H200 | ml.p5e.48xlarge | 1 | — | — | — | — |
+| EchoJEPA | ml.p5e.48xlarge | 1 | — | — | — | — |
 
-1. **Service quota**: Increase for desired instance type (e.g., ml.p5.48xlarge, ml.p5e.48xlarge)
-2. **Training plan reservation**: Create under SageMaker Training Plans
+**EchoJEPA-NeurIPS** has two reserved capacity blocks:
+- Block 1 (Active): Apr 12 – Apr 18 (144h), ARN `reserved-capacity/9xnkd1mgivt4a00c34i66qamg`
+- Block 2 (Scheduled): Apr 18 – May 2 (336h), ARN `reserved-capacity/dtgufn3txwmx24e53tw4ppmnr`
 
-### Network Config (Critical)
+## Creating a New Cluster (Step-by-Step)
 
-1. Identify the **Availability Zone** pinned to the Training Plan (e.g., usw2-az3)
-2. Create a **private subnet** in that specific AZ within VPC `vpc-0a306d982844ee4e9`
-3. **Associate the subnet with the Route Table** (`rtb-0dc170...`) that contains the S3 Gateway Endpoint. Default route tables often lack this, causing S3 timeout errors
-4. Ensure the VPC has active **Interface Endpoints** for `ssm`, `ssmmessages`, and `ec2messages`
+Complete procedure for provisioning a new HyperPod cluster. Distilled from the echojepa-h100-neurips setup (2026-04-12), which required 4 attempts due to `provisioning_parameters.json` mismatches (Issue 13) and a missing `hotfix/` directory (Issue 15).
 
-### Security & IAM
+### Step 0: Prerequisites
 
-- **Security Group**: Use `sg-0c1b3b9f78325dc0c` (patched to allow traffic to VPC endpoints)
-- **IAM Role**: `AmazonSageMaker-ExecutionRole-20250409T120880`
-  - Must have `AmazonSSMManagedInstanceCore` attached
-  - Must have `ec2.amazonaws.com` in the trust policy (in addition to `sagemaker.amazonaws.com` and `codebuild.amazonaws.com`) for SSM agent registration
-  - Has custom inline policy for SSM access
+1. **Service quota**: Verify quota for the desired instance type (e.g., `ml.p5.48xlarge`, `ml.p5e.48xlarge`). Check at: SageMaker console → Service quotas
+2. **Training plan**: Create or identify an active training plan under SageMaker → Training Plans. Note the **Availability Zone** — the cluster subnet must match
+3. **Network**: Ensure a **private subnet** exists in the training plan's AZ within VPC `vpc-0a306d982844ee4e9`. The subnet must be associated with the Route Table (`rtb-0dc170...`) that has the S3 Gateway Endpoint. VPC Interface Endpoints must exist for `ssm`, `ssmmessages`, and `ec2messages`
 
-### Launch
+### Step 1: Choose Names
 
-- Use default lifecycle scripts; create a new S3 bucket per cluster
-- Verify subnet AZ matches instance group AZ
-- Provisioning takes ~30-60 minutes for p5.48xlarge (Slurm, Docker/Enroot, EFA, NCCL setup)
+Pick a cluster name and derive instance group names. These names must be consistent across the API call AND `provisioning_parameters.json` — mismatches cause immediate provisioning failure (see Issue 13 below).
+
+```bash
+CLUSTER_NAME="echojepa-h100-neurips"
+CONTROLLER_GROUP="echojepa-neurips-controller"
+COMPUTE_GROUP="echojepa-neurips-compute"
+PARTITION_NAME="ml-p5-48xlarge"   # must match instance type: ml.p5.48xlarge → ml-p5-48xlarge
+```
+
+### Step 2: Create S3 Bucket and Upload Lifecycle Files
+
+Each cluster gets its own S3 bucket for lifecycle scripts. You can copy the base lifecycle scripts from an existing cluster and share heavy setup artifacts (conda env, source code) across buckets.
+
+```bash
+BUCKET="sagemaker-${CLUSTER_NAME}-$(python3 -c 'import uuid; print(uuid.uuid4().hex[:8])')-bucket"
+aws s3 mb "s3://${BUCKET}" --region us-west-2
+
+# Copy base lifecycle scripts from an existing cluster bucket
+SOURCE_BUCKET="sagemaker-echojepa-h100-march-0d224785-bucket"
+aws s3 sync "s3://${SOURCE_BUCKET}/" "s3://${BUCKET}/" \
+  --exclude "setup/*" --exclude "checkpoints/*" --exclude "gpu_tests/*"
+# NOTE: Do NOT exclude hotfix/ — apply_hotfix.sh globs hotfix/*.sh and fails if the dir is missing
+```
+
+### Step 3: Upload provisioning_parameters.json (CRITICAL)
+
+**This is the #1 cause of provisioning failures.** HyperPod validates that ALL instance group names in the `create-cluster` API call appear in this file. Missing groups → immediate rollback.
+
+```bash
+cat << EOF | aws s3 cp - "s3://${BUCKET}/provisioning_parameters.json"
+{
+    "workload_manager": "slurm",
+    "controller_group": "${CONTROLLER_GROUP}",
+    "worker_groups": [
+        {
+            "instance_group_name": "${COMPUTE_GROUP}",
+            "partition_name": "${PARTITION_NAME}"
+        }
+    ],
+    "login_group": ""
+}
+EOF
+```
+
+**Validation checklist before proceeding:**
+- [ ] `controller_group` matches the controller instance group name exactly
+- [ ] `worker_groups[*].instance_group_name` matches each compute instance group name exactly
+- [ ] `partition_name` follows the `ml-<family>-<size>` convention (e.g., `ml-p5-48xlarge`)
+- [ ] No stale group names from a previous cluster (common when copying from another bucket)
+
+### Step 4: Upload on_create.sh
+
+Customize the lifecycle script for your cluster. The script runs on every node during provisioning. Key considerations:
+- Use `command -v nvidia-smi` to detect compute vs controller nodes
+- Reference setup artifacts from a shared bucket to avoid duplicating large files
+- Wrap compute-node setup in `( set +e; ... ) &` to prevent failures from killing provisioning
+- Restart the SSM agent at the end so the controller is reachable via SSM immediately
+- Do NOT auto-launch training — use `deploy.sh` + `sbatch` after provisioning is complete
+
+```bash
+aws s3 cp /path/to/on_create.sh "s3://${BUCKET}/on_create.sh"
+```
+
+### Step 5: Create the Cluster
+
+```bash
+TRAINING_PLAN_ARN="arn:aws:sagemaker:us-west-2:495467399120:training-plan/<YOUR_PLAN>"
+EXECUTION_ROLE="arn:aws:iam::495467399120:role/service-role/AmazonSageMaker-ExecutionRole-20250409T120880"
+SECURITY_GROUP="sg-0a98dd2539c5bb0e9"
+SUBNET="subnet-0c98c74de56238192"   # must be in the training plan's AZ
+
+aws sagemaker create-cluster \
+  --cluster-name "${CLUSTER_NAME}" \
+  --region us-west-2 \
+  --instance-groups "[
+    {
+      \"InstanceGroupName\": \"${COMPUTE_GROUP}\",
+      \"InstanceType\": \"ml.p5.48xlarge\",
+      \"InstanceCount\": 1,
+      \"LifeCycleConfig\": {
+        \"SourceS3Uri\": \"s3://${BUCKET}\",
+        \"OnCreate\": \"on_create.sh\"
+      },
+      \"ExecutionRole\": \"${EXECUTION_ROLE}\",
+      \"ThreadsPerCore\": 1,
+      \"InstanceStorageConfigs\": [{\"EbsVolumeConfig\": {\"VolumeSizeInGB\": 500}}],
+      \"TrainingPlanArn\": \"${TRAINING_PLAN_ARN}\",
+      \"OverrideVpcConfig\": {
+        \"SecurityGroupIds\": [\"${SECURITY_GROUP}\"],
+        \"Subnets\": [\"${SUBNET}\"]
+      }
+    },
+    {
+      \"InstanceGroupName\": \"${CONTROLLER_GROUP}\",
+      \"InstanceType\": \"ml.m5.2xlarge\",
+      \"InstanceCount\": 1,
+      \"LifeCycleConfig\": {
+        \"SourceS3Uri\": \"s3://${BUCKET}\",
+        \"OnCreate\": \"on_create.sh\"
+      },
+      \"ExecutionRole\": \"${EXECUTION_ROLE}\",
+      \"ThreadsPerCore\": 1,
+      \"InstanceStorageConfigs\": [{\"EbsVolumeConfig\": {\"VolumeSizeInGB\": 500}}],
+      \"OverrideVpcConfig\": {
+        \"SecurityGroupIds\": [\"${SECURITY_GROUP}\"],
+        \"Subnets\": [\"${SUBNET}\"]
+      }
+    }
+  ]" \
+  --vpc-config "{
+    \"SecurityGroupIds\": [\"${SECURITY_GROUP}\"],
+    \"Subnets\": [\"${SUBNET}\"]
+  }" \
+  --node-recovery "Automatic"
+```
+
+**Notes:**
+- Only the compute group gets `TrainingPlanArn` — the controller does not
+- `ThreadsPerCore: 1` disables hyperthreading (standard for GPU workloads)
+- 500GB EBS gives headroom for checkpoints, conda env, and data
+
+### Step 6: Monitor Provisioning
+
+Provisioning takes **30-60 minutes** for `ml.p5.48xlarge`. Monitor status:
+
+```bash
+# Quick status check
+aws sagemaker describe-cluster --cluster-name "${CLUSTER_NAME}" --region us-west-2 \
+  --query '{Status:ClusterStatus,FailureMessage:FailureMessage}' --output json
+
+# Node-level detail
+aws sagemaker list-cluster-nodes --cluster-name "${CLUSTER_NAME}" --region us-west-2
+
+# Poll until done (run in background)
+while true; do
+  STATUS=$(aws sagemaker describe-cluster --cluster-name "${CLUSTER_NAME}" \
+    --region us-west-2 --query ClusterStatus --output text)
+  echo "$(date +%H:%M:%S) - $STATUS"
+  [ "$STATUS" != "Creating" ] && break
+  sleep 300
+done
+```
+
+**If provisioning fails** (status: `RollingBack` → `Failed`):
+1. Check the `FailureMessage` — it usually identifies the exact issue
+2. Fix the root cause (most commonly `provisioning_parameters.json`)
+3. Delete the failed cluster: `aws sagemaker delete-cluster --cluster-name "${CLUSTER_NAME}" --region us-west-2`
+4. Rollbacks for `ml.p5.48xlarge` can take **30-90 minutes** — you must wait for `Failed` status before deleting
+5. Recreate with the same command (the S3 bucket and lifecycle files persist)
+
+### Step 7: Post-Provisioning Setup
+
+Once status is `InService`:
+
+```bash
+# 1. Connect to the controller via SSM
+CLUSTER_ID="$(aws sagemaker describe-cluster --cluster-name "${CLUSTER_NAME}" \
+  --region us-west-2 --query ClusterArn --output text | rev | cut -d/ -f1 | rev)"
+CTRL_ID="$(aws sagemaker list-cluster-nodes --cluster-name "${CLUSTER_NAME}" --region us-west-2 \
+  --query "sort_by(ClusterNodeSummaries[?InstanceGroupName=='${CONTROLLER_GROUP}'], &LaunchTime)[-1].InstanceId" --output text)"
+aws ssm start-session --region us-west-2 \
+  --target "sagemaker-cluster:${CLUSTER_ID}_${CONTROLLER_GROUP}-${CTRL_ID}"
+
+# 2. On the controller: clone the repo and set up deploy.sh
+sudo su - ubuntu
+git clone git@github.com:<org>/EchoJEPA.git ~/EchoJEPA-repo
+
+# 3. Create deploy.sh for code deployment to compute nodes
+#    (see "Code Deployment" section below)
+
+# 4. Deploy code and verify compute node environment
+~/deploy.sh
+srun -N1 --ntasks=1 bash -c "ls /opt/vjepa2 && nvidia-smi"
+```
+
+### Reusable Config Reference
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| VPC | `vpc-0a306d982844ee4e9` | 10.0.50.0/24 |
+| Subnet (us-west-2c) | `subnet-0c98c74de56238192` | Private, S3 gateway endpoint via route table |
+| Security Group | `sg-0a98dd2539c5bb0e9` | Cluster SG, allows EFA + VPC endpoint traffic |
+| VPC Endpoint SG | `sg-0c1b3b9f78325dc0c` | Must allow TCP 443 from cluster SG |
+| IAM Role | `AmazonSageMaker-ExecutionRole-20250409T120880` | SSM + ec2 trust policy |
+| Conda Env | `/opt/vjepa2-312` | Python 3.12, PyTorch 2.10.0+cu128 |
+| Source Code | `/opt/vjepa2` | Deployed via `deploy.sh` from controller |
+| Setup Artifacts Bucket | `sagemaker-echojepa-h100-march-0d224785-bucket/setup/` | Shared conda env + source tarball |
 
 ## Connecting to Clusters
 
@@ -47,18 +233,25 @@ HyperPod uses a special SSM target format. Standard `aws ssm start-session --tar
 
 ```bash
 REGION=us-west-2
-CLUSTER=echojepa-h100-march
+CLUSTER=echojepa-h100-neurips   # or echojepa-h100-march
+INSTANCE_GROUP_PREFIX=echojepa-neurips   # or echojepa-h100 for the march cluster
 
 CLUSTER_ARN="$(aws sagemaker describe-cluster --cluster-name "$CLUSTER" --region "$REGION" --query ClusterArn --output text)"
 CLUSTER_ID="${CLUSTER_ARN##*/}"
 
 # Controller
 CTRL_ID="$(aws sagemaker list-cluster-nodes --cluster-name "$CLUSTER" --region "$REGION" \
-  --query "sort_by(ClusterNodeSummaries[?InstanceGroupName=='echojepa-h100-controller'], &LaunchTime)[-1].InstanceId" --output text)"
+  --query "sort_by(ClusterNodeSummaries[?InstanceGroupName=='${INSTANCE_GROUP_PREFIX}-controller'], &LaunchTime)[-1].InstanceId" --output text)"
 
 aws ssm start-session --region "$REGION" \
-  --target "sagemaker-cluster:${CLUSTER_ID}_echojepa-h100-controller-${CTRL_ID}"
+  --target "sagemaker-cluster:${CLUSTER_ID}_${INSTANCE_GROUP_PREFIX}-controller-${CTRL_ID}"
 ```
+
+**Instance group names by cluster:**
+| Cluster | Controller Group | Compute Group |
+|---------|-----------------|---------------|
+| echojepa-h100-neurips | echojepa-neurips-controller | echojepa-neurips-compute |
+| echojepa-h100-march | echojepa-h100-controller | echojepa-h100-compute |
 
 **Requires**: SSM Session Manager plugin installed locally. On SageMaker notebook instances:
 ```bash
@@ -152,6 +345,26 @@ fi
 - `batch-replace-cluster-nodes` triggers re-provisioning with the current S3 script
 - Background processes (`nohup`, `&`) survive the script exit but are harder to debug
 - Use `set +e` in subshells to prevent provisioning failures from killing the node
+
+### S3 Bucket Layout (echojepa-h100-neurips)
+
+```
+s3://sagemaker-echojepa-h100-neurips-f85ad7df-bucket/
+  on_create.sh                          # lifecycle script (references h100-march bucket for setup artifacts)
+  lifecycle_script.py                   # standard HyperPod provisioning
+  provisioning_parameters.json          # cluster provisioning params (MUST list all instance groups)
+  apply_hotfix.sh                       # hotfix runner (globs hotfix/*.sh)
+  hotfix/                               # REQUIRED — apply_hotfix.sh fails if missing
+    hold-lustre-client.sh
+    mock-gpu-driver-deb.sh
+  utils/                                # Slurm utilities, enroot, keypair scripts
+  observability/                        # DCGM/NCCL/OTel metric exporters
+  multi_headnode_setup/                 # multi-controller scripts
+  setup/
+    setup_done_<hostname>.txt           # completion markers (written by on_create.sh)
+```
+
+The `on_create.sh` pulls heavy setup artifacts (conda env, source code) from the echojepa-h100-march bucket's `setup/` directory to avoid duplicating ~10 GB of data. It does NOT auto-launch training — use `~/deploy.sh` + `sbatch` after provisioning.
 
 ### S3 Bucket Layout (echojepa-h100-march)
 
@@ -248,14 +461,21 @@ claude
 # List clusters
 aws sagemaker list-clusters --region us-west-2
 
-# List nodes
-aws sagemaker list-cluster-nodes --cluster-name echojepa-h100-march --region us-west-2
+# List nodes (substitute cluster name as needed)
+aws sagemaker list-cluster-nodes --cluster-name echojepa-h100-neurips --region us-west-2
 
 # Replace nodes (triggers re-provisioning with current lifecycle script)
-aws sagemaker batch-replace-cluster-nodes --cluster-name echojepa-h100-march --region us-west-2 \
+aws sagemaker batch-replace-cluster-nodes --cluster-name echojepa-h100-neurips --region us-west-2 \
   --node-ids i-xxxxx
 
 # Check lifecycle logs (CloudWatch)
+# echojepa-h100-neurips: cluster ID n9we8xfqjv3p, compute group echojepa-neurips-compute
+aws logs get-log-events --region us-west-2 \
+  --log-group-name "/aws/sagemaker/Clusters/echojepa-h100-neurips/n9we8xfqjv3p" \
+  --log-stream-name "LifecycleConfig/echojepa-neurips-compute/i-xxxxx" \
+  --limit 50 --query 'events[*].message' --output text
+
+# echojepa-h100-march: cluster ID yyepvbne5vzr, compute group echojepa-h100-compute
 aws logs get-log-events --region us-west-2 \
   --log-group-name "/aws/sagemaker/Clusters/echojepa-h100-march/yyepvbne5vzr" \
   --log-stream-name "LifecycleConfig/echojepa-h100-compute/i-xxxxx" \
@@ -264,7 +484,7 @@ aws logs get-log-events --region us-west-2 \
 
 ## Troubleshooting
 
-### Issues Encountered During echojepa-h100-march Setup (2026-03-26)
+### Issues Encountered During Cluster Setup (2026-03 – 2026-04)
 
 #### 1. SSM "TargetNotConnected" / "InvalidInstanceId"
 
@@ -401,7 +621,7 @@ print(\"PASSED\")
 
 **Fix**: Disabled GradScaler when `dtype == torch.bfloat16` in train.py. Changed scaler usage checks from `if mixed_precision:` to `if scaler is not None:`.
 
-#### 12. Activation Checkpointing Required at Batch Size 128
+#### 12. Activation Checkpointing Required at Batch Size 128 (2026-03-26)
 
 **Symptom**: OOM crash when running with `use_activation_checkpointing: false` on H100 80GB.
 
@@ -414,11 +634,161 @@ print(\"PASSED\")
 - Gradient accumulation with smaller micro-batch — adds complexity
 - Multi-node training (2 nodes × 8 GPUs) — would allow larger effective batch or lower per-GPU memory
 
+#### 13. provisioning_parameters.json Group Name Mismatch (2026-04-12)
+
+**Symptom**: Cluster immediately enters `RollingBack` with:
+```
+The instance group names provided by the request do not match the instance group names
+provided by the provisioning_parameters.json file from the lifecycle scripts S3 bucket.
+```
+
+**Root cause**: HyperPod validates that EVERY instance group name in the `create-cluster` API call has a matching entry in `provisioning_parameters.json`. This fails when:
+1. The `controller_group` field doesn't match the controller instance group name
+2. The `worker_groups` array is missing or doesn't include all compute instance group names
+3. You copied `provisioning_parameters.json` from another cluster's bucket without updating the group names
+
+**Example of a WRONG file** (missing `worker_groups`):
+```json
+{
+    "workload_manager": "slurm",
+    "controller_group": "echojepa-neurips-controller",
+    "login_group": ""
+}
+```
+
+**Example of a CORRECT file:**
+```json
+{
+    "workload_manager": "slurm",
+    "controller_group": "echojepa-neurips-controller",
+    "worker_groups": [
+        {
+            "instance_group_name": "echojepa-neurips-compute",
+            "partition_name": "ml-p5-48xlarge"
+        }
+    ],
+    "login_group": ""
+}
+```
+
+**Prevention**: See Step 3 in "Creating a New Cluster" — always validate the file before `create-cluster`. The validation checklist catches this.
+
+**Recovery**: Rollbacks for `ml.p5.48xlarge` take 30-90 minutes. You must wait for `Failed` status before deleting and recreating. Fix the JSON in S3, delete the failed cluster, then recreate with the same command.
+
+#### 14. Slow Rollbacks for p5 Instances (2026-04-12)
+
+**Symptom**: Cluster stuck in `RollingBack` for 30-90 minutes after a provisioning failure. Compute nodes show `ShuttingDown` for the entire duration.
+
+**Root cause**: Normal behavior for `ml.p5.48xlarge` (and likely `ml.p5e.48xlarge`). The p5 instance deprovisioning involves EFA teardown, NCCL cleanup, and EBS volume detachment, all of which take time.
+
+**What to do**: There is no way to accelerate this. Just poll and wait:
+```bash
+while true; do
+  STATUS=$(aws sagemaker describe-cluster --cluster-name <name> --region us-west-2 --query ClusterStatus --output text)
+  echo "$(date +%H:%M:%S) - $STATUS"
+  [ "$STATUS" = "Failed" ] && break
+  sleep 300
+done
+```
+
+You cannot delete a cluster in `RollingBack` state. You cannot create a new cluster with the same name while the old one exists. Plan for up to 90 minutes of dead time per failed attempt — which is why getting `provisioning_parameters.json` right on the first try matters.
+
+#### 15. Lifecycle Script Fails: hotfix/*.sh Glob Not Found (2026-04-12)
+
+**Symptom**: Controller lifecycle script fails with exit code 127:
+```
+bash: /tmp/.../hotfix/*.sh: No such file or directory
+subprocess.CalledProcessError: Command '['sudo', 'bash', './apply_hotfix.sh', ...]' returned non-zero exit status 127.
+```
+
+**Root cause**: `apply_hotfix.sh` runs `for i in $BIN_DIR/hotfix/*.sh; do bash -x "$i"; done`. If the `hotfix/` directory is missing from the S3 bucket (e.g., excluded during `aws s3 sync`), the glob doesn't expand and bash tries to execute the literal string `hotfix/*.sh`, which fails.
+
+**Fix**: Copy the `hotfix/` directory from the source bucket:
+```bash
+aws s3 sync s3://<source-bucket>/hotfix/ s3://<new-bucket>/hotfix/
+```
+
+**Prevention**: When syncing lifecycle files to a new bucket, do NOT exclude `hotfix/`. The directory is small (~1.5 KB) and required by the standard HyperPod lifecycle scripts.
+
+## Remote Command Execution via SSM (Non-Interactive)
+
+### The Problem
+
+`aws ssm start-session` requires a PTY (pseudo-terminal). From environments without a TTY — SageMaker notebook instances, CI/CD pipelines, Claude Code on a remote machine — the session opens but immediately exits with `Cannot perform start session: EOF`.
+
+Standard alternatives (`ssm send-command`, `describe-instance-information`) don't work with HyperPod because it uses a custom SSM target format (`sagemaker-cluster:...`) that only `start-session` supports.
+
+### The Solution: `script` + Non-Interactive SSM Document
+
+Wrap the SSM call in `script -q -c '...' /dev/null` to allocate a PTY, and use the `AWS-StartNonInteractiveCommand` document to run a command and exit cleanly:
+
+```bash
+CLUSTER_ID=n9we8xfqjv3p
+TARGET="sagemaker-cluster:${CLUSTER_ID}_echojepa-neurips-controller-i-0415ce8f417564270"
+
+# Basic pattern
+script -q -c 'timeout 20 aws ssm start-session --region us-west-2 \
+  --target "'$TARGET'" \
+  --document-name AWS-StartNonInteractiveCommand \
+  --parameters "{\"command\":[\"<your command here>\"]}"' /dev/null
+```
+
+**Key details:**
+- `script -q -c '...' /dev/null` — allocates a PTY without creating a typescript file
+- `timeout 20` — prevents hanging if the session stalls (adjust as needed for longer commands)
+- `AWS-StartNonInteractiveCommand` — runs the command and exits (no interactive shell)
+- The `command` parameter takes a **single string** — multiple commands must be joined with `&&` or `;`
+
+### Examples
+
+```bash
+# Check Slurm status
+script -q -c 'timeout 20 aws ssm start-session --region us-west-2 \
+  --target "'$TARGET'" \
+  --document-name AWS-StartNonInteractiveCommand \
+  --parameters "{\"command\":[\"sudo -u ubuntu bash -c \\\"sinfo -N && squeue\\\"\"]}"' /dev/null
+
+# Run nvidia-smi on compute node via srun
+script -q -c 'timeout 20 aws ssm start-session --region us-west-2 \
+  --target "'$TARGET'" \
+  --document-name AWS-StartNonInteractiveCommand \
+  --parameters "{\"command\":[\"sudo -u ubuntu srun -N1 --ntasks=1 bash -c \\\"nvidia-smi\\\"\"]}"' /dev/null
+
+# Submit an sbatch job (write script via echo|tee, then sbatch)
+script -q -c 'timeout 30 aws ssm start-session --region us-west-2 \
+  --target "'$TARGET'" \
+  --document-name AWS-StartNonInteractiveCommand \
+  --parameters "{\"command\":[\"bash -c \\\"echo -e '"'"'#!/bin/bash\\n#SBATCH --job-name=test\\n#SBATCH --partition=ml-p5-48xlarge\\n#SBATCH --nodes=1\\n#SBATCH --gpus-per-node=8\\n#SBATCH --output=/tmp/test-%j.out\\n#SBATCH --time=0:05:00\\nnvidia-smi\\necho PASSED'"'"' | tee /tmp/test.sbatch && sudo -u ubuntu sbatch /tmp/test.sbatch\\\"\"]}"' /dev/null
+
+# Read job output from compute node (no shared filesystem)
+script -q -c 'timeout 20 aws ssm start-session --region us-west-2 \
+  --target "'$TARGET'" \
+  --document-name AWS-StartNonInteractiveCommand \
+  --parameters "{\"command\":[\"sudo -u ubuntu srun -N1 -w ip-10-0-50-241 --ntasks=1 bash -c \\\"cat /tmp/test-3.out\\\"\"]}"' /dev/null
+```
+
+### Escaping Rules
+
+The JSON parameters go through multiple layers of escaping (outer shell → JSON → inner shell). Rules of thumb:
+- Inner double quotes: `\\\"`
+- Inner single quotes: use `'"'"'` (end outer single-quote, add escaped single-quote, restart outer single-quote)
+- Newlines in strings: `\\n` (for `echo -e`)
+- `%` in sbatch directives (e.g., `%j`): use `%%j` if inside a `printf`, plain `%j` inside `echo -e`
+- When in doubt, break multi-step operations into separate SSM calls rather than fighting the escaping
+
+### Limitations
+
+- **No streaming output**: the full output appears only after the command completes
+- **Timeout required**: without `timeout`, a hung command blocks forever
+- **Single command string**: the `command` parameter takes exactly one value, not an array
+- **Output includes session boilerplate**: `Starting session...` and `Exiting session...` lines wrap the actual output
+- **Job output on compute node**: sbatch stdout/stderr files are on the compute node, not the controller. Read them via `srun ... cat /tmp/<file>.out`
+
 ## Monitoring Running Jobs
 
 ### Claude Code Context
 
-Claude Code runs on the **controller node** (ip-10-0-50-52). It can run `squeue`, `sinfo`, `sacct`, and `srun` directly — no SSM or SSH tunneling needed. However, SSH from controller to compute nodes fails (`Permission denied (publickey)`), so all compute-node commands must go through `srun`.
+Claude Code can run on the **controller node** directly (via SSM interactive session) where it can use `squeue`, `sinfo`, `sacct`, and `srun` natively. From a **remote machine** (e.g., SageMaker notebook), use the non-interactive SSM pattern above. SSH from controller to compute nodes fails (`Permission denied (publickey)`), so all compute-node commands must go through `srun`.
 
 ### Checking Training Progress
 

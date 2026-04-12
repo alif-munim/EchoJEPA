@@ -104,3 +104,4 @@ experiments/nature_medicine/uhn/study_to_clips_index.pkl
 
 # UHN MR 4-class CSVs (too large for git)
 experiments/nature_medicine/uhn/probe_csvs/mr_severity_4class/*.csv
+claude/neurips/samples/

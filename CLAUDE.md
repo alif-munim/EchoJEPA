@@ -55,19 +55,27 @@ python -m app.main --fname configs/train/vitl16/pretrain-mimic-224px-16f.yaml --
 python -m app.main_distributed --fname configs/train/vitl16/pretrain-mimic-224px-16f.yaml  # SLURM
 ```
 
-### HyperPod (H100 cluster)
+### HyperPod (H100 clusters)
 ```bash
+# Active cluster: echojepa-h100-neurips (training plan: EchoJEPA-NeurIPS, Apr 12 – May 2)
 # Connect to controller via SSM (see claude/dev/hyperpod-ops.md for full details)
+CLUSTER=echojepa-h100-neurips
+CLUSTER_ID=n9we8xfqjv3p
+GROUP_PREFIX=echojepa-neurips
+CTRL_ID="$(aws sagemaker list-cluster-nodes --cluster-name $CLUSTER --region us-west-2 \
+  --query "sort_by(ClusterNodeSummaries[?InstanceGroupName=='${GROUP_PREFIX}-controller'], &LaunchTime)[-1].InstanceId" --output text)"
 aws ssm start-session --region us-west-2 \
-  --target "sagemaker-cluster:yyepvbne5vzr_echojepa-h100-controller-i-0c6d410f979fabfe7"
+  --target "sagemaker-cluster:${CLUSTER_ID}_${GROUP_PREFIX}-controller-${CTRL_ID}"
+
+# Previous cluster (compute scaled to 0): echojepa-h100-march (ID: yyepvbne5vzr)
 
 # On the controller — deploy latest code and launch any job:
 cd ~/EchoJEPA-repo && git pull   # get latest changes
-~/deploy.sh                      # push code to BOTH compute nodes (83 + 184)
+~/deploy.sh                      # push code to compute node(s) via srun
 sbatch scripts/<job>.sbatch      # all sbatch scripts use /opt/vjepa2
 ```
 
-**IMPORTANT: Always run `~/deploy.sh` before every `sbatch` submission.** Compute nodes are in a private subnet with no GitHub access. `deploy.sh` tars the repo and pushes it to `/opt/vjepa2` on both nodes via `srun`. All sbatch scripts `cd /opt/vjepa2` instead of downloading code from S3. Skipping the deploy means the nodes run stale code.
+**IMPORTANT: Always run `~/deploy.sh` before every `sbatch` submission.** Compute nodes are in a private subnet with no GitHub access. `deploy.sh` tars the repo and pushes it to `/opt/vjepa2` on compute nodes via `srun`. All sbatch scripts `cd /opt/vjepa2` instead of downloading code from S3. Skipping the deploy means the nodes run stale code.
 
 ### Probe Evaluation (Primary — d=1 attentive probes from video, Strategy E)
 ```bash

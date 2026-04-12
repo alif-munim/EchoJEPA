@@ -1,5 +1,11 @@
 # Prediction Averaging: NPZ Files and Study-Level Inference
 
+**Scope: EchoJEPA-G, EchoPrime, PanEcho** (primary 3-model comparison)
+
+See `inference-tracker-additional.md` for EchoJEPA-B, EchoJEPA-L-K, and EchoJEPA-L.
+
+Last updated: 2026-04-12
+
 ## Overview
 
 Each echocardiography study contains multiple video clips (different views, different time points within the same clinical encounter). The prediction averaging pipeline:
@@ -85,11 +91,11 @@ For classification, average the probability vectors per study, then take argmax 
 
 ---
 
-## Task Coverage (G / EchoPrime / PanEcho)
+## Task Coverage (EchoJEPA-G / EchoPrime / PanEcho)
 
 ### Have predavg NPZ (study-level stats can be computed now, CPU-only):
 
-**UHN (8 tasks × 3 models = 24 NPZ files):**
+**UHN (9 tasks, 26 NPZ files):**
 
 | Task | G | EP | Pan |
 |------|---|-----|-----|
@@ -97,34 +103,37 @@ For classification, average the probability vectors per study, then take argmax 
 | diastolic_function | ✅ | ✅ | ✅ |
 | edv | ✅ | ✅ | ✅ |
 | esv | ✅ | ✅ | ✅ |
+| rv_function | ❌ | ✅ | ✅ |
 | rvsp | ✅ | ✅ | ✅ |
 | trajectory_lvef | ✅ | ✅ | ✅ |
 | trajectory_lvef_onset | ✅ | ✅ | ✅ |
 | trajectory_mr_severity_onset | ✅ | ✅ | ✅ |
 
-**MIMIC (10 tasks × 3 models = 30 NPZ files):**
+**MIMIC (15 tasks, 43 NPZ files including 10 trainfeat-G variants):**
 
-| Task | G | EP | Pan |
-|------|---|-----|-----|
-| creatinine | ✅ | ✅ | ✅ |
-| discharge_destination | ✅ | ✅ | ✅ |
-| in_hospital_mortality | ✅ | ✅ | ✅ |
-| lactate | ✅ | ✅ | ✅ |
-| los_remaining | ✅ | ✅ | ✅ |
-| mortality_1yr | ✅ | ✅ | ✅ |
-| mortality_30d | ✅ | ✅ | ✅ |
-| mortality_90d | ✅ | ✅ | ✅ |
-| nt_probnp | ✅ | ✅ | ✅ |
-| readmission_30d | ✅ | ✅ | ✅ |
-| troponin_t | ✅ | ✅ | ✅ |
+| Task | G | EP | Pan | Notes |
+|------|---|-----|-----|-------|
+| creatinine | ✅ | ✅ | ✅ | +trainfeat-G |
+| discharge_destination | ✅ | ✅ | ✅ | +trainfeat-G |
+| ef_note_extracted-xfer | ✅ | ✅ | ✅ | |
+| in_hospital_mortality | ✅ | ✅ | ✅ | |
+| lactate | ✅ | ✅ | ✅ | +trainfeat-G |
+| los_remaining | ✅ | ✅ | ✅ | +trainfeat-G |
+| lvef_structured | ✅ | ❌ | ❌ | |
+| mitral_regurg-xfer | ✅ | ✅ | ✅ | |
+| mortality_1yr | ✅ | ✅ | ✅ | +trainfeat-G |
+| mortality_30d | ✅ | ✅ | ✅ | +trainfeat-G |
+| mortality_90d | ✅ | ✅ | ✅ | +trainfeat-G |
+| nt_probnp | ✅ | ✅ | ✅ | +trainfeat-G |
+| readmission_30d | ✅ | ✅ | ✅ | +trainfeat-G |
+| tricuspid_regurg-xfer | ✅ | ✅ | ✅ | |
+| troponin_t | ✅ | ✅ | ✅ | +trainfeat-G |
 
-**Also available:** Additional MIMIC variants (trainfeat-echojepa-g, xfer tasks).
-
-**Total ready:** 60 NPZ files → study-level stats computed and saved at `predictions/nature_medicine/study_level_statistics/`.
+**Total ready:** 69 NPZ files (26 UHN + 43 MIMIC) → study-level stats at `predictions/nature_medicine/study_level_statistics/`.
 
 ### Need GPU inference (probes trained, NPZ not generated):
 
-**UHN (20 tasks, 60 inference runs):**
+**UHN (19 tasks, 55 inference runs):**
 
 | Task | G | EP | Pan |
 |------|---|-----|-----|
@@ -147,7 +156,6 @@ For classification, average the probability vectors per study, then take argmax 
 | rv_sp | ❌ | ❌ | ❌ |
 | tapse | ❌ | ❌ | ❌ |
 | tr_severity | ❌ | ❌ | ❌ |
-| trajectory_lvef_v1 | ❌ | ❌ | ❌ |
 
 **MIMIC (1 task, 2 inference runs):**
 
@@ -155,7 +163,7 @@ For classification, average the probability vectors per study, then take argmax 
 |------|---|-----|-----|
 | lvef_structured | ✅ | ❌ | ❌ |
 
-**Total needed:** 60 GPU inference runs.
+**Total needed:** 57 GPU inference runs (55 UHN + 2 MIMIC).
 
 Each run requires:
 - Encoder checkpoint (on S3/EFS)
@@ -177,7 +185,7 @@ Estimated time: ~5-30 min per run depending on test set size. Total ~6-8 hours o
 [CPU aggregation]    →  study-level R²/AUROC/CIs (predictions/nature_medicine/study_level_statistics/)
 ```
 
-Step 1 is complete for all tasks. Step 2 is the bottleneck (60 runs missing). Step 3 is instant once step 2 is done.
+Step 1 is complete for all tasks. Step 2 is the bottleneck (57 runs missing for G/EP/Pan). Step 3 is instant once step 2 is done.
 
 ---
 
