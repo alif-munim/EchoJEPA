@@ -16,7 +16,8 @@ The `claude/` directory contains persistent reference docs organized by topic. S
 
 - **`claude/architecture/`** — codebase internals: pretraining pipeline, probe system (attentive/linear/MLP), classifier pipeline
 - **`claude/data/`** — datasets and manuscript: `data/` directory layout, Nature Medicine scope, UHN database schemas, MIMIC-IV linkage
-- **`claude/dev/`** — development log: bug tracker (6 issues), changelog, code review findings, UHN extraction ops guide, HyperPod cluster ops guide. See `dev/README.md` for the bug index and planned fixes
+- **`claude/dev/`** — development log: bug tracker (6 issues), changelog, code review findings, UHN extraction ops guide, `hyperpod-ops.md` (cluster provisioning, S3 code deployment, non-interactive SSM job submission, 15 troubleshooting issues). See `dev/README.md` for the bug index and planned fixes
+- **`claude/nature_medicine/`** — inference tracking for prediction averaging: `inference-tracker.md` (primary 3-model G/EP/Pan NPZ inventory, 69 ready + 57 pending), `inference-tracker-additional.md` (supplementary models B/L-K/L, 59 NPZs). Copies synced to `uhn_echo/nature_medicine/context_files/dev/`
 - **`claude/preprint/`** — ICML preprint analysis: encoder fairness confounds, probe architecture mismatch (attentive vs linear inversion), claim validity assessment, hindsight recommendations for camera-ready. Full preprint LaTeX at `user-default-efs/vjepa2/claude/preprint/icml_preprint.tex`
 - **`claude/rebuttals/`** — ICML rebuttal (scores 2/3/3/4, all maintained post-rebuttal). See `rebuttals/README.md` for the full file index. Start with **`13-post-rebuttal-outcome.md`** for current status (10-20% acceptance, decision with AC). Key docs: `08-rebuttal-v2.md` (strategy & framing), `10-rebuttal-experiment-results.md` (consolidated results & key findings), `09-three-way-comparison-results.md` (JEPA/BYOL/MAE 50ep detail), `12-checkpoint-reference.md` (all checkpoint paths). **`experiments/frame-shuffling.md`** documents the 6-condition temporal ablation (dropped from ICML rebuttal, intended for NeurIPS). All rebuttal experiments feed Nature Medicine and NeurIPS resubmission
 - **`claude/goodfire/`** — Goodfire interpretability report (`goodfire_mar20.pdf`): 31-page analysis of EchoJEPA-L-K vs EchoJEPA-L vs EchoMAE-L representation geometry, attribution, and SAE concept discovery. Key rebuttal-relevant findings: frame shuffling (Fig 25-26), temporal Fourier power (Fig 29), spatial intrinsic dimension (Fig 9). SAE results (single feature rho=0.50 for LVEF) reserved for Nature Medicine.
@@ -58,6 +59,7 @@ python -m app.main_distributed --fname configs/train/vitl16/pretrain-mimic-224px
 ### HyperPod (H100 clusters)
 ```bash
 # Active cluster: echojepa-h100-neurips (training plan: EchoJEPA-NeurIPS, Apr 12 – May 2)
+# Compute node: ip-10-0-50-241 (ml.p5.48xlarge, 8x H100 80GB)
 # Connect to controller via SSM (see claude/dev/hyperpod-ops.md for full details)
 CLUSTER=echojepa-h100-neurips
 CLUSTER_ID=n9we8xfqjv3p
@@ -70,12 +72,60 @@ aws ssm start-session --region us-west-2 \
 # Previous cluster (compute scaled to 0): echojepa-h100-march (ID: yyepvbne5vzr)
 
 # On the controller — deploy latest code and launch any job:
-cd ~/EchoJEPA-repo && git pull   # get latest changes
+cd ~/EchoJEPA-repo && git pull   # get latest changes (requires GitHub SSH key)
 ~/deploy.sh                      # push code to compute node(s) via srun
 sbatch scripts/<job>.sbatch      # all sbatch scripts use /opt/vjepa2
 ```
 
-**IMPORTANT: Always run `~/deploy.sh` before every `sbatch` submission.** Compute nodes are in a private subnet with no GitHub access. `deploy.sh` tars the repo and pushes it to `/opt/vjepa2` on compute nodes via `srun`. All sbatch scripts `cd /opt/vjepa2` instead of downloading code from S3. Skipping the deploy means the nodes run stale code.
+**IMPORTANT: Always deploy code before every `sbatch` submission.** Compute nodes are in a private subnet with no GitHub access. Two deployment workflows exist (see `claude/dev/hyperpod-ops.md`):
+1. **Git workflow** (if controller has GitHub SSH key): `cd ~/EchoJEPA-repo && git pull && ~/deploy.sh`
+2. **S3 tarball workflow** (current — no git SSH on echojepa-h100-neurips): Create tarball on SageMaker → upload to S3 → deploy via non-interactive SSM + srun. See "Code Deployment via S3" in hyperpod-ops.md.
+
+### Non-Interactive SSM Commands (for Claude Code)
+
+Run commands on the HyperPod controller without an interactive session. **Must** use the `script -q -c "timeout N ..."` wrapper — raw `aws ssm start-session` hangs or drops output without it. The `AWS-StartNonInteractiveCommand` document is only available on the controller, not compute nodes.
+
+```bash
+# Template: run a command on the controller
+TARGET="sagemaker-cluster:${CLUSTER_ID}_${GROUP_PREFIX}-controller-${CTRL_ID}"
+script -q -c "timeout 30 aws ssm start-session --region us-west-2 \
+  --target '$TARGET' \
+  --document-name AWS-StartNonInteractiveCommand \
+  --parameters '{\"command\":[\"sudo -u ubuntu COMMAND_HERE\"]}'" /dev/null 2>&1 \
+  | grep -v "Exiting session\|Starting session"
+
+# Check SLURM queue
+script -q -c "timeout 30 aws ssm start-session --region us-west-2 \
+  --target '$TARGET' --document-name AWS-StartNonInteractiveCommand \
+  --parameters '{\"command\":[\"sudo -u ubuntu squeue -u ubuntu -l\"]}'" /dev/null 2>&1
+
+# Check completed jobs
+script -q -c "timeout 30 aws ssm start-session --region us-west-2 \
+  --target '$TARGET' --document-name AWS-StartNonInteractiveCommand \
+  --parameters '{\"command\":[\"sudo -u ubuntu sacct --starttime=2026-04-12 --format=JobID,JobName%30,State%12,Elapsed,ExitCode -n\"]}'" /dev/null 2>&1
+
+# Read job output from compute node (via srun from controller)
+script -q -c "timeout 60 aws ssm start-session --region us-west-2 \
+  --target '$TARGET' --document-name AWS-StartNonInteractiveCommand \
+  --parameters '{\"command\":[\"sudo -u ubuntu srun -N1 --ntasks=1 bash -c \\\"tail -80 /tmp/JOB_OUTPUT_FILE\\\"\"]}'" /dev/null 2>&1
+
+# Deploy code via S3 tarball and submit job
+script -q -c "timeout 120 aws ssm start-session --region us-west-2 \
+  --target '$TARGET' --document-name AWS-StartNonInteractiveCommand \
+  --parameters '{\"command\":[\"sudo -u ubuntu bash -c \\\"aws s3 cp s3://BUCKET/setup/vjepa2-src.tar.gz /tmp/ --quiet && srun -N1 --ntasks=1 bash -c \\\\\\\"sudo tar xzf /tmp/vjepa2-src.tar.gz -C /opt/vjepa2\\\\\\\" && echo DEPLOY_OK\\\"\"]}'" /dev/null 2>&1
+
+# Submit sbatch (extract script to controller first, then submit)
+script -q -c "timeout 30 aws ssm start-session --region us-west-2 \
+  --target '$TARGET' --document-name AWS-StartNonInteractiveCommand \
+  --parameters '{\"command\":[\"sudo -u ubuntu sbatch /tmp/vjepa2-ctrl/scripts/JOB.sbatch\"]}'" /dev/null 2>&1
+```
+
+**Key gotchas:**
+- `AWS-StartNonInteractiveCommand` is NOT available on compute nodes (only controller)
+- Without `script -q -c "timeout N ..."`, SSM sessions hang indefinitely or produce no output
+- Escape nested quotes carefully: outer `'...'`, then `\"...\"`; for srun subcommands use `\\\"...\\\"`
+- sbatch scripts run from the controller but execute on compute nodes — the script must exist on the controller (e.g., `/tmp/vjepa2-ctrl/scripts/`)
+- Job stdout/stderr files (e.g., `/tmp/nmed_a4c-23.out`) are on the compute node, not the controller — use `srun` to read them
 
 ### Probe Evaluation (Primary — d=1 attentive probes from video, Strategy E)
 ```bash
@@ -154,6 +204,22 @@ For study-level tasks (MIMIC clinical outcomes), CSVs contain ALL clips per stud
 At validation/test time, all clips are scored independently and predictions are averaged per study.
 
 Config: `configs/eval/vitg-384/nature_medicine/`. CSV builder: `experiments/nature_medicine/mimic/build_probe_csvs.py`.
+
+### Prediction Averaging Results (UHN)
+
+Study-level prediction averaging outputs are at:
+```
+evals/vitg-384/nature_medicine/uhn/video_classification_frozen/{task}-predavg-{model}/
+```
+Each directory contains `study_predictions.csv` (one row per study with ground truth, predictions, and per-class probabilities) and `log_r0.csv` (epoch-level metrics). **139 files** across 27 tasks × 6 models (echojepa-g, echojepa-b, echojepa-l, echojepa-l-k, echoprime, panecho). Newer runs also produce `clip_outputs.npz` (clip-level predictions and features for all HP heads).
+
+To recompute statistics from the study_predictions.csv files:
+```bash
+python scripts/compute_predavg_stats.py                          # all tasks, all models
+python scripts/compute_predavg_stats.py --task mr_severity       # filter by task
+python scripts/compute_predavg_stats.py --model echojepa-g       # filter by model
+python scripts/compute_predavg_stats.py --csv output.csv         # save to CSV
+```
 
 ### Dataset CSV Formats
 
