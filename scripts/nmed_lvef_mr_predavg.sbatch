@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=96
 #SBATCH --output=/tmp/nmed_predavg-%j.out
 #SBATCH --error=/tmp/nmed_predavg-%j.err
-#SBATCH --time=0-03:00:00
-#SBATCH --nodelist=ip-10-0-50-184
+#SBATCH --time=0-08:00:00
+#SBATCH --nodelist=ip-10-0-50-241
 
 # Nature Medicine: Prediction averaging for LVEF and MR severity
 # Models: EchoJEPA-G, EchoPrime, PanEcho (3 models x 2 tasks = 6 runs)
@@ -18,16 +18,20 @@
 #   2. Deploy code: cd ~/EchoJEPA-repo && git pull && ~/deploy.sh
 #   3. Submit: sbatch scripts/nmed_lvef_mr_predavg.sbatch
 #
-# 6-way parallel (all runs simultaneously):
-#   GPUs 0-1: G-LVEF      GPUs 2-3: G-MR        (large model, 2 GPUs each)
-#   GPU  4:   EP-LVEF     GPU  5:   EP-MR        (small model, 1 GPU each)
-#   GPU  6:   Pan-LVEF    GPU  7:   Pan-MR        (small model, 1 GPU each)
-# Total estimated time: 30-60 min (bounded by slowest run: G-MR ~400K clips on 2 GPUs)
+# Sequential execution, all 8 GPUs per run:
+#   1. G-MR    (~1.5h)  — largest: 1.6M clips × 1B params
+#   2. G-LVEF  (~25m)   — 400K clips × 1B params
+#   3. EP-MR   (~10m)   — 1.6M clips × 34M params
+#   4. EP-LVEF (~3m)    — 400K clips × 34M params
+#   5. Pan-MR  (~8m)    — 1.6M clips × 43M params
+#   6. Pan-LVEF(~2m)    — 400K clips × 43M params
+# Total estimated time: ~2.5h (vs ~7h with 6-way parallel on 2 GPUs per G run)
 
-set -euo pipefail
+set -eo pipefail
 
 export PATH="/opt/vjepa2-312/bin:$PATH"
 source /opt/vjepa2-312/bin/activate
+set -u
 cd /opt/vjepa2
 
 # Fix cuBLAS 12.9 bf16 bug on H100
@@ -83,6 +87,14 @@ mkdir -p "$TORCH_CACHE"
 if [ ! -f "${TORCH_CACHE}/panecho.pt" ]; then
     log "  Downloading PanEcho weights..."
     aws s3 cp "${S3_BASE}/checkpoints/panecho/panecho.pt" "${TORCH_CACHE}/panecho.pt"
+fi
+
+# PanEcho content files (tasks.pkl, tasks.npy, etc.)
+PANECHO_CONTENT="/opt/vjepa2/evals/video_classification_frozen/modelcustom/PanEcho/content"
+mkdir -p "$PANECHO_CONTENT"
+if [ ! -f "${PANECHO_CONTENT}/tasks.pkl" ]; then
+    log "  Downloading PanEcho content files..."
+    aws s3 sync "${S3_BASE}/nmed_predavg/panecho_content/" "${PANECHO_CONTENT}/"
 fi
 
 # Probe CSVs
@@ -255,52 +267,54 @@ run_single() {
 }
 
 # ============================================================
-# Step 4: Launch all 6 runs in parallel
+# Step 4: Run all 6 tasks sequentially on all 8 GPUs
 # ============================================================
-log "=== Starting 6-way parallel prediction averaging ==="
+log "=== Starting sequential prediction averaging (8 GPUs per run) ==="
+
+ALL_DEVICES="cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7"
 
 # Detect MR severity num_classes from train CSV
 MR_NUM_CLASSES=$(awk '{print $NF}' "${LOCAL}/csvs/mr_severity/train_vf.csv" | sort -u | wc -l)
 log "MR severity: ${MR_NUM_CLASSES} classes"
-log "GPU allocation: G=2 GPUs, EP=1 GPU, Pan=1 GPU (x2 tasks = 8 GPUs)"
+log "All runs use 8 GPUs sequentially"
 
 # Kill any orphaned workers before launching (Bug 011)
 ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
 sleep 2
 
-PIDS=()
-TAGS=()
-
-# EchoJEPA-G: 2 GPUs per task (1B params)
-run_single "lvef"        "regression"     "1"                "echojepa-g" "cuda:0 cuda:1" "29500" &
-PIDS+=($!); TAGS+=("lvef:echojepa-g")
-
-run_single "mr_severity" "classification" "${MR_NUM_CLASSES}" "echojepa-g" "cuda:2 cuda:3" "29501" &
-PIDS+=($!); TAGS+=("mr_severity:echojepa-g")
-
-# EchoPrime: 1 GPU per task (34M params)
-run_single "lvef"        "regression"     "1"                "echoprime"  "cuda:4"        "29502" &
-PIDS+=($!); TAGS+=("lvef:echoprime")
-
-run_single "mr_severity" "classification" "${MR_NUM_CLASSES}" "echoprime"  "cuda:5"        "29503" &
-PIDS+=($!); TAGS+=("mr_severity:echoprime")
-
-# PanEcho: 1 GPU per task (43M params)
-run_single "lvef"        "regression"     "1"                "panecho"    "cuda:6"        "29504" &
-PIDS+=($!); TAGS+=("lvef:panecho")
-
-run_single "mr_severity" "classification" "${MR_NUM_CLASSES}" "panecho"    "cuda:7"        "29505" &
-PIDS+=($!); TAGS+=("mr_severity:panecho")
-
-# Wait for all 6
-log "Waiting for ${#PIDS[@]} runs..."
 FAILURES=0
-for i in "${!PIDS[@]}"; do
-    wait "${PIDS[$i]}" || FAILURES=$((FAILURES + 1))
-    log "  Finished: ${TAGS[$i]}"
-done
+TOTAL=6
 
-log "=== Results: $((6 - FAILURES))/6 succeeded ==="
+# Run largest first (G-MR: 1.6M clips × 1B params)
+run_single "mr_severity" "classification" "${MR_NUM_CLASSES}" "echojepa-g" "$ALL_DEVICES" "29500" || FAILURES=$((FAILURES + 1))
+
+# Clean orphans between runs
+ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
+sleep 2
+
+run_single "lvef"        "regression"     "1"                "echojepa-g" "$ALL_DEVICES" "29500" || FAILURES=$((FAILURES + 1))
+
+ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
+sleep 2
+
+run_single "mr_severity" "classification" "${MR_NUM_CLASSES}" "echoprime"  "$ALL_DEVICES" "29500" || FAILURES=$((FAILURES + 1))
+
+ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
+sleep 2
+
+run_single "lvef"        "regression"     "1"                "echoprime"  "$ALL_DEVICES" "29500" || FAILURES=$((FAILURES + 1))
+
+ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
+sleep 2
+
+run_single "mr_severity" "classification" "${MR_NUM_CLASSES}" "panecho"    "$ALL_DEVICES" "29500" || FAILURES=$((FAILURES + 1))
+
+ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
+sleep 2
+
+run_single "lvef"        "regression"     "1"                "panecho"    "$ALL_DEVICES" "29500" || FAILURES=$((FAILURES + 1))
+
+log "=== Results: $((TOTAL - FAILURES))/${TOTAL} succeeded ==="
 
 # ============================================================
 # Step 5: Upload results to S3

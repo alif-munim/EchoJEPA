@@ -1,0 +1,18 @@
+{
+  "file": "uhn/cardiac_output-predavg-echojepa-g",
+  "best_head": 7,
+  "type": "regression",
+  "n_clips": 33876,
+  "n_studies": 4833,
+  "R2": 0.3351,
+  "R2_ci": [
+    0.314,
+    0.3575
+  ],
+  "Pearson": 0.6148,
+  "Pearson_ci": [
+    0.5939,
+    0.6355
+  ],
+  "MAE": 1.0346
+}

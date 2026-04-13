@@ -1,0 +1,25 @@
+{
+  "file": "mimic/discharge_destination-predavg-panecho",
+  "best_head": 4,
+  "type": "classification",
+  "n_clips": 27284,
+  "n_studies": 382,
+  "n_classes": 2,
+  "AUROC": 0.6368,
+  "accuracy": 0.6885,
+  "F1_macro": 0.4078,
+  "confusion_matrix": [
+    [
+      263,
+      0
+    ],
+    [
+      119,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 263,
+    "1": 119
+  }
+}

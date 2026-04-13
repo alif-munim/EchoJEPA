@@ -1,0 +1,18 @@
+{
+  "file": "mimic/troponin_t-predavg-panecho",
+  "best_head": 10,
+  "type": "regression",
+  "n_clips": 18008,
+  "n_studies": 240,
+  "R2": 0.009,
+  "R2_ci": [
+    -0.0179,
+    0.0201
+  ],
+  "Pearson": 0.1542,
+  "Pearson_ci": [
+    -0.0306,
+    0.3027
+  ],
+  "MAE": 0.2433
+}

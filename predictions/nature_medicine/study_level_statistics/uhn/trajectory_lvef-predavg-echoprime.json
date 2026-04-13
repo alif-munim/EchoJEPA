@@ -1,0 +1,33 @@
+{
+  "file": "uhn/trajectory_lvef-predavg-echoprime",
+  "best_head": 11,
+  "type": "classification",
+  "n_clips": 115280,
+  "n_studies": 3863,
+  "n_classes": 3,
+  "AUROC": 0.6281,
+  "accuracy": 0.6425,
+  "F1_macro": 0.4276,
+  "confusion_matrix": [
+    [
+      64,
+      364,
+      81
+    ],
+    [
+      230,
+      2203,
+      373
+    ],
+    [
+      42,
+      291,
+      215
+    ]
+  ],
+  "class_distribution": {
+    "0": 509,
+    "1": 2806,
+    "2": 548
+  }
+}

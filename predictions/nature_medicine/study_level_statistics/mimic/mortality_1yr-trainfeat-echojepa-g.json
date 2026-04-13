@@ -1,0 +1,25 @@
+{
+  "file": "mimic/mortality_1yr-trainfeat-echojepa-g",
+  "best_head": 7,
+  "type": "classification",
+  "n_clips": 366156,
+  "n_studies": 5040,
+  "n_classes": 2,
+  "AUROC": 0.8463,
+  "accuracy": 0.8508,
+  "F1_macro": 0.6585,
+  "confusion_matrix": [
+    [
+      4035,
+      125
+    ],
+    [
+      627,
+      253
+    ]
+  ],
+  "class_distribution": {
+    "0": 4160,
+    "1": 880
+  }
+}

@@ -1,0 +1,271 @@
+\subsection{Codebase}
+Our work builds upon several public repositories that represent either official or well-designed third-party implementations of popular SSL methods.
+
+\begin{table}[!h]
+\begin{tabular}{l l l}
+Method & Code URL & notes
+\\
+FixMatch & \url{github.com/google-research/fixmatch}
+         & original
+\\
+         & \url{github.com/kekmodel/FixMatch-pytorch} & PyTorch version
+\\
+MixMatch & \url{github.com/google-research/mixmatch}
+		 & original
+\\
+         & \url{github.com/YU1ut/MixMatch-pytorch} & PyTorch version
+\\
+Realistic SSL Eval. & \url{github.com/perrying/realistic-ssl-evaluation-pytorch}
+\end{tabular}
+\caption{Code repositories that we built upon to perform our experiments and verify the quality of results.}	
+\end{table}
+
+\subsection{Hyperparameters for CIFAR-10/ CIFAR-100}
+
+Table~\ref{tab:hyperparameters_cifar} lists the experimental settings (dataset sizes, etc.) and hyperparameters used for all CIFAR-10/CIFAR-100 baselines.
+We emphasize that \textbf{we \emph{not} tune any hyperparameters specifically for Fix-A-Step}: whenever we combined a base model with Fix-A-Step (e.g. Mean Teacher + Fix-A-Step), we simply copied the relevant hyperparameters for the base model from Table~\ref{tab:hyperparameters_cifar}, and set Fix-A-Step's unique hyperparameters to defaults $\alpha = 0.5, \tau=0.5$.
+
+\setlength{\tabcolsep}{.08cm}
+\newcommand{\WWW}{5.5cm}
+\newcommand{\RRR}{2cm}
+\begin{table}[!h]
+	\setlength\extrarowheight{-10pt}
+    \begin{tabular}{c c}
+		{\Large BASIC SETTINGS CIFAR-10}
+		&
+		{\Large BASIC SETTINGS CIFAR-100}
+		\\
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_cifar10_settings.tex}	
+		\end{minipage}
+		&
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_cifar100_settings.tex}	
+		\end{minipage}
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		{\Large Labeled only}
+		&
+		{\Large VAT}
+		\\
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_labeledonly.tex}	
+		\end{minipage}
+		&
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_vat.tex}	
+		\end{minipage}
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		{\Large Pseudo-label}
+		&
+		{\Large Mean Teacher}
+		\\
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_pseudo.tex}	
+		\end{minipage}
+		&
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_MT.tex}	
+		\end{minipage}
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		{\Large Pi-Model}
+		&
+		{\Large MixMatch}
+		\\
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_pimodel.tex}	
+		\end{minipage}
+		&
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_mixmatch.tex}	
+		\end{minipage}
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		{\Large FixMatch}
+		&
+		{\Large OpenMatch}
+		\\
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_fixmatch.tex}	
+		\end{minipage}
+		&
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_OpenMatch.tex}	
+		\end{minipage}
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		{\Large MTCF}
+		&
+		{\Large DS3L}
+		\\
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_MTCF.tex}	
+		\end{minipage}
+		&
+		\begin{minipage}[t]{.5\textwidth}
+		\strut\vspace*{-\baselineskip}\newline
+			\input{tab_hypers_DS3L.tex}	
+		\end{minipage}
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		
+		
+	\end{tabular}
+	\vspace{-.4cm}
+\caption{
+\textbf{Hyperparameters used for CIFAR experiments.}
+All settings represent the recommended defaults suggested in implementations by original authors for the 400 examples/class setting.
+We did \emph{not} tune any hyperparameters specifically for Fix-A-Step.
+}%endcaption
+\label{tab:hyperparameters_cifar}
+\end{table}
+
+% \newcommand{\WWW}{5.5cm}
+% \newcommand{\RRR}{2cm}
+% \begin{table}
+% 	\begin{tabular}{c c}
+% 		{\Large BASIC SETTINGS}
+% 		&
+% 		{\Large Labeled only}
+% 		\\
+% 		\begin{minipage}[t]{.5\textwidth}
+% 		\strut\vspace*{-\baselineskip}\newline
+% 			\input{tab_hypers_cifar10_settings.tex}	
+% 		\end{minipage}
+% 		&
+% 		\begin{minipage}[t]{.5\textwidth}
+% 		\strut\vspace*{-\baselineskip}\newline
+% 			\input{tab_hypers_labeledonly.tex}	
+% 		\end{minipage}
+% 		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+% 		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+% 		{\Large VAT}
+% 		&
+% 		{\Large Pseudo-label}
+% 		\\
+% 		\begin{minipage}[t]{.5\textwidth}
+% 		\strut\vspace*{-\baselineskip}\newline
+% 			\input{tab_hypers_vat.tex}	
+% 		\end{minipage}
+% 		&
+% 		\begin{minipage}[t]{.5\textwidth}
+% 		\strut\vspace*{-\baselineskip}\newline
+% 			\input{tab_hypers_pseudo.tex}	
+% 		\end{minipage}
+% 		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+% 		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+% 		{\Large Mean Teacher}
+% 		&
+% 		{\Large Pi-Model}
+% 		\\
+% 		\begin{minipage}[t]{.5\textwidth}
+% 		\strut\vspace*{-\baselineskip}\newline
+% 			\input{tab_hypers_MT.tex}	
+% 		\end{minipage}
+% 		&
+% 		\begin{minipage}[t]{.5\textwidth}
+% 		\strut\vspace*{-\baselineskip}\newline
+% 			\input{tab_hypers_pimodel.tex}	
+% 		\end{minipage}
+% 		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+% 		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+% 		{\Large MixMatch}
+% 		&
+% 		{\Large FixMatch}
+% 		\\
+% 		\begin{minipage}[t]{.5\textwidth}
+% 		\strut\vspace*{-\baselineskip}\newline
+% 			\input{tab_hypers_mixmatch.tex}	
+% 		\end{minipage}
+% 		&
+% 		\begin{minipage}[t]{.5\textwidth}
+% 		\strut\vspace*{-\baselineskip}\newline
+% 			\input{tab_hypers_fixmatch.tex}	
+% 		\end{minipage}
+% 		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+% 		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+% 	\end{tabular}
+% \caption{
+% \textbf{Hyperparameters used for CIFAR experiments.}
+% We did \emph{not} tune any hyperparameters specifically for Fix-A-Step.
+% }%endcaption
+% \end{table}
+
+\clearpage
+\subsection{Hyperparameters for Heart2Heart}
+As in all other experiments, hyper-parameters were not tuned at all for Fix-A-Step in our Heart2Heart evaluations.
+Instead, to ensure fair comparisons (and in fact to make Fix-A-Step prove that its worth comes from something other than hyperparameter tuning), we did allow tuning hyperparameters for \emph{all other} methods except Fix-A-Step: the labeled-set-only baseline, the Open-Match baseline, and the basic off-the-shelf SSL methods Pi-model, VAT and FixMatch. 
+
+For those methods that were allowed tuning, we ran 100 trials\footnote{in practice, for each trial we train for only 180 epochs to speed up the hyper-parameters selection process} of Tree-structured Parzen Estimator (TPE) based black box optimization using an open source AutoML toolkit\footnote{https://github.com/microsoft/nni} for each algorithm and each data split. The chosen hyper-parameters are then directly applied to Fix-A-Step without retuning. After hyper-parameter selection, each algorithm is then trained for 1000 epochs, the balanced test accuracy at maximum validation balanced accuracy is then reported.
+
+
+\paragraph{Labeled-only:} we search learning rate in $\{0.001, 0.003, 0.01, 0.03, 0.1, 0.3\}$, weight decay in $\{0.0, 0.00005, 0.0005, 0.005, 0.05\}$, optimizer in $\{\text{Adam}, \text{SGD}\}$, learning rate schedule in $\{\text{Fixed}, \text{Cosine}\}$. Batch size is set to 64.
+
+\paragraph{Pi-model:} 
+We search learning rate in $\{0.003, 0.01, 0.03, 0.1\}$, weight decay in $\{0.0, 0.0005, 0.005, 0.05\}$, optimizer in $\{\text{Adam}, \text{SGD}\}$, 
+learning rate schedule in $\{\text{Fixed}, \text{Cosine}\}$, Max consistency coefficient in $\{1.0, 5.0, 10.0, 20.0, 100.0\}$, unlabeled loss warmup iterations in $\{0, 17000, 34000\}$. Labeled batch size is set to 64 and unlabeled batch size is set to 64.
+
+\paragraph{VAT:} 
+We search learning rate in $\{0.0002, 0.0006, 0.002, 0.006\}$, weight decay in $\{0.000004, 0.00004, 0.0004\}$, optimizer in $\{\text{Adam}, \text{SGD}\}$, 
+learning rate schedule in $\{\text{Fixed}, \text{Cosine}\}$, Max consistency coefficient in $\{0.3, 0.1, 0.9, 0.03, 3\}$,  unlabeled loss warmup iterations in $\{0, 17000, 34000\}$. Labeled batch size is set to 64, unlabeled batch size is set to 64. $\xi$ is set to 0.000001 and $\epsilon$ is set to 6.
+
+\paragraph{FixMatch:} 
+We search learning rate in $\{0.003, 0.01, 0.03, 0.1\}$, weight decay in $\{0.0005, 0.005, 0.05\}$, optimizer in $\{\text{Adam}, \text{SGD}\}$, 
+learning rate schedule in $\{\text{Fixed}, \text{Cosine}\}$, Max consistency coefficient in $\{0.5, 1.0, 5.0, 10.0\}$, Labeled batch size is set to 64, unlabeled batch size is set to 320. We set sharpening temperature to 1.0 and pseudo-label threshold is set to 0.95 (as in CIFAR experiments).
+
+\paragraph{Open-Match:} 
+We search learning rate in $\{0.003, 0.01, 0.03, 0.1, 0.3\}$, weight decay in $\{0.0000005, 0.000005, 0.00005, 0.0005, 0.005, 0.05\}$, 
+lambda oem in $\{0.03, 0.1, 0.3, 1.0\}$, lambda socr in $\{0.25, 0.5, 1.0, 2.0\}$ (see OpenMatch paper for hyperparameter definitions). Labeled batch size is set to 64, unlabeled batch size is set to 128, and all other hyperparameters following the author's released code.
+
+\subsection{Labeled loss implementation: Weighted cross entropy}
+
+On many realistic SSL classification tasks, even the labeled set will have noticeably \emph{imbalanced} class frequencies.
+For example, in the TMED-2 view labels, the four view types (PLAX, PSAX, A4C, A2C) differ in the number of available examples, with the rarest class (A2C) roughly 3x less common than the most common class (PLAX).
+To counteract the effect of class imbalance, we use weighted cross-entropy for labeled loss, following prior works \citep{huangNewSemisupervisedLearning2021,wu2021reducing}. 
+Let integer $c \in \{1, 2, \ldots C\}$ index the classes in the labeled set, and let $N_c$ denote the  number of images for class $c$.
+Then when we compute the labeled loss $\ell^L$, we assign a weight $\omega_c > 0$ to the true class $c$ that is inversely proportional to the number of images $N_c$ of the class in the training set:
+\begin{align}
+\ell^L(x, c; w) = - \omega_c \log f_w(x)[c],
+\qquad 
+\omega_c = \frac{\prod_{k\neq c}{N_{k}}}{\sum_{j=1}^C\prod_{k \neq j}{N_{k}}}
+\impliedby
+\omega_c \propto \frac{1}{N_c}
+\end{align}
+Here $c$ denotes the integer index of the true class corresponding to image $x$, $w$ denotes the neural network weight parameters, and $f_w(x)[c]$ denotes the $c$-th entry of the softmax output vector produced by the neural network classifier.
+
+
+\subsection{Cosine-annealing of learning rate.}
+We found that several baselines were notably improved using the cosine-annealing schedule of learning rate suggested by \citep{sohnFixMatchSimplifyingSemisupervised2020}.
+Cosine-annealing sets the learning rate at iteration $i$ to $\eta cos(\frac{7\pi i}{16 I})$, where $\eta$ is the initial learning rate, and $I$ is the total iterations.
+
+To be extra careful, we tried to allow all open-set/safe SSL baselines to also benefit from cosine annealing.
+\begin{itemize}
+\item MTCF is trained using Adam following the author's implementation \citep{yuMultiTaskCurriculumFramework2020}.
+Although the author did not originally use cosine learning rate schedule, we found that adding cosine learning rate schedule substantially improve MTCF's performance.
+We thus report the performance for MTCF \emph{with cosine annealing}. 
+
+\item DS3L is trained using Adam following the author's implementation \citep{guoSafeDeepSemiSupervised2020}.
+We tried to add Cosine learning rate to DS3L, but this results in worse performance.
+We thus report the performance for DS3L without cosine learning rate.
+
+\end{itemize}
+
+
+
+
+
+
+

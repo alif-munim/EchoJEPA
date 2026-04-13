@@ -1,0 +1,25 @@
+{
+  "file": "mimic/mortality_1yr-predavg-panecho",
+  "best_head": 4,
+  "type": "classification",
+  "n_clips": 79060,
+  "n_studies": 1087,
+  "n_classes": 2,
+  "AUROC": 0.7404,
+  "accuracy": 0.8528,
+  "F1_macro": 0.4603,
+  "confusion_matrix": [
+    [
+      927,
+      0
+    ],
+    [
+      160,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 927,
+    "1": 160
+  }
+}

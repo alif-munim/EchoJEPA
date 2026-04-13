@@ -1,0 +1,7 @@
+{
+  "file": "mimic/tricuspid_regurg-xfer-panecho",
+  "best_head": 6,
+  "type": "classification",
+  "n_studies": 999,
+  "error": "Number of classes in y_true not equal to the number of columns in 'y_score'"
+}

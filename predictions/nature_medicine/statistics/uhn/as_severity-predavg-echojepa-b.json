@@ -1,0 +1,41 @@
+{
+  "type": "classification",
+  "n": 270364,
+  "n_classes": 4,
+  "AUROC_macro": 0.7575,
+  "accuracy": 0.4868,
+  "F1_macro": 0.2916,
+  "confusion_matrix": [
+    [
+      88517,
+      102835,
+      3329,
+      11477
+    ],
+    [
+      3976,
+      41361,
+      608,
+      3369
+    ],
+    [
+      1207,
+      6556,
+      353,
+      1927
+    ],
+    [
+      426,
+      2782,
+      252,
+      1389
+    ]
+  ],
+  "class_distribution": {
+    "0": 206158,
+    "1": 49314,
+    "2": 10043,
+    "3": 4849
+  },
+  "file": "uhn/as_severity-predavg-echojepa-b.csv"
+}

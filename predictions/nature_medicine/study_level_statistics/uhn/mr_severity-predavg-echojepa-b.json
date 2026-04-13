@@ -1,0 +1,55 @@
+{
+  "file": "uhn/mr_severity-predavg-echojepa-b",
+  "best_head": 3,
+  "type": "classification",
+  "n_clips": 399596,
+  "n_studies": 20825,
+  "n_classes": 5,
+  "AUROC": 0.8043,
+  "accuracy": 0.313,
+  "F1_macro": 0.225,
+  "confusion_matrix": [
+    [
+      562,
+      76,
+      0,
+      104,
+      1
+    ],
+    [
+      783,
+      4882,
+      0,
+      364,
+      3
+    ],
+    [
+      4351,
+      3305,
+      1,
+      4215,
+      3
+    ],
+    [
+      313,
+      332,
+      0,
+      1069,
+      5
+    ],
+    [
+      67,
+      91,
+      0,
+      293,
+      5
+    ]
+  ],
+  "class_distribution": {
+    "0": 743,
+    "1": 6032,
+    "2": 11875,
+    "3": 1719,
+    "4": 456
+  }
+}

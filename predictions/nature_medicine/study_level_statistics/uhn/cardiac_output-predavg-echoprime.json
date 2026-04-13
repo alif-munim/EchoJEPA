@@ -1,0 +1,18 @@
+{
+  "file": "uhn/cardiac_output-predavg-echoprime",
+  "best_head": 6,
+  "type": "regression",
+  "n_clips": 33876,
+  "n_studies": 4833,
+  "R2": 0.1426,
+  "R2_ci": [
+    0.1265,
+    0.158
+  ],
+  "Pearson": 0.4246,
+  "Pearson_ci": [
+    0.4013,
+    0.448
+  ],
+  "MAE": 1.1928
+}

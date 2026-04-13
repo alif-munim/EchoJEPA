@@ -1,0 +1,7 @@
+{
+  "file": "mimic/mitral_regurg-xfer-echojepa-l-k",
+  "best_head": 0,
+  "type": "classification",
+  "n_studies": 1003,
+  "error": "Number of classes in y_true not equal to the number of columns in 'y_score'"
+}

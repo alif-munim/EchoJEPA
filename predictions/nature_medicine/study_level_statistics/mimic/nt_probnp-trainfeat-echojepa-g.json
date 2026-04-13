@@ -1,0 +1,18 @@
+{
+  "file": "mimic/nt_probnp-trainfeat-echojepa-g",
+  "best_head": 6,
+  "type": "regression",
+  "n_clips": 45092,
+  "n_studies": 596,
+  "R2": 0.1206,
+  "R2_ci": [
+    0.0861,
+    0.1559
+  ],
+  "Pearson": 0.4795,
+  "Pearson_ci": [
+    0.4282,
+    0.5332
+  ],
+  "MAE": 4628.8794
+}

@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 142572,
+  "n_classes": 2,
+  "AUROC_macro": 0.6197,
+  "accuracy": 0.6752,
+  "F1_macro": 0.5445,
+  "confusion_matrix": [
+    [
+      86321,
+      10457
+    ],
+    [
+      35849,
+      9945
+    ]
+  ],
+  "class_distribution": {
+    "0": 96778,
+    "1": 45794
+  },
+  "file": "mimic/discharge_destination-trainfeat-echojepa-g.csv"
+}

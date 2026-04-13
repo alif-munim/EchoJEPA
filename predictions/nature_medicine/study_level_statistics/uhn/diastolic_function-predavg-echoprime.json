@@ -1,0 +1,43 @@
+{
+  "file": "uhn/diastolic_function-predavg-echoprime",
+  "best_head": 3,
+  "type": "classification",
+  "n_clips": 139920,
+  "n_studies": 4756,
+  "n_classes": 4,
+  "AUROC": 0.8465,
+  "accuracy": 0.6972,
+  "F1_macro": 0.5036,
+  "confusion_matrix": [
+    [
+      281,
+      49,
+      12,
+      15
+    ],
+    [
+      585,
+      2723,
+      295,
+      230
+    ],
+    [
+      58,
+      103,
+      53,
+      32
+    ],
+    [
+      33,
+      16,
+      12,
+      259
+    ]
+  ],
+  "class_distribution": {
+    "0": 357,
+    "1": 3833,
+    "2": 246,
+    "3": 320
+  }
+}

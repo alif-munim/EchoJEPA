@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 33612,
+  "n_classes": 2,
+  "AUROC_macro": 0.7268,
+  "accuracy": 0.9305,
+  "F1_macro": 0.5181,
+  "confusion_matrix": [
+    [
+      31185,
+      322
+    ],
+    [
+      2014,
+      91
+    ]
+  ],
+  "class_distribution": {
+    "0": 31507,
+    "1": 2105
+  },
+  "file": "mimic/in_hospital_mortality-predavg-echojepa-l-k.csv"
+}

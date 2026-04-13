@@ -1,0 +1,18 @@
+{
+  "file": "uhn/rvsp-predavg-echojepa-g",
+  "best_head": 8,
+  "type": "regression",
+  "n_clips": 100184,
+  "n_studies": 10015,
+  "R2": 0.5036,
+  "R2_ci": [
+    0.4884,
+    0.5192
+  ],
+  "Pearson": 0.7257,
+  "Pearson_ci": [
+    0.7133,
+    0.7376
+  ],
+  "MAE": 7.2478
+}

@@ -1,0 +1,18 @@
+{
+  "file": "mimic/los_remaining-predavg-echoprime",
+  "best_head": 14,
+  "type": "regression",
+  "n_clips": 31508,
+  "n_studies": 440,
+  "R2": 0.0089,
+  "R2_ci": [
+    -0.0147,
+    0.0329
+  ],
+  "Pearson": 0.2855,
+  "Pearson_ci": [
+    0.2296,
+    0.3517
+  ],
+  "MAE": 5.7433
+}

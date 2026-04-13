@@ -1,0 +1,25 @@
+{
+  "file": "mimic/readmission_30d-trainfeat-echojepa-g",
+  "best_head": 13,
+  "type": "classification",
+  "n_clips": 162116,
+  "n_studies": 2233,
+  "n_classes": 2,
+  "AUROC": 0.6475,
+  "accuracy": 0.7752,
+  "F1_macro": 0.4367,
+  "confusion_matrix": [
+    [
+      1731,
+      0
+    ],
+    [
+      502,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 1731,
+    "1": 502
+  }
+}

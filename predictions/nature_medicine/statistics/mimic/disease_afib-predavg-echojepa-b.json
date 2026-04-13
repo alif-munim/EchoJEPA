@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 79060,
+  "n_classes": 2,
+  "AUROC_macro": 0.6484,
+  "accuracy": 0.6308,
+  "F1_macro": 0.5991,
+  "confusion_matrix": [
+    [
+      36047,
+      11761
+    ],
+    [
+      17430,
+      13822
+    ]
+  ],
+  "class_distribution": {
+    "0": 47808,
+    "1": 31252
+  },
+  "file": "mimic/disease_afib-predavg-echojepa-b.csv"
+}

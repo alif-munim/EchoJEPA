@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 79060,
+  "n_classes": 2,
+  "AUROC_macro": 0.7432,
+  "accuracy": 0.9167,
+  "F1_macro": 0.5741,
+  "confusion_matrix": [
+    [
+      71689,
+      2307
+    ],
+    [
+      4281,
+      783
+    ]
+  ],
+  "class_distribution": {
+    "0": 73996,
+    "1": 5064
+  },
+  "file": "mimic/mortality_90d-predavg-echojepa-g.csv"
+}

@@ -1,0 +1,25 @@
+{
+  "file": "mimic/discharge_destination-trainfeat-echojepa-g",
+  "best_head": 7,
+  "type": "classification",
+  "n_clips": 142572,
+  "n_studies": 1959,
+  "n_classes": 2,
+  "AUROC": 0.6994,
+  "accuracy": 0.6896,
+  "F1_macro": 0.518,
+  "confusion_matrix": [
+    [
+      1260,
+      55
+    ],
+    [
+      553,
+      91
+    ]
+  ],
+  "class_distribution": {
+    "0": 1315,
+    "1": 644
+  }
+}

@@ -1,0 +1,164 @@
+%%% FIG: CIFAR10
+\input{fig_cifar10.tex}
+
+Our open source code uses PyTorch \citep{paszke2019pytorch} and allows reproducing each experiment (see App.~\ref{app:experiment_details}).
+Following \citet{oliverRealisticEvaluationDeep2018}, for all methods we use the same Wide ResNet-28-2  \citep{zagoruyko2016wide}, apply standard augmentation (random crops, flips) on the labeled set, and regularize via weight decay.
+
+\textbf{Hyperparameters.}
+All baselines use well-tuned hyperparameters for CIFAR-10 suggested by previous work ~(see App.~\ref{app:hyperparameter_list}).
+If a baseline underperformed, we retuned to maximize validation set accuracy.
+To be sure our reported gains are meaningful, we did \emph{no hyperparameter tuning at all} for Fix-A-Step, fixing $\alpha=0.5, \tau=0.5$ throughout and inheriting other hyperparameters from the base SSL method.
+
+\textbf{SSL baselines.} 
+We compared to 6 closed-set SSL methods (Pi-Model, Mean-Teacher, Pseudo-label, VAT, MixMatch, and FixMatch) as well as the baseline that minimizes labeled loss $\ell^L$ on the labeled set (``labeled-only'').
+We also compare to 5 state-of-the-art methods intended for open-set/safe SSL: UASD~\citep{chenSemiSupervisedLearningClass2020}, DS3L~\citep{guoSafeDeepSemiSupervised2020}, MTCF~\citep{yuMultiTaskCurriculumFramework2020}, OpenMatch~\citep{saitoOpenMatchOpensetConsistency2021} and Curriculum-labeling~\citep{cascante-bonillaCurriculumLabelingRevisiting2021}.
+If possible, we use our own implementations of baselines, ensuring architectures, training, and hyperparameters are comparable and reproducible.
+If a result is copied from another paper, we mark with an asterisk ($*$).
+
+
+\textbf{Training.}
+Following choices in original implementations, each method is trained using either Adam with fixed learning rate or SGD with a \emph{cosine-annealing schedule} for learning rate~\citep{sohnFixMatchSimplifyingSemisupervised2020}.
+%We used Adam with fixed learning rate for MixMatch following implementation from \cite{berthelotMixMatchHolisticApproach2019}.
+%We used SGD with a \emph{cosine-annealing schedule} for learning rate for Pi-Model, Mean-Teacher, Pseudo-label and FixMatch following implementation from \cite{sohnFixMatchSimplifyingSemisupervised2020}.
+We found cosine-annealing and a slow linear ramp-up schedule for the unlabeled-loss-weight $\lambda$ particularly helpful for several baselines (see App.~\ref{app:experiment_details}).
+Each training run used one NVIDIA A100 GPU.
+
+\subsection{CIFAR-10 Protocol and Results}
+
+\textbf{6-animal task for CIFAR-10.}
+We pursue the ``6-animal'' task designed by \citet{oliverRealisticEvaluationDeep2018} to artificially create unlabeled sets at different levels of mismatch with the labeled set.
+We build a labeled set of the 6 animal classes (dog, cat, horse, frog, deer, bird) in CIFAR-10, across two training set sizes: 50 labeled images per class and 400 per class.
+We form an unlabeled set of ${\sim}4100$ images/class from 4 selected classes, some animal and some non-animal (car, truck, ship, airplane).
+The percentage of non-animal classes is denoted by $\zeta$.
+If $\zeta=0\%$, we recover the standard ``closed-set'' SSL setting.
+At $\zeta=100\%$, the unlabeled set has no classes in common, and the OOD-filtering paradigm suggests that we should ignore the unlabeled set entirely.
+For details on the unlabeled set construction, see App. \ref{tab:CIFAR10_Class_MisMatch_Description}.
+%see App.~\ref{app:CIFAR10_Class_Mismatch_description}.
+
+% \textbf{Hyperparameters}.
+% All baselines use hyperparameters suggested by previous work for the CIFAR-10 6 animal task~(see App.~\ref{app:hyperparameter_list}).
+% In rare cases, if a baseline underperformed we retuned values to maximize validation set accuracy.
+% We did \emph{no hyperparameter tuning} for Fix-A-Step, fixing $\alpha=0.5, \tau=0.5$ throughout and inheriting other hyperparameters from the base SSL method.
+%This lack of tuning 
+
+
+\textbf{Results on 6-animal.}
+In Fig.~\ref{fig:results-cifar10}, we compare the accuracy of different methods at recognizing the 6 animal classes in the test set, as the mismatch percentage $\zeta$ increases.
+Across two different training set sizes (rows), we compare 4 different training scenarios (columns, best read left to right): methods trained in the standard way (``off-the-shelf''), methods trained using Fix-A-Step, methods trained in the standard fashion but with \emph{perfect OOD filtering} applied to the unlabeled set before training so that only known-class samples remain, and methods intended for safe SSL.
+The \emph{perfect OOD filtering} column essentially shows the best-possible case for methods under the OOD-is-harmful paradigm.
+
+We highlight several findings from Fig.~\ref{fig:results-cifar10}:
+% \textbf{1. Existing ``safe'' SSL methods perform little better than labeled-set-only.}
+% In the right-most column, ``safe'' SSL methods (UASD, DS3L, MTCF) roughly match or fall below the dashed line above $\zeta=25\%$.
+% FixMatch, which was not intended to be ``safe'', dominates all 3 methods.
+% % \todo{(DISCUSS THIS SENTENCE?) This suggests that augmentation may be critical to success.}
+
+\textbf{1. Fix-A-Step improves all SSL methods in almost all settings.}
+Despite its relative simplicity, Fix-A-Step is quite effective, as seen in the raised accuracies from the first to the second column across almost all methods and $\zeta$ values.
+Fix-A-Step with FixMatch base outperforms all other safe SSL methods (4th col.) for all mismatch levels $\zeta > 0\%$.
+In Fig.~\ref{fig:cifar10_uncertainty}, we further demonstrate that Fix-A-Step's gains are \emph{robust} across multiple random train/test splits.
+
+\textbf{2. Perfect OOD filtering is not enough.}
+The third column shows that perfect OOD filtering delivers underwhelming accuracy compared to Fix-A-Step for all $\zeta>0$. 
+% \todo{It can be seen as an upper bound telling us what happens if we only try to filter OOD samples out}.
+% The gains of our Fix-A-Step over this best-case filtering suggest that our \emph{OOD-is-helpful} paradigm should be prioritized over filtering.
+Our method's gains over perfect filtering suggest that \textit{trying to benefit from OOD samples is more useful than filtering them.}
+We suggest several explanations for the poor performance of perfect filtering, such as 
+class imbalance even among known classes in the unlabeled set~\citep{kim2020distribution,lai2022smoothed}, %zhao2022dc guo2022class
+sensitivity to hyperparameters~\citep{su2021realistic,sohnFixMatchSimplifyingSemisupervised2020}, % chen2020negative
+or perhaps how unlabeled data may affect the training via batchnorm ~\citep{zhao2020robust}. 
+More work is needed to understand this phenomenon.
+%class imbalance even among known classes in the unlabeled set~\citep{zhao2022dc, kim2020distribution,guo2022class, lai2022smoothed},
+%sensitivity to hyperparameters~\citep{su2021realistic,chen2020negative,sohnFixMatchSimplifyingSemisupervised2020}, or perhaps how unlabeled data affect the training via batchnorm ~\citep{zhao2020robust}. 
+
+\textbf{3. Fix-A-Step is faster than alternatives.}
+For example, in the 400 examples/class $\zeta=50\%$ setting, using Fix-A-Step with a Mean-Teacher base delivers similar accuracy to OpenMatch (81.08 vs 79.62) while requiring \emph{less than half the training time} (22 vs. 47 hr., App ~\ref{tab:cifar10_runtime_acc}).
+
+\subsection{CIFAR-100 Protocol and Results}
+
+
+% We now consider the larger CIFAR-100 dataset, following the experimental design of \todo{CITE} to artificially create an unlabeled set and assess performance at various levels of labeled/unlabeled mismatch.
+
+\textbf{50-class task for CIFAR-100.}
+Using the larger CIFAR-100 dataset, we follow the open-set SSL experimental design of \citet{chenSemiSupervisedLearningClass2020} to create a $\zeta = 50\%$ class distribution mismatch scenario by using classes 1-50 as labeled classes, and classes 25-75 as unlabeled classes. 
+To assess a more extreme level of unlabeled set ``contamination'', we further create a 100\% class distribution mismatch scenario: classes 1-50 are labeled classes; classes 51-100 unlabeled. 
+%\todo{For both scenario, we form a labeled set containing 100 images per class and an unlabeled set contains 350 images per class. The validation set contains 50 images per class from the labeled classes and the test set contains 100 images per class from the labeled classes.}
+
+%\textbf{Hyperparameters}. All methods use the same hyperparameters as in CIFAR-10 experiments, without any retuning.
+
+%%% FIG: CIFAR100
+\input{fig_cifar100.tex}
+
+\textbf{Results on CIFAR-100 50-class.}
+Fig.~\ref{fig:results-cifar100} compares ``off-the-shelf'' SSL methods using standard training (blue bars) and Fix-A-Step (orange).
+We see consistent gains at both 50\% and 100\% mismatch,
+even without tuning hyperparameters.
+% Other methods (UASD, DS3L, MTCF) underperform, perhaps due to untuned hyperparameters.
+%\todo{No other ``safe'' SSL method (UASD, DS3L, MTCF) can beat even the labeled-set-only baseline.}
+%\emph{CIFAR-100}: For all methods used in CIFAR-100 experiments, we directly used the hyperparameters from their corresponding CIFAR-10 experiments, and do not re-tune any hyperparameters.
+
+\subsection{Ablations and Sensitivity Analysis}
+
+\textbf{Ablations.}
+We quantify how each of Fix-A-Step's two key components (Augmentation and Gradient step modification) perform in isolation.
+Tab.~\ref{tab:results_cifar10_ablation} compares accuracy on the 6 animal task at 400 examples/class and $\zeta = 100\%$. 
+Gradient step modification alone increases accuracy around 0.5 to 1.5\% across five base SSL methods.
+Augmentation alone increases accuracy around 2.5 to 4.5\%. \emph{When combined, we consistently see the largest gains}. Although we didn't tune hyperparameters, we expect enlarging batch size may lead to more gain from gradient step modification, since it gives less noisy estimates of the gradient alignment.
+For further results at other mismatch levels, see App.~\ref{app:cifar}. 
+%Note that even though the augmentation seems more effective than the gradient step modification, adding gradient step modification on top of augmentation (A\&G) consistently give better result than augmentation alone.
+
+\textbf{Sensitivity analysis.} 
+There are two hyperparameters unique to Fix-A-Step:
+sharpening temperature $\tau{>}0$ and the Beta shape $\alpha {>}0$.
+For simplicity, we set $\alpha{=}0.5$ and $\tau{=}0.5$ throughout. % our experiments.
+Since deep SSL is often sensitive to hyperparameters, we further analyse other possible choices: $\alpha {\in} \{0.5, 0.75\}$ and $\tau {\in} \{0.5, 0.95\}$.
+% Since deep SSL is often sensitive to hyperparameters~\citep{su2021realistic}, we further analyse other possible choices: $\alpha {\in} \{0.5, 0.75\}$ and $\tau {\in} \{0.5, 0.95\}$.
+%We choose 2 common $\alpha$ values 0.5 and 0.75, 2 common $\tau$ values 0.5 and 0.95, resulting in total of 4 $\alpha$ and $\tau$ combinations.
+%We run Mean-Teacher with Fix-A-Step for the 4 combinations of $\alpha$ and $\tau$ across 5 random split of the data. 
+Fig.~\ref{fig:cifar10_sensitivity} shows that Fix-A-Step delivers consistent and similar accuracy gains across \emph{all} tested $\alpha,\tau$ settings, and thus does not appear overly sensitive.
+
+%%% TABLE OF ABLATIONS
+\input{tab_results_cifar10_ablation}
+
+
+
+% so we conclude 
+%thus does not introduce additional sensitivity to hyper-parameters compared to their non Fix-A-Step counterparts.
+
+%We report the test accuracy (or balanced accuracy when using TMED2) at the maximum validation accuracy. 
+
+% We used the default optimization algorithm (either SGD or Adam), unlabeled loss warmup schedule from the publicly available repo where we build our codebase on. We report the test accuracy at the checkpoint of maximum validation accuracy.
+% % \todo{Describe optimization algorithm, early stopping policy, learning rate, etc.}
+% % \todo{Explain how we ramp up the unlabeled loss weight $\lambda$}
+
+% \emph{CIFAR10}: We used the 6 animal classes in official CIFAR10 test split as the test set. 500 labeled images per class for the 6 animal class are used as validation set following \cite{oliverRealisticEvaluationDeep2018, yuMultiTaskCurriculumFramework2020}.  
+
+% \emph{CIFAR100}: 100 images per class is used in the labeled set. 50 images per class is used in the validation set following \cite{berthelotMixMatchHolisticApproach2019,sohnFixMatchSimplifyingSemisupervised2020, saitoOpenMatchOpensetConsistency2021}
+
+% \emph{TMED2}: We followed the recommanded data split from \cite{huangTMEDDatasetSemiSupervised2022} for the train, val, test split 
+
+% }
+
+
+
+
+
+%\emph{CIFAR-10}: Hyper-parameters for CIFAR-10 experiments are by default inherited from the open repository that our codebase built upon, which are already tuned. We only retune hyper-parameters if substaintial discrepency occured between our re-implementation with the original implementations. In such case, the hyper-parameters are selected via maximizing accuracy on the validation set. We used same set of hyper-parameters of an algorithm across different level of contamination following \cite{oliverRealisticEvaluationDeep2018}. Note that we directly use the same set of hyper-parameters for our Fix-A-Step from their non Fix-A-Step counterparts. 
+
+%\emph{CIFAR-100}: For all methods used in CIFAR-100 experiments,, we directly used the hyperparameters from their corresponding CIFAR-10 experiments, and do not re-tune any hyperparameters.
+
+% We a used batch size of 64 for both labeled set and unlabeled set for all experiments except in FixMatch, where we used unlabeled set batch size of 448  representing a unlabeled-to-labeled batch size ratio of 7 following \cite{sohnFixMatchSimplifyingSemisupervised2020}. Other hyperparameters are by default set using the publicly available repositories where our codebase built upon \footnote{we only retuned hyperparameters using validation set if there is substaintial discrepency between our implementation and the original implementation.}. We ensure our modified implementation matched the reported values from prior literatures and the numbers reported by the publicly available repositories for the non-contamination regular SSL experiments. 
+% The chosen hyperparameters are then used to conduct SSL contamination experiments for different level of contamination as done in \cite{oliverRealisticEvaluationDeep2018}. We always used the same hyperparameters for our Fix-A-Step from their corresponding vanilla SSL algorithms. 
+
+%\emph{CIFAR-100}: For all methods used in CIFAR-100 experiments,, we directly used the hyperparameters from their corresponding CIFAR-10 experiments, and do not re-tune any hyperparameters.
+
+%\emph{TMED2}: Hyper-parameters are only tuned for the supervised-only baseline and the non Fix-A-Step version of the Pi-model, VAT and FixMatch. The chosen hyper-parameters are then directly applied to Fix-A-Step without retuning. We choose hyper-parameters for each of the pre-defined split in TMED2 for each algorithm via the pre-defined validation set from TMED2 release.
+
+
+% \emph{TMED2}: We used a batch size of 64 for both labeled set and unlabeled set for all experiments except in FixMatch, where we used unlabeled set batch size of 320  representing a unlabeled-to-labeled batch size ratio of 5 following. Hyperparameters for FixMatch, Mean-Teacher and VAT are tuned by maximizing the balanced accuracy on validation set. Again, we directly used the chosen hyperparameters from their corresponding vanilla algorithms for the Fix-A-Step version of the algorithm. 
+
+
+
+
+% \todo{Describe policy for selecting.}
+

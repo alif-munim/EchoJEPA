@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 27284,
+  "n_classes": 2,
+  "AUROC_macro": 0.5447,
+  "accuracy": 0.7055,
+  "F1_macro": 0.4168,
+  "confusion_matrix": [
+    [
+      19223,
+      48
+    ],
+    [
+      7987,
+      26
+    ]
+  ],
+  "class_distribution": {
+    "0": 19271,
+    "1": 8013
+  },
+  "file": "mimic/discharge_destination-predavg-panecho.csv"
+}

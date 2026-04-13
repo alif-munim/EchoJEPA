@@ -1,0 +1,25 @@
+{
+  "file": "uhn/trajectory_mr_severity_onset-predavg-echojepa-l-k",
+  "best_head": 1,
+  "type": "classification",
+  "n_clips": 292896,
+  "n_studies": 5932,
+  "n_classes": 2,
+  "AUROC": 0.6054,
+  "accuracy": 0.9349,
+  "F1_macro": 0.5236,
+  "confusion_matrix": [
+    [
+      5529,
+      142
+    ],
+    [
+      244,
+      17
+    ]
+  ],
+  "class_distribution": {
+    "0": 5671,
+    "1": 261
+  }
+}

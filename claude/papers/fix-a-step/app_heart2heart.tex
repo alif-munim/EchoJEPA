@@ -1,0 +1,146 @@
+\subsection{Comparison of computation cost and performance}
+\setlength{\tabcolsep}{.3cm}
+\begin{table}[!h]
+\centering
+\begin{tabular}{c | r r | r  r | r  r }
+\multicolumn{0}{c}{Methods} &\multicolumn{2}{c}{split0} &\multicolumn{2}{c}{split1} &\multicolumn{2}{c}{split2}\\
+
+& Acc & Runtime & Acc & Runtime & Acc & Runtime 
+ \\ \hline
+Pi-model+Fix-A-Step & 95.33 & 233 & 95.08 & 240 & 95.73 & 218\\
+VAT+Fix-A-Step & 95.58 & 392& 95.30 & 343 & 95.66 & 356\\
+OpenMatch & 94.54 & 1244& 94.59 & 1282 & 93.22 & 879\\
+
+\end{tabular}
+    \caption{
+    \textbf{Comparison of runtime and test balanced accuracy on TMED-2 view classification task}. Runtime in minutes. Each model is trained on a Nvidia A100. In practice, we found OpenMatch converges slower than alternatives compared, we thus train about 2x more iterations for OpenMatch (otherwise its accuracy performance would be worse).
+    }%endcaption
+    \label{tab:TMED2_runtime_acc}
+\end{table}
+% \clearpage
+
+\subsection{Preprocessing TMED-2 data}
+
+We applied for access to the TMED-2 data via the form on the website (\url{https://TMED.cs.tufts.edu}), and downloaded the shared folder of data from the provided cloud-based link after approval.
+Images (as 112x112 PNG images) and associated view labels (in CSV files) are readily available in the provided shared folder for download.
+
+\textbf{Train/validation/test splits.}
+To form our labeled sets for training, we used the provided train/test splits of the fully-labeled set with the smallest training set size (56 studies available for both training and validation).
+While larger labeled training sets are possible, we selected this smaller size as the most compelling use case for SSL.
+We wanted to answer the question: how well can we do with very little labeled data but a large pile of unlabeled data.
+
+\textbf{View label selection.}
+Among available view labels, we chose PLAX, PSAX, A4C, and A2C as the 4 classes to focus on for our Heart2Heart view type classifier.
+The original TMED-2 labeled set, as described in \citet{huangTMEDDatasetSemiSupervised2022}, contains an additional view type label that they called A2CorA4CorOther, which is a super-category that contains possible view types distinct from PLAX and PSAX (including A2C, A4C, and other possible classes like A5C).
+For simplicity, we excluded that class in our Heart2Heart experiments.
+
+\subsection{Preprocessing Unity data}
+
+We downloaded the Unity data by going to their website (\url{https://data.unityimaging.net}). Once at their website, go to the 'Latest Data Release' section and download the images.
+For the view labels, go to \url{https://data.unityimaging.net/additional.html} and download the csv file under the 'View' section. 
+
+In the Unity dataset, along with PLAX, A2C, and A4C views, there are also A3C and A5C. For the purposes of these experiments, we filtered out all A3C and A5C images.
+
+Disclaimer: These view labels were done by one human so there may be some errors in the labeling. 
+
+The raw Unity data came in .png format, so first we converted all the pngs to a tiff format.
+Then we converted them to gray-scale, padded the shorter axis to achieve a square aspect ratio, and resized it to 112 x 112 pixels. 
+
+%Finally, all images and labels were put into NumPy arrays and saved to \texttt{.npy} files for easy further loading and processing.
+
+
+\subsection{Preprocessing CAMUS data}
+
+
+We acquired the CAMUS data by going to their website (\url{http://camus.creatis.insa-lyon.fr/challenge/#challenges}). Once you get to their website, link on the first link, register on that website, and then you'll be free to download the dataset. 
+
+In the CAMUS dataset, in addition to having view labels ('2CH' in their dataset is 'A2C' and likewise '4CH' is 'A4C'), they also label whether the view was taken in the end diastolic (ED) or end systolic (ES) portion of the cardiac cycle. We separated and took note of these labels, but we found no significant differences in the results.  
+
+The raw CAMUS data came in .mhd format, a special file types used specifically for medical imaging. Through conversations with data creators, we discovered that the resolution for these images was lower in the x direction than the y direction and the way .mhd files compensate for a lower resolution is by adjusting the space between the pixels in that direction (indicated by the 'Element Spacing' field).
+In order to convert to a standardized tiff file representation (where the spacing between pixels is uniform across width and height) we shrank the image in the y direction as:
+\begin{align}
+	y^* = \frac{y \cdot s_y}{s_x}
+	\label{eq:camus_shrink_y}
+\end{align}
+where y is the original location (number of pixels) in the y direction, $s_y$ and $s_x$ are the spacing of pixels in the y and x directions (as given in the Element Spacing metadata), and $y^*$ is the new location the y direction. 
+
+After this transformaion, the images were converted them to gray-scale, padded the shorter axis to achieve a square aspect ratio, and resized to 112 x 112 pixels. 
+
+%Finally, all images and labels were put into numpy arrays and saved to .npy files.
+
+\subsection{Further investigation of CAMUS performance}
+In our main paper's Fig.~\ref{fig:results-heart2heart-view}, we assess how well our TMED-2-trained models, which get balanced accuracy in the range $92-96\%$ on TMED-2 test set, generalize to other external datasets.
+The models did reasonably generalize to the Unity dataset (balanced accuracy ranges from $90-94\%$), however on the CAMUS dataset we saw all methods reach somewhat surprisingly lower overall performance (balanced accuracy $60-85\%$), though the \emph{relative} ranking of different methods was similar.
+
+\textbf{Visualizing differences.}
+To investigate, we visually compared images from TMED-2, Unity, and CAMUS.
+While Unity and TMED-2 looked similar, when comparing TMED-2 and CAMUS there are clear discrepancies in pixel intensity, likely from the use of a different ultrasound machine and different conventions standard intensity values and normalization.
+Fig. ~\ref{fig:image_comparison} below provides sample images of the two datasets and a summary histogram of pixel intensity (aggregated across all images).
+
+\textbf{Idea: Simple quantile transformation.}
+To quickly try to remedy this discrepancy, we tried to transform the CAMUS images such that the pixel intensity distribution more closely resembles that of TMED-2.
+In this transformation, we first mapped all the target pixels to its empirical quantile  (value between 0-1) and then we mapped that value to a pixel intensity in the source (TMED-2) images via the empirical inverse CDF. 
+To see the effects of this transformation on the CAMUS images and on the pixel intensity histogram, look at the right-most panel of Fig.~\ref{fig:image_comparison}
+
+\setlength{\tabcolsep}{.08cm}
+\begin{figure*}[!h]
+\centering
+\begin{tabular}{c c c}
+\includegraphics[width=.3\textwidth]{figures/TMED_images.jpg}
+&
+\includegraphics[width=.3\textwidth]{figures/Untransformed_CAMUS_images.jpg}
+&
+\includegraphics[width=.3\textwidth]{figures/Transformed_CAMUS_images.jpg}
+\end{tabular}
+\caption{
+\textbf{A sample of images from the TMED-2 dataset, CAMUS dataset, and the same CAMUS pictures except under a pixel transformation to match the pixel intensity of TMED-2}
+}%endcaption	
+\label{fig:image_comparison}
+\end{figure*}
+
+\vspace{1cm}
+\textbf{Results after transform.}
+The accuracy of the TMED-2-trained classifiers on both untransformed and transformed CAMUS data can be viewed in Fig.~\ref{fig:camus_transformation}.
+Like we said in the main paper, Fix-a-Step clearly improves SSL models in classifying CAMUS view types for the untransformed data.
+However, while the transformation itself seems to help model performance overall, Fix-a-Step doesn't seem to help as much in the transformed dataset (some gains for VAT, but both FixMatch and Pi-model the before-after difference seems negigible).
+Importantly, Fix-A-Step is still \emph{competitive} with its base method, just not notably superior to it.
+Much more work is needed here.
+In the future, we hope to explore other ways to improve performance on the CAMUS dataset so it reaches accuracy levels seen in the Unity dataset. 
+
+\begin{figure*}[!h]
+\centering
+\begin{tabular}{c c}
+\includegraphics[width=.36\textwidth]{figures/untransformed_CAMUS.pdf}
+&
+\includegraphics[width=.36\textwidth]{figures/transformed_CAMUS.pdf}
+\end{tabular}
+\caption{
+\textbf{Evaluation of the SSL methods from the paper on untransformed and transformed CAMUS images}
+}%endcaption	
+\label{fig:camus_transformation}
+\end{figure*}
+
+\textbf{Further investigation: Differences across splits.}
+After investigating the results of the three data splits, we noticed that the first split seemed to significantly under perform on the CAMUS dataset, specifically with the A4C class. When we took a look at the Unity data for this split, we also noticed that, while the discrepancy wasn't as drastic, the A4C class did under perform when compared to the other classes. These results can be clearly seen in Tab. ~\ref{tab:a4c_class_accuracies}. In all method-dataset pairs, A4C performs significantly worse than other classes. 
+
+A hypothesis we have is that this data split significantly under represents A4C and thus is not able to predict it as well. The reason why we don't see TMED-2 and Unity significantly under perform in this split in terms of total balance accuracy is because the other classes are a significant portion of their test sets so they're not as affected by A4C under performing; however, 50\% of CAMUS is A4C, so that dataset is affected to a higher degree. However, we are unsure as to why the A4C class accuracy in CAMUS does significantly worse than the A4C class accuracy in Unity. We will investigate this discrepancy further in the future. We think this open problem makes our Heart2Heart benchmark especially interesting.
+\begin{table}[!h]
+\centering
+\begin{tabular}{c | c  c | c  c  c  }
+\multicolumn{1}{c}{Methods} & \multicolumn{2}{c}{CAMUS} & \multicolumn{3}{c}{Unity}\\
+ & A4C & A2C & A4C & A2C & PLAX 
+ \\ \hline
+Labeled-Only & \textbf{28.8} & 98.0 & \textbf{76.9} & 93.3 & 96.1\\
+Pi-model & \textbf{27.1} &  96.8 & \textbf{81.9} & 93.1 & 98.2 \\
+Pi-model w/ FAS & \textbf{45.4} & 98.0 & \textbf{87.5} & 94.1 & 99.6 \\
+VAT & \textbf{26.6}& 98.3 & \textbf{77.0} & 93.1 & 97.7 \\
+VAT w/ FAS  & \textbf{27.5}& 99.4& \textbf{84.6} & 96.2 & 95.5\\
+Fix-Match & \textbf{34.1} & 96.0 & \textbf{79.8} & 94.8& 96.9\\
+Fix-Match w/FAS & \textbf{36.3} & 97.9 & \textbf{83.5} & 95.2 & 99.0 \\
+
+\end{tabular}
+    \caption{
+    \textbf{Class accuracies for data split 1 across methods for the Unity dataset and untransformed CAMUS dataset}. Bolded are the lowest class accuracies for each dataset-method pair.
+    }%endcaption
+    \label{tab:a4c_class_accuracies}
+\end{table}

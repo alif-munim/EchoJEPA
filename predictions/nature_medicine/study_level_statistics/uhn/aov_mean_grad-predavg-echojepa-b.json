@@ -1,0 +1,18 @@
+{
+  "file": "uhn/aov_mean_grad-predavg-echojepa-b",
+  "best_head": 0,
+  "type": "regression",
+  "n_clips": 73564,
+  "n_studies": 6076,
+  "R2": 0.1381,
+  "R2_ci": [
+    0.1242,
+    0.1523
+  ],
+  "Pearson": 0.5173,
+  "Pearson_ci": [
+    0.4973,
+    0.5379
+  ],
+  "MAE": 6.9051
+}

@@ -1,0 +1,22 @@
+# VideoMAE ViT-B calcium imaging viability test
+# 10 epochs on 1 Allen Brain Observatory session (~40K clips)
+# Note: uses the external VideoMAE codebase, not app/vjepa
+# Launch: python run_mae_pretraining.py --config configs/train/vitb16/pretrain-calcium-mae-224px-16f.yaml
+#
+# This config is for reference — VideoMAE uses argparse, not YAML.
+# Actual launch command:
+#   python evals/video_classification_frozen/modelcustom/VideoMAE/run_mae_pretraining.py \
+#     --model pretrain_videomae_base_patch16_224 \
+#     --data_path data/calcium_imaging/clips_501794235/clips.csv \
+#     --output_dir checkpoints/pretrain/calcium/videomae_vitb_224px_16f \
+#     --num_frames 16 --tubelet_size 2 --input_size 224 \
+#     --batch_size 64 --num_workers 4 \
+#     --epochs 10 --warmup_epochs 1 \
+#     --lr 1.5e-4 --blr 1.5e-4 \
+#     --mask_ratio 0.9 --mask_type tube \
+#     --decoder_depth 4 --decoder_num_heads 6 \
+#     --device cuda:4 cuda:5 cuda:6 cuda:7
+
+# Placeholder — actual launch is via argparse above
+app: videomae_pretrain
+note: "See argparse command in comments above. VideoMAE doesn't use YAML configs."

@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 62856,
+  "n_classes": 2,
+  "AUROC_macro": 0.6069,
+  "accuracy": 0.9692,
+  "F1_macro": 0.4932,
+  "confusion_matrix": [
+    [
+      60919,
+      62
+    ],
+    [
+      1873,
+      2
+    ]
+  ],
+  "class_distribution": {
+    "0": 60981,
+    "1": 1875
+  },
+  "file": "uhn/disease_amyloidosis-predavg-echojepa-b.csv"
+}

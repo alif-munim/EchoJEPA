@@ -4,7 +4,7 @@
 
 See `inference-tracker-additional.md` for EchoJEPA-B, EchoJEPA-L-K, and EchoJEPA-L.
 
-Last updated: 2026-04-12
+Last updated: 2026-04-12 18:50 UTC
 
 ## Overview
 
@@ -148,8 +148,8 @@ For classification, average the probability vectors per study, then take argmax 
 | disease_myxomatous_mv | ❌ | ❌ | ❌ |
 | disease_rheumatic_mv | ❌ | ❌ | ❌ |
 | disease_stemi | ❌ | ❌ | ❌ |
-| lvef | ❌ | ❌ | ❌ |
-| mr_severity | ❌ | ❌ | ❌ |
+| lvef | ⏳ | ⏳ | ⏳ |
+| mr_severity | ⏳ | ⏳ | ⏳ |
 | mv_ee_medial | ❌ | ❌ | ❌ |
 | rv_fac | ❌ | ❌ | ❌ |
 | rv_function | ❌ | | |
@@ -163,7 +163,7 @@ For classification, average the probability vectors per study, then take argmax 
 |------|---|-----|-----|
 | lvef_structured | ✅ | ❌ | ❌ |
 
-**Total needed:** 57 GPU inference runs (55 UHN + 2 MIMIC).
+**Total needed:** 57 GPU inference runs (55 UHN + 2 MIMIC). 6 in progress (⏳ = LVEF + MR severity, job 16 on echojepa-h100-neurips, resubmitted 2026-04-12 after fixing PanEcho content files + time limit).
 
 Each run requires:
 - Encoder checkpoint (on S3/EFS)
@@ -172,6 +172,19 @@ Each run requires:
 - Config YAML with `val_only: true` and predavg settings
 
 Estimated time: ~5-30 min per run depending on test set size. Total ~6-8 hours on 8 GPUs.
+
+### Active Jobs
+
+| Job ID | Cluster | Tasks | Models | Status | Script |
+|--------|---------|-------|--------|--------|--------|
+| 16 | echojepa-h100-neurips | lvef, mr_severity | G, EP, Pan | RUNNING (2026-04-12 18:47 UTC) | `scripts/nmed_lvef_mr_predavg.sbatch` |
+
+6-way parallel: G on 2 GPUs per task, EP/Pan on 1 GPU each. 8-hour time limit. Results upload to `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/nmed_predavg/results/uhn/`.
+
+**Job history:**
+- Job 10: First attempt. Failed — `CONDA_PREFIX: unbound variable` (`set -u` before conda activate)
+- Job 14: Second attempt. PanEcho runs failed (missing `tasks.pkl` content files). G-MR ETA ~6.4h exceeded 3h SLURM time limit. Cancelled.
+- Job 16: All fixes applied — PanEcho content files on S3 + download step in sbatch, 8h time limit, `set -u` after activate. All 6 runs confirmed healthy (probes loaded, S3 streaming started).
 
 ---
 

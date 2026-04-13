@@ -1,0 +1,82 @@
+\setlength{\tabcolsep}{.24cm}
+\begin{table*}[!t]
+\begin{tabular}{l r  l l l}
+Method & Acc. & Paradigm 
+	%& \todo{WHAT ABOUT DELETING THIS COLUMNApplicability} 
+	& Extra Complexity & Realistic Eval.
+\\ \hline
+Fix-A-Step (ours) 
+	& 85.4 % 85.45 verified in google doc, MT_CombinedAugGrad
+	& OOD \emph{helpful}
+	%& any $\ell^U$
+	& none
+	& Heart2Heart
+\\
+TOOR {\tiny \citep{huangTheyAreNot2022}}
+	& $*$78.5 % read from Fig 4 of Huang et al TOOR paper
+	& OOD \emph{helpful}
+	%& any $\ell^U$
+	& Separate NN for OOD discrimination
+	& none
+\\
+CL {\tiny{\citep{cascante-bonillaCurriculumLabelingRevisiting2021}}}
+	& $*$83.0
+	& OOD harmful % Quote from paper: "We conjecture that our self-pacing curriculum is key to this scenario, where the adaptive thresholding scheme could help filter the out-of-distribution unlabeled samples during training"
+	%& pseudo-label $\ell^U$
+	& Multiple rounds of training, each from scratch
+	& none
+\\
+OpenMatch {\tiny{\citep{saitoOpenMatchOpensetConsistency2021}}}
+	& 82.3 % 82.25
+	& OOD harmful
+	%& \todo{FixMatch only?}
+	& Extra one-vs-all OOD detector / class
+	& none
+\\
+DS3L {\tiny \citep{guoSafeDeepSemiSupervised2020}}
+	& 74.7 %74.7 from our implementation 
+	% in google doc, Row "DS3L + MT (reported)"
+	% sanity check: looks like 77.5 in their Fig 6
+	& OOD harmful
+	%& any $\ell^U$
+	& 3x train time due to bilevel optimization
+	& none
+\\
+MTCF {\tiny \citep{yuMultiTaskCurriculumFramework2020}}
+	& 77.0 % read from our Fig 1 (after adding cosine LR, 68.0-->77.0)
+	& OOD harmful
+	%& any $\ell^U$
+	& Extra OOD head, curriculum learning
+	& none
+\\
+UASD {\tiny \citep{chenSemiSupervisedLearningClass2020}}
+	& $*$78.2 % in google doc, row "UASD Figure 3 left (reported)"
+	& OOD harmful
+	%& fixed $\ell^U$
+	& none
+	& none
+\\
+Safe-Student
+	{\tiny{\citep{heSafeStudentSafeDeep2022}}}
+	& $^{\dagger}$n/a
+	& OOD harmful
+	%& \todo{FILL} %their objective eq11 doesnt fit our eq1?
+	& 2 NNs (teacher \& student), extra KL loss
+	& none
+\end{tabular}
+\caption{Comparison of related work on open-set/safe SSL.
+\emph{Acc} means accuracy on the CIFAR-10 6-animal task (defined in Sec.~\ref{sec:results-cifar}) with 400 labeled examples/class and an open-set unlabeled set (50\% mismatch).
+Fix-A-Step uses a FixMatch base model, as does OpenMatch.
+%, or MeanTeacher for older methods.
+Numbers come from our implementation except if marked \textbf{*} (copied from cited paper) or $^\dagger$ (not assessed in cited paper).
+%\emph{Time:} Runtime for training on 6-animal task.
+\emph{Paradigm:} how each method treats out-of-distribution (OOD) images in the unlabeled set, broadly either possibly helpful or likely harmful (and thus in need of filtering).
+%\emph{Applicability:} whether the method might be possible with different unlabeled losses $\ell^U$.
+\emph{Extra Complexity:} additional neural networks, layers, or runtime concerns that exceed a standard SSL deep classifier like MixMatch.
+\emph{Realistic Eval.:} evaluation beyond ``artificial'' unlabeled sets from common datasets like CIFAR, ImageNet, etc.
+%$\dagger$: \todo{DELETE? OpenMatch has no realistic SSL evaluation, but evaluates OOD detection on fine-grained data (e.g. breeds of dog).}
+%\todo{CITE} and Dogs\todo{CITE}.
+}%endcaption	
+\vspace{-0.1cm}
+\label{tab:related_work_comparison}
+\end{table*}

@@ -1,0 +1,27 @@
+Semi-supervised learning (SSL) promises improved accuracy compared to training classifiers on small labeled datasets by also training on many unlabeled images.
+In real applications like medical imaging, unlabeled data will be collected for expediency and thus \emph{uncurated}: possibly different from the labeled set in classes or features.
+Unfortunately, modern deep SSL often makes accuracy worse when given uncurated unlabeled data.
+Recent complex remedies try to detect out-of-distribution unlabeled images and then discard or downweight them.
+Instead, we introduce Fix-A-Step, a simpler procedure that views all uncurated unlabeled images as potentially helpful.
+Our first insight is that even uncurated images can yield useful augmentations of labeled data.
+Second, we modify gradient descent updates to prevent optimizing a multi-task SSL loss from hurting labeled-set accuracy.
+Fix-A-Step can ``repair'' many common deep SSL methods, improving accuracy on CIFAR benchmarks across all tested methods and levels of artificial class mismatch.
+On a new medical SSL benchmark called Heart2Heart, Fix-A-Step can learn from 353,500 truly uncurated ultrasound images to deliver gains that generalize across hospitals.
+
+%% HZ says: \todo{or say "bypass the OOD detection step"}
+%% MCH: decent idea, not sure its worth changing this late in game... we can discuss
+
+%Semi-supervised learning (SSL) promises gains in accuracy compared to training classifiers on small labeled datasets by also training on many unlabeled images.
+%In realistic applications like medical imaging, unlabeled sets will be collected for expediency and thus \emph{uncurated}: possibly different from the labeled set in represented classes or class frequencies.
+%Unfortunately, modern deep SSL often makes accuracy worse when given uncurated unlabeled sets.
+%Recent remedies suggest filtering approaches that detect out-of-distribution unlabeled examples and then discard or downweight them.
+%Instead, we view all unlabeled examples as potentially helpful.
+%We introduce a procedure called Fix-A-Step that can improve heldout accuracy of common deep SSL methods despite lack of curation. \todo{Our procedure is based on the key insight that \textit{unlabeled data, even OOD}, can be used to inject valuable noise to the labeled data}.
+%\todo{Another innovation is a modification of gradient descent updates to prevent following the multi-task SSL loss from hurting labeled-set accuracy.}
+%Though our method is simpler than alternatives, we show consistent accuracy gains on CIFAR-10 and CIFAR-100 benchmarks across all tested levels of artificial contamination for the unlabeled sets.
+%We further suggest a real medical benchmark for SSL: recognizing the view type of ultrasound images of the heart.
+%Our method can learn from 353,500 truly uncurated unlabeled images to deliver gains that generalize across hospitals.
+
+
+%We introduce a procedure called Fix-A-Step 
+%\todo{(Fix via Augmentation and Step direction modification)} that can improve heldout accuracy of common deep SSL methods despite lack of curation.

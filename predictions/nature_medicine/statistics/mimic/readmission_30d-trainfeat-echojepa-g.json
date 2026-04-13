@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 162116,
+  "n_classes": 2,
+  "AUROC_macro": 0.5846,
+  "accuracy": 0.7742,
+  "F1_macro": 0.4573,
+  "confusion_matrix": [
+    [
+      124705,
+      1158
+    ],
+    [
+      35440,
+      813
+    ]
+  ],
+  "class_distribution": {
+    "0": 125863,
+    "1": 36253
+  },
+  "file": "mimic/readmission_30d-trainfeat-echojepa-g.csv"
+}

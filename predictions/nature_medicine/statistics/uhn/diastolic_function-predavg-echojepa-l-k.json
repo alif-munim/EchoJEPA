@@ -1,0 +1,41 @@
+{
+  "type": "classification",
+  "n": 139920,
+  "n_classes": 4,
+  "AUROC_macro": 0.8083,
+  "accuracy": 0.6178,
+  "F1_macro": 0.4601,
+  "confusion_matrix": [
+    [
+      7038,
+      1308,
+      851,
+      932
+    ],
+    [
+      19095,
+      69449,
+      16941,
+      6777
+    ],
+    [
+      1546,
+      2768,
+      1877,
+      862
+    ],
+    [
+      896,
+      613,
+      889,
+      8078
+    ]
+  ],
+  "class_distribution": {
+    "0": 10129,
+    "1": 112262,
+    "2": 7053,
+    "3": 10476
+  },
+  "file": "uhn/diastolic_function-predavg-echojepa-l-k.csv"
+}

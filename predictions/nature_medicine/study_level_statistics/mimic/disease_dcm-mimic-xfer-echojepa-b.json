@@ -1,0 +1,25 @@
+{
+  "file": "mimic/disease_dcm-mimic-xfer-echojepa-b",
+  "best_head": 5,
+  "type": "classification",
+  "n_clips": 39688,
+  "n_studies": 540,
+  "n_classes": 2,
+  "AUROC": 0.6771,
+  "accuracy": 0.8722,
+  "F1_macro": 0.4659,
+  "confusion_matrix": [
+    [
+      471,
+      0
+    ],
+    [
+      69,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 471,
+    "1": 69
+  }
+}

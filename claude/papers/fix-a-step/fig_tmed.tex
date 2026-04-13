@@ -1,0 +1,23 @@
+\begin{figure*}[!t]
+\centering
+\begin{tabular}{c c c}
+TMED2 (Boston, USA; 4 views) & Transfer to Unity (UK; 3 views) & Transfer to CAMUS (France, 2 views)
+\\
+\includegraphics[width=.32\textwidth]{figures/TMED2_withOPMatch_ChangeFont.pdf}
+&
+\includegraphics[width=.32\textwidth]{figures/UNITY_withOPMatch_ChangeFont.pdf}
+&
+\includegraphics[width=.32\textwidth]{figures/CAMUS_withOPMatch_ChangeFont.pdf}
+\end{tabular}
+\caption{
+\textbf{Balanced accuracy for echocardiogram view classification (Heart2Heart benchmark).}
+Methods are trained on TMED-2 images to distinguish 4 view types: PLAX, PSAX, A2C, and A4C.
+TMED2's 353,500 image unlabeled set is \emph{uncurated}, representing a superset of possible view types including the 4 known classes.
+Bar height gives mean balanced accuracy across 3 models trained on different splits of TMED-2 (error bars indicate min/max).
+\emph{Left:} Evaluation on heldout TMED-2 images.
+\emph{Center:} Evaluation of TMED-2-trained classifiers on PLAX, A2C, and A4C images from Unity dataset (17 sites in the UK). %7513
+\emph{Right:} Evaluation of TMED-2-trained classifiers on A2C and A4C views from CAMUS dataset (1 site in France).
+% representing A2C and A4C views from patients at a French hospital.
+}%endcaption	
+\label{fig:results-heart2heart-view}
+\end{figure*}

@@ -1,0 +1,41 @@
+{
+  "type": "classification",
+  "n": 139920,
+  "n_classes": 4,
+  "AUROC_macro": 0.8065,
+  "accuracy": 0.617,
+  "F1_macro": 0.4513,
+  "confusion_matrix": [
+    [
+      7134,
+      1584,
+      762,
+      649
+    ],
+    [
+      19663,
+      69521,
+      14930,
+      8148
+    ],
+    [
+      1598,
+      2736,
+      1746,
+      973
+    ],
+    [
+      1178,
+      818,
+      555,
+      7925
+    ]
+  ],
+  "class_distribution": {
+    "0": 10129,
+    "1": 112262,
+    "2": 7053,
+    "3": 10476
+  },
+  "file": "uhn/diastolic_function-predavg-echoprime.csv"
+}

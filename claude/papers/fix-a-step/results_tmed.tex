@@ -1,0 +1,78 @@
+%\subsection{Uncurated SSL for Echocardiogram Views}
+
+
+%%% FIG: TMED2
+\input{fig_tmed.tex}
+
+In pursuit of realistic evaluation, we consider a reproducible, clinically-relevant SSL task that we call \emph{Heart2Heart}.
+% using open access medical data.
+The key question is this: can we transfer classifiers trained on ultrasound images of the heart from one hospital system to new heart images from unrelated hospitals in other countries.
+For training, we use the \emph{Tufts Medical Echocardiogram Dataset 2} (TMED-2)~\citep{huangTMEDDatasetSemiSupervised2022,huangNewSemisupervisedLearning2021}, collected in Boston, USA.
+TMED-2 has a small labeled set of echocardiogram studies and a larger \emph{uncurated} unlabeled set.
+% of 5486 studies (353,500 images).
+Thanks to common device standards, these images are interoperable with two other datasets of ``echo'' images: \emph{Unity} from 17 hospitals in the UK~\citep{howardAutomatedLeftVentricular2021} and \emph{CAMUS} from a hospital in France~\citep{leclercDeepLearningSegmentation2019}.
+We emphasize that all datasets are deidentified and accessible to any academic researcher.
+% for non-commercial purposes.
+
+% MCH: agree we can cut this
+%\todo{IS THIS SENTENCE REDUNDANT SINCE WE ALREADY SAID ABOUT RELEASING CODE. We will release code so this \emph{Heart2Heart} evaluation of SSL can be readily reproduced for future SSL methods.}
+
+\textbf{Classification task: View type of 2D TTE image.}
+Trans-thoracic echocardiography (TTE) is a gold-standard way to non-invasively capture the heart's 3-dimensional anatomy for measurement and diagnosis.
+A human sonographer wields a handheld transducer over the patient’s chest at different angles in order to provide clear views of each facet of the heart.
+%We focus on \emph{2-dimensional} (2D) view types, leaving other modalities such as Doppler profiles or m-mode imaging for future work.
+A routine TTE scan of a patient, called a \emph{study}, produces many images (median=68, 10-90th percentile range=27-97 in TMED-2), each showing a canonical 2D view of the heart.
+No view type annotation is recorded with any image.
+In later analysis, clinicians manually search over all images to find a desired view type.
+Automated interpretation of echocardiograms must also be able to pick out specific view types before any useful measurements or diagnosis can be made, making \emph{view classification} a prediction task with potential clinical impact~\citep{madaniFastAccurateView2018,huangNewSemisupervisedLearning2021}.
+
+
+%This tedio difficulty motivates the need for a \emph{view classifier}. Can we reliably find the views relevant to AS from the dozens of images in a typical study?
+
+%\emph{multiple} short videos of the heart, each depicting a potentially different anatomical view throughout the cardiac cycle.
+%From each short video, we can extract a representative image.
+
+TMED-2 provides set of labeled images of four specific view types, known as PLAX, PSAX, A2C, and A4C, gathered from certified annotators.
+% at great expense.
+Reliably identifying these views would be particularly useful for key valve disease diagnostic tasks~\citep{huangNewSemisupervisedLearning2021, wessler2023automated}.
+TMED-2 also contains a truly \emph{uncurated} unlabeled set of 353,500 images from routine TTEs from 5486 patient-studies.
+At least 9 canonical view types frequently appear in routine TTEs~\citep{mitchellGuidelinesPerformingComprehensive2019}, so this unlabeled set should contain extra classes not in the labeled set. However, this view classification problem on TMED-2 is more than just ``open-set'' SSL, because TMED-2 labeled and unlabeled sets were not identically sampled from the same patient population, which leads to some modest feature differences. Unlabeled echos come from all available files for convenience, while the the labeled set deliberately oversamples patients with a valve disease called aortic stenosis (AS).
+About 50\% of all patients in the labeled set have severe AS, compared to less than 10\% in the general population.
+For severe AS patients, PLAX and PSAX images will show heavier calcification (thickening) of the aortic valve.
+
+\textbf{Protocol.} 
+Averaging over TMED-2's recommended 3 splits, 
+we train each SSL method on images from 56 labeled studies as well as all unlabeled studies (353,500 images). 
+We report \emph{balanced accuracy} on each split's test set of 120 studies ($\sim$2104 images).
+% per split).
+% count of the 3 different splits in TMED2 differ by less than 10\%, see \cite{huangTMEDDatasetSemiSupervised2022} for more details}.
+%To further assess generalization to new hospitals, we apply the classifier to two other public datasets that contain view-labels for echocardiograms, both gathered on a different continent than TMED.
+We then assess \emph{generalization} of these Boston-based classifiers to images from European hospitals.
+We report balanced accuracy on 7231 available PLAX, A2C, and A4C images from Unity,
+as well as all 2000 images (A2C and A4C views) in CAMUS.
+
+%\subsection{Results: Heart2Heart View Classification}
+\label{sec:results-tmed}
+\textbf{Results on Heart2Heart.}
+Fig.~\ref{fig:results-heart2heart-view} shows classifier performance on held-out data from all 3 datasets.
+TMED-2 evaluations (first panel) show that our Fix-A-Step procedure yields gains across all tested SSL methods (Pi-Model, VAT, FixMatch). Fix-A-Step helps all three methods convincingly outperform the labeled-only baseline.
+Compared to OpenMatch, a state-of-the-art safe SSL method, Fix-A-Step yields better accuracy while being much simpler. 
+%Similar to our finding from CIFAR-10 experiment, w
+We also find that Fix-A-Step delivers competitive accuracy considerably faster ($\sim$2-3x speedup, See App. ~\ref{tab:TMED2_runtime_acc}).
+
+% only do the SSL methods with Fix-a-Step perform significantly better than the fully supervised baseline, but all three SSL methods with Fix-a-Step outperform the original method without the addition of Fix-a-Step. 
+
+External evaluation on Unity and CAMUS (Fig.~\ref{fig:results-heart2heart-view} panels 2-3) show that these gains transfer to new hospitals.
+Each tested SSL method performs better with Fix-A-Step than standard training.
+Across splits we see larger performance variation on Unity and CAMUS than on TMED-2, which highlights the difficulty of generalizing across hospitals as well as importance of external validation. 
+All methods perform worse on CAMUS than other datasets; see App.~\ref{app:heart2heart} for further investigations.
+Overall, this Heart2Heart benchmark task shows the promise of Fix-A-Step to deliver gains from unlabeled data that generalize better than alternatives.
+
+% MCH :cut for space
+%\todo{Note that our proposed Heart2Heart benchmark is not only suitable for studying class contamination in SSL but aslo the class imbalance problem ~\citep{kim2020distribution,guo2022class, lai2022smoothed}, since the uncurated TMED2 unlabeled set contains not only unknown classes but also classes with imbalanced frequencies (even extreme imbalance). With such benchmark we can more reliable measure whether the class-imbalanced algorithms generalize.}
+%Thus, Fix-a-Step can help the model generalize to datasets that our model has not been trained on. 
+
+%For a discussion on reasons why our model underperforms on CAMUS in general and the data transformation experiments we did, look in appendix \todo{TODO}
+
+
+

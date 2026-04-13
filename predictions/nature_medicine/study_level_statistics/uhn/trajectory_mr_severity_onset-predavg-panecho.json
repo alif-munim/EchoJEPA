@@ -1,0 +1,25 @@
+{
+  "file": "uhn/trajectory_mr_severity_onset-predavg-panecho",
+  "best_head": 9,
+  "type": "classification",
+  "n_clips": 292896,
+  "n_studies": 5932,
+  "n_classes": 2,
+  "AUROC": 0.688,
+  "accuracy": 0.9193,
+  "F1_macro": 0.5426,
+  "confusion_matrix": [
+    [
+      5418,
+      253
+    ],
+    [
+      226,
+      35
+    ]
+  ],
+  "class_distribution": {
+    "0": 5671,
+    "1": 261
+  }
+}

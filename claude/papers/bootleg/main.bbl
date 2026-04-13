@@ -1,0 +1,520 @@
+\begin{thebibliography}{83}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Assran et~al.(2023)Assran, Duval, Misra, Bojanowski, Vincent, Rabbat, LeCun, and Ballas]{assran2023ijepa}
+Mahmoud Assran, Quentin Duval, Ishan Misra, Piotr Bojanowski, Pascal Vincent, Michael Rabbat, Yann LeCun, and Nicolas Ballas.
+\newblock Self-supervised learning from images with a joint-embedding predictive architecture.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp.\  15619--15629, 2023.
+\newblock \doi{10.1109/CVPR52729.2023.01499}.
+
+\bibitem[Assran et~al.(2025)Assran, Bardes, Fan, Garrido, Howes, Komeili, Muckley, Rizvi, Roberts, Sinha, Zholus, Arnaud, Gejji, Martin, Robert~Hogan, Dugas, Bojanowski, Khalidov, Labatut, Massa, Szafraniec, Krishnakumar, Li, Ma, Chandar, Meier, LeCun, Rabbat, and Ballas]{assran2025vjepa2}
+Mahmoud Assran, Adrien Bardes, David Fan, Quentin Garrido, Russell Howes, Mojtaba Komeili, Matthew Muckley, Ammar Rizvi, Claire Roberts, Koustuv Sinha, Artem Zholus, Sergio Arnaud, Abha Gejji, Ada Martin, Francois Robert~Hogan, Daniel Dugas, Piotr Bojanowski, Vasil Khalidov, Patrick Labatut, Francisco Massa, Marc Szafraniec, Kapil Krishnakumar, Yong Li, Xiaodong Ma, Sarath Chandar, Franziska Meier, Yann LeCun, Michael Rabbat, and Nicolas Ballas.
+\newblock {V-JEPA~2}: Self-supervised video models enable understanding, prediction and planning.
+\newblock \emph{arXiv preprint arXiv:2506.09985}, 2025.
+\newblock \doi{10.48550/arxiv.2506.09985}.
+
+\bibitem[Bachmann et~al.(2022)Bachmann, Mizrahi, Atanov, and Zamir]{bachmann2022multimae}
+Roman Bachmann, David Mizrahi, Andrei Atanov, and Amir Zamir.
+\newblock {MultiMAE}: Multi-modal multi-task masked autoencoders.
+\newblock In Shai Avidan, Gabriel Brostow, Moustapha Ciss{\'e}, Giovanni~Maria Farinella, and Tal Hassner (eds.), \emph{Computer Vision -- ECCV 2022}, pp.\  348--367, Cham, 2022. Springer Nature Switzerland.
+\newblock ISBN 978-3-031-19836-6.
+\newblock \doi{10.1007/978-3-031-19836-6\_20}.
+\newblock URL \url{https://www.ecva.net/papers/eccv_2022/papers_ECCV/html/7102_ECCV_2022_paper.php}.
+
+\bibitem[Baevski et~al.(2022)Baevski, Hsu, Xu, Babu, Gu, and Auli]{baevski2022data2vec}
+Alexei Baevski, Wei-Ning Hsu, Qiantong Xu, Arun Babu, Jiatao Gu, and Michael Auli.
+\newblock data2vec: A general framework for self-supervised learning in speech, vision and language.
+\newblock In Kamalika Chaudhuri, Stefanie Jegelka, Le~Song, Csaba Szepesvari, Gang Niu, and Sivan Sabato (eds.), \emph{Proceedings of the 39th International Conference on Machine Learning}, volume 162 of \emph{Proceedings of Machine Learning Research}, pp.\  1298--1312. PMLR, 17--23 Jul 2022.
+\newblock URL \url{https://proceedings.mlr.press/v162/baevski22a.html}.
+
+\bibitem[Baevski et~al.(2023)Baevski, Babu, Hsu, and Auli]{baevski2023data2vec2}
+Alexei Baevski, Arun Babu, Wei-Ning Hsu, and Michael Auli.
+\newblock Efficient self-supervised learning with contextualized target representations for vision, speech and language.
+\newblock In Andreas Krause, Emma Brunskill, Kyunghyun Cho, Barbara Engelhardt, Sivan Sabato, and Jonathan Scarlett (eds.), \emph{Proceedings of the 40th International Conference on Machine Learning}, volume 202 of \emph{Proceedings of Machine Learning Research}, pp.\  1416--1429. PMLR, 23--29 Jul 2023.
+\newblock URL \url{https://proceedings.mlr.press/v202/baevski23a.html}.
+
+\bibitem[Bao et~al.(2022)Bao, Dong, Piao, and Wei]{bao2021beit}
+Hangbo Bao, Li~Dong, Songhao Piao, and Furu Wei.
+\newblock {BEiT}: {BERT} pre-training of image transformers.
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+\newblock URL \url{https://openreview.net/forum?id=p-BhZSz59o4}.
+
+\bibitem[Bardes et~al.(2022)Bardes, Ponce, and LeCun]{bardes2021vicreg}
+Adrien Bardes, Jean Ponce, and Yann LeCun.
+\newblock {VICR}eg: Variance-invariance-covariance regularization for self-supervised learning.
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+\newblock URL \url{https://openreview.net/forum?id=xm6YD62D1Ub}.
+
+\bibitem[Bardes et~al.(2024)Bardes, Garrido, Ponce, Chen, Rabbat, LeCun, Assran, and Ballas]{bardes2024vjepa}
+Adrien Bardes, Quentin Garrido, Jean Ponce, Xinlei Chen, Michael Rabbat, Yann LeCun, Mido Assran, and Nicolas Ballas.
+\newblock Revisiting feature prediction for learning visual representations from video.
+\newblock \emph{Transactions on Machine Learning Research}, 2024.
+\newblock ISSN 2835-8856.
+\newblock \doi{10.48550/arxiv.2404.08471}.
+\newblock Featured Certification.
+
+\bibitem[Bau et~al.(2017)Bau, Zhou, Khosla, Oliva, and Torralba]{bau2017network}
+David Bau, Bolei Zhou, Aditya Khosla, Aude Oliva, and Antonio Torralba.
+\newblock Network dissection: Quantifying interpretability of deep visual representations.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp.\  3319--3327, 2017.
+\newblock \doi{10.1109/CVPR.2017.354}.
+
+\bibitem[Bolya et~al.(2025)Bolya, Huang, Sun, Cho, Madotto, Wei, Ma, Zhi, Rajasegaran, Rasheed, Wang, Monteiro, Xu, Dong, Ravi, Li, Dollar, and Feichtenhofer]{bolya2025perception}
+Daniel Bolya, Po-Yao Huang, Peize Sun, Jang~Hyun Cho, Andrea Madotto, Chen Wei, Tengyu Ma, Jiale Zhi, Jathushan Rajasegaran, Hanoona~Abdul Rasheed, Junke Wang, Marco Monteiro, Hu~Xu, Shiyu Dong, Nikhila Ravi, Shang-Wen Li, Piotr Dollar, and Christoph Feichtenhofer.
+\newblock Perception encoder: The best visual embeddings are not at the output of the network.
+\newblock In \emph{The Thirty-ninth Annual Conference on Neural Information Processing Systems}, 2025.
+\newblock URL \url{https://openreview.net/forum?id=INqBOmwIpG}.
+
+\bibitem[Caron et~al.(2020)Caron, Misra, Mairal, Goyal, Bojanowski, and Joulin]{Caron2020_SwAV}
+Mathilde Caron, Ishan Misra, Julien Mairal, Priya Goyal, Piotr Bojanowski, and Armand Joulin.
+\newblock Unsupervised learning of visual features by contrasting cluster assignments.
+\newblock In H.~Larochelle, M.~Ranzato, R.~Hadsell, M.F. Balcan, and H.~Lin (eds.), \emph{Advances in Neural Information Processing Systems}, volume~33, pp.\  9912--9924. Curran Associates, Inc., 2020.
+\newblock URL \url{https://proceedings.neurips.cc/paper_files/paper/2020/file/70feb62b69f16e0238f741fab228fec2-Paper.pdf}.
+
+\bibitem[Chen et~al.(2023)Chen, Zhang, Zhang, Wang, Lu, Guo, and Zhang]{chen2023pimae}
+Anthony Chen, Kevin Zhang, Renrui Zhang, Zihan Wang, Yuheng Lu, Yandong Guo, and Shanghang Zhang.
+\newblock {PiMAE}: Point cloud and image interactive masked autoencoders for 3d object detection.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp.\  5291--5301, 2023.
+\newblock \doi{10.1109/CVPR52729.2023.00512}.
+
+\bibitem[Chen et~al.(2025)Chen, Shukor, Moutakanni, Chung, Yu, Kasarla, Bang, Bolourchi, LeCun, and Fung]{chen2025vljepa}
+Delong Chen, Mustafa Shukor, Theo Moutakanni, Willy Chung, Jade Yu, Tejaswi Kasarla, Yejin Bang, Allen Bolourchi, Yann LeCun, and Pascale Fung.
+\newblock {VL-JEPA}: Joint embedding predictive architecture for vision-language.
+\newblock \emph{arXiv preprint arXiv:2512.10942}, 2025.
+\newblock \doi{10.48550/arxiv.2512.10942}.
+
+\bibitem[Chen et~al.(2020{\natexlab{a}})Chen, Kornblith, Norouzi, and Hinton]{chen2020simple}
+Ting Chen, Simon Kornblith, Mohammad Norouzi, and Geoffrey Hinton.
+\newblock A simple framework for contrastive learning of visual representations.
+\newblock In Hal~Daumé III and Aarti Singh (eds.), \emph{Proceedings of the 37th International Conference on Machine Learning}, volume 119 of \emph{Proceedings of Machine Learning Research}, pp.\  1597--1607. PMLR, 13--18 Jul 2020{\natexlab{a}}.
+\newblock URL \url{https://proceedings.mlr.press/v119/chen20j.html}.
+
+\bibitem[Chen \& He(2021)Chen and He]{Chen2021simsiam}
+Xinlei Chen and Kaiming He.
+\newblock Exploring simple siamese representation learning.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp.\  15745--15753, 2021.
+\newblock \doi{10.1109/CVPR46437.2021.01549}.
+
+\bibitem[Chen et~al.(2020{\natexlab{b}})Chen, Fan, Girshick, and He]{chen2020improved}
+Xinlei Chen, Haoqi Fan, Ross Girshick, and Kaiming He.
+\newblock Improved baselines with momentum contrastive learning.
+\newblock \emph{arXiv preprint arXiv:2003.04297}, 2020{\natexlab{b}}.
+\newblock \doi{10.48550/arxiv.2003.04297}.
+
+\bibitem[Chen et~al.(2021)Chen, Xie, and He]{chen2021empirical}
+Xinlei Chen, Saining Xie, and Kaiming He.
+\newblock An empirical study of training self-supervised vision transformers.
+\newblock In \emph{Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)}, pp.\  9620--9629, 2021.
+\newblock \doi{10.1109/ICCV48922.2021.00950}.
+
+\bibitem[Clark(2013)]{Clark2013}
+Andy Clark.
+\newblock Whatever next? {P}redictive brains, situated agents, and the future of cognitive science.
+\newblock \emph{Behav Brain Sci}, 36\penalty0 (3):\penalty0 181--204, May 2013.
+\newblock \doi{10.1017/s0140525x12000477}.
+
+\bibitem[Cong et~al.(2022)Cong, Khanna, Meng, Liu, Rozi, He, Burke, Lobell, and Ermon]{cong2022satmae}
+Yezhen Cong, Samar Khanna, Chenlin Meng, Patrick Liu, Erik Rozi, Yutong He, Marshall Burke, David Lobell, and Stefano Ermon.
+\newblock {SatMAE}: Pre-training transformers for temporal and multi-spectral satellite imagery.
+\newblock In S.~Koyejo, S.~Mohamed, A.~Agarwal, D.~Belgrave, K.~Cho, and A.~Oh (eds.), \emph{Advances in Neural Information Processing Systems}, volume~35, pp.\  197--211. Curran Associates, Inc., 2022.
+\newblock URL \url{https://proceedings.neurips.cc/paper_files/paper/2022/file/01c561df365429f33fcd7a7faa44c985-Paper-Conference.pdf}.
+
+\bibitem[Cordts et~al.(2016)Cordts, Omran, Ramos, Rehfeld, Enzweiler, Benenson, Franke, Roth, and Schiele]{Cordts2016_Cityscapes}
+Marius Cordts, Mohamed Omran, Sebastian Ramos, Timo Rehfeld, Markus Enzweiler, Rodrigo Benenson, Uwe Franke, Stefan Roth, and Bernt Schiele.
+\newblock The cityscapes dataset for semantic urban scene understanding.
+\newblock In \emph{Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)}, pp.\  3213--3223, June 2016.
+
+\bibitem[Darcet et~al.(2024)Darcet, Oquab, Mairal, and Bojanowski]{darcet2024registers}
+Timoth{\'e}e Darcet, Maxime Oquab, Julien Mairal, and Piotr Bojanowski.
+\newblock Vision transformers need registers.
+\newblock In \emph{The Twelfth International Conference on Learning Representations}, 2024.
+\newblock URL \url{https://openreview.net/forum?id=2dnO3LLiJ1}.
+
+\bibitem[Darcet et~al.(2025)Darcet, Baldassarre, Oquab, Mairal, and Bojanowski]{darcet2025capi}
+Timoth{\'e}e Darcet, Federico Baldassarre, Maxime Oquab, Julien Mairal, and Piotr Bojanowski.
+\newblock Cluster and predict latents patches for improved masked image modeling.
+\newblock \emph{Transactions on Machine Learning Research}, 2025.
+\newblock ISSN 2835-8856.
+\newblock URL \url{https://openreview.net/forum?id=Ycmz7qJxUQ}.
+
+\bibitem[Devlin et~al.(2019)Devlin, Chang, Lee, and Toutanova]{devlin-etal-2019-bert}
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova.
+\newblock {BERT}: Pre-training of deep bidirectional transformers for language understanding.
+\newblock In Jill Burstein, Christy Doran, and Thamar Solorio (eds.), \emph{Proceedings of the 2019 Conference of the North {A}merican Chapter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long and Short Papers)}, pp.\  4171--4186, Minneapolis, Minnesota, June 2019. Association for Computational Linguistics.
+\newblock \doi{10.18653/v1/N19-1423}.
+
+\bibitem[Dong et~al.(2023)Dong, Bao, Zhang, Chen, Zhang, Yuan, Chen, Wen, Yu, and Guo]{dong2023peco}
+Xiaoyi Dong, Jianmin Bao, Ting Zhang, Dongdong Chen, Weiming Zhang, Lu~Yuan, Dong Chen, Fang Wen, Nenghai Yu, and Baining Guo.
+\newblock {PeCo}: Perceptual codebook for {BERT} pre-training of vision transformers.
+\newblock In \emph{Proceedings of the AAAI Conference on Artificial Intelligence}, volume~37, pp.\  552--560, Jun 2023.
+\newblock \doi{10.1609/aaai.v37i1.25130}.
+
+\bibitem[Dong et~al.(2024)Dong, Li, Wu, Nguyen, Chong, Ji, Tong, Chen, and Zhou]{dong2024brainjepa}
+Zijian Dong, Ruilin Li, Yilei Wu, Thuan~Tinh Nguyen, Joanna Su~Xian Chong, Fang Ji, Nathanael Ren~Jie Tong, Christopher Li~Hsian Chen, and Juan~Helen Zhou.
+\newblock {Brain-JEPA}: Brain dynamics foundation model with gradient positioning and spatiotemporal masking.
+\newblock In A.~Globerson, L.~Mackey, D.~Belgrave, A.~Fan, U.~Paquet, J.~Tomczak, and C.~Zhang (eds.), \emph{Advances in Neural Information Processing Systems}, volume~37, pp.\  86048--86073. Curran Associates, Inc., 2024.
+\newblock \doi{10.52202/079017-2732}.
+\newblock URL \url{https://proceedings.neurips.cc/paper_files/paper/2024/file/9c3828adf1500f5de3c56f6550dfe43c-Paper-Conference.pdf}.
+
+\bibitem[Dosovitskiy et~al.(2021)Dosovitskiy, Beyer, Kolesnikov, Weissenborn, Zhai, Unterthiner, Dehghani, Minderer, Heigold, Gelly, Uszkoreit, and Houlsby]{dosovitskiy2021vit}
+Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg Heigold, Sylvain Gelly, Jakob Uszkoreit, and Neil Houlsby.
+\newblock An image is worth 16x16 words: Transformers for image recognition at scale.
+\newblock In \emph{International Conference on Learning Representations}, 2021.
+\newblock URL \url{https://openreview.net/forum?id=YicbFdNTTy}.
+
+\bibitem[Evci et~al.(2022)Evci, Dumoulin, Larochelle, and Mozer]{evci2022headtoe}
+Utku Evci, Vincent Dumoulin, Hugo Larochelle, and Michael~C. Mozer.
+\newblock {H}ead2{T}oe: Utilizing intermediate representations for better transfer learning.
+\newblock In Kamalika Chaudhuri, Stefanie Jegelka, Le~Song, Csaba Szepesvari, Gang Niu, and Sivan Sabato (eds.), \emph{Proceedings of the 39th International Conference on Machine Learning}, volume 162 of \emph{Proceedings of Machine Learning Research}, pp.\  6009--6033. PMLR, 17--23 Jul 2022.
+\newblock URL \url{https://proceedings.mlr.press/v162/evci22a.html}.
+
+\bibitem[Fei et~al.(2024)Fei, Fan, and Huang]{fei2024ajepa}
+Zhengcong Fei, Mingyuan Fan, and Junshi Huang.
+\newblock {A-JEPA}: Joint-embedding predictive architecture can listen.
+\newblock \emph{arXiv preprint arXiv:2311.15830}, 2024.
+\newblock \doi{10.48550/arxiv.2311.15830}.
+
+\bibitem[Friston(2005)]{friston2005}
+Karl Friston.
+\newblock A theory of cortical responses.
+\newblock \emph{Philosophical Transactions of the Royal Society B: Biological Sciences}, 360\penalty0 (1456):\penalty0 815--836, 2005.
+\newblock \doi{10.1098/rstb.2005.1622}.
+
+\bibitem[Friston \& Kiebel(2009)Friston and Kiebel]{Friston2009}
+Karl Friston and Stefan Kiebel.
+\newblock Predictive coding under the free-energy principle.
+\newblock \emph{Philos Trans R Soc Lond B Biol Sci}, 364\penalty0 (1521):\penalty0 1211--1221, May 2009.
+\newblock \doi{10.1098/rstb.2008.0300}.
+
+\bibitem[Fu et~al.(2025)Fu, Lian, Wang, Shi, Wang, Yala, Darrell, Efros, and Goldberg]{fu2025crossmae}
+Letian Fu, Long Lian, Renhao Wang, Baifeng Shi, XuDong Wang, Adam Yala, Trevor Darrell, Alexei~A. Efros, and Ken Goldberg.
+\newblock Rethinking patch dependence for masked autoencoders.
+\newblock \emph{Transactions on Machine Learning Research}, 2025.
+\newblock ISSN 2835-8856.
+\newblock URL \url{https://openreview.net/forum?id=JT2KMuo2BV}.
+
+\bibitem[Fuller et~al.(2022)Fuller, Millard, and Green]{fuller2022satvit}
+Anthony Fuller, Koreen Millard, and James~R. Green.
+\newblock {SatViT}: Pretraining transformers for earth observation.
+\newblock \emph{IEEE Geoscience and Remote Sensing Letters}, 19:\penalty0 1--5, 2022.
+\newblock \doi{10.1109/LGRS.2022.3201489}.
+
+\bibitem[Grill et~al.(2020)Grill, Strub, Altch\'{e}, Tallec, Richemond, Buchatskaya, Doersch, Avila~Pires, Guo, Gheshlaghi~Azar, Piot, kavukcuoglu, Munos, and Valko]{grill2020bootstrap}
+Jean-Bastien Grill, Florian Strub, Florent Altch\'{e}, Corentin Tallec, Pierre Richemond, Elena Buchatskaya, Carl Doersch, Bernardo Avila~Pires, Zhaohan Guo, Mohammad Gheshlaghi~Azar, Bilal Piot, koray kavukcuoglu, Remi Munos, and Michal Valko.
+\newblock Bootstrap your own latent - a new approach to self-supervised learning.
+\newblock In H.~Larochelle, M.~Ranzato, R.~Hadsell, M.F. Balcan, and H.~Lin (eds.), \emph{Advances in Neural Information Processing Systems}, volume~33, pp.\  21271--21284. Curran Associates, Inc., 2020.
+\newblock URL \url{https://proceedings.neurips.cc/paper_files/paper/2020/file/f3ada80d5c4ee70142b17b8192b2958e-Paper.pdf}.
+
+\bibitem[Hachana \& Rasheed(2025)Hachana and Rasheed]{hachana2025using}
+Rafik Hachana and Bader Rasheed.
+\newblock Using a joint-embedding predictive architecture for symbolic music understanding.
+\newblock In \emph{AI for Music Workshop}, 2025.
+\newblock URL \url{https://openreview.net/forum?id=lieErtGZb6}.
+
+\bibitem[He et~al.(2022)He, Chen, Xie, Li, Doll{\'a}r, and Girshick]{he2022masked}
+Kaiming He, Xinlei Chen, Saining Xie, Yanghao Li, Piotr Doll{\'a}r, and Ross Girshick.
+\newblock Masked autoencoders are scalable vision learners.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp.\  15979--15988, 2022.
+\newblock \doi{10.1109/CVPR52688.2022.01553}.
+
+\bibitem[Hinojosa et~al.(2025)Hinojosa, Liu, and Ghanem]{hinojosa2024colormae}
+Carlos Hinojosa, Shuming Liu, and Bernard Ghanem.
+\newblock {ColorMAE}: Exploring data-independent masking strategies in masked autoencoders.
+\newblock In Ale{\v{s}} Leonardis, Elisa Ricci, Stefan Roth, Olga Russakovsky, Torsten Sattler, and G{\"u}l Varol (eds.), \emph{Computer Vision -- ECCV 2024}, pp.\  432--449, Cham, 2025. Springer Nature Switzerland.
+\newblock ISBN 978-3-031-72661-3.
+\newblock \doi{10.1007/978-3-031-72661-3\_25}.
+\newblock URL \url{https://www.ecva.net/papers/eccv_2024/papers_ECCV/html/3072_ECCV_2024_paper.php}.
+
+\bibitem[Horikawa \& Kamitani(2017)Horikawa and Kamitani]{Horikawa2017}
+Tomoyasu Horikawa and Yukiyasu Kamitani.
+\newblock Generic decoding of seen and imagined objects using hierarchical visual features.
+\newblock \emph{Nature Communications}, 8\penalty0 (1):\penalty0 15037, May 2017.
+\newblock ISSN 2041-1723.
+\newblock \doi{10.1038/ncomms15037}.
+
+\bibitem[Hu et~al.(2022)Hu, Shen, Wallis, Allen-Zhu, Li, Wang, Wang, and Chen]{Hu2022_LoRA}
+Edward~J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu~Wang, and Weizhu Chen.
+\newblock {LoRA}: Low-rank adaptation of large language models.
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+\newblock URL \url{https://openreview.net/forum?id=nZeVKeeFYf9}.
+
+\bibitem[Huang et~al.(2022)Huang, Xu, Li, Baevski, Auli, Galuba, Metze, and Feichtenhofer]{huang2022audiomae}
+Po-Yao Huang, Hu~Xu, Juncheng Li, Alexei Baevski, Michael Auli, Wojciech Galuba, Florian Metze, and Christoph Feichtenhofer.
+\newblock Masked autoencoders that listen.
+\newblock In S.~Koyejo, S.~Mohamed, A.~Agarwal, D.~Belgrave, K.~Cho, and A.~Oh (eds.), \emph{Advances in Neural Information Processing Systems}, volume~35, pp.\  28708--28720. Curran Associates, Inc., 2022.
+\newblock URL \url{https://proceedings.neurips.cc/paper_files/paper/2022/file/b89d5e209990b19e33b418e14f323998-Paper-Conference.pdf}.
+
+\bibitem[{iNaturalist} 2021 competition dataset()]{inaturalist21}
+{iNaturalist} 2021 competition dataset.
+\newblock {iNaturalist} 2021 competition dataset.
+\newblock ~\url{https://github.com/visipedia/inat_comp/tree/master/2021}, 2021.
+
+\bibitem[Keller \& Mrsic-Flogel(2018)Keller and Mrsic-Flogel]{Keller2018}
+Georg~B. Keller and Thomas~D. Mrsic-Flogel.
+\newblock Predictive processing: A canonical cortical computation.
+\newblock \emph{Neuron}, 100\penalty0 (2):\penalty0 424--435, Oct 2018.
+\newblock ISSN 0896-6273.
+\newblock \doi{10.1016/j.neuron.2018.10.003}.
+
+\bibitem[Kornblith et~al.(2019)Kornblith, Norouzi, Lee, and Hinton]{kornblith2019similarity}
+Simon Kornblith, Mohammad Norouzi, Honglak Lee, and Geoffrey Hinton.
+\newblock Similarity of neural network representations revisited.
+\newblock In \emph{Proceedings of the 36th International Conference on Machine Learning (ICML)}, pp.\  3519--3529, 2019.
+
+\bibitem[Lei et~al.(2025)Lei, Cheng, Qin, Wang, Huang, Gu, Wu, and Ji]{lei2025m3jepa}
+Hongyang Lei, Xiaolong Cheng, Qi~Qin, Dan Wang, Huazhen Huang, Qingqing Gu, Yetao Wu, and Luo Ji.
+\newblock M3-{JEPA}: Multimodal alignment via multi-gate {M}o{E} based on the joint-embedding predictive architecture.
+\newblock In \emph{Proceedings of the 42nd International Conference on Machine Learning (ICML)}. PMLR, 2025.
+\newblock URL \url{https://proceedings.mlr.press/v267/lei25b.html}.
+
+\bibitem[Lepori et~al.(2024)Lepori, Tartaglini, Vong, Serre, Lake, and Pavlick]{lepori2024beyond}
+Michael~A. Lepori, Alexa~R. Tartaglini, Wai~Keen Vong, Thomas Serre, Brenden~M. Lake, and Ellie Pavlick.
+\newblock Beyond the doors of perception: Vision transformers represent relations between objects.
+\newblock In A.~Globerson, L.~Mackey, D.~Belgrave, A.~Fan, U.~Paquet, J.~Tomczak, and C.~Zhang (eds.), \emph{Advances in Neural Information Processing Systems}, volume~37, pp.\  131503--131544. Curran Associates, Inc., 2024.
+\newblock \doi{10.52202/079017-4180}.
+
+\bibitem[Li et~al.(2023)Li, Rao, Pan, Wang, and Xu]{li2023ti}
+Zhe Li, Zhongwen Rao, Lujia Pan, Pengyun Wang, and Zenglin Xu.
+\newblock {Ti-MAE}: Self-supervised masked time series autoencoders.
+\newblock \emph{arXiv preprint arXiv:2301.08871}, 2023.
+\newblock \doi{10.48550/arxiv.2301.08871}.
+
+\bibitem[Mo \& Tong(2024)Mo and Tong]{mo2024connecting}
+Shentong Mo and Shengbang Tong.
+\newblock Connecting joint-embedding predictive architecture with contrastive self-supervised learning.
+\newblock In A.~Globerson, L.~Mackey, D.~Belgrave, A.~Fan, U.~Paquet, J.~Tomczak, and C.~Zhang (eds.), \emph{Advances in Neural Information Processing Systems}, volume~37, pp.\  2348--2377. Curran Associates, Inc., 2024.
+\newblock \doi{10.52202/079017-0077}.
+
+\bibitem[Nejad et~al.(2025)Nejad, Anastasiades, Hert{\"a}g, and Costa]{Nejad2025}
+Kevin~Kermani Nejad, Paul Anastasiades, Loreen Hert{\"a}g, and Rui~Ponte Costa.
+\newblock Self-supervised predictive learning accounts for cortical layer-specificity.
+\newblock \emph{Nature Communications}, 16\penalty0 (1):\penalty0 6178, Jul 2025.
+\newblock ISSN 2041-1723.
+\newblock \doi{10.1038/s41467-025-61399-5}.
+
+\bibitem[Nie et~al.(2023)Nie, Nguyen, Sinthong, and Kalagnanam]{nie2023a}
+Yuqi Nie, Nam~H. Nguyen, Phanwadee Sinthong, and Jayant Kalagnanam.
+\newblock A time series is worth 64 words: Long-term forecasting with transformers.
+\newblock In \emph{The Eleventh International Conference on Learning Representations}, 2023.
+\newblock URL \url{https://openreview.net/forum?id=Jbdc0vTOcol}.
+
+\bibitem[Oquab et~al.(2024)Oquab, Darcet, Moutakanni, Vo, Szafraniec, Khalidov, Fernandez, Haziza, Massa, El-Nouby, Assran, Ballas, Galuba, Howes, Huang, Li, Misra, Rabbat, Sharma, Synnaeve, Xu, Jegou, Mairal, Labatut, Joulin, and Bojanowski]{oquab2023dinov2}
+Maxime Oquab, Timoth{\'e}e Darcet, Th{\'e}o Moutakanni, Huy~V. Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez, Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, Mido Assran, Nicolas Ballas, Wojciech Galuba, Russell Howes, Po-Yao Huang, Shang-Wen Li, Ishan Misra, Michael Rabbat, Vasu Sharma, Gabriel Synnaeve, Hu~Xu, Herve Jegou, Julien Mairal, Patrick Labatut, Armand Joulin, and Piotr Bojanowski.
+\newblock {DINO}v2: Learning robust visual features without supervision.
+\newblock \emph{Transactions on Machine Learning Research}, 2024.
+\newblock ISSN 2835-8856.
+\newblock URL \url{https://openreview.net/forum?id=a68SUt6zFt}.
+\newblock Featured Certification.
+
+\bibitem[Park et~al.(2023)Park, Kim, Heo, Kim, and Yun]{park2023what}
+Namuk Park, Wonjae Kim, Byeongho Heo, Taekyung Kim, and Sangdoo Yun.
+\newblock What do self-supervised vision transformers learn?
+\newblock In \emph{The Eleventh International Conference on Learning Representations}, 2023.
+\newblock URL \url{https://openreview.net/forum?id=azCKuYyS74}.
+
+\bibitem[Raghu et~al.(2021)Raghu, Unterthiner, Kornblith, Zhang, and Dosovitskiy]{Raghu2021doViTsSeeCNNs}
+Maithra Raghu, Thomas Unterthiner, Simon Kornblith, Chiyuan Zhang, and Alexey Dosovitskiy.
+\newblock Do vision transformers see like convolutional neural networks?
+\newblock In M.~Ranzato, A.~Beygelzimer, Y.~Dauphin, P.S. Liang, and J.~Wortman Vaughan (eds.), \emph{Advances in Neural Information Processing Systems}, volume~34, pp.\  12116--12128. Curran Associates, Inc., 2021.
+\newblock URL \url{https://proceedings.neurips.cc/paper_files/paper/2021/file/652cf38361a209088302ba2b8b7f51e0-Paper.pdf}.
+
+\bibitem[Rao \& Ballard(1999)Rao and Ballard]{Rao1999}
+Rajesh P.~N. Rao and Dana~H. Ballard.
+\newblock Predictive coding in the visual cortex: a functional interpretation of some extra-classical receptive-field effects.
+\newblock \emph{Nature Neuroscience}, 2\penalty0 (1):\penalty0 79--87, Jan 1999.
+\newblock ISSN 1546-1726.
+\newblock \doi{10.1038/4580}.
+
+\bibitem[Raugel et~al.(2025)Raugel, Szafraniec, Vo, Couprie, Labatut, Bojanowski, Wyart, and King]{raugel2025disentanglingfactorsconvergencebrains}
+Joséphine Raugel, Marc Szafraniec, Huy~V. Vo, Camille Couprie, Patrick Labatut, Piotr Bojanowski, Valentin Wyart, and Jean-Rémi King.
+\newblock Disentangling the factors of convergence between brains and computer vision models.
+\newblock \emph{arXiv preprint arXiv:2508.18226}, 2025.
+\newblock \doi{10.48550/arxiv.2508.18226}.
+
+\bibitem[Riou et~al.(2024)Riou, Lattner, Hadjeres, Anslow, and Peeters]{Riou2024_StemJEPA}
+Alain Riou, Stefan Lattner, Ga{\"{e}}tan Hadjeres, Michael Anslow, and Geoffroy Peeters.
+\newblock {Stem-JEPA: A Joint-Embedding Predictive Architecture for Musical Stem Compatibility Estimation}.
+\newblock In \emph{Proceedings of the 25th International Society for Music Information Retrieval Conference}, San Francisco, nov 2024. ISMIR.
+
+\bibitem[Russakovsky et~al.(2015)Russakovsky, Deng, Su, Krause, Satheesh, Ma, Huang, Karpathy, Khosla, Bernstein, Berg, and Fei-Fei]{ImageNet}
+Olga Russakovsky, Jia Deng, Hao Su, Jonathan Krause, Sanjeev Satheesh, Sean Ma, Zhiheng Huang, Andrej Karpathy, Aditya Khosla, Michael Bernstein, Alexander~C. Berg, and Li~Fei-Fei.
+\newblock {ImageNet} large scale visual recognition challenge.
+\newblock \emph{International Journal of Computer Vision}, 115\penalty0 (3):\penalty0 211--252, Apr 2015.
+\newblock \doi{10.1007/s11263-015-0816-y}.
+
+\bibitem[Safari et~al.(2025)Safari, Arias, Lowe, Kari, Chang, and Taylor]{safari2025enhancingdnafoundationmodels}
+Monireh Safari, Pablo~Millan Arias, Scott~C. Lowe, Lila Kari, Angel~X. Chang, and Graham~W. Taylor.
+\newblock Enhancing {DNA} foundation models to address masking inefficiencies.
+\newblock \emph{arXiv preprint arXiv:2502.18405}, 2025.
+\newblock \doi{10.48550/arxiv.2502.18405}.
+
+\bibitem[Siméoni et~al.(2025)Siméoni, Vo, Seitzer, Baldassarre, Oquab, Jose, Khalidov, Szafraniec, Yi, Ramamonjisoa, Massa, Haziza, Wehrstedt, Wang, Darcet, Moutakanni, Sentana, Roberts, Vedaldi, Tolan, Brandt, Couprie, Mairal, Jégou, Labatut, and Bojanowski]{simeoni2025dinov3}
+Oriane Siméoni, Huy~V. Vo, Maximilian Seitzer, Federico Baldassarre, Maxime Oquab, Cijo Jose, Vasil Khalidov, Marc Szafraniec, Seungeun Yi, Michaël Ramamonjisoa, Francisco Massa, Daniel Haziza, Luca Wehrstedt, Jianyuan Wang, Timothée Darcet, Théo Moutakanni, Leonel Sentana, Claire Roberts, Andrea Vedaldi, Jamie Tolan, John Brandt, Camille Couprie, Julien Mairal, Hervé Jégou, Patrick Labatut, and Piotr Bojanowski.
+\newblock {DINO}v3.
+\newblock \emph{arXiv preprint arXiv:2508.10104}, 2025.
+\newblock \doi{10.48550/arxiv.2508.10104}.
+
+\bibitem[Strudel et~al.(2021)Strudel, Garcia, Laptev, and Schmid]{strudel2021segmenter}
+Robin Strudel, Ricardo Garcia, Ivan Laptev, and Cordelia Schmid.
+\newblock Segmenter: Transformer for semantic segmentation.
+\newblock In \emph{Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)}, pp.\  7242--7252, 2021.
+\newblock \doi{10.1109/ICCV48922.2021.00717}.
+
+\bibitem[Su et~al.(2024)Su, Ahmed, Lu, Pan, Bo, and Liu]{Su2024rope}
+Jianlin Su, Murtadha Ahmed, Yu~Lu, Shengfeng Pan, Wen Bo, and Yunfeng Liu.
+\newblock {RoFormer}: Enhanced transformer with rotary position embedding.
+\newblock \emph{Neurocomputing}, 568:\penalty0 127063, 2024.
+\newblock ISSN 0925-2312.
+\newblock \doi{10.1016/j.neucom.2023.127063}.
+
+\bibitem[Tang et~al.(2025)Tang, Gokce, Al-Karkari, Yamins, and Schrimpf]{Tang2025}
+Yingtian Tang, Abdulkadir Gokce, Khaled~Jedoui Al-Karkari, Daniel Yamins, and Martin Schrimpf.
+\newblock Many-two-one: Diverse representations across visual pathways emerge from a single objective.
+\newblock \emph{bioRxiv}, 2025.
+\newblock \doi{10.1101/2025.07.22.664908}.
+
+\bibitem[Thimonier et~al.(2025)Thimonier, Costa, Popineau, Rimmel, and Doan]{thimonier2025tjepa}
+Hugo Thimonier, Jos{\'e} Lucas De~Melo Costa, Fabrice Popineau, Arpad Rimmel, and Bich-Li{\^e}n Doan.
+\newblock T-{JEPA}: Augmentation-free self-supervised learning for tabular data.
+\newblock In \emph{The Thirteenth International Conference on Learning Representations}, 2025.
+\newblock URL \url{https://openreview.net/forum?id=gx3LMRB15C}.
+
+\bibitem[Tishby et~al.(1999)Tishby, Pereira, and Bialek]{tishby2000informationbottleneckmethod}
+Naftali Tishby, Fernando~C. Pereira, and William Bialek.
+\newblock The information bottleneck method.
+\newblock In \emph{Proceedings of the 37th Allerton Conference on Communication, Control, and Computing}, pp.\  368--377, 1999.
+\newblock \doi{10.48550/arXiv.physics/0004057}.
+
+\bibitem[Tuncay et~al.(2025)Tuncay, Labbé, Benetos, and Pellegrini]{tuncay2025audiojepa}
+Ludovic Tuncay, Etienne Labbé, Emmanouil Benetos, and Thomas Pellegrini.
+\newblock {Audio-JEPA}: Joint-embedding predictive architecture for audio representation learning.
+\newblock \emph{arXiv preprint arXiv:2507.02915}, 2025.
+\newblock \doi{10.48550/arxiv.2507.02915}.
+
+\bibitem[van~den Oord et~al.(2018)van~den Oord, Li, and Vinyals]{oord2018representation}
+Aaron van~den Oord, Yazhe Li, and Oriol Vinyals.
+\newblock Representation learning with contrastive predictive coding.
+\newblock \emph{arXiv preprint arXiv:1807.03748}, 2018.
+\newblock \doi{10.48550/arxiv.1807.03748}.
+
+\bibitem[Van~Horn et~al.(2018)Van~Horn, Mac~Aodha, Song, Cui, Sun, Shepard, Adam, Perona, and Belongie]{Horn2018_iNaturalist}
+Grant Van~Horn, Oisin Mac~Aodha, Yang Song, Yin Cui, Chen Sun, Alex Shepard, Hartwig Adam, Pietro Perona, and Serge Belongie.
+\newblock The {iNaturalist} species classification and detection dataset.
+\newblock In \emph{Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)}, pp.\  8769--8778, Los Alamitos, CA, USA, June 2018. IEEE Computer Society.
+\newblock \doi{10.1109/CVPR.2018.00914}.
+\newblock URL \url{https://openaccess.thecvf.com/content_cvpr_2018/papers/Van_Horn_The_INaturalist_Species_CVPR_2018_paper.pdf}.
+
+\bibitem[Venkataramanan et~al.(2025)Venkataramanan, Pariza, Salehi, Knobel, Gidaris, Ramzi, Bursuc, and Asano]{venkataramanan2025franca}
+Shashanka Venkataramanan, Valentinos Pariza, Mohammadreza Salehi, Lukas Knobel, Spyros Gidaris, Elias Ramzi, Andrei Bursuc, and Yuki~M. Asano.
+\newblock Franca: Nested matryoshka clustering for scalable visual representation learning.
+\newblock \emph{arXiv preprint arXiv:2507.14137}, 2025.
+\newblock \doi{10.48550/arxiv.2507.14137}.
+
+\bibitem[Vilas et~al.(2023)Vilas, Schauml\"{o}ffel, and Roig]{vilas2023analyzing}
+Martina~G. Vilas, Timothy Schauml\"{o}ffel, and Gemma Roig.
+\newblock Analyzing vision transformers for image classification in class embedding space.
+\newblock In A.~Oh, T.~Naumann, A.~Globerson, K.~Saenko, M.~Hardt, and S.~Levine (eds.), \emph{Advances in Neural Information Processing Systems}, volume~36, pp.\  40030--40041. Curran Associates, Inc., 2023.
+\newblock URL \url{https://proceedings.neurips.cc/paper_files/paper/2023/file/7dd309df03d37643b96f5048b44da798-Paper-Conference.pdf}.
+
+\bibitem[Wang et~al.(2023)Wang, Huang, Zhao, Tong, He, Wang, Wang, and Qiao]{wang2023videomaev2}
+Limin Wang, Bingkun Huang, Zhiyu Zhao, Zhan Tong, Yinan He, Yi~Wang, Yali Wang, and Yu~Qiao.
+\newblock {VideoMAE V2}: Scaling video masked autoencoders with dual masking.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp.\  14549--14560, 2023.
+\newblock \doi{10.1109/CVPR52729.2023.01398}.
+
+\bibitem[Wei et~al.(2022)Wei, Fan, Xie, Wu, Yuille, and Feichtenhofer]{wei2022masked}
+Chen Wei, Haoqi Fan, Saining Xie, Chao-Yuan Wu, Alan Yuille, and Christoph Feichtenhofer.
+\newblock Masked feature prediction for self-supervised visual pre-training.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp.\  14668--14678, 2022.
+\newblock \doi{10.1109/CVPR52688.2022.01426}.
+
+\bibitem[Xiao et~al.(2023)Xiao, Bai, Yuille, and Zhou]{xiao2023delving}
+Junfei Xiao, Yutong Bai, Alan Yuille, and Zongwei Zhou.
+\newblock Delving into masked autoencoders for multi-label thorax disease classification.
+\newblock In \emph{Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)}, pp.\  3577--3589, 2023.
+\newblock \doi{10.1109/WACV56688.2023.00358}.
+
+\bibitem[Xie et~al.(2022)Xie, Zhang, Cao, Lin, Bao, Yao, Dai, and Hu]{xie2022simmim}
+Zhenda Xie, Zheng Zhang, Yue Cao, Yutong Lin, Jianmin Bao, Zhuliang Yao, Qi~Dai, and Han Hu.
+\newblock {SimMiM}: A simple framework for masked image modeling.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp.\  9643--9653, 2022.
+\newblock \doi{10.1109/CVPR52688.2022.00943}.
+
+\bibitem[Yamins \& DiCarlo(2016)Yamins and DiCarlo]{Yamins2016}
+Daniel L.~K. Yamins and James~J. DiCarlo.
+\newblock Using goal-driven deep learning models to understand sensory cortex.
+\newblock \emph{Nature Neuroscience}, 19\penalty0 (3):\penalty0 356--365, Mar 2016.
+\newblock ISSN 1546-1726.
+\newblock \doi{10.1038/nn.4244}.
+
+\bibitem[Yamins et~al.(2014)Yamins, Hong, Cadieu, Solomon, Seibert, and DiCarlo]{Yamins2014}
+Daniel L.~K. Yamins, Ha~Hong, Charles~F. Cadieu, Ethan~A. Solomon, Darren Seibert, and James~J. DiCarlo.
+\newblock Performance-optimized hierarchical models predict neural responses in higher visual cortex.
+\newblock \emph{Proceedings of the National Academy of Sciences}, 111\penalty0 (23):\penalty0 8619--8624, 2014.
+\newblock \doi{10.1073/pnas.1403112111}.
+
+\bibitem[Yerxa et~al.(2023)Yerxa, Kuang, Simoncelli, and Chung]{yerxa2023learning}
+Thomas Yerxa, Yilun Kuang, Eero Simoncelli, and SueYeon Chung.
+\newblock Learning efficient coding of natural images with maximum manifold capacity representations.
+\newblock In A.~Oh, T.~Naumann, A.~Globerson, K.~Saenko, M.~Hardt, and S.~Levine (eds.), \emph{Advances in Neural Information Processing Systems}, volume~36, pp.\  24103--24128. Curran Associates, Inc., 2023.
+\newblock URL \url{https://proceedings.neurips.cc/paper_files/paper/2023/file/4bc6e94f2308c888fb69626138a2633e-Paper-Conference.pdf}.
+
+\bibitem[Yuksel et~al.(2025)Yuksel, Guetschel, Tangermann, van Gerven, and van~der Heijden]{yuksel2025wavjepa}
+Goksenin Yuksel, Pierre Guetschel, Michael Tangermann, Marcel van Gerven, and Kiki van~der Heijden.
+\newblock {WavJEPA}: Semantic learning unlocks robust audio foundation models for raw waveforms.
+\newblock \emph{arXiv preprint arXiv:2509.23238}, 2025.
+\newblock \doi{10.48550/arxiv.2509.23238}.
+
+\bibitem[Zbontar et~al.(2021)Zbontar, Jing, Misra, LeCun, and Deny]{zbontar2021barlow}
+Jure Zbontar, Li~Jing, Ishan Misra, Yann LeCun, and Stephane Deny.
+\newblock Barlow twins: Self-supervised learning via redundancy reduction.
+\newblock In Marina Meila and Tong Zhang (eds.), \emph{Proceedings of the 38th International Conference on Machine Learning}, volume 139 of \emph{Proceedings of Machine Learning Research}, pp.\  12310--12320. PMLR, 18--24 Jul 2021.
+\newblock URL \url{https://proceedings.mlr.press/v139/zbontar21a.html}.
+
+\bibitem[Zeiler \& Fergus(2014)Zeiler and Fergus]{zeiler2014visualizing}
+Matthew~D. Zeiler and Rob Fergus.
+\newblock Visualizing and understanding convolutional networks.
+\newblock In David Fleet, Tomas Pajdla, Bernt Schiele, and Tinne Tuytelaars (eds.), \emph{European Conference on Computer Vision}, pp.\  818--833, Cham, 2014. Springer International Publishing.
+\newblock \doi{10.1007/978-3-319-10590-1\_53}.
+
+\bibitem[Zhai et~al.(2019)Zhai, Puigcerver, Kolesnikov, Ruyssen, Riquelme, Lucic, Djolonga, Pinto, Neumann, Dosovitskiy, Beyer, Bachem, Tschannen, Michalski, Bousquet, Gelly, and Houlsby]{Zhai2019_VTAB}
+Xiaohua Zhai, Joan Puigcerver, Alexander Kolesnikov, Pierre Ruyssen, Carlos Riquelme, Mario Lucic, Josip Djolonga, Andr{\'e}~Susano Pinto, Maxim Neumann, Alexey Dosovitskiy, Lucas Beyer, Olivier Bachem, Michael Tschannen, Marcin Michalski, Olivier Bousquet, Sylvain Gelly, and Neil Houlsby.
+\newblock A large-scale study of representation learning with the visual task adaptation benchmark.
+\newblock \emph{arXiv preprint arXiv:1910.04867}, 2019.
+\newblock \doi{10.48550/arxiv.1910.04867}.
+
+\bibitem[Zhang et~al.(2022)Zhang, Guo, Gao, Fang, Zhao, Wang, Qiao, and Li]{zhang2022point}
+Renrui Zhang, Ziyu Guo, Peng Gao, Rongyao Fang, Bin Zhao, Dong Wang, Yu~Qiao, and Hongsheng Li.
+\newblock Point-{M2AE}: Multi-scale masked autoencoders for hierarchical point cloud pre-training.
+\newblock In S.~Koyejo, S.~Mohamed, A.~Agarwal, D.~Belgrave, K.~Cho, and A.~Oh (eds.), \emph{Advances in Neural Information Processing Systems}, volume~35, pp.\  27061--27074. Curran Associates, Inc., 2022.
+\newblock URL \url{https://proceedings.neurips.cc/paper_files/paper/2022/file/ad1d7a4df30a9c0c46b387815a774a84-Paper-Conference.pdf}.
+
+\bibitem[Zhou et~al.(2015)Zhou, Khosla, Lapedriza, Oliva, and Torralba]{zhou2014object}
+Bolei Zhou, Aditya Khosla, Agata Lapedriza, Aude Oliva, and Antonio Torralba.
+\newblock Object detectors emerge in deep scene {CNNs}.
+\newblock In \emph{International Conference on Learning Representations}, 2015.
+\newblock \doi{10.48550/arxiv.1412.6856}.
+
+\bibitem[Zhou et~al.(2017)Zhou, Zhao, Puig, Fidler, Barriuso, and Torralba]{ade20k}
+Bolei Zhou, Hang Zhao, Xavier Puig, Sanja Fidler, Adela Barriuso, and Antonio Torralba.
+\newblock Scene parsing through {ADE20K} dataset.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp.\  5122--5130, 2017.
+\newblock \doi{10.1109/CVPR.2017.544}.
+
+\bibitem[Zhou et~al.(2022)Zhou, Wei, Wang, Shen, Xie, Yuille, and Kong]{zhou2022image}
+Jinghao Zhou, Chen Wei, Huiyu Wang, Wei Shen, Cihang Xie, Alan Yuille, and Tao Kong.
+\newblock Image {BERT} pre-training with online tokenizer.
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+\newblock URL \url{https://openreview.net/forum?id=ydopy-e6Dg}.
+
+\bibitem[Zhou et~al.(2023)Zhou, Liu, Bae, He, Samaras, and Prasanna]{zhou2023self}
+Lei Zhou, Huidong Liu, Joseph Bae, Junjun He, Dimitris Samaras, and Prateek Prasanna.
+\newblock Self pre-training with masked autoencoders for medical image classification and segmentation.
+\newblock In \emph{Proceedings of the IEEE 20th International Symposium on Biomedical Imaging (ISBI)}, pp.\  1--6. IEEE, 2023.
+\newblock \doi{10.1109/ISBI53787.2023.10230477}.
+
+\end{thebibliography}

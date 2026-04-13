@@ -1,0 +1,25 @@
+{
+  "file": "uhn/disease_amyloidosis-predavg-echojepa-b",
+  "best_head": 9,
+  "type": "classification",
+  "n_clips": 62856,
+  "n_studies": 1918,
+  "n_classes": 2,
+  "AUROC": 0.6731,
+  "accuracy": 0.9703,
+  "F1_macro": 0.4925,
+  "confusion_matrix": [
+    [
+      1861,
+      0
+    ],
+    [
+      57,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 1861,
+    "1": 57
+  }
+}

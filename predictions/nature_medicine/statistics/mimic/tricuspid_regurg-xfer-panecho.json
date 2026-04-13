@@ -1,0 +1,7 @@
+{
+  "type": "classification",
+  "n": 6932,
+  "n_classes": 4,
+  "error": "Number of classes in y_true not equal to the number of columns in 'y_score'",
+  "file": "mimic/tricuspid_regurg-xfer-panecho.csv"
+}

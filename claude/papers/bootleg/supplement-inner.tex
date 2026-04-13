@@ -1,0 +1,1520 @@
+
+\FloatBarrier
+\section{Additional illustrative experiments}
+
+To accompany \iftoggle{arxiv}{\cref{sec:bridging-exps}}{Section~3.2 of the main paper}, we present the zoomed out figure for the MAE config.
+This figure shows the performance of ViT-S with unmodified MAE config, except instead of predicting the pixels in the input image, we predict the representation from a hidden layer within an EMA teacher (blue line).
+In this zoomed out version of the plot (\cref{fig:stabilizing2}), we can see the severity of the collapse in performance when doing hidden-self-distillation of blocks 5--11 and using the unmodified MAE config.
+Other work has indicated that using the L1 loss provides increased stability compared to using L2 or smooth-L1 \citep{bardes2024vjepa, assran2025vjepa2}, however we did not find evidence that this could alleviate our issue (\cref{fig:stabilizing2}, yellow line).
+
+For ViT-B, the drop in performance when using deeper hidden layers as the distillation target was more gradual (\cref{fig:stabilizing2}, right panel).
+Since ViT-B is wider than ViT-S, this, albeit weakly, suggests that a higher-dimensional target vector may help with training stability.
+
+\begin{figure*}
+    \centering
+    \includegraphics[scale=0.4]{figures/vits16-mae-i_attentiveprobe_solo-layers-both_nrw.pdf} ~~
+    \includegraphics[scale=0.4]{figures/vitb16-mae_attentiveprobe_solo-layers-only_nrw.pdf}
+    \caption{\textit{Accompanies Fig.~2 of the main text.}
+    Bridging I-JEPA and MAE with %
+    targets across hidden layers.
+    \textit{Left:} As in Fig.~2 of the main text, we train ViT-S using with MAE, except we add EMA for self-distillation and change the target to be a hidden layer of the EMA model instead of the input pixels (blue) or in addition to the image pixels (green). We compare to a single target with our masking strategy (cyan), and to a single target but using the L1 loss (yellow).
+    Using the L1 loss is insufficient to prevent training instabilities when using deeper layers as targets.
+    \textit{Right:} Similar, but for ViT-B with MAE config.
+}
+    \label{fig:stabilizing2}
+\end{figure*}
+
+
+\section{Pretraining hyperparameters}
+\label{s:pretraining-hparams}
+
+We selected the hyperparameters for pretraining Bootleg in a multi-step process of iterative refinement.
+
+Initially, we referred to the hyperparameters used in MAE \citep{he2022masked} and I-JEPA \citep{assran2023ijepa}.
+In our preliminary experiments (\cf{} \iftoggle{arxiv}{\cref{fig:stabilizing}}{Fig.~2}, \textit{``Bridging I-JEPA and MAE with targets across hidden layers''}, of the main paper), we found training using the MAE hyperparameter configuration with the I-JEPA masking strategy and a hidden target for self-distillation outperformed similar experiments using the I-JEPA hyperparameter configuration.
+We thus initialized our hyperparameter configuration with that of MAE.
+Through a series of preliminary experiments conducted with ViT-S, 300 ep., we considered changing hyperparameters to that of I-JEPA or V-JEPA \citep{bardes2024vjepa}, resulting in the hyperparameters shown in \cref{tab:hparams-prelim}.
+We additionally considered adding register tokens \citep{darcet2024registers} since this had been shown to be highly beneficial for networks pretrained with DINO \citep{darcet2024registers}.
+We found adding (separate) registers to each of the encoder and predictor networks was beneficial. %
+
+We then conducted a series of line searches with ViT-S, 300 ep., on the predictor size, learning rate schedule, weight decay, and number of warm-up steps.
+To assess the scaling of the predictor size relative to the encoder size, we conducted a small number of experiments with ViT-B and -L encoders, varying both the width and depth of the encoder.
+To assess the learning rate, which may vary depending on model size, we conducted limited experiments on ViT-B and -L using the schedule established with ViT-S.
+Our final hyperparameters are shown in \cref{tab:hparams}.
+We found that a larger crop size, longer LR warmup duration, and higher maximum and minimum LR values improved performance of the resulting model.
+We scale the warmup duration based on the total number of epochs, $E$, as $E_\text{wu} = 33 + 0.12 \, E$.
+
+We changed the model seed used between each round of our hparam search to avoid overfitting to a specific model.
+The final evaluations shown in the main table were performed on models trained from scratch using a fresh seed which had not been included in the hyperparameter search.
+
+\begin{table*}[tbh]
+\centering
+\caption{%
+Hyperparameter configuration comparison between Bootleg, I-JEPA, MAE for ViT-B/16.
+Learning rate (LR) values are tabulated for a batch size of 2048 samples, and linearly scaled to the batch size used for training.
+Mask seen rate and target rate are empirically estimated (mean $\pm$ stdev) for I-JEPA and Bootleg with a batch size per GPU of 256.
+}
+\label{tab:hparams}
+\small
+\adjustbox{max width=\textwidth}{
+\begin{tabular}{@{}lllll@{}}
+\toprule
+          & Hyperparameter    & MAE                            & I-JEPA                          & Bootleg (ours)                \\
+\midrule
+Encoder   & Architecture      & ViT-B/16                       & ViT-B/16                        & ViT-B/16                      \\
+          & Depth             & 12                             & 12                              & 12                            \\
+          & Width             & 768                            & 768                             & 768                           \\
+          & Attention heads   & 12                             & 12                              & 12                            \\
+          & Patch size        & 16                             & 16                              & 16                            \\
+          & CLS tokens        & {1}                            & {0}                             & {1}                           \\
+          & Register tokens   & {0}                            & {0}                             & {4}                           \\
+Predictor & Depth             & {8}                            & {6}                             & {10}                          \\
+          & Width             & {512}                          & {384}                           & 384                           \\
+          & Attention heads   & {16}                           & {12}                            & {16}                          \\
+          & Register tokens   & {0}                            & {0}                             & {4}                           \\
+Data      & Transforms        & RandCrop(0.2, 1.0)\,+\,Hflip   & RandCrop(0.3, 1.0)              & RandCrop(0.35, 1.0)\,+\,Hflip \\%          & Crop sizes        & [0.2, 1.0]                     & [0.3, 1.0]                      & [0.2, 1.0]                    \\
+          & Interpolation     & Bicubic                        & Bilinear                        & Bicubic                       \\
+          & Input size        & 224\texttimes 224              & 224\texttimes 224               & 224\texttimes 224             \\
+Masking   & Strategy          & {Uniform random}               & {4 rectangular blocks}          & {4 rectangular blocks}        \\
+          & Mask seen rate    & 0.25                           & 0.243 $\pm$ 0.037               & 0.292 $\pm$ 0.069             \\
+          & Mask target rate  & 0.75                           & 0.445 $\pm$ 0.070               & 0.475 $\pm$ 0.076             \\
+Training  & Target(s)         & Image pixels                   & Final (block 12) output         & Block 1, 4, 8, 12 outputs     \\
+     & Target standardization & Z-score                        & Z-score                         & Z-score                       \\
+          & Target length     & 768                            & 768                             & 3072                          \\
+          & Loss              & {Mean squared error}           & {Smooth L1}                     & {Mean squared error}          \\
+          & Optimizer         & AdamW({\footnotesize$\beta\!=\!(0.9, 0.95)$}) & AdamW({\footnotesize$\beta\!=\!(0.9, 0.999)$}) & AdamW({\footnotesize$\beta\!=\!(0.9, 0.95)$})\\
+          & {EMA initial}     & \na                            & 0.996                           & 0.9985                        \\
+          & {EMA final}       & \na                            & 1.0                             & 0.9985                        \\
+          & LR schedule       & Cosine annealing               & Cosine annealing                & Cosine annealing              \\
+          & LR schedule warmup& 40 epochs                      & 40 epochs                       & 105 epochs                    \\
+          & LR initial        & 0.0                            & 0.0002                          & 0.00003                       \\
+          & LR maximum        & {0.0012}                       & {0.001}                         & {0.003}                       \\
+          & LR final          & 0.0                            & 0.000001                        & 0.00003                       \\
+          & WD initial        & 0.05                           & 0.04                            & 0.05                          \\
+          & WD final          & {0.05}                         & {0.40}                          & {0.05}                        \\
+          & Schedule stretch  & 1.0                            & 1.0                             & 1.0                           \\
+          & Batch size        & 4096                           & 2048                            & 2048                          \\
+          & {Num epochs}      & 1600                           & 600                             & 600                           \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+Some hyperparameters vary between model sizes.
+The resulting values are shown in \cref{tab:hparam-scaling}.
+We use a ViT predictor of depth 10 with width equal to half that of the encoder, with heads equal to same as the encoder with a minimum of 16 heads.
+We found ViT-S needed a higher initial and final LR (1/30 of the maximum) than ViT-B and -L (1/100 of the maximum LR).
+
+Our results include ViT-S models, which is outside the original training recipes of MAE and I-JEPA, hence we additionally share the configs we used for these in \cref{tab:hparam-scaling}.
+For MAE, we follow the ViT-S recipe of \citep{fu2025crossmae}.
+For I-JEPA, we halve the width of the predictor to maintain the same capacity relative to the encoder as used for ViT-B, and let the number of heads equal that of the encoder following the rule from I-JEPA \citep{assran2023ijepa}.
+
+\begin{table*}[tbh]
+\centering
+\caption{%
+Hyperparameter changes across encoder sizes ViT-S, -B, -L for MAE, I-JEPA, and Bootleg models.
+Learning rate (LR) values are tabulated for a batch size of 2048 samples, and linearly scaled to the batch size used for training.
+}
+\label{tab:hparam-scaling}
+\small
+\adjustbox{max width=\textwidth}{
+\begin{tabular}{@{}lllllllllll@{}}
+\toprule
+          &                   & \multicolumn{3}{c}{MAE}          & \multicolumn{3}{c}{I-JEPA}      & \multicolumn{3}{c}{Bootleg (ours)} \\
+\cmidrule(r){3-5} \cmidrule(r){6-8} \cmidrule(r){9-11}
+          & Hyperparameter    & ViT-S    & ViT-B    & ViT-L      & ViT-S    & ViT-B    & ViT-L     & ViT-S    & ViT-B    & ViT-L     \\
+\midrule
+Encoder   & Depth             & 12       & 12       & 24         & 12       & 12       & 24        & 12       & 12       & 24        \\
+          & Width             & 384      & 768      & 1024       & 384      & 768      & 1024      & 384      & 768      & 1024      \\
+          & Attention heads   & 6        & 12       & 16         & 6        & 12       & 16        & 6        & 12       & 16        \\
+          & Patch size        & 16       & 16       & 16         & 16       & 16       & 16        & 16       & 16       & 16        \\
+          & CLS tokens        & 1        & 1        & 1          & 0        & 0        & 0         & 1        & 1        & 1         \\
+          & Register tokens   & 0        & 0        & 0          & 0        & 0        & 0         & 4        & 4        & 4         \\
+Predictor & Depth             & 8        & 8        & 8          & 6        & 6        & 12        & 10       & 10       & 10        \\
+          & Width             & 256      & 512      & 512        & 192      & 384      & 384       & 192      & 384      & 512       \\
+          & Attention heads   & 8        & 16       & 16         & 6        & 12       & 16        & 16       & 16       & 16        \\
+          & Register tokens   & 0        & 0        & 0          & 0        & 0        & 0         & 4        & 4        & 4         \\
+Training  & Target(s)         & Input    & Input    & Input      & Final    & Final    & Final     & b1,4,8,12& b1,4,8,12& b1,4,8,12,16,20,24 \\
+          & Target length     & 384      & 768      & 1024       & 384      & 768      & 1024      & 1536     & 3072     & 7168      \\
+          & LR initial        & 0.0      & 0.0      & 0.0        & 2e-4     & 2e-4     & 2e-4      & 1e-4     & 3e-5     & 3e-5      \\
+          & LR maximum        & 1.2e-3   & 1.2e-3   & 1.2e-3     & 1e-3     & 1e-3     & 1e-3      & 3e-3     & 3e-3     & 3e-3      \\
+          & LR final          & 0.0      & 0.0      & 0.0        & 1e-6     & 1e-6     & 1e-6      & 1e-4     & 3e-5     & 3e-5      \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+Note that in preliminary experiments, we also considered replacing the absolute position embeddings with rotary position embeddings (RoPE) \citep{Su2024rope} as used in V-JEPA-2 \citep{assran2025vjepa2}.
+We found RoPE was beneficial when not using register tokens, with a comparable effect size to adding register tokens, but using both at once was anti-synergistic.
+We suspect this is because the unrotated global tokens embeddings are handled in the same way as one of the patch tokens (either the top-left corner, or the centre of the image, depending on the RoPE vector initialization strategy).
+This effectively co-locates the CLS token and all four register tokens at a position within the image, potentially also colliding with one of the patch tokens, which makes it difficult for the attention heads to chose to address the register tokens.
+Furthermore, since we use five global tokens and mask the patch tokens presented to the encoder, the model will see 13 times as many global tokens as patch tokens at the position for which they collide.
+Since RoPE had a much higher compute burden (around +30\%) compared to adding registers (negligible), we chose to use register tokens with 2d sin-cos absolute position embeddings.
+This also allows us to better compare with our benchmark models, since MAE, CrossMAE, data2vec2, and I-JEPA all use absolute position embeddings.
+
+\FloatBarrier
+\section{Masking strategy}
+\label{s:masking-implementation-improvements}
+
+As mentioned in \iftoggle{arxiv}{\cref{s:method}}{Sec.~4, \textit{``Method''}, of the main paper}, our masking strategy is conceptually similar to that of I-JEPA, with only improvements in technical details and implementation.
+In this section, we describe this masking strategy, and highlight the improvements in our implementation compared to I-JEPA.
+
+\paragraph{Overview}
+
+The total batch size of 2048 is processed by some number of distributed GPU workers.
+For example, with 8 GPU workers, each GPU worker will process 256 samples.
+For a given GPU worker's batch of samples, we generate masks using the same general process for both Bootleg and I-JEPA:
+\begin{enumerate}
+    \item Choose a seed to use for the random number generator (RNG) for the masks in this woker's batch.
+    \item Sample the height and width to use for the predictor mask rectangles: $(p_h, p_w)$. The same size is used for all four predictor mask rectangle across the worker's batch.
+    \item Sample the height and width to use for the background mask: $(b_h, b_w)$. The same size is used for all background masks across the worker's batch.
+    \item For each image in the batch, sample its mask positions:
+    \begin{enumerate}
+        \item For each of the four predictor mask rectangles, sample their placement: $p^{(i)}_{j,x}, p^{(i)}_{j,y}$.
+        \item For the background mask, sample its placement: $b^{(i)}_x, b^{(i)}_y$.
+        \item Let the visible mask be the intersection between the background mask and the complement of the predictor mask rectangles: $v^{(i)} := b^{(i)} \setminus (p^{(i)}_1 \cup p^{(i)}_2 \cup p^{(i)}_3 \cup p^{(i)}_4)$
+    \end{enumerate}
+    \item For GPU efficiency, all visible masks need to be the same length. Truncate all the visible masks to the length of the shortest visible mask within the GPU worker's batch.
+\end{enumerate}
+
+Note that we need to truncate the visible masks because the four predictor mask rectangles will overlap by a random amount.
+For some samples in the worker's batch, there will be very little overlap, resulting in the visible mask having fewer elements.
+Whereas for other samples in the worker's batch, there will be a lot of overlap (potentially all four predictor mask rectangles overlap entirely), which would mean more visible tokens for these samples without truncation.
+The predictor mask rectangles are always the same size within the worker's batch and so do not need truncation to have the same length.
+
+As presented below, we make technical improvements to \textit{all} steps within this pipeline.
+The most significant of these improvements is in the visible token truncation strategy.
+
+\begin{figure*}
+    \centering
+    \textbf{I-JEPA} \\
+    \vspace{1.5mm}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_0-0.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_0-1.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_0-2.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_0-3.png}~~~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_1-0.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_1-1.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_1-2.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_1-3.png}
+
+    \vspace{2mm}
+
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_2-0.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_2-1.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_2-2.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_2-3.png}~~~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_3-0.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_3-1.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_3-2.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_ijepa_3-3.png}
+
+    \vspace{2mm}
+    \textbf{Bootleg} \\
+    \vspace{1.5mm}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_0-0.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_0-1.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_0-2.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_0-3.png}~~~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_1-0.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_1-1.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_1-2.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_1-3.png}
+
+    \vspace{2mm}
+
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_2-0.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_2-1.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_2-2.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_2-3.png}~~~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_3-0.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_3-1.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_3-2.png}
+    \includegraphics[scale=\iftoggle{arxiv}{0.23}{0.175}]{figures/mask-samples/mask-samp_bootleg_3-3.png}
+
+    \caption{
+Sample masks generated by I-JEPA and Bootleg's masking strategies.
+Visible tokens are shown in blue.
+Prediction masks are shown in green/yellow/orange/red with one colour per mask rectangle.
+These prediction masks can overlap, leading to brighter shades of orange/yellow.
+Unused tokens (seen by the teacher-encoder, but not by either the student-encoder or predictor) are shown in black.
+For both I-JEPA and Bootleg, we show samples from worker-batches of 256 samples, generated with seeds 0,1,2,3.
+We show the first 4 examples from each batch (grouped horizontally).
+These samples illustrate how the visible tokens (blue) are always at the top of the image for I-JEPA's masking, but are better distributed for Bootleg's masks.
+}
+    \label{fig:mask-samples}
+\end{figure*}
+
+
+\begin{figure*}
+    \centering
+    \includegraphics[scale=\iftoggle{arxiv}{0.24}{0.175}]{figures/mask-rates/mask-enc-rate_ijepa-bs4_lab.pdf}~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.24}{0.175}]{figures/mask-rates/mask-enc-rate_ijepa-bs16.pdf}~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.24}{0.175}]{figures/mask-rates/mask-enc-rate_ijepa-bs64.pdf}~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.24}{0.175}]{figures/mask-rates/mask-enc-rate_ijepa-bs256.pdf}~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.24}{0.175}]{figures/mask-rates/mask-enc-rate_ijepa-bs1024.pdf} \\
+    \includegraphics[scale=\iftoggle{arxiv}{0.24}{0.175}]{figures/mask-rates/mask-enc-rate_bootleg-bs4_lab.pdf}~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.24}{0.175}]{figures/mask-rates/mask-enc-rate_bootleg-bs16.pdf}~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.24}{0.175}]{figures/mask-rates/mask-enc-rate_bootleg-bs64.pdf}~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.24}{0.175}]{figures/mask-rates/mask-enc-rate_bootleg-bs256.pdf}~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.24}{0.175}]{figures/mask-rates/mask-enc-rate_bootleg-bs1024.pdf}
+    \caption{
+    Rates at which each token position within the 14 \texttimes 14 grid is visible and presented to the student-encoder.
+    \textit{Top row:} I-JEPA masking. \textit{Bottom row:} Bootleg masking.
+    We show the change in visibility of the tokens as the per-GPU batch size is increased from 4 (left) to 1024 (right).
+    Red marks on the colorbars indicate the least and most frequent any token is visible for a given plot.
+    Note that token visibility is more consistent across space (a flatter distribution) for Bootleg masks.
+    The I-JEPA masks omit the bottom row and right column entirely, rarely present the centre of the image, and last-in-first-out truncation leads to the bottom four rows being seldom presented when the per-GPU batch size is larger.
+    }
+    \label{fig:mask-enc-rates}
+\end{figure*}
+
+\begin{figure*}
+    \centering
+    \includegraphics[scale=\iftoggle{arxiv}{0.5}{0.41}]{figures/mask-sizes_visible.pdf} ~~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.5}{0.41}]{figures/mask-sizes_pred.pdf} \\
+    \includegraphics[scale=\iftoggle{arxiv}{0.5}{0.41}]{figures/mask-sizes_visible-center.pdf} ~~~
+    \includegraphics[scale=\iftoggle{arxiv}{0.5}{0.41}]{figures/mask-sizes_shown.pdf}
+    \caption{
+    Token occurrence rates versus per-GPU batch size for I-JEPA and Bootleg masking strategies.
+    Due to stochastic overlap of the predictor masks, the visible tokens need to be truncated to be the same length across all samples on the same GPU.
+    \textit{Top left:} Fraction of tokens which are visible (shown to the encoder) decreases as the batch size increases. This is because the target length for the visible tokens is the minimum size of the complement of the predictor masks within over all samples in the batch for the GPU worker, and a larger per-GPU batch size leads to more opportunities to generate four predictor rectangles with minimal overlap.
+    \textit{Top right:} Fraction of tokens predicted at least once across all masked out tokens per sample.
+    \textit{Bottom left:} Average fraction across the four centre tokens for the rate at which they are visible. Centre tokens infrequently visible for I-JEPA and are visible twice as often for Bootleg.
+    \textit{Bottom right:} Fraction of tokens within each image used either as a visible token passed to the encoder, or as a target token whose prediction loss is used to update the model. Due to random overlap and truncation, not all patch tokens are used for at least one task, reducing the efficiency of training.
+    For each panel, the standard deviation is shown with error bars, and the min/max values with crosses.
+    }
+    \label{fig:mask-size-distribution}
+\end{figure*}
+
+\subsection{Seeding the RNG for the batch}
+For reproducibility of experiments, we want to use a fixed RNG seed.
+Note that there is a hierarchy to the processes: (1) a main GPU worker at rank 0, responsible for collecting gradients and saving checkpoints, (2) the set of GPU workers with ranks \eg{} 0--7, which may be running on the same or different nodes/machines to one another, (3) the CPU workers responsible for collating the batches of data, \eg{} 12 per GPU worker.
+
+In I-JEPA's code, the global seed is set to 0.
+This is used to sample the random weights for the model, and the seed is set to 0 on \href{https://github.com/facebookresearch/ijepa/blob/52c1ae95d05f743e000e8f10a1f3a79b10cff048/src/train.py#L58-L60}{every GPU worker}.
+To ensure each CPU worker uses a different seed from the others for the operations in its batch, \texttt{multiprocessing.Value} is used so the seed is shared across the CPU workers.
+However, since the GPU seed is the same, the set of seeds for the CPU workers for one GPU worker are the same as for every other GPU worker.
+This results in redundancy in the generated masks across the total batch, distributed across the GPU workers.
+(There is actually a race-condition in the dataloader workers, which leads to these shared-mask batches being desynchronized across steps, but the same set masks are used over a small number of steps equal to the number of CPU workers per GPU.)
+
+In Bootleg's implementation, we use a different seed for each GPU worker, which ensures the random crop data transform used differs across GPU workers, unlike in I-JEPA's codebase.
+For reproducibility across pre-empted runs, we map the global seed, sample index, and epoch number to a seed to use for each specific presentation stimulus.
+Similarly, the CPU workers use seeds for their mask generation which are mapped from the global seed, global batch index, and epoch number.
+This ensures the set of masks generated are unique for each batch on each GPU worker, across all global CPU workers.
+
+
+\subsection{Sampling height/width of predictor masks}
+The range of mask height and width values to sample are parametrized by a minimum/maximum block size, and minimum/maximum aspect ratio.
+Due to a bug in the I-JEPA code, the \href{https://github.com/facebookresearch/ijepa/blob/52c1ae95d05f743e000e8f10a1f3a79b10cff048/src/masks/multiblock.py#L56-L63}{same random number} was used to select the aspect ratio as the block size, resulting in correlation between the two.
+Consequently, small masks are always more landscape and large masks are always more portrait (see \cref{tab:mask-shapes}).
+
+In Bootleg, we fix this bug so size and aspect ratio are sampled independently.
+However, when fixing this, the distribution of mask sizes sampled in practice changed.
+We thus refined the requested range of mask sizes from $[0.15, 0.20]$ (defined as a fraction of the image area) to a narrower range of $[0.16, 0.183]$, which better reflected the range actually being sampled by I-JEPA (see \cref{tab:mask-shapes} for a comparison of the sampled sizes with this parameter).
+
+Additionally, the mask rectangles for Bootleg use alternating aspect ratios (by swapping the height and width after generating each mask) to increase diversity of masks used for each sample within the worker's batch.
+This change also reduces the range of overlap amounts for the masks, since (when the aspect ratio is not square) it is impossible for all masks to overlap completely if two of them are oriented rotated \si{90\degree} from the two.
+This increases the consistency of the mask generation and reduces the amount of truncation that needs to be applied to the visible tokens.
+
+\begin{table}[tbh]
+\centering
+\caption{Distribution of shapes of prediction target mask rectangles for I-JEPA and Bootleg.
+We assume a 14\texttimes14 grid of tokens (equivalent to a 224\texttimes 224 image with 16\texttimes16 patch size), and sample 1 million mask sizes.
+}
+\label{tab:mask-shapes}
+\small
+\begin{tabular}{cccrr}
+\toprule
+ & & & \multicolumn{2}{c}{Rate (\%)}\\
+\cmidrule(r){4-5}
+(h, w) & Area & Aspect & I-JEPA & Bootleg \\
+\midrule
+(5, 6) & 30 & 0.83 & 26.5 & 18.8 \\
+(6, 5) & 30 & 1.20 & 12.6 & 18.7 \\
+(5, 7) & 35 & 0.71 & \gray{0.0} & 20.0 \\
+(7, 5) & 35 & 1.40 & 36.5 & 20.1 \\
+(6, 6) & 36 & 1.00 & 21.8 & 22.4 \\
+(5, 8) & 40 & 0.63 & \gray{0.0} &  \gray{0.0} \\
+(8, 5) & 40 & 1.60 &  2.6 &  \gray{0.0} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\subsection{Sampling height/width of background masks}
+\label{s:masking:background}
+In I-JEPA, the background mask is supposed to be randomly sampled from $[0.85, 1.0]$ of the total patches in the image, with an aspect ratio always set to 1.0.
+For a 224\texttimes 224 image with 16\texttimes 16 pixels per patches, this means a grid of 14\texttimes 14 patch tokens, with the background mask being either all 14\texttimes 14, or a 13\texttimes 13 square within it.
+However, due to an off-by-one error in the I-JEPA code, the background mask is capped at one token narrower than the image in both height and width, \href{https://github.com/facebookresearch/ijepa/pull/40#issuecomment-2187880299}{as pointed out by George Hu}, meaning the background mask is always a 13\texttimes 13 square.
+
+In Bootleg, we fix this bug.
+Our background mask is randomly sampled to be either a 13\texttimes 13 square of patch tokens, or the full 14\texttimes 14 square grid.
+
+
+\subsection{Sampling the placement of masks}
+In I-JEPA, the mask placement has an off-by-one error, meaning masks are randomly placed somewhere in the upper-left 13\texttimes 13 square of patch tokens, \href{https://github.com/facebookresearch/ijepa/pull/40}{as pointed out by Jack Wilkie}.
+When combined with \iftoggle{arxiv}{\cref{s:masking:background},}{the previous item} \textit{``Sampling height/width of background masks''}, this means the background mask for I-JEPA is always the 13\texttimes 13 square in the top-left corner.
+Consequently, the I-JEPA student-encoder never sees the right-most column or bottom-most row of image patches, which amounts to 14\% of the image, and the predictor is never asked to predict these tokens either.
+
+In Bootleg, we fix this bug and sample mask locations uniformly across space while restricting the mask to be contiguous.
+However, note that this sampling strategy still means prediction masks are less likely to be in the corners of the image and are more likely to be nearer the middle.
+This is because there is only one valid position for a rectangular mask to be in any given corner of the image, but many positions allow it to overlap with the middle of the image.
+Consequently, our student-encoder sees the edges of the image more often than it sees the middle of the image, and predicts the middle of the image more often than the edges.
+It is unclear whether this centre/surround bias is an advantageous component of the masking strategy.
+
+Additionally, note that because the four masks are always sized at least 5\texttimes6, random placement leaves them unlikely to be placed somewhere which does not overlap with the centre patch tokens within the image.
+Increasing the background from the top-left 13\texttimes13 grid to 14\texttimes14 greatly increases the number of placements which do not overlap with the centre of the image, resulting in an increased rate at which these tokens are visible (see \cref{fig:mask-size-distribution}).
+
+\subsection{Encoder mask truncation strategy}
+We truncate the visible masks to length $V' = \min_i |v^{(i)}|$, the minimum length within the worker's batch.
+The visible mask tokens are encoded as a list ordered by their index in row-column order, \ie{} first the top row (from left to right), then the second row (from left to right), \etc{}
+In I-JEPA, the visible masks are truncated by \href{https://github.com/facebookresearch/ijepa/blob/52c1ae95d05f743e000e8f10a1f3a79b10cff048/src/masks/multiblock.py#L167}{keeping the first} $V'$ tokens within this sorted order.
+Only a minority of samples within a worker's batch will have minimal overlap between the mask rectangles, so most samples undergo some amount of truncation to the list of visible tokens.
+This means the context seen by the student-encoder is biased towards the top of the image (which is never truncated), with the student very rarely seeing any of the bottom three rows of image token patches (which are frequently truncated), as shown in \cref{fig:mask-enc-rates} and illustrated in \cref{fig:mask-samples}.
+
+In Bootleg, we fix this issue by randomizing the edge from which the truncation is performed.
+We randomly select one of the four corners of the grid, and randomly select an orientation (rows or columns) and truncate from that corner inwards.
+The edge and orientation is independently selected for each sample within the worker's batch.
+
+We considered other truncation strategies, such as removing a token with a uniform random distribution across all visible tokens or across all visible tokens at the edge of the image, but found it was better to remove tokens from one randomly selected edge instead.
+
+
+
+
+
+
+\FloatBarrier
+\section{No-forward MSE loss function}
+
+Our hidden-self-distillation method, Bootleg, uses an increased number of training targets compared to MAE or I-JEPA.
+We found an increased proportion of experiment run-time was devoted to computing the loss, which increased the more distillation targets were used.
+For our proposed methodology, in which the output from every fourth transformer block is used as a self-distillation target, the computational overhead of the increased targets is not much (4 times as much as for I-JEPA; less than 2\% of total runtime).
+But for some of our preliminary explorations (see \cref{s:target-choice}) using the output and residuals from every block (9 times more targets than Bootleg, 36 times more than I-JEPA), the loss computation was significant (11\% of total runtime), motivating us to find a solution.
+
+Note that we do not need to know the loss value on every step---periodic evaluation and logging of the loss is sufficient for tracking training---we only need to compute the loss on each step so we can compute gradients.
+So to reduce the amount of compute spent during training, we propose and implemented a no-forward version of the MSE loss, \texttt{MSELossNoForward}, shown in \cref{alg:mse_loss_no_forward}.
+This method skips the forward computation of the loss, returning a dummy value, but will compute the gradient of the loss to return the same values in the backward pass as \texttt{MSELoss}.
+It can be used in the compute graph like the conventional \texttt{MSELoss}, with downstream operations, such as scaling the loss by the world size or with a GradScaler, fed back into the backward pass of \texttt{MSELossNoForward}.
+
+In practice, we accompany this with a separate forward computation of the MSE loss spaced at regular intervals (\eg{} every twenty steps) for monitoring purposes.
+
+\newsavebox{\mselosslistingbox}
+\begin{lrbox}{\mselosslistingbox}
+\begin{minipage}{\iftoggle{arxiv}{}{\dimexpr1.25}\textwidth}
+\begin{lstlisting}[
+    language=Python,
+    nolol,
+]
+class MSELossNoForward(torch.autograd.Function):
+    @staticmethod
+    def forward(
+        ctx, input: torch.Tensor, target: torch.Tensor, reduction: str = "mean"
+    ):
+        # Compute the difference between input and target and save it.
+        # This computation is only needed for the backward pass, but doing
+        # it now halves the memory requirement we need in the context.
+        ctx.save_for_backward(input - target)
+        ctx.reduction = reduction
+        # Return a dummy scalar tensor (no forward computation).
+        # Match the device and dtype of input.
+        dummy = input.new_zeros((), requires_grad=True)
+        return dummy
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        # Recover difference between input and target, saved in forward pass
+        difference = ctx.saved_tensors[0]
+        reduction = ctx.reduction
+        # Constant scaling of 2.0 comes from derivative of mean squared error.
+        scaling = 2.0
+        # If we are simulating taking the mean, scale against the number of
+        # elements being averaged.
+        if reduction == "mean":
+            scaling /= difference.numel()
+        # Usually grad_output is 1.0/world_size, but may differ if using a
+        # GradScaler. Multiply grad_output by the constant term.
+        grad_output *= scaling
+        # Chain rule: multiply upstream gradient by (input - target).
+        grad_input = grad_output * difference
+        grad_target = None  # No gradient w.r.t. target
+        grad_reduction = None
+        return grad_input, grad_target, grad_reduction
+\end{lstlisting}%
+\end{minipage}
+\end{lrbox}
+\begin{figure*}
+\captionof{lstlisting}{Pytorch implementation of no-forward, backward-only, mean squared error (MSE) loss function.}
+\resizebox{\textwidth}{!}{\usebox{\mselosslistingbox}}
+\label{alg:mse_loss_no_forward}
+\end{figure*}\addtocounter{figure}{-1}
+
+
+\FloatBarrier
+\section{Evaluation methodology}
+\label{a:eval-method}
+
+\subsection{Image classification (IN-1k and iNat21)}
+
+\subsubsection{Frozen probes}
+\label{a:eval-method-classification-probe}
+
+As described in \iftoggle{arxiv}{\cref{s:exp:in1k}}{the main text, Sec.~5.1}, we evaluated the pretrained networks by using probes of the frozen encoder.
+Since the majority of compute is spent passing the images through the frozen encoder, which is the same for all probes, we perform a simultaneous hyperparameter sweep on each probe type, with 25 hyperparameters considered for each.
+
+We consider four types of frozen probes.
+Firstly, we consider the long-standing linear probe of the average patch embeddings (column ``\textbf{Patch}'' in tables).
+We discard the CLS token and register tokens, take the average of the patch embeddings, apply batch norm, and a single learnable linear layer to predict the IN-1k classes.
+Secondly, we consider the performance of a linear probe of the CLS token embedding (column ``\textbf{CLS}'' in tables).
+We discard the patch tokens and register tokens, add a LayerNorm layer without trainable parameters, and train a single learnable linear layer on the CLS token embedding.
+Thirdly, we consider the performance of a minimal attentive probe (column ``\textbf{X-Attn}'' in tables).
+We keep the patch, CLS, and any register embeddings produced by the model; these are passed to a cross-attention block with a single learnable query vector, followed by a single linear head only.
+We use the same width and number of attention heads as in the pretrained ViT.
+Finally, we consider the performance of a non-linear attentive probe (column ``\textbf{X-Blk}'' in tables).
+This was performed following the implementation in V-JEPA \citep{bardes2024vjepa, assran2025vjepa2}; the method is the same as X-Attn, except there is an MLP-block between the attention layer and the linear head.
+
+We train the probes with a batch size of 1024 on either the IN-1k train set or iNat21 train set \citep{inaturalist21} for 20 epochs.
+(As iNat21 is around twice as large as IN-1k, this results in around twice as many training steps for its probes.)
+Training data is augmented through (1) random crops, sized $(0.3, 1.0)$ of the original image and random stretch aspect ratio in the range 3:4 to 4:3, which are resized to 224\texttimes 224 pixels with bicubic interpolation; (2) random horizontal flips with $p=0.5$; (3) and random colour jitter of up to $0.4$ for brightness, contrast, and saturation.
+See \cref{tab:hparams-in1k-probe-config}.
+
+The training (learning rate and weight decay) hyperparameters we considered are a 5\texttimes5 grid of logarithmic spaced values:
+$\eta_{\text{max}} \in [0.0005, 0.001, 0.002, 0.004, 0.008]$ and 
+$\lambda \in [0.0005, 0.001, 0.002, 0.004, 0.008]$, respectively.
+
+The performance of each probe is evaluated on the IN-1k/iNat21 validation set, with an 87.5\% centre crop (resize to 256\texttimes 256, then crop to 224\texttimes 224).
+For each of the five probe types, we report the best result across the 25 training hyperparameters considered.
+
+\begin{table}[tbh]
+\centering
+\caption{%
+Hyperparameter configuration for IN-1k classification probes.
+}
+\label{tab:hparams-in1k-probe-config}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+          & Hyperparameter    & Value \\
+\midrule
+Encoder   & Drop path         & \gray{0.0}          \\
+Data      & Input size        & 224\texttimes224    \\
+          & Cropping          & RandCrop(0.3, 1.0)  \\
+          & Stretch           & (3/4, 4/3)          \\
+          & Interpolation     & Bicubic             \\
+          & Transforms        & HFlip($p\!=\!0.5$)  \\
+          &                   & ColorJitter(0.4)    \\
+Training  & Loss              & Cross-entropy       \\
+          & Label smoothing   & \gray{0.0}          \\
+          & Optimizer         & AdamW({\footnotesize$\beta\!=\!(0.9, 0.999)$}) \\
+          & LR schedule       & Cosine decay        \\
+          & LR schedule warmup& 5 epochs            \\
+          & LR initial        & 0.0                 \\
+          & LR maximum        & $0.0005 \leq \eta_{\text{max}} \leq 0.0080$ \\
+          & LR final          & 0.0                  \\
+          & WD                & $0.0005 \leq \lambda \leq 0.0080$ \\
+          & Batch size        & 1024            \\
+          & Epochs            & 20              \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+\subsubsection{Fine-tuning}
+\label{s:in1k-ft}
+
+We fine-tuned the pretrained models on IN-1k using either the full labels, or a 1\% subset of the labels as described below.
+
+Our methodology for full-fine tuning on IN-1k follows that recommended in the MAE GitHub repository and used by CrossMAE \citep{fu2025crossmae}.
+The fine-tuning hyperparameters are detailed in \cref{tab:hparams-in1k-ft}.
+
+\begin{table*}[tbh]
+\centering
+\caption{%
+Hyperparameter configuration for IN-1k classification fine-tuning.
+Learning rate (LR) reference values are shown relative to a batch size of 256 and linearly scaled for the actual batch size.
+For 1\% fine-tuning, we sweep five LR values and report the best; the swept ranges are shown.
+}
+\label{tab:hparams-in1k-ft}
+\small
+\adjustbox{max width=\textwidth}{%
+\begin{tabular}{llllll}
+\toprule
+          &                     & \multicolumn{2}{c}{100\% Full FT} & \multicolumn{2}{c}{1\% Low-shot} \\
+\cmidrule(r){3-4} \cmidrule(r){5-6}
+          & Hyperparameter      & ViT-S,B & ViT-L & Full & LoRA \\
+\midrule
+Encoder   & Drop path           & 0.1   & 0.2   & \gray{0.0}  & \gray{0.0} \\
+Data      & Input size          & 224   & 224   & 224  & 224 \\
+          & Interpolation       & Bicubic & Bicubic & Bicubic & Bicubic \\
+          & HFlip               & $p\!=\!0.5$ & $p\!=\!0.5$ & $p\!=\!0.5$ & $p\!=\!0.5$ \\
+          & Transforms          & RandAug & RandAug & RandAug & RandAug \\
+          & RandErasure         & $p\!=\!0.25$ & $p\!=\!0.25$ & \gray{$p\!=\!0$} & \gray{$p\!=\!0$} \\
+          & Subset              & 100\% & 100\% & 1\%  & 1\% \\
+Training  & Loss                & CE    & CE    & CE   & CE \\
+          & Label smoothing     & 0.1   & 0.1   & 0.1  & 0.1 \\
+          & MixUp               & 0.8   & 0.8   & \gray{0.0}  & \gray{0.0} \\
+          & MixUp / CutMix      & 1.0   & 1.0   & \gray{0.0}  & \gray{0.0} \\
+          & Optimizer           & AdamW & AdamW & AdamW & AdamW \\
+          & LR schedule         & Cosine & Cosine & Cosine & Cosine \\
+          & Warmup              & 5 ep  & 5 ep  & 5 ep & 5 ep \\
+          & LR initial          & 0.0   & 0.0   & 0.0  & 0.0 \\
+          & LR ref (per 256 samp) & $5{\times}10^{-4}$ & $1{\times}10^{-3}$ & $[5{\times}10^{-6},\, 5{\times}10^{-4}]$ & $[1.5{\times}10^{-6},\, 1.5{\times}10^{-3}]$ \\
+          & LR final            & $2.5{\times}10^{-7}$ & $2.5{\times}10^{-7}$ & 0.0 & 0.0 \\
+          & LR layer decay      & 0.65  & 0.75  & 0.75 & 1.0 \\
+          & Weight decay        & 0.05  & 0.05  & 0.05 & 0.05 \\
+          & Batch size          & 1024  & 1024  & 512  & 512 \\
+          & Epochs              & 100   & 50    & 50   & 50 \\
+LoRA      & Rank                & \gray{full} & \gray{full} & \gray{full}  & 8 \\
+          & $\alpha$            & \na{} & \na{} & \na{}  & 16 \\
+          & Dropout             & \na{} & \na{} & \na{}  & 0.05 \\
+          & Targets             & \gray{all} & \gray{all} & \gray{all}  & qkv, proj, mlp \\
+          & Train norms         & \gray{\cmark{}} & \gray{\cmark{}} & \gray{\cmark{}} & \cmark{} \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+We performed low-shot fine-tuning on 1\% of IN-1k using the subset proposed by SimCLR \citep{chen2020simple} and the methodology from I-JEPA \citep{assran2023ijepa}.
+We adapted the methodology to sweep over five maximum learning rates, $\eta_\text{max} \in [5{\times}10^{-6}, 1.5{\times}10^{-5},$ $5{\times}10^{-5}, 1.5{\times}10^{-4}, 5{\times}10^{-4}]$, and report the best performance over these learning rates.
+
+We additionally evaluated the models at low-rank (paramenter efficient) fine-tuning.
+For this we use the LoRA methodology \citep{Hu2022_LoRA} with $\text{rank} = 8$ and $\alpha = 16$.
+We fine-tune the attention QKV weights, attention projector, and MLP weights from every block on the 1\% low-shot subset of IN-1k.
+Learning rates were swept over $\eta_\text{max} \in [1.5{\times}10^{-5}, 5{\times}10^{-5}, 1.5{\times}10^{-4}, 5{\times}10^{-4}, 1.5{\times}10^{-3}]$, and we report the best performance over these learning rates.
+
+All fine-tuned models were evaluated on IN-1k validation set, with an 87.5\% centre crop (resize to 256\texttimes 256, then crop to 224\texttimes 224).
+Results are shown in \cref{s:results-ft}.
+
+
+\subsection{Semantic segmentation (ADE20K and Cityscapes)}
+\label{s:method-semseg}
+
+\subsubsection{Frozen probes --- kNN}
+
+We evaluated the pretrained models' representation of semantic information at the patch level with probes on the pretrained models using the kNN methodology from CAPI \citep{darcet2025capi}.
+For this probe, images from the training partition are encoded without augmentations.
+The embeddings and pixel-wise segmentation labels for each patch token form the kNN training set.
+Inference is performed by finding the $k$ nearest neighbours for each patch in the image, and then for each pixel in the patch predicting the most common label across that pixel location in the $k$ neighbours.
+We sweep 4 neighbourhood sizes $k \in [1, 3, 10, 30]$, using both cosine and L2 distance metrics.
+
+
+\subsubsection{Frozen probes --- Lin and Blk}
+
+We evaluated the pretrained models' representation of semantic information at the pixel level using probes on the pretrained models with a Segmenter \citep{strudel2021segmenter} head trained atop the frozen backbone.
+We consider two heads, trained separately.
+``\textbf{Lin}'', a linear projector from the patch embeddings to the Segmenter; or ``\textbf{Blk}'', with one randomly initialized transformer block before the projector.
+Our training strategy is based on the BEiT evaluation methodology \citep{bao2021beit}; we train for 128 epochs with a batch size of 64, and augment the data with random resized cropping, horizontal flips, cut-out, and colour jitter.
+For the linear projector, we halve the magnitude of the colour jitter.
+
+We sweep 4 LRs for each head type, and report the best performance.
+For Lin probes, we use $\eta_\text{max} \in [2.5{\times}10^{-4}, 7.5{\times}10^{-4}, 2.5{\times}10^{-3}, 7.5{\times}10^{-3}]$; for Blk we use $\eta_\text{max} \in [2.5{\times}10^{-5}, 7.5{\times}10^{-5}, 2.5{\times}10^{-4}, 7.5{\times}10^{-4}]$.
+We empirically found these LR ranges were in the optimal range for the models considered.
+See \cref{tab:hparams-ade20k-probe}.
+
+All frozen evaluation was performed using images at 224\texttimes224 resolution.
+As the pretrained model uses sinusoidal position embeddings at 224\texttimes224 resolution (14\texttimes14 patches), it lacks the flexibility to correctly process other image sizes without retraining.
+
+\begin{table}[tbh]
+\centering
+\caption{%
+Hyperparameter configuration for ADE20K segmentation frozen probes.
+We sweep 4 learning rates for each head type.
+}
+\label{tab:hparams-ade20k-probe}
+\small
+\adjustbox{max width=\textwidth}{%
+\begin{tabular}{@{}llll@{}}
+\toprule
+          & Hyperparameter      & Lin & Blk \\
+\midrule
+Decoder   & Type                & MaskTransformer & MaskTransformer \\
+          & Depth               & 0 blocks & 1 block \\
+Data      & Input size          & 224   & 224 \\
+          & Cropping            & RandScale(0.5, 2.0) & RandScale(0.5, 2.0) \\
+          & HFlip               & $p\!=\!0.5$ & $p\!=\!0.5$ \\
+          & Cutout              & $p\!=\!0.5$ & $p\!=\!0.5$ \\
+          & ColorJitter         & $p\!=\!0.5$ (half mag.) & $p\!=\!0.5$ \\
+          & \quad Brightness    & 0.0625 & 0.125 \\
+          & \quad Contrast      & 0.25   & 0.5 \\
+          & \quad Saturation    & 0.25   & 0.5 \\
+          & \quad Hue           & 0.035  & 0.07 \\
+Training  & Loss                & CrossEntropy    & CrossEntropy \\
+          & Label smoothing     & 0.0   & 0.0 \\
+          & Optimizer           & AdamW & AdamW \\
+          & LR schedule         & Cosine & Cosine \\
+          & Warmup              & 5 epochs  & 5 epochs \\
+          & LR initial          & 0.0   & 0.0 \\
+          & LR max (per 256 samp) & $2.5{\times}10^{-4} \leq \eta_{\text{max}} \leq 7.5{\times}10^{-3}$ & $2.5{\times}10^{-5} \leq \eta_{\text{max}} \leq 7.5{\times}10^{-4}$ \\
+          & LR final            & 0.0   & 0.0 \\
+          & Weight decay        & 0.0001 & 0.05 \\
+          & Batch size          & 64    & 64 \\
+          & Epochs              & 128   & 128 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+
+\subsubsection{Fine-tuning}
+\label{s:ade20k-ft}
+
+For ADE20K fine-tuning, we add a single-block MaskTransformer decoder \citep{strudel2021segmenter} to the encoder.
+Both the encoder and decoder are fine-tuned end-to-end for 128 epochs with a batch size of 32, using the AdamW optimizer.
+Training hyperparameters are detailed in \cref{tab:hparams-ade20k-ft}.
+The hyperparameters used, including learning rate, were selected on a prototyping model and not tuned for our final model(s) on which we report the final results.
+
+Fine-tuning evaluation was performed using images at 512\texttimes512 resolution.
+We interpolate the position embeddings to accommodate the processing of 512\texttimes512 px images, a change which the model is quickly able to adapt to with fine-tuning.
+
+For evaluation, images are simply resized to 512\texttimes512, with no other transformations applied.
+
+\begin{table}[tbh]
+\centering
+\caption{%
+Hyperparameter configuration for ADE20K segmentation fine-tuning.
+Learning rate (LR) reference values are shown relative to a batch size of 256 and linearly scaled for the actual batch size (32).
+}
+\label{tab:hparams-ade20k-ft}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+          & Hyperparameter      & ViT-S, -B & ViT-L \\
+\midrule
+Encoder   & Drop path           & 0.1   & 0.2 \\
+Decoder   & Type                & MaskTransformer & MaskTransformer \\
+          & Depth               & 1 block & 1 block \\
+Data      & Input size          & 512   & 512 \\
+          & Cropping            & RandScale(0.5, 2.0) & RandScale(0.5, 2.0) \\
+          & HFlip               & $p\!=\!0.5$ & $p\!=\!0.5$ \\
+          & Cutout              & $p\!=\!0.5$ & $p\!=\!0.5$ \\
+          & ColorJitter         & $p\!=\!0.5$ & $p\!=\!0.5$ \\
+Training  & Loss                & CrossEntropy    & CrossEntropy \\
+          & Optimizer           & AdamW & AdamW \\
+          & LR schedule         & Cosine & Cosine \\
+          & Warmup              & 10 epochs & 10 epochs \\
+          & LR initial          & 0.0   & 0.0 \\
+          & LR max (per 256 samp.) & $7.5{\times}10^{-3}$ & $2.5{\times}10^{-3}$ \\
+          & LR final            & 0.0   & 0.0 \\
+          & LR layer decay      & 0.65  & 0.75 \\
+          & Weight decay        & 0.05  & 0.05 \\
+          & Batch size          & 32    & 32 \\
+          & Epochs              & 128   & 128 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\FloatBarrier
+\section{Additional evaluations}
+\label{a:extra-evals}
+
+\subsection{Variance across random seeds}
+
+We ran experiments with three different seeds for model initialization and dataloader to investigate the stability of our model's performance and significance of the results.
+For this experiment, all models were trained for 300 epochs.
+As shown in \cref{tab:seed-variance}, the differences between methods are significant, and Bootleg has much more consistency in its frozen probe performance than I-JEPA, indicating our training method is more stable.
+
+
+
+\begin{table}[tbh]
+\centering
+\caption{Variance under change in random seed. We trained MAE, I-JEPA, and Bootleg (final hparams) ViT-S models for 300 ep. on IN-1k with three random seeds for both init and dataloader. Results are shown as mean $\pm$ stdev.}
+\label{tab:seed-variance}
+\small
+\adjustbox{max width=\textwidth}{%
+\begin{tabular}{lcccccc}
+\toprule
+ & \multicolumn{3}{c}{IN-1k acc.} & \multicolumn{3}{c}{ADE20K mIoU} \\
+\cmidrule(r){2-4} \cmidrule(l){5-7}
+Method & Patch & CLS & X-Blk & kNN & Lin & Blk \\
+\midrule
+MAE & 43.2 \tpm{0.2} & \sbest{35.9} \tpm{1.1} & \sbest{64.5} \tpm{0.0} & \phantom{0}\sbest{9.6} \tpm{0.3} & \sbest{13.5} \tpm{0.2} & \sbest{26.8} \tpm{0.3} \\
+I-JEPA & \sbest{51.5} \tpm{2.9} & \na{} & 62.1 \tpm{2.3} & \phantom{0}9.0 \tpm{1.9} & 12.7 \tpm{2.2} & 22.4 \tpm{2.1} \\
+Bootleg (ours) & \best{67.2} \tpm{0.6} & \best{68.3} \tpm{0.6} & \best{74.0} \tpm{0.3} & \best{21.8} \tpm{0.3} & \best{26.3} \tpm{0.3} & \best{33.8} \tpm{0.8} \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+
+\FloatBarrier
+\subsection{Fine-tuned models}
+\label{s:results-ft}
+
+We fine-tuned SSL-pretrained models at IN-1k classification using fine-tuning on 100\% of the training data (full fine-tuning), 1\% of the data (low-shot, full fine-tuning), and 1\% of the data using LoRA (low-shot, low-rank fine-tuning), as described in \cref{s:in1k-ft}.
+We additionally fine-tuned on ADE20K segmentation, as described in \cref{s:ade20k-ft}.
+
+\mypara{Results}
+As shown in \cref{tab:finetuning}, Bootleg achieves the best or near-best fine-tuning performance across all settings.
+On IN-1k 100\% fine-tuning, Bootleg outperforms all baselines at every model size, with particularly large margins at ViT-S (+0.9 over the next best) and ViT-L (+0.7).
+The advantage is most pronounced in the low-data regime: on 1\% fine-tuning, Bootleg surpasses the next-best method by +8.6 (ViT-B) and +12.5 (ViT-S) points, demonstrating that hidden-self-distillation produces representations that are especially effective when labelled data is scarce.
+LoRA fine-tuning follows a similar pattern, with Bootleg matching or exceeding full fine-tuning of I-JEPA despite updating far fewer parameters.
+
+On ADE20K fine-tuning, Bootleg leads at ViT-S and ViT-B; at ViT-L, data2vec~2.0 and MAE are stronger.
+
+Data2vec~2.0 full fine-tuning was sometimes unstable at the learning rates used for these experiments (collapsed model at 0.1\% acc.) and would benefit from a reduced learning rate.
+
+\begin{table}[tbh]
+\centering
+\caption{%
+Fine-tuning results on IN-1k classification (top-1 accuracy, \%) and ADE20K semantic segmentation (mIoU, \%).
+IN-1k results include full fine-tuning on 100\% and 1\% of training data, and LoRA fine-tuning on 1\%.
+Ep: number of pretraining epochs.
+}
+\label{tab:finetuning}
+\small
+\adjustbox{max width=\textwidth}{%
+\begin{tabular}{lllr@{\hspace{0.5em}}ccc@{\hspace{0.5em}}c}
+\toprule
+ &  &  &  & \multicolumn{3}{c}{IN-1k acc.} & \multicolumn{1}{c}{ADE20K mIoU} \\
+\cmidrule(r){5-7} \cmidrule(r){8-8}
+ &  &  &  & \multicolumn{2}{c}{Full-FT} & \multicolumn{1}{c}{LoRA} & \multicolumn{1}{c}{Full-FT} \\
+\cmidrule(r){5-6} \cmidrule(r){7-7} \cmidrule(r){8-8}
+Arch & Method & Data & Ep. & 100\% & 1\% & 1\% & 100\% \\
+\midrule
+ViT-S/16 & MAE & IN-1k & 800 & 78.2 & 37.1 & 33.9 & 39.2 \\
+ & CrossMAE & IN-1k & 800 & 79.8 & 40.4 & 37.5 & \sbest{42.2} \\
+ & data2vec 2.0 & IN-1k & 200 & 79.9 & 39.3 & 36.8 & 40.5 \\
+ & I-JEPA & IN-1k & 600 & \sbest{79.9} & \sbest{48.6} & \sbest{47.3} & 36.1 \\
+ & Bootleg (ours) & IN-1k & 600 & \best{80.8} & \best{61.1} & \best{60.4} & \best{44.3} \\
+\addlinespace
+ViT-B/16 & MAE & IN-1k & 1600 & 82.7 & 55.9 & 53.5 & 44.0 \\
+ & CrossMAE & IN-1k & 800 & 82.9 & 52.3 & 49.6 & \sbest{45.0} \\
+ & data2vec 2.0 & IN-1k & 200 & \sbest{83.3} & 58.9 & 58.1 & \gray{\phantom{0}0.1} \\
+ & I-JEPA & IN-1k & 600 & 82.7 & \sbest{61.9} & \sbest{62.2} & 29.8 \\
+ & Bootleg (ours) & IN-1k & 600 & \best{83.9} & \best{70.5} & \best{69.9} & \best{46.6} \\
+\addlinespace
+ViT-L/16 & MAE & IN-1k & 1600 & \sbest{84.7} & 67.7 & 67.5 & \sbest{50.7} \\
+ & CrossMAE & IN-1k & 800 & 84.3 & 62.7 & 61.7 & 49.6 \\
+ & data2vec 2.0 & IN-1k & 200 & \gray{\phantom{0}0.1} & \sbest{73.2} & \best{74.1} & \best{51.8} \\
+ & I-JEPA & IN-1k & 600 & 82.0 & 63.8 & 63.8 & 31.9 \\
+ & Bootleg (ours) & IN-1k & 600 & \best{85.4} & \best{73.4} & \sbest{73.2} & 48.3 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+
+
+
+
+
+
+
+
+
+
+\FloatBarrier
+\subsection{VTAB classification}
+\label{s:vtab}
+
+We evaluate on the Visual Task Adaptation Benchmark (VTAB) \citep{Zhai2019_VTAB}, which comprises 19 diverse visual classification tasks grouped into three categories: Natural, 7 standard recognition tasks such as CIFAR-100, Caltech-101, and Flowers-102; Specialized, 4 domain-specific tasks including medical, satellite, and remote sensing imagery; and Structured, 8 tasks requiring geometric or spatial reasoning, such as object counting and orientation estimation.
+
+\subsubsection{Method.}
+Following the VTAB methodology, we train our probes for 50 epochs on a 1000 sample subset of the training set only, without data augmentation.
+We use the same probe types as for IN-1k (Patch, CLS, X-Blk), evaluated on the full test set.
+
+The training hyperparameters (learning rate and weight decay) are selected by training a model on a subset of 800 training samples, validated on 200 samples.
+The best performing method is then trained again from scratch on the set 1000 training samples.
+The evaluation hyperparameters considered are shown in \cref{tab:hparams-vtab}.
+Due to the diversity of the tasks, we needed a wider range of learning rate and weight decay hyperparameters to attain optimal results across the models and dataset pairs; consequently, we sweep an 11\texttimes11 grid of learning rate and weight decay values for each head, using a wider spacing (factor of 3 spacing instead of 2):
+$\eta_\text{max} \in [3\times10^{-5}, 1.5\times10^{-4}, 3\times10^{-4}, \cdots, 3.0]$
+$\lambda \in [0, 1\times10^{-4}, 3\times10^{-4}, \cdots, 3.0]$.
+
+\begin{table}[tbh]
+\centering
+\caption{%
+Hyperparameter configuration for VTAB frozen probes.
+We sweep an 11\texttimes11 grid of learning rates and weight decay values for each probe type.
+}
+\label{tab:hparams-vtab}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+          & Hyperparameter    & Value \\
+\midrule
+Encoder   & Drop path         & 0.0                 \\
+Data      & Input size        & 224\texttimes224    \\
+          & Interpolation     & Bicubic             \\
+          & Auto-augment      & None                \\
+Training  & Loss              & Cross-entropy       \\
+          & Optimizer         & AdamW               \\
+          & LR schedule       & Cosine decay        \\
+          & Warmup            & 5 epochs            \\
+          & LR initial        & $2{\times}10^{-4}$  \\
+          & LR max            & $3{\times}10^{-5} \leq \eta_{\text{max}} \leq 3.0$ \\
+          & LR final          & 0.0                 \\
+          & WD                & $0 \leq \lambda \leq 3.0$ \\
+          & Batch size        & 64              \\
+          & Epochs            & 50              \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Results.}
+\cref{tab:vtab-summary} presents category-average results across Natural, Specialized, and Structured task groups.
+Among the non-contrastive methods, Bootleg achieves the highest overall accuracy across all three probe types at ViT-S and is best or second-best at ViT-B and ViT-L.
+The gains are most pronounced on Natural tasks, where Bootleg leads by a wide margin (\eg, 59.8\% \vs 47.9\% Patch at ViT-S), and on Specialized tasks, where Bootleg consistently achieves top scores.
+On Structured tasks, which require spatial reasoning and counting, CrossMAE and data2vec~2.0 are more competitive, likely due to their pixel-level reconstruction objectives.
+At ViT-L, Bootleg's X-Blk probe achieves the highest overall accuracy (68.7\%), with MAE and CrossMAE close behind on individual categories.
+
+The contrastive baselines (DINOv2, Franca, CAPI), shown in gray, use a smaller patch size (ViT-S/14, ViT-B/14, ViT-L/14) which increases the effective sequence length and are trained on substantially larger curated datasets (LVD-142M, LAION) and/or for significantly longer (CAPI is trained on IN-1k for ten times more epochs than Bootleg).
+Despite this advantage, Bootleg narrows the gap considerably on Natural and Specialized tasks.
+
+\begin{table}[tbh]
+\centering
+\caption{VTAB benchmark results: category-average top-1 accuracy (\%) across Natural (7 tasks), Specialized (4 tasks), and Structured (8 tasks) categories.
+We report category-averages for Patch, CLS, and X-Blk frozen probes.
+}
+\label{tab:vtab-summary}
+\small
+\adjustbox{max width=\textwidth}{%
+{\setlength{\tabcolsep}{3pt}
+\iftoggle{arxiv}{
+  \def\tablespec{@{}ll@{\hspace{4\tabcolsep}}ccc@{\hspace{4\tabcolsep}}ccc@{\hspace{4\tabcolsep}}ccc@{\hspace{4\tabcolsep}}ccc@{}}
+}{
+  \def\tablespec{@{}ll@{\hspace{0.7em}}ccc@{\hspace{0.7em}}ccc@{\hspace{0.7em}}ccc@{\hspace{0.7em}}ccc@{}}
+}
+\expandafter\tabular\expandafter{\tablespec}
+\toprule
+ &  & \multicolumn{3}{c}{Natural} & \multicolumn{3}{c}{Specialized} & \multicolumn{3}{c}{Structured} & \multicolumn{3}{c}{Overall} \\
+\cmidrule(r){3-5} \cmidrule(r){6-8} \cmidrule(r){9-11} \cmidrule(r){12-14}
+Arch & Method & Patch & CLS & X-Blk & Patch & CLS & X-Blk & Patch & CLS & X-Blk & Patch & CLS & X-Blk \\
+\midrule
+ViT-S/16 & MAE & 45.7 & 46.2 & 57.6 & 76.6 & \sbest{77.3} & 78.2 & 39.1 & \sbest{38.9} & 53.2 & 49.5 & 49.7 & 60.1 \\
+ & CrossMAE & \sbest{47.9} & \sbest{46.4} & \sbest{59.7} & \sbest{77.4} & 76.0 & \sbest{78.8} & \best{41.2} & \best{40.2} & \best{57.5} & \sbest{51.3} & \sbest{50.1} & \sbest{62.8} \\
+ & data2vec 2.0 & 38.8 & 37.4 & 48.4 & 74.6 & 75.6 & 74.1 & 40.1 & 38.4 & \sbest{54.7} & 46.9 & 45.8 & 56.5 \\
+ & I-JEPA & 40.2 & \na{} & 45.8 & 74.3 & \na{} & 73.8 & 37.7 & \na{} & 43.9 & 46.3 & \na{} & 50.9 \\
+ & Bootleg (ours) & \best{59.8} & \best{59.8} & \best{66.2} & \best{79.0} & \best{78.1} & \best{80.8} & \sbest{40.4} & 38.9 & 52.5 & \best{55.6} & \best{54.9} & \best{63.5} \\
+\cmidrule(r){2-2}
+{\color{gray}ViT-S/14} & {\color{gray}DINOv2 (dst)} & {\color{gray}\best{69.0}} & {\color{gray}\best{72.1}} & {\color{gray}\best{74.1}} & {\color{gray}\best{81.6}} & {\color{gray}\best{81.1}} & {\color{gray}\best{83.0}} & {\color{gray}\best{39.3}} & {\color{gray}\best{36.4}} & {\color{gray}\best{57.7}} & {\color{gray}\best{59.1}} & {\color{gray}\best{59.0}} & {\color{gray}\best{69.1}} \\
+\midrule
+ViT-B/16 & MAE & 54.3 & 53.4 & 64.4 & 76.7 & \sbest{76.8} & 79.2 & 42.2 & 42.2 & \sbest{58.7} & 53.9 & 53.6 & 65.1 \\
+ & CrossMAE & \sbest{56.4} & \sbest{55.2} & \sbest{65.8} & \sbest{77.6} & 74.3 & \sbest{81.0} & \best{45.7} & \sbest{44.7} & \best{61.8} & \sbest{56.4} & \sbest{54.8} & \best{67.3} \\
+ & data2vec 2.0 & 52.6 & 43.9 & 54.6 & 76.6 & 71.6 & 72.4 & \sbest{43.7} & \best{44.9} & 53.8 & 53.9 & 50.2 & 58.0 \\
+ & I-JEPA & 50.4 & \na{} & 55.1 & 77.2 & \na{} & 78.5 & 39.8 & \na{} & 49.8 & 51.6 & \na{} & 57.8 \\
+ & Bootleg (ours) & \best{60.7} & \best{61.5} & \best{68.0} & \best{82.1} & \best{80.5} & \best{83.7} & 39.8 & 38.0 & 57.8 & \best{56.4} & \best{55.6} & \sbest{67.0} \\
+\cmidrule(r){2-2}
+{\color{gray}ViT-B/14} & {\color{gray}Franca} & {\color{gray}\sbest{66.5}} & {\color{gray}\sbest{71.3}} & {\color{gray}\sbest{75.1}} & {\color{gray}\sbest{82.1}} & {\color{gray}\sbest{79.7}} & {\color{gray}\sbest{83.3}} & {\color{gray}\sbest{38.6}} & {\color{gray}\sbest{32.8}} & {\color{gray}\sbest{57.3}} & {\color{gray}\sbest{58.1}} & {\color{gray}\sbest{56.9}} & {\color{gray}\sbest{69.3}} \\
+ & {\color{gray}DINOv2 (dst)} & {\color{gray}\best{72.8}} & {\color{gray}\best{74.6}} & {\color{gray}\best{78.1}} & {\color{gray}\best{83.1}} & {\color{gray}\best{81.7}} & {\color{gray}\best{84.2}} & {\color{gray}\best{41.3}} & {\color{gray}\best{37.2}} & {\color{gray}\best{58.3}} & {\color{gray}\best{61.8}} & {\color{gray}\best{60.3}} & {\color{gray}\best{71.1}} \\
+\midrule
+ViT-L/16 & MAE & 56.2 & \sbest{60.1} & 65.7 & \sbest{79.4} & \sbest{80.2} & \sbest{81.6} & 45.4 & 44.7 & \sbest{62.1} & 56.6 & \best{57.9} & \sbest{67.5} \\
+ & CrossMAE & \sbest{59.1} & 57.6 & \sbest{68.4} & 78.8 & \best{80.5} & 81.4 & \sbest{46.0} & \sbest{46.5} & 54.1 & \best{57.7} & \sbest{57.8} & 65.1 \\
+ & data2vec 2.0 & 51.9 & 47.9 & 55.5 & 77.8 & 74.0 & 80.1 & \best{46.3} & \best{46.5} & \best{62.5} & 55.0 & 52.8 & 63.6 \\
+ & I-JEPA & 54.0 & \na{} & 58.0 & 78.4 & \na{} & 79.1 & 38.0 & \na{} & 46.3 & 52.4 & \na{} & 57.5 \\
+ & Bootleg (ours) & \best{60.7} & \best{64.9} & \best{70.9} & \best{81.9} & 79.7 & \best{84.2} & 41.5 & 39.7 & 58.9 & \sbest{57.1} & 57.4 & \best{68.7} \\
+\cmidrule(r){2-2}
+{\color{gray}ViT-L/14} & {\color{gray}CAPI} & {\color{gray}62.4} & \na{} & {\color{gray}72.7} & {\color{gray}80.8} & \na{} & {\color{gray}83.5} & {\color{gray}\best{44.9}} & \na{} & {\color{gray}\best{63.1}} & {\color{gray}58.9} & \na{} & {\color{gray}70.9} \\
+ & {\color{gray}Franca} & {\color{gray}\sbest{71.2}} & {\color{gray}\sbest{68.7}} & {\color{gray}\sbest{78.6}} & {\color{gray}\sbest{82.2}} & {\color{gray}\sbest{78.9}} & {\color{gray}\sbest{84.5}} & {\color{gray}38.9} & {\color{gray}\sbest{32.2}} & {\color{gray}\sbest{60.1}} & {\color{gray}\sbest{59.9}} & {\color{gray}\sbest{55.5}} & {\color{gray}\best{72.1}} \\
+ & {\color{gray}DINOv2 (dst)} & {\color{gray}\best{72.9}} & {\color{gray}\best{75.5}} & {\color{gray}\best{79.6}} & {\color{gray}\best{83.8}} & {\color{gray}\best{84.4}} & {\color{gray}\best{84.7}} & {\color{gray}\sbest{42.5}} & {\color{gray}\best{37.7}} & {\color{gray}57.0} & {\color{gray}\best{62.4}} & {\color{gray}\best{61.5}} & {\color{gray}\sbest{71.2}} \\
+\bottomrule
+\endtabular
+}
+}
+\end{table}
+
+A break-down of results on individual datasets is shown for the patch probe in \cref{tab:vtab-patch}.
+
+\begin{table}[tbh]
+\centering
+\caption{VTAB benchmark results: per-dataset top-1 accuracy (\%) using the Patch (linear) frozen probe.
+C100 = CIFAR-100, Cal.\@ = Caltech-101, Flr.\@ = Flowers-102, Cam.\@ = Camelyon17, Eur.\@ = EuroSAT, Res.\@ = Resisc45, Ret.\@ = Retinopathy, Cl = Clevr, dS = dSprites, sN = SmallNORB, DM = DMLab, Kit.\@ = KITTI.
+SOTA contrastive baselines (grey) use 14\texttimes14 patch sizes; non-contrastive (black) use 16\texttimes16.
+}
+\label{tab:vtab-patch}
+\adjustbox{max width=\textwidth}{%
+{\setlength{\tabcolsep}{3pt}
+\iftoggle{arxiv}{
+  \def\tablespec{@{}llccccccc@{\hspace{4\tabcolsep}}cccc@{\hspace{4\tabcolsep}}cccccccc@{}}
+}{
+  \def\tablespec{@{}ll@{\hspace{0.5em}}ccccccc@{\hspace{0.5em}}cccc@{\hspace{0.5em}}cccccccc@{}}
+}
+\expandafter\tabular\expandafter{\tablespec}
+\toprule
+ &  & \multicolumn{7}{c}{Natural} & \multicolumn{4}{c}{Specialized} & \multicolumn{8}{c}{Structured} \\
+\cmidrule(r){3-9} \cmidrule(r){10-13} \cmidrule(r){14-21}
+ & Method & C100 & Cal. & DTD & Flr. & Pets & Sun & SVH & Cam. & Eur. & Res. & Ret. & Cl\textsubscript{C} & Cl\textsubscript{D} & dS\textsubscript{L} & dS\textsubscript{O} & sN\textsubscript{A} & sN\textsubscript{E} & DM & Kit. \\
+\midrule
+\multicolumn{2}{l}{\textbf{ViT-S}} \\
+ & MAE & 24.1 & 74.1 & 54.0 & 65.3 & 35.6 & \sbest{18.4} & 48.6 & \sbest{76.3} & \sbest{90.8} & 65.7 & \sbest{73.8} & 42.4 & 46.4 & 44.0 & \sbest{31.0} & 18.5 & \best{39.4} & 33.6 & 57.7 \\
+ & CrossMAE & \sbest{26.6} & \sbest{76.4} & \sbest{54.4} & \sbest{68.3} & 45.0 & 15.8 & \sbest{48.8} & \best{78.9} & 89.6 & \sbest{67.2} & 73.8 & \sbest{47.8} & \sbest{50.6} & 45.4 & \best{34.5} & \best{19.6} & 34.3 & 33.5 & \best{63.9} \\
+ & data2vec 2.0 & 20.3 & 59.9 & 47.1 & 60.4 & 24.4 & 15.2 & 44.3 & 73.5 & 88.1 & 63.4 & 73.5 & 44.3 & \best{51.9} & \best{54.4} & 18.9 & 16.5 & \sbest{39.4} & 33.2 & 62.0 \\
+ & I-JEPA & 15.9 & 68.2 & 44.2 & 58.4 & \sbest{46.1} & 16.0 & 32.3 & 71.6 & 87.4 & 64.8 & 73.6 & 43.7 & 43.9 & \sbest{53.4} & 20.8 & 15.7 & 32.3 & \sbest{34.4} & 57.0 \\
+ & Bootleg (ours) & \best{35.8} & \best{87.4} & \best{62.9} & \best{80.2} & \best{70.9} & \best{32.0} & \best{49.1} & 73.3 & \best{92.3} & \best{75.9} & \best{74.4} & \best{49.5} & 48.0 & 40.9 & 31.0 & \sbest{18.9} & 35.1 & \best{36.2} & \sbest{63.4} \\
+\cmidrule(r){2-2}
+ & {\color{gray}DINOv2 (dst)} & {\color{gray}\best{54.1}} & {\color{gray}\best{89.1}} & {\color{gray}\best{74.1}} & {\color{gray}\best{97.4}} & {\color{gray}\best{77.9}} & {\color{gray}\best{46.6}} & {\color{gray}\best{43.6}} & {\color{gray}\best{82.0}} & {\color{gray}\best{91.0}} & {\color{gray}\best{78.3}} & {\color{gray}\best{75.0}} & {\color{gray}\best{48.7}} & {\color{gray}\best{48.7}} & {\color{gray}\best{34.3}} & {\color{gray}\best{38.2}} & {\color{gray}\best{19.5}} & {\color{gray}\best{32.3}} & {\color{gray}\best{35.2}} & {\color{gray}\best{57.7}} \\
+\midrule
+\multicolumn{2}{l}{\textbf{ViT-B}} \\
+ & MAE & 27.1 & \sbest{84.5} & \sbest{60.5} & 73.8 & 62.7 & \sbest{25.0} & 46.4 & \sbest{79.5} & 90.2 & \sbest{71.2} & 65.8 & \sbest{50.5} & 48.5 & 43.8 & \sbest{34.2} & 20.3 & 36.8 & \sbest{34.5} & \sbest{69.5} \\
+ & CrossMAE & 32.6 & 83.9 & 59.2 & \sbest{75.1} & 62.1 & 24.0 & \sbest{57.7} & 77.1 & \sbest{90.8} & 68.8 & 73.6 & 49.5 & \sbest{52.6} & \sbest{48.8} & \best{46.2} & \best{24.5} & \best{39.5} & 34.3 & \best{70.6} \\
+ & data2vec 2.0 & \sbest{32.7} & 80.3 & 56.1 & 66.3 & 44.6 & 24.1 & \best{64.5} & 75.2 & 90.2 & 67.0 & 73.9 & \best{50.7} & \best{56.5} & \best{50.0} & 29.0 & \sbest{23.9} & 37.6 & 32.6 & 69.1 \\
+ & I-JEPA & 20.9 & 78.1 & 49.5 & 69.5 & \best{78.9} & 21.3 & 34.8 & 78.0 & 88.7 & 67.9 & \sbest{74.1} & 47.3 & 45.4 & 46.6 & 26.5 & 20.5 & 35.5 & 32.8 & 64.0 \\
+ & Bootleg (ours) & \best{35.1} & \best{87.8} & \best{64.0} & \best{82.7} & \sbest{75.2} & \best{34.9} & 45.2 & \best{82.4} & \best{92.5} & \best{78.5} & \best{74.9} & 49.0 & 48.1 & 40.6 & 33.3 & 15.8 & \sbest{39.0} & \best{36.0} & 56.8 \\
+\cmidrule(r){2-2}
+ & {\color{gray}Franca} & {\color{gray}\sbest{49.6}} & {\color{gray}\sbest{87.2}} & {\color{gray}\sbest{72.5}} & {\color{gray}\sbest{94.8}} & {\color{gray}\sbest{71.5}} & {\color{gray}\sbest{42.9}} & {\color{gray}\best{47.0}} & {\color{gray}\best{83.7}} & {\color{gray}\best{91.7}} & {\color{gray}\sbest{77.8}} & {\color{gray}\sbest{75.4}} & {\color{gray}\sbest{48.8}} & {\color{gray}\best{49.2}} & {\color{gray}\best{35.7}} & {\color{gray}\sbest{36.0}} & {\color{gray}\sbest{14.8}} & {\color{gray}\sbest{33.0}} & {\color{gray}\sbest{36.2}} & {\color{gray}\sbest{55.4}} \\
+ & {\color{gray}DINOv2 (dst)} & {\color{gray}\best{63.0}} & {\color{gray}\best{91.1}} & {\color{gray}\best{78.5}} & {\color{gray}\best{97.9}} & {\color{gray}\best{81.3}} & {\color{gray}\best{52.7}} & {\color{gray}\sbest{45.5}} & {\color{gray}\sbest{82.5}} & {\color{gray}\sbest{91.6}} & {\color{gray}\best{82.8}} & {\color{gray}\best{75.6}} & {\color{gray}\best{49.4}} & {\color{gray}\sbest{48.8}} & {\color{gray}\sbest{34.2}} & {\color{gray}\best{44.1}} & {\color{gray}\best{17.5}} & {\color{gray}\best{34.3}} & {\color{gray}\best{41.2}} & {\color{gray}\best{61.3}} \\
+\midrule
+\multicolumn{2}{l}{\textbf{ViT-L}} \\
+ & MAE & 28.5 & 84.8 & \sbest{62.7} & 75.5 & 62.3 & 26.4 & 53.5 & \sbest{80.7} & 91.1 & \sbest{72.9} & 73.0 & 52.6 & 49.9 & 48.1 & \sbest{43.4} & 23.8 & 39.5 & 34.5 & \best{71.6} \\
+ & CrossMAE & 36.4 & \sbest{85.5} & \best{63.0} & \sbest{76.5} & 66.6 & 27.5 & \best{58.0} & \best{81.6} & 91.8 & 68.3 & 73.4 & \sbest{52.8} & \sbest{50.3} & \best{51.9} & \best{49.4} & \sbest{24.0} & \sbest{39.8} & 33.2 & 66.4 \\
+ & data2vec 2.0 & \sbest{37.5} & 82.4 & 54.0 & 67.3 & 41.8 & 23.0 & \sbest{57.8} & 80.2 & 90.3 & 69.7 & 71.0 & \best{57.3} & \best{51.3} & \sbest{50.2} & 38.4 & \best{24.7} & \best{44.4} & \sbest{36.5} & \sbest{67.8} \\
+ & I-JEPA & 29.4 & 78.9 & 54.1 & 69.6 & \best{78.8} & \sbest{28.1} & 39.5 & 76.6 & \sbest{91.9} & 71.6 & \sbest{73.5} & 43.6 & 46.0 & 44.8 & 25.3 & 20.0 & 34.2 & 33.1 & 57.0 \\
+ & Bootleg (ours) & \best{39.2} & \best{88.0} & 58.8 & \best{85.1} & \sbest{69.5} & \best{34.5} & 49.9 & 78.8 & \best{92.8} & \best{80.9} & \best{75.2} & 49.0 & 50.1 & 43.2 & 34.8 & 20.8 & 38.6 & \best{37.2} & 58.4 \\
+\cmidrule(r){2-2}
+ & {\color{gray}CAPI} & {\color{gray}42.3} & {\color{gray}86.3} & {\color{gray}69.3} & {\color{gray}84.6} & {\color{gray}62.0} & {\color{gray}38.0} & {\color{gray}\best{54.6}} & {\color{gray}77.9} & {\color{gray}\sbest{92.4}} & {\color{gray}78.1} & {\color{gray}\sbest{75.0}} & {\color{gray}\sbest{51.5}} & {\color{gray}\best{49.5}} & {\color{gray}\best{41.4}} & {\color{gray}37.1} & {\color{gray}\sbest{18.9}} & {\color{gray}\best{50.2}} & {\color{gray}37.5} & {\color{gray}\best{73.6}} \\
+ & {\color{gray}Franca} & {\color{gray}\sbest{64.9}} & {\color{gray}\best{90.7}} & {\color{gray}\sbest{72.6}} & {\color{gray}\sbest{98.0}} & {\color{gray}\sbest{80.4}} & {\color{gray}\sbest{48.4}} & {\color{gray}\sbest{43.2}} & {\color{gray}\sbest{81.1}} & {\color{gray}91.0} & {\color{gray}\sbest{80.3}} & {\color{gray}\best{76.2}} & {\color{gray}43.5} & {\color{gray}\sbest{49.3}} & {\color{gray}\sbest{36.1}} & {\color{gray}\best{44.1}} & {\color{gray}\best{19.2}} & {\color{gray}\sbest{34.5}} & {\color{gray}\sbest{40.5}} & {\color{gray}44.6} \\
+ & {\color{gray}DINOv2 (dst)} & {\color{gray}\best{69.0}} & {\color{gray}\sbest{90.7}} & {\color{gray}\best{78.1}} & {\color{gray}\best{99.0}} & {\color{gray}\best{82.1}} & {\color{gray}\best{50.0}} & {\color{gray}41.2} & {\color{gray}\best{83.7}} & {\color{gray}\best{92.5}} & {\color{gray}\best{86.1}} & {\color{gray}73.0} & {\color{gray}\best{52.7}} & {\color{gray}48.6} & {\color{gray}36.0} & {\color{gray}\sbest{43.5}} & {\color{gray}18.3} & {\color{gray}33.6} & {\color{gray}\best{42.1}} & {\color{gray}\sbest{64.8}} \\
+\bottomrule
+\endtabular
+}
+}
+\end{table}
+
+
+
+
+\FloatBarrier
+\section{Additional ablations}
+
+\subsection{Preliminary hyperparameters}
+\label{s:prelim}
+
+As described in \cref{s:pretraining-hparams}, our hyperparameter sweep was conducted in multiple rounds.
+Some ablations were conducted using a prototype hyperparameter configuration, before the final hyperparameters were established.
+The prototype and final configurations are compared in \cref{tab:hparams-prelim}.
+
+Additionally, note that tables using prototype hyperparameter values use a weaker implementation of the IN-1k probe methodology (too large a range in crop sizes, too small a range in LR values), and are not comparable with the main tables but are self-consistent.
+
+\begin{table*}[tbh]
+\centering
+\caption{Preliminary and final ablation hyperparameter configurations, each used for some of the ablation experiments presented (ViT-S, 300 ep.).}
+\label{tab:hparams-prelim}
+\small
+\adjustbox{max width=\textwidth}{
+\begin{tabular}{llll}
+\toprule
+          & Hyperparameter    & Bootleg (prototype)           & Bootleg (final)               \\
+\midrule
+Encoder   & Architecture      & ViT-S/16                      & ViT-S/16                      \\
+          & Depth             & 12                            & 12                            \\
+          & Width             & 384                           & 384                           \\
+          & Attention heads   & 6                             & 6                             \\
+          & Patch size        & 16                            & 16                            \\
+          & CLS tokens        & 1                             & {1}                           \\
+          & Register tokens   & 4                             & {4}                           \\
+Predictor & Depth             & 8                             & {10}                          \\
+          & Width             & 256                           & {192}                         \\
+          & Attention heads   & 8                             & {16}                          \\
+          & Register tokens   & 4                             & {4}                           \\
+Data      & Transforms        & RandCrop(0.2, 1.0)\,+\,Hflip  & RandCrop(0.35, 1.0)\,+\,Hflip \\
+          & Interpolation     & Bicubic                       & Bicubic                       \\
+          & Input size        & 224\texttimes 224             & 224\texttimes 224             \\
+Masking   & Strategy          & {4 rectangular blocks}        & {4 rectangular blocks}        \\
+          & Mask seen rate    & 0.292 $\pm$ 0.069             & 0.292 $\pm$ 0.069             \\
+          & Mask target rate  & 0.475 $\pm$ 0.076             & 0.475 $\pm$ 0.076             \\
+Training  & Target(s)         & Block 1, 4, 8, 12 outputs     & Block 1, 4, 8, 12 outputs     \\
+     & Target standardization & Z-score                       & Z-score                       \\
+          & Target length     & 1536                          & 1536                          \\
+          & Loss              & {Mean squared error}          & {Mean squared error}          \\
+          & Optimizer         & AdamW({\footnotesize$\beta\!=\!(0.9, 0.95)$}) & AdamW({\footnotesize$\beta\!=\!(0.9, 0.95)$}) \\
+          & EMA initial       & 0.998                         & 0.9985                        \\
+          & EMA final         & 1.0                           & 0.9985                        \\
+          & LR schedule       & Cosine annealing              & Cosine annealing              \\
+          & LR schedule warmup& 40 epochs                     & 69 epochs                     \\
+          & LR initial        & 0.0                           & 0.0001                        \\
+          & LR maximum        & 0.0012                        & {0.003}                       \\
+          & LR final          & 0.0                           & 0.0001                        \\
+          & WD initial        & 0.05                          & 0.05                          \\
+          & WD final          & 0.05                          & {0.05}                        \\
+          & Schedule stretch  & 1.25                          & 1.0                           \\
+          & Batch size        & 2048                          & 2048                          \\
+          & Num epochs        & 300                           & 300                           \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+\FloatBarrier
+\subsection{Choice of target layers}
+
+To accompany \iftoggle{arxiv}{\cref{s:ablation:target}}{Sec.~6.1 of the main text}, we show additional results exploring which hidden layers to use as targets for hidden-self-distillation.
+
+\subsubsection{Number of targets.}
+\label{s:target-choice}
+
+As shown in \cref{tab:change-target}, we explore the effect of varying how many hidden layers are targeted for self-distillation, the type of intermediate representation used (block outputs, mid-block representations, residual terms), and whether to include the tokenizer output or raw image pixels.
+For ViT-S, we find two peaks in performance: one when using 3--4 equispaced block outputs as targets, and another when targeting all residuals and outputs from every block.
+For ViT-B and ViT-L, the equispaced block outputs consistently outperform the denser target configurations.
+Overall, targeting the output of every fourth block provides best or near-best performance across all three architecture sizes.
+
+
+
+\begin{table*}[tbh]
+\centering
+\caption{%
+Selection of which hidden layer(s) to predict during pretraining.
+Block sets are denoted \texttt{start:step:end}, \eg{}, \texttt{1:4:12} = \{1, 4, 8, 12\} and \texttt{1:1:12} denotes all blocks.
+Experiments trained for 300 ep. on IN-1k (using \textit{prototype} hparams) and evaluated with frozen probe.
+We also show the number of distillation targets per mask token.
+We find using the output of every fourth block (highlighted) provides best or near best performance across architecture sizes.
+}
+\label{tab:change-target}
+\small
+\adjustbox{max width=\textwidth}{
+\begin{tabular}{llrrrccc}
+\toprule
+ & & \multicolumn{3}{c}{\# Distillation targets} & \multicolumn{3}{c}{IN-1k Probe} \\
+\cmidrule(l){3-5} \cmidrule(l){6-8}
+Arch & Targets & Blocks & Layers & Dim & Patch & CLS & X-Blk \\
+\midrule
+ViT-S & Block 12 output                          &  1 &  1 &   384 &        54.1  &        53.8  &        68.5  \\
+      & Block 1:6:12 output                      &  3 &  3 &  1152 &  \best{62.9} & \sbest{62.8} &        72.5  \\
+\rowcolor{vlightgray}
+      & Block 1:4:12 output                      &  4 &  4 &  1536 &        62.2  &        62.4  & \sbest{73.0} \\
+      & Block 1:3:12 output                      &  5 &  5 &  1920 &        60.7  &        61.3  &        72.8  \\
+      & Block 2:2:12 output                      &  6 &  6 &  2304 &        59.8  &        61.5  &        72.8  \\
+      & Block 1:4:12 output and residuals        &  4 & 12 &  4608 &        57.6  &        54.3  &        70.2  \\
+      & Block 1:1:12 output                      & 12 & 12 &  4608 &        58.5  &        56.3  &        72.2  \\
+      & Block 1:1:12 residuals                   & 12 & 24 &  9216 &        55.6  &        54.8  &        70.0  \\
+      & Block 1:1:12 mid and output              & 12 & 24 &  9216 &        59.3  &        59.9  &        72.8  \\
+      & Block 1:1:12 residuals and output        & 12 & 36 & 13824 & \sbest{62.4} &        61.9  &  \best{73.1} \\
+      & Block 1:1:12 residuals, mid, output      & 12 & 48 & 18432 &        61.7  &  \best{63.1} & \sbest{73.0} \\
+      & Img; Tok; Block 1:1:12 res., mid, output & 2+12 & 50 & 19584 &        60.5  &        61.7  &        72.9  \\
+\addlinespace
+ViT-B & Block 1:6:12 output                      &  3 &  3 &  2304 & \sbest{72.3} & \sbest{73.4} &        78.2  \\
+\rowcolor{vlightgray}
+      & Block 1:4:12 output                      &  4 &  4 &  3072 &  \best{73.4} &  \best{74.4} &  \best{78.7} \\
+      & Block 1:3:12 output                      &  5 &  5 &  3840 &        72.1  &        71.7  & \sbest{78.3} \\
+      & Block 1:2:12 output                      &  6 &  6 &  4608 &        70.2  &        70.8  &        78.0  \\
+      & Block 1:1:12 output                      & 12 & 12 &  9216 &        70.4  &        68.2  &        77.7  \\
+      & Block 1:1:12 residuals and output        & 12 & 36 & 27648 &        70.3  &        70.7  &        77.8  \\
+\addlinespace
+ViT-L & Block 1:8:24 output                      &  4 &  4 &  4096 &  \best{77.9} & \sbest{77.4} & \sbest{81.2} \\
+\rowcolor{vlightgray}
+      & Block 1:4:24 output                      &  7 &  7 &  7168 & \sbest{77.9} &  \best{78.0} &  \best{81.2} \\
+      & Block 1:1:24 residuals and output        & 24 & 72 & 73728 &        77.1  &        76.1  &        80.8  \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+\subsubsection{Whether to use the tokenizer block.}
+We considered whether to include the tokenizer, the least processed layer after the raw image pixels, as a self-distillation target.
+This layer's output has an advantage over the raw image pixels in being the same shape as the transformer block outputs, which (though not strictly necessary) does make processing easier.
+As shown in \cref{tab:target-tokenizer}, we found using the tokenizer's output instead of the first block when using spaced out targets was detrimental.
+For target configurations where all transformer blocks were being predicted, including the tokenizer layer as a self-distillation target was generally negative on IN-1k performance.
+
+\begin{table}[tbh]
+\centering
+\caption{Choosing whether to predict the tokenizer's output.
+We consider whether to predict the tokenizer output (Tok.) instead of the first block for spaced targets, or in addition to all blocks.
+We find it is generally disadvantageous to use the tokenizer as a self-distillation target in these scenarios.
+ViT-S, trained on IN-1k, 300 ep., \textit{prototype} hparams.
+}
+\label{tab:target-tokenizer}
+\small
+\begin{tabular}{@{}lrccc@{}}
+\toprule
+ & \multicolumn{1}{c}{\# tgt} & \multicolumn{3}{c}{IN-1k Probe} \\
+\cmidrule(r){2-2} \cmidrule(r){3-5}
+Distillation targets & Layer & Patch & CLS & X-Blk \\
+\midrule
+\rowcolor{vlightgray}
+Block 1:4:12 out                    &  4 & \sbest{62.2} &  \best{62.4} & \sbest{73.0} \\
+Block 4:4:12 out \& Tok.            &  4 &        60.3  &        61.6  &        72.4  \\
+\addlinespace
+Block 1:1:12 out                    & 12 &        58.5  &        56.3  &        72.2  \\
+Block 1:1:12 out \& Tok.            & 13 &        59.2  &        59.2  &        72.4  \\
+\addlinespace
+Block 1:1:12 mid, out               & 24 &        59.3  &        59.9  &        72.8  \\
+Block 1:1:12 mid, out \& Tok.       & 25 &        58.9  &        58.9  &        72.3  \\
+\addlinespace
+Block 1:1:12 res., out              & 36 &  \best{62.4} & \sbest{61.9} &  \best{73.1} \\
+Block 1:1:12 res., out \& Tok.      & 37 &        60.4  &        58.7  &        72.5  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\subsection{Masking hyperparameter sensitivity}
+\label{s:ablation-masking-hparams}
+
+We ablate the masking hyperparameters of Bootleg: the size of each mask region (\cref{tab:mask-size}), the number of mask regions (\cref{tab:mask-count}), and the aspect ratio range of mask regions (\cref{tab:mask-aspect}).
+
+For each ablation, we report the average fraction of patch tokens which were seen by the encoder, and the fraction of patch tokens used as a target by at least one mask.
+We also show the fraction of targets which were adjacent to a seen token.
+
+\subsubsection{Mask size}
+
+\cref{tab:mask-size} shows the effect of scaling mask region size while keeping $K{=}4$ regions fixed.
+The default mask scale (100\%) yields the best results across all metrics.
+The performance falls off similarly as the mask size is increased or decreased.
+Smaller masks (80\%) leave too much context visible (40.3\% seen), reducing the difficulty of the prediction task, while larger masks (110--120\%) occlude too much of the image, limiting the encoder's access to informative context.
+Performance holds out well across the range of mask sizes explored, despite the mean seen rate ranging from 22\% to 40\%.
+
+
+\begin{table}[tbh]
+\centering
+\caption{Effect of mask region size. The mask scale is varied as a percentage relative to the default (highlighted), keeping the number of mask regions fixed at $K{=}4$. ViT-S, 300 ep. on IN-1k.}
+\label{tab:mask-size}
+\small
+\adjustbox{max width=\textwidth}{%
+\begin{tabular}{llccccccc}
+\toprule
+ & & & & & \multicolumn{3}{c}{IN-1k acc.} & \multicolumn{1}{c}{ADE20K mIoU} \\
+\cmidrule(r){6-8} \cmidrule{9-9}
+$K$ & Mask scale & Seen (\%) & Target (\%) & Adj. (\%) & Patch & CLS & X-Blk & kNN \\
+\midrule
+4 & $\phantom{0}80\% \rightarrow [0.128,\, 0.146]$ & $40.3 \pm 7.7$ & $40.6 \pm 6.4$ & $27.8 \pm 10.2$ & 65.3 & 64.9 & 73.2 & 19.7 \\
+4 & $\phantom{0}90\% \rightarrow [0.144,\, 0.165]$ & $33.9 \pm 7.1$ & $44.5 \pm 7.0$ & $21.7 \pm 9.2$ & \sbest{67.2} & \sbest{68.3} & \sbest{74.2} & 21.1 \\
+\rowcolor{vlightgray}
+4 & $100\% \rightarrow [0.160,\, 0.183]$ & $29.3 \pm 6.7$ & $47.3 \pm 7.3$ & $17.7 \pm 8.3$ & \best{67.8} & \best{68.9} & \best{74.4} & \best{22.0} \\
+4 & $110\% \rightarrow [0.176,\, 0.201]$ & $25.5 \pm 6.4$ & $49.7 \pm 7.6$ & $14.5 \pm 7.5$ & 66.7 & 67.7 & 73.6 & \sbest{21.7} \\
+4 & $120\% \rightarrow [0.192,\, 0.220]$ & $21.8 \pm 6.4$ & $52.2 \pm 8.0$ & $11.6 \pm 6.8$ & 65.1 & 66.2 & 73.1 & 21.2 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+
+\subsubsection{Number of masks}
+
+\cref{tab:mask-count} varies the number of mask regions, $K$, while adjusting their size to keep the total masked area approximately constant.
+The default $K{=}4$ achieves the best results, with $K{=}3$ and $K{=}5$ close behind.
+Fewer, larger masks ($K{=}1$, $K{=}2$) produce contiguous masked regions that occlude a large area, elevating the task.
+Many small masks ($K{=}8$) scatter targets across the image, reducing task difficulty slightly due to the reduced size of each mask.
+The results suggest that a moderate number of mask regions provides the best balance between prediction difficulty and spatial diversity.
+Performance holds out well across the range of number of mask regions.
+
+\begin{table}[tbh]
+\centering
+\caption{Effect of changing the number of mask regions, $K$. The mask scale is adjusted to keep the seen fraction of the image approximately constant. The mask scale percentage is relative to the default ($K{=}4$). ViT-S, 300 ep. on IN-1k.}
+\label{tab:mask-count}
+\small
+\adjustbox{max width=\textwidth}{%
+\begin{tabular}{llccccccc}
+\toprule
+ & & & & & \multicolumn{3}{c}{IN-1k acc.} & \multicolumn{1}{c}{ADE20K mIoU} \\
+\cmidrule(r){6-8} \cmidrule{9-9}
+$K$ & Mask scale & Seen (\%) & Target (\%) & Adj. (\%) & Patch & CLS & X-Blk & kNN \\
+\midrule
+1 & $379\% \rightarrow [0.575,\, 0.726]$ & $28.4 \pm 8.0$ & $64.8 \pm 5.0$ & $19.5 \pm 7.1$ & 67.2 & 67.5 & 73.5 & 21.2 \\
+2 & $208\% \rightarrow [0.281,\, 0.432]$ & $29.1 \pm 7.7$ & $52.0 \pm 8.0$ & $16.1 \pm 7.0$ & 67.1 & 67.6 & 73.6 & 21.4 \\
+3 & $131\% \rightarrow [0.196,\, 0.254]$ & $28.7 \pm 7.2$ & $47.3 \pm 7.8$ & $16.0 \pm 8.0$ & \sbest{67.5} & \sbest{68.6} & 74.0 & 21.7 \\
+\rowcolor{vlightgray}
+4 & $100\% \rightarrow [0.160,\, 0.183]$ & $29.3 \pm 6.7$ & $47.3 \pm 7.3$ & $17.7 \pm 8.3$ & \best{67.8} & \best{68.9} & \best{74.4} & \best{22.0} \\
+5 & $\phantom{0}86\% \rightarrow [0.126,\, 0.168]$ & $28.6 \pm 7.4$ & $48.9 \pm 7.6$ & $18.2 \pm 9.0$ & 67.3 & 68.1 & \sbest{74.1} & \sbest{21.8} \\
+6 & $\phantom{0}72\% \rightarrow [0.109,\, 0.138]$ & $30.0 \pm 6.9$ & $48.9 \pm 7.1$ & $20.8 \pm 9.1$ & 66.9 & 67.7 & 73.8 & 21.1 \\
+8 & $\phantom{0}57\% \rightarrow [0.083,\, 0.111]$ & $29.2 \pm 7.0$ & $50.8 \pm 6.9$ & $22.1 \pm 9.6$ & 65.5 & 66.1 & 73.5 & 20.4 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+
+\subsubsection{Mask aspect ratio}
+
+\cref{tab:mask-aspect} compares different aspect ratio ranges for mask regions.
+The default range $[0.667, 1.5]$ achieves the best performance across all metrics.
+There is only a small impact on the performance of the model when changing the mask aspect ratio.
+
+Using square masks slightly increases the difficulty in the task because more targets are further from seen components of the image.
+Similarly, wider aspect ratio ranges ($[0.5, 2]$ and $[0.333, 3]$) increases the task difficulty slightly as highly elongated mask rectangles allow the model to see context closer to the target patches.
+The default aspect ratio provides the best balance in task complexity, though the effect is not large.
+
+\begin{table}[tbh]
+\centering
+\caption{Effect of mask aspect ratio range. The default aspect ratio (highlighted) allows moderate variation; $[1,\,1]$ constrains masks to be square. ViT-S, $K{=}4$, 300 ep. on IN-1k. Although the mask scale parameter is held constant, the seen rate varies due to changes in the distribution of possible mask areas for a given aspect ratio range.}
+\label{tab:mask-aspect}
+\small
+\adjustbox{max width=\textwidth}{%
+\begin{tabular}{cccccccc}
+\toprule
+ & & & & \multicolumn{3}{c}{IN-1k acc.} & \multicolumn{1}{c}{ADE20K mIoU} \\
+\cmidrule(r){5-7} \cmidrule{8-8}
+Aspect ratio & Seen (\%) & Target (\%) & Adj. (\%) & Patch & CLS & X-Blk & kNN \\
+\midrule
+$[1,\, 1]$ & $25.1 \pm 5.6$ & $49.4 \pm 7.5$ & $14.0 \pm 7.0$ & \sbest{67.2} & 68.0 & 73.6 & 21.5 \\
+\rowcolor{vlightgray}
+$[0.667,\, 1.5]$ & $29.3 \pm 6.7$ & $47.3 \pm 7.3$ & $17.7 \pm 8.3$ & \best{67.8} & \best{68.9} & \best{74.4} & \best{22.0} \\
+$[0.5,\, 2]$ & $30.1 \pm 6.9$ & $47.2 \pm 7.2$ & $18.8 \pm 8.8$ & 67.2 & \sbest{68.3} & \sbest{74.2} & \sbest{21.6} \\
+$[0.333,\, 3]$ & $30.4 \pm 7.0$ & $47.8 \pm 7.2$ & $19.8 \pm 9.4$ & 67.1 & 67.7 & 73.9 & 21.3 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+
+
+
+
+
+
+
+\FloatBarrier
+\section{Additional experiments}
+
+In this section, we present additional experiments exploring design choices in the Bootleg framework.
+Unless otherwise noted, experiments use ViT-S pretrained on IN-1k for 300 epochs with the final hyperparameter configuration (\cref{tab:hparams-prelim}).
+
+
+
+
+\subsection{Predicting register tokens}
+
+In Bootleg, the embedding of the CLS token is passed from the encoder to the predictor, along with embeddings of the visible patches.
+However, the register tokens are not passed from the encoder to predictor.
+Instead, the predictor has its own register tokens.
+
+Since the register tokens are not visible to the predictor, estimating these would be non-trivial for the predictor.
+We explored whether including the hidden embeddings of the register tokens as targets (in addition to the hidden-layer embeddings of the masked-out tokens) would improve the performance of the network.
+As shown in \cref{tab:target-reg}, we found including register tokens as targets has negligible impact in training peformance.
+
+\begin{table}[tbh]
+\centering
+\caption{Effect of using hidden embeddings of register tokens as self-distillation targets, in addition to hidden embeddings of patch tokens.
+ViT-S, trained 300ep on IN-1k, \textit{prototype} hparams.
+}
+\label{tab:target-reg}
+\small
+\begin{tabular}{llcccc}
+\toprule
+        &  & \multicolumn{4}{c}{IN-1k Probe} \\
+\cmidrule(r){3-6}
+Arch    & Distil. method & Patch & CLS & X-Attn & X-Blk \\
+\midrule
+\rowcolor{vlightgray}
+ViT-S & Baseline         &  \best{62.2} & \sbest{62.4} &  \best{71.1} &  \best{73.0} \\
+      & +target 4 reg.   & \sbest{62.2} &  \best{62.5} & \sbest{70.9} & \sbest{72.7} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+\begin{table*}[tbh]
+\centering
+\caption{Effect of splitting targets across mask rectangles.
+We show the number of target layers per mask rectangle (/) and over all masks ($\Sigma$).
+ViT-S, trained 300ep on IN-1k, \textit{prototype} hparams.
+}
+\label{tab:target-groups}
+\small
+\adjustbox{max width=\textwidth}{
+\begin{tabular}{@{}llrrcccc@{}}
+\toprule
+ & & \multicolumn{2}{c}{\# targets} & \multicolumn{4}{c}{IN-1k Probe} \\
+\cmidrule(r){3-4} \cmidrule(r){5-8}
+Grouping method & Distillation targets per mask rectangle & / & $\Sigma$ & Patch & CLS & X-Attn & X-Blk \\
+\midrule
+\rowcolor{vlightgray}
+Same (all) for each rectangle     & Blocks $\{1, 4, 8, 12\}$ outputs          & 4 & 4 & \sbest{62.2} &  \best{62.4} & \sbest{71.1} & \sbest{73.0} \\
+Split as single target per rect.  & Block $g$ out; for $g = 1, 4, 8, 12$     & 1 & 4 &        60.7  &        61.7  &        70.8  &        72.7  \\
+\addlinespace
+Same (all) for each rectangle     & Blocks 1:1:12 res. \& out              & 36 & 36 &  \best{62.4} & \sbest{61.9} &  \best{71.4} &  \best{73.1} \\
+Split as contiguous blocks        & Blocks $\{g, g+1, g+2\}$ res. \& out; for $g=1,4,7,10$   & 12 & 36 &        60.2  &        60.3  &        70.9  &        72.7  \\
+Split as interleaved blocks       & Blocks $\{g, g+4, g+8\}$ res. \& out; for $g=1,2,3,4$   & 12 & 36 &        60.7  &        57.9  &        70.5  &        72.6  \\
+Split as interleaved targets      & $\{r^\text{Attn}_l, r^\text{MLP}_{l+1}, x_{l+2}\}$ for $l\in[1, 5, 9]$, \etc{} & 12 & 36 &        60.9  &        60.6  &        70.9  &        72.8  \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+
+\subsection{Using different targets for each mask}
+
+To train ViT-S and ViT-B, our Bootleg method uses four self-distillation targets (the outputs of the teacher's blocks 1, 4, 8, and 12), and predicts these targets for all masked out tokens within four blocking mask rectangles.
+Each rectangle is processed separately with self-attention between the encoder outputs and the mask tokens.
+
+This symmetry presents an opportunity: what if we break up the distillation targets and ask the predictor to predict only a quarter of the hidden layers for each pass through the predictor?
+In the standard Bootleg config, this means each mask rectangle can devote its processing to predicting a single distillation target.
+Intuitively, this may yield an advantage if the predictor is ``overloaded'' in its capacity to predict all the targets.
+
+We implemented this variant of Bootleg by using a different learnable mask token for each of the four mask regions.
+Since mask placement is symmetric, we let the first mask rectangle correspond to the first mask token and let its targets always be the output of block 1; similarly the second mask rectangle always predicts the output of block 4; \etc{}
+We retain the full dimensionality of the read-out head (the final linear layer of the predictor network) as if the module were predicting all four targets, but select only the dimensions corresponding to the $i$-th target; we found this was necessary to best facilitate the training of the predictor.
+As shown in \cref{tab:target-groups}, we found splitting up the target layers across the mask rectangles lead to a slight reduction in performance.
+
+We also experimented with this method when using 36 targets: the output and residuals of each block.
+As this is a much larger set of targets, it is more likely the predictor is ``overloaded'' when trying to complete all prediction tasks simultaneously.
+For this set of targets, we explored multiple options of how to group the 36 targets into 4 sets of 12: (1) predict all 36 targets for every rectangle (default); (2) group blocks contiguously as $\{1, 2, 3\}$, $\{4, 5, 6\}$, $\{7, 8, 9\}$, $\{10, 11, 12\}$; (3) use interleaved blocks $\{1, 5, 9\}$, $\{2, 6, 10\}$, $\{3, 7, 11\}$, $\{4, 8, 12\}$; or (4) interleave targets entirely
+$\{r^\text{Attn}_1, r^\text{MLP}_2, x_3, r^\text{Attn}_5, r^\text{MLP}_6, x_7, r^\text{Attn}_9, r^\text{MLP}_{10}, x_{11}\}$,
+$\{r^\text{MLP}_1, x_2, r^\text{Attn}_4, r^\text{MLP}_5, x_6, r^\text{Attn}_8, r^\text{MLP}_9, x_{10}, r^\text{Attn}_{12}\}$,
+\etc{}
+In this case, we found (\cref{tab:target-groups}) using all targets for each of the 4 rectangles worked best, followed by interleaving the targets as much as possible.
+
+These results indicate that using every hidden distillation as a target for every masked out token is the superior strategy.
+
+
+\subsection{Using a cross-attention predictor with Bootleg}
+
+To accompany the \textit{``Bootleg edition of CrossMAE''} in \iftoggle{arxiv}{\cref{s:ablation:bootleg-others}}{Sec.~6.2 of the main paper}, we considered whether Bootleg itself would perform better when using the cross-attention predictor of CrossMAE instead of a self-attention predictor network.
+As shown in \cref{tab:xattn}, we found the using the cross-attention predictor on the output of the encoder only (XA without WFM) greatly reduced performance (62.4 $\to$ 54.7 patch probe).
+Using cross-attention with the weighted feature map (XA with WFM) was overall slightly worse than using self-attention.
+However, we did not increase the depth of the predictor network, as recommended by \citet{fu2025crossmae}; it is possible doing so would improve the results when training Bootleg with a cross-attention predictor.
+
+\begin{table}[tbh]
+\centering
+\caption{Performance when using cross-attention predictor and weighted feature map (CrossMAE config) instead of self-attention (MAE config).
+Performance when using either the MAE/I-JEPA method of self-attention (SA) for the predictor network, or the CrossMAE method of cross-attention (XA) against a weighted feature map (WFM).
+The WFM uses a learnable weighted average of the outputs from the tokenizer and outputs of each transformer block in the encoder as the input to the predictor.
+ViT-S, 300 ep., \textit{prototype} hparams.
+}
+\label{tab:xattn}
+\small
+\begin{tabular}{lllccc}
+\toprule
+ & & & \multicolumn{3}{c}{IN-1k Probe} \\
+\cmidrule(r){4-6}
+Arch & Distillation targets & Predictor & Patch & CLS & X-Blk \\
+\midrule
+\rowcolor{vlightgray}
+ViT-S %
+ & Block 1:4:12 out       & SA      &        62.2  &  \best{62.4} & \sbest{73.0} \\
+ & Block 1:4:12 out       & XA, WFM &        62.2  &        61.1  &        72.8  \\
+ & Block 1:1:12 res., out & SA      & \sbest{62.4} & \sbest{61.9} &  \best{73.1} \\
+ & Block 1:1:12 res., out & XA      &        54.7  &        46.5  &        69.7  \\
+ & Block 1:1:12 res., out & XA, WFM &  \best{62.6} &        59.1  &        72.6  \\
+\addlinespace
+\rowcolor{vlightgray}
+ViT-B %
+ & Block 1:4:12 out       & SA      &  \best{73.4} &  \best{74.4} &  \best{78.7} \\
+ & Block 1:4:12 out       & XA, WFM & \sbest{72.9} & \sbest{72.6} & \sbest{78.7} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Jointly standardizing targets}
+
+In Bootleg, our targets are standardized on a per-patch, per-hidden-layer basis by subtracting the mean and dividing by the standard deviation as measured over the embedding dimension (taking the z-score over the embedding dimension).
+This standardization process is the same as in I-JEPA (which only targets one layer, the output of the teacher-encoder), and originates in MAE \citep{he2022masked}, in which analysis found using the z-score of the RGB values, referred to as the ``normalized pixel values'', was a better training target than the raw RGB values.
+
+In self-distillation literature \citep{grill2020bootstrap, Chen2021simsiam, assran2023ijepa} taking the z-score of the targets---often as a z-score over the batch dimension, implemented by applying a BatchNorm module without an affine-transformation---is motivated by the need to prevent collapse of the representations.
+This representation collapse can be seen to motivate our own target standardization, but in this case it would be sufficient to standardize the full target vector, rather than standardizing each embedding vector.
+
+We investigated this by considering two options to handle the preparation of the target vector for a given mask patch token: (1) first separately standardize each embedding vector from blocks 1, 4, 8, 12; then concatenate the standardized embedddings to create the target vector; (2) first concatenate the embedding vectors from blocks 1, 4, 8, 12; then jointly standardize the concatenated embedding vector.
+As shown in \cref{tab:jointly-standardize}, we find separate standardization outperforms jointly standardizing the embeddings, though joint standardization does not result in a collapse in the model.
+
+\begin{table}[tbh]
+\centering
+\caption{%
+We explored whether to standardize the targets with a z-score separately applied to each target embedding vector from each hidden layer used, or with a z-score taken across the concatenation of all targets.
+ViT-S, trained on IN-1k, 300 ep. \textit{prototype} hparams.
+}
+\label{tab:jointly-standardize}
+\small
+\begin{tabular}{lcccc}
+\toprule
+ & \multicolumn{1}{c}{\# targets} & \multicolumn{3}{c}{IN-1k Probe} \\
+\cmidrule(r){2-2} \cmidrule(r){3-5}
+Target standardization  & Layers & Patch & CLS & X-Blk \\
+\midrule
+\rowcolor{vlightgray}
+Separately standardized &  4 &  \best{62.2} &  \best{62.4} &  \best{73.0} \\
+Jointly standardized    &  4 &  {57.8} & {57.2} & {69.8} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\section{Representational analysis}
+\label{sec:rep-analysis}
+
+To better understand the structure of Bootleg's learned representations, we analyze how embeddings relate across transformer blocks and spatial positions.
+We compute two inter-layer similarity measures---element-wise Pearson correlation and Centered Kernel Alignment (CKA)~\cite{kornblith2019similarity}---as well as spatial autocorrelation within each layer.
+All analyses are computed over 10{,}000 ImageNet-1k validation images using ViT-S/16 and ViT-B/16 Bootleg encoders trained for 600 epochs.
+
+\subsection{Inter-layer similarity}
+\label{sec:inter-layer-sim}
+
+\cref{fig:pearson-matrices} shows Pearson correlation matrices between all pairs of encoder layers (tokenizer output, blocks~1--12, and the final layer-normed output used as I-JEPA's target).
+Several patterns emerge.
+Adjacent layers are highly correlated (mean adjacent Pearson $r = 0.81$ for ViT-S, $0.84$ for ViT-B), but correlation decays rapidly with layer distance, reaching near-zero between early and late blocks.
+Block~12's output is notably distinct from earlier layers, with Pearson $r < 0.10$ against blocks~1--4 in ViT-S.
+The ``final'' representation (post-LayerNorm) shows moderate correlation with late blocks but low correlation with early blocks, confirming that it is dominated by the deepest layers.
+
+\cref{fig:cka-matrices} shows the corresponding CKA matrices.
+CKA values are systematically higher than Pearson correlations for distant layer pairs (\eg{}, CKA between tokenizer and final is 0.58 for ViT-S vs.\ Pearson $r = 0.05$), reflecting CKA's sensitivity to shared geometric structure even when per-element correspondence is weak.
+Despite this scale difference, CKA and Pearson rankings are strongly correlated ($\rho = 0.89$ for both architectures; \cref{fig:cka-vs-pearson}).
+
+\begin{figure}[tbh]
+\centering
+\includegraphics[width=\linewidth]{figures/emb_corr_pearson_matrices.pdf}
+\caption{%
+Inter-layer Pearson correlation matrices for Bootleg ViT-S/16 and ViT-B/16 encoders.
+Each cell shows the mean correlation between embedding vectors at corresponding spatial positions across 10{,}000 images.
+Correlation decays with layer distance, and the final block is highly distinct from early blocks.
+}
+\label{fig:pearson-matrices}
+\end{figure}
+
+\begin{figure}[tbh]
+\centering
+\includegraphics[width=\linewidth]{figures/cka_matrices.pdf}
+\caption{%
+Inter-layer CKA similarity matrices.
+CKA captures shared representational geometry and yields higher values than Pearson correlation for distant layer pairs, but the two measures are strongly rank-correlated ($\rho \approx 0.89$).
+}
+\label{fig:cka-matrices}
+\end{figure}
+
+\begin{figure}[tbh]
+\centering
+\includegraphics[width=\linewidth]{figures/cka_vs_pearson_decay.pdf}
+\caption{%
+Off-diagonal decay of Pearson correlation and CKA as a function of layer distance~$k$.
+CKA decays more slowly, remaining above 0.15 even at the maximum distance, while Pearson correlation drops near zero.
+Error bars show standard deviation across all layer pairs at each distance.
+}
+\label{fig:cka-vs-pearson}
+\end{figure}
+
+\subsection{Distillation target layer analysis}
+\label{sec:target-layer-analysis}
+
+Bootleg uses blocks~1, 4, 8, and 12 as distillation targets.
+\cref{fig:target-layer-corr} shows how each layer's representation correlates with these four targets.
+Each target block correlates most strongly with its immediate neighbors and has a peaked profile, confirming that the targets sample distinct regions of the representation space.
+The early target (block~1) and late target (block~12) are particularly dissimilar (Pearson $r < 0.06$ for ViT-S), supporting the hypothesis that multi-layer targets provide complementary training signal spanning low-level and semantic features.
+
+\begin{figure}[tbh]
+\centering
+\includegraphics[width=\linewidth]{figures/emb_corr_target_layers.pdf}
+\caption{%
+Pearson correlation of each encoder layer with the four Bootleg distillation target layers (blocks 1, 4, 8, and 12).
+Each target's profile peaks at its own block and decays with distance, confirming that the targets capture non-redundant representations.
+}
+\label{fig:target-layer-corr}
+\end{figure}
+
+\subsection{Spatial correlation structure}
+\label{sec:spatial-corr}
+
+We also analyze how patch embeddings within a single layer correlate as a function of their spatial separation.
+For each layer, we compute the Pearson correlation between all pairs of patch tokens at a given spatial offset $(\Delta r, \Delta c)$ and average over images.
+
+\cref{fig:spatial-radial} shows the azimuthally averaged spatial correlation as a function of distance (in patch units).
+In early layers, spatial correlation decays steeply---nearby patches are moderately correlated but distant patches are nearly independent.
+In the deepest block (block~12), spatial correlations are uniformly high (global mean 0.76 for ViT-S, 0.61 for ViT-B), reflecting the emergence of a global, spatially uniform representation.
+The final LayerNorm output partially reverses this effect, lowering the global mean correlation and restoring some spatial structure.
+Across all layers, ViT-B shows slightly lower spatial correlations than ViT-S, consistent with the larger model retaining more spatially-specific information.
+
+\begin{figure}[tbh]
+\centering
+\includegraphics[width=\linewidth]{figures/emb_corr_spatial_radial.pdf}
+\caption{%
+Azimuthally averaged spatial correlation vs.\ distance for selected encoder layers.
+Early layers exhibit localized correlations that decay with distance.
+Block~12 shows near-uniform high correlation, indicating a globally coherent representation.
+The post-LayerNorm final output partially restores spatial structure.
+}
+\label{fig:spatial-radial}
+\end{figure}

@@ -1,0 +1,31 @@
+\paragraph{SSL benchmarks.}
+SSL methods continue to focus a few datasets intended for \emph{fully-supervised} image classification, such as SVHN, CIFAR-10, CIFAR-100, and ImageNet.
+% MCH: not sure we should cite ~\citep{su2021realistic} here.
+This is a problem because these data are post-hoc repurposed for SSL, dropping known labels to create unlabeled sets in \emph{artificial} fashion.
+The resulting unlabeled sets are \emph{too curated}: images usually come from the same classes as the labeled set with similar frequencies.
+However, real applications that motivate SSL require an easy-to-acquire unlabeled set that is \emph{uncurated}. 
+
+Recent research has further identified problems with CIFAR and ImageNet.
+First, 3\% of CIFAR-10 and 10\% of CIFAR-100 test images have perceptually-indistinguishable duplicates in the train set~\citep{barzWeTrainTest2020}.
+This questions whether high-scoring methods are memorizing rather than truly generalizing.
+Second, a notable fraction ($\sim$5\%) of the labels in the test sets of CIFAR-100 and ImageNet data are \emph{incorrect}~\citep{northcuttPervasiveLabelErrors2021}.
+More generally, overuse of the same benchmarks over decades may lead to over-optimistic assessments of heldout error rates~\citep{yadavColdCaseLost2019} and may privilege methods that exploit shortcuts or biases in the available data that hurt true generalization~\citep{tsiprasImageNetImageClassification2020,geirhosShortcutLearningDeep2020}.
+Given this background, we argue that new SSL benchmarks motivated by intended applications are sorely needed to help ensure the next-generation of SSL methods delivers on its promise of generalization.
+
+\paragraph{Gradient step modifications.} Recently, across many sub-areas of ML that optimize of a multi-task loss, modifying the direction of gradient descent updates during training has born fruit.
+
+The idea of gradient matching has been proposed to solve catastrophic forgetting problems in continual learning \citep{lopez-pazGradientEpisodicMemory2017, chaudhry2018efficient, riemer2018learning, zeng2019continual, farajtabar2020orthogonal}.
+In \citet{lopez-pazGradientEpisodicMemory2017}, the author proposed a method called Gradient Episodic Memory (GEM), where they used a memory bank to store representative samples of previous tasks.
+While minimizing the loss on current task, they use the inner product of the gradient between current and previous tasks as an inequality constraint.
+In \citet{chaudhry2018efficient}, Averaged GEM (A-GEM) is proposed as an improved version of GEM.
+A-GEM ensures that at every training step the average episodic memory loss over the previous tasks does not increase. 
+\citet{riemer2018learning} formally proposed the transfer-interference trade-off perspective for looking at the application of gradient matching in continual learning, which defines whether helpful transfer or interference occurs between two labeled examples in terms of the inner product of gradients with respect to parameters evaluated at those examples.
+%For two distinct examples $(x_i, y_i)$ and $(x_j, y_j)$, transfer happens when $\frac{\partial L(xi, yi)}{\partial \theta}  \frac{\partial L(xj,yj)}{\partial \theta} > 0$, given current network parameter $\theta$ and loss function $L$, and interference otherwise. 
+\citet{zeng2019continual} developed Orthogonal Weights Modification (OWM) method to project the weight updates to the orthogonal direction to the subspace spanned by previously learned task inputs while 
+\citet{farajtabar2020orthogonal} projects the new task's gradient to the direction that is perpendicular to the gradient space of previous tasks.
+
+Similar ideas were later used in multi-task learning \citep{duAdaptingAuxiliaryLosses2020, yuGradientSurgeryMultiTask2020}, domain generalization \cite{shi2021gradient} and neural architecture search \citep{gong2021nasvit}.
+
+
+%\paragraph{Deep SSL for medical images.}
+%Applications of SSL to medical imaging ~\citep{madaniDeepEchocardiographyDataefficient2018,calderon-ramirezDealingScarceLabelled2021} are exciting but relatively rare.

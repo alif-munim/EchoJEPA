@@ -1,0 +1,43 @@
+{
+  "file": "uhn/diastolic_function-predavg-panecho",
+  "best_head": 7,
+  "type": "classification",
+  "n_clips": 139920,
+  "n_studies": 4756,
+  "n_classes": 4,
+  "AUROC": 0.8298,
+  "accuracy": 0.722,
+  "F1_macro": 0.4942,
+  "confusion_matrix": [
+    [
+      240,
+      73,
+      13,
+      31
+    ],
+    [
+      380,
+      2878,
+      158,
+      417
+    ],
+    [
+      35,
+      123,
+      41,
+      47
+    ],
+    [
+      18,
+      15,
+      12,
+      275
+    ]
+  ],
+  "class_distribution": {
+    "0": 357,
+    "1": 3833,
+    "2": 246,
+    "3": 320
+  }
+}

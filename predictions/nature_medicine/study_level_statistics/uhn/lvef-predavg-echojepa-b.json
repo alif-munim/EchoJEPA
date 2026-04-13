@@ -1,0 +1,18 @@
+{
+  "file": "uhn/lvef-predavg-echojepa-b",
+  "best_head": 4,
+  "type": "regression",
+  "n_clips": 266520,
+  "n_studies": 15097,
+  "R2": 0.5358,
+  "R2_ci": [
+    0.525,
+    0.5463
+  ],
+  "Pearson": 0.7809,
+  "Pearson_ci": [
+    0.7722,
+    0.7892
+  ],
+  "MAE": 5.9721
+}

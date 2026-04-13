@@ -1,0 +1,18 @@
+{
+  "file": "mimic/lactate-predavg-echojepa-l-k",
+  "best_head": 12,
+  "type": "regression",
+  "n_clips": 10816,
+  "n_studies": 154,
+  "R2": 0.0323,
+  "R2_ci": [
+    -0.0065,
+    0.0525
+  ],
+  "Pearson": 0.2925,
+  "Pearson_ci": [
+    0.0963,
+    0.4385
+  ],
+  "MAE": 0.7444
+}

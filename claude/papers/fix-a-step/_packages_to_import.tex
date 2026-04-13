@@ -1,0 +1,71 @@
+\setlength{\pdfpagewidth}{8.5in}
+\setlength{\pdfpageheight}{11in}
+\pdfinfo{
+/TemplateVersion (2023)
+}
+
+%%% TODOs
+\usepackage{xcolor}
+% Use \todo{your text here} to mark things that should get done
+\newcommand{\todo}[1]{{\color{red} #1}}
+
+%%% BIBLIO
+\usepackage{natbib}
+
+%%% TABLES
+\usepackage{booktabs}
+\usepackage{enumitem}
+\DeclareUnicodeCharacter{0010}{!!!} 
+
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
+%%% TYPESETTING
+\frenchspacing
+\usepackage[hyphens]{url}
+\usepackage{hyperref}       % hyperlinks
+\hypersetup{
+     colorlinks,
+     citecolor=blue,
+     filecolor=blue,
+     linkcolor=blue,
+     urlcolor=blue,
+}
+ 
+
+
+%%% MATH
+\usepackage{amsmath,amssymb}
+
+%%% FIGURES AND CAPTIONS
+\usepackage{graphicx}
+\usepackage{caption}
+% Suppress weird warnings about pdf page groups
+\begingroup
+        \expandafter\ifx\csname pdfsuppresswarningpagegroup\endcsname\relax\else\global\pdfsuppresswarningpagegroup=1\relax\fi
+\endgroup
+
+
+%
+% These are recommended to typeset algorithms but not required. See the subsubsection on algorithms. Remove them if you don't have algorithms in your paper.
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+
+%%% LISTINGS
+\usepackage{newfloat}
+\usepackage{listings}
+\DeclareCaptionStyle{ruled}{labelfont=normalfont,labelsep=colon,strut=off} % DO NOT CHANGE THIS
+\lstset{%
+	basicstyle={\footnotesize\ttfamily},% footnotesize acceptable for monospace
+	numbers=left,numberstyle=\footnotesize,xleftmargin=2em,% show line numbers, remove this entire line if you don't want the numbers.
+	aboveskip=0pt,belowskip=0pt,%
+	showstringspaces=false,tabsize=2,breaklines=true}
+\floatstyle{ruled}
+\newfloat{listing}{tb}{lst}{}
+\floatname{listing}{Listing}
+
+
+

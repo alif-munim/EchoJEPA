@@ -1,0 +1,18 @@
+{
+  "file": "uhn/edv-predavg-panecho",
+  "best_head": 10,
+  "type": "regression",
+  "n_clips": 267048,
+  "n_studies": 15120,
+  "R2": 0.5536,
+  "R2_ci": [
+    0.5448,
+    0.5625
+  ],
+  "Pearson": 0.815,
+  "Pearson_ci": [
+    0.8076,
+    0.8217
+  ],
+  "MAE": 23.5911
+}

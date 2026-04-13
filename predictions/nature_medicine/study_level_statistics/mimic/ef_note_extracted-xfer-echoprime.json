@@ -1,0 +1,18 @@
+{
+  "file": "mimic/ef_note_extracted-xfer-echoprime",
+  "best_head": 9,
+  "type": "regression",
+  "n_clips": 27024,
+  "n_studies": 374,
+  "R2": 0.2832,
+  "R2_ci": [
+    0.224,
+    0.3354
+  ],
+  "Pearson": 0.755,
+  "Pearson_ci": [
+    0.7064,
+    0.7987
+  ],
+  "MAE": 9.2951
+}

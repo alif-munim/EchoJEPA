@@ -1,0 +1,57 @@
+We pursue \emph{semi-supervised} learning (SSL)~\citep{zhuSemiSupervisedLearningLiterature2005,vanengelenSurveySemisupervisedLearning2020} for the specific problem of image classification with deep neural networks~\citep{oliverRealisticEvaluationDeep2018}.
+We can observe images $x$ (represented as $D$-dimensional vectors) as well as corresponding labels $y \in \{1, 2, \ldots C\}$ for $C$ classes of interest.
+The goal is to train predictors from both a labeled dataset $\mathcal{D}^L$ of feature-labeled pairs $x,y$ and an unlabeled dataset $\mathcal{D}^U$ containing feature vectors $x$ only.
+
+%% MCH: Cut this bc too redundant with earlier
+%In our motivating applications, unlabeled examples are easily collected, while labels are difficult due to burdensome requirements of time, money, or human expertise.
+%Medical image classification is well-suited to SSL, because routinely collected images are available in abundance, but annotation costs usually mean only small labeled sets are affordable. 
+
+%%%%%% TABLE: RELATED WORK
+\input{tab_related_work}
+
+
+\paragraph{Training for Deep SSL.}
+While many SSL paradigms have been tried~\citep{kingmaSemisupervisedLearningDeep2014,kumarSemisupervisedLearningGANs2017,nalisnickHybridModelsDeep2019}, the dominant approaches for semi-supervised training of deep image classifiers today continue to modify standard objectives for discriminative neural nets by adding a regularization term using unlabeled data~\citep{miyatoVirtualAdversarialTraining2019,sohnFixMatchSimplifyingSemisupervised2020}.
+This approach trains a neural net probabilistic classifier $f$ with weights $w$ by solving the optimization problem:
+\begin{align} % Use \! to reduce whitespace between symbols
+\min_{w} ~ \!
+	\textstyle \sum_{x,y \in \mathcal{D}^L} \!
+		\ell^L( y, f_w(x) )	
+	+ 
+	\lambda \!
+	\sum_{x \in \mathcal{D}^U} \!
+		\ell^U(x; w)
+	\label{eq:loss-for-consistency-ssl}
+\end{align}
+Here, the first term $\ell^L$ is a labeled-set-only \emph{cross entropy} loss and the second term $\ell^U$ is a method-specific unlabeled-set loss.
+A key hyperparameter is the unlabeled-loss-weight $\lambda > 0$, which balances the two terms.
+Approaches such as the Pi-model~\citep{laineTemporalEnsemblingSemiSupervised2017}, Pseudo-Label~\citep{leePseudoLabelSimpleEfficient2013}, Mean-Teacher~\citep{tarvainenMeanTeachersAre2017}, Virtual Adversarial training (VAT)~\citep{miyatoVirtualAdversarialTraining2019}, and FixMatch~\citep{sohnFixMatchSimplifyingSemisupervised2020} all fit this objective, with variations in (1) the choice of function for $\ell^U$; (2) how data augmentation may alter images $x$; (3) procedures within $\ell^U$ that produce a perturbed image $x'$ that should be consistent with $x$; and (4) optimization routines to solve for $w$.
+
+\textbf{Uncurated SSL.}
+Unlabeled sets collected automatically at scale are by construction \emph{uncurated}, meaning their contents (features and true labels) are intended to be similar to the target labeled set but not carefully validated.
+When the unlabeled set contains images from classes other than the $C$ classes represented in the labeled set, others call this ``open-set'' SSL~\citep{yuMultiTaskCurriculumFramework2020}. 
+More formally, if we were to apply labels to the unlabeled set $\mathcal{D}^U$, the set of such labels may include an unknown number of classes beyond the $C$ known classes in the labeled set, and in the worst case may not even include any examples from some (or all) known classes.
+Open-set SSL is a special case of uncurated SSL, because a truly uncurated dataset may also differ (usually slightly) in \emph{feature distributions} from the labeled set.
+Our CIFAR evaluation focuses on open-set SSL, our Heart2Heart unlabeled set (Sec.~\ref{sec:results-tmed}) is truly uncurated.
+% from medical applications.
+
+\citet{oliverRealisticEvaluationDeep2018}~designed seminal experiments using CIFAR-10 images that purposefully build an unlabeled set (some animals, some not) that is mismatched in class composition from the labeled set (all animals).
+As mismatch increases, many SSL methods (e.g. VAT or Pi-Model) score worse than a labeled-only baseline that ignores the unlabeled set.
+Our later experiments confirm this (Fig.~\ref{fig:results-cifar10} left).
+
+
+Several approaches have tried to remedy this deterioration, striving to be robust to open-set unlabeled data.
+Such methods are also called \textit{safe SSL}~\citep{guoSafeDeepSemiSupervised2020}, because their goal is to perform no worse than labeled-set-only methods.
+%UASD~\citep{chenSemiSupervisedLearningClass2020} filters out unlabeled examples which appear to be ``out of distribution'' according to confidence signals derived from its probabilistic classifier. 
+%Alternatively, DS3L~\citep{guoSafeDeepSemiSupervised2020} learns a weighting function that can downweight unlabeled examples to prevent poor labeled-set performance.
+Tab.~\ref{tab:related_work_comparison} summarizes previous works, with further discussion below.
+These methods have been evaluated primarily on artificially mismatched remixes of datasets like CIFAR, and not yet on uncurated medical data.
+% from potential SSL application domains like medicine. 
+
+% Broadly, these existing safe SSL approaches do not perform as well as needed (see Fig.~\ref{fig:results-cifar10} far right).
+%\todo{ DELETE? shows that the recent non-safe FixMatch dominates 3 ``safe'' SSL methods (UASD, DS3L, and MTCF).
+% we remedy in our later medical evaluations.
+
+
+
+

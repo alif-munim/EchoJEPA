@@ -1,0 +1,28 @@
+\begin{algorithm}[!h]
+\caption{MixMatchAug : Transformation of Labeled Set}
+\label{alg:mixmatch}
+\textbf{Input}:
+Labeled batch $\mathbf{x}^L, \mathbf{y}^L$, 
+Unlabeled batch $\mathbf{x}^U, \tilde{\mathbf{y}}$, 
+\\
+\textbf{Output}: 
+Transformed labeled batch $\mathbf{\tilde{x}}^L, \mathbf{\tilde{y}}^L$
+\\
+\textbf{Hyperparameters}
+\begin{itemize}
+	\item Shape $\alpha{>}0$ of $\text{Beta}(\alpha, \alpha)$ dist.
+\end{itemize}
+\begin{algorithmic}[1] %[1] enables line numbers
+\FOR{image-label pair $x, y$ in labeled batch ${\mathbf{x}^L, \mathbf{y}^L}$}
+\STATE $x', y' \gets \textsc{SampleOnePair}([\mathbf{x}^L, \tilde{\mathbf{x}}^U_1, \tilde{\mathbf{x}}^U_2],
+     [\mathbf{y}^L, \tilde{\mathbf{y}}^U, \tilde{\mathbf{y}}^U])$
+\STATE $\beta' \sim \textsc{SampleFromBeta}(\alpha, \alpha)$
+\STATE $\beta \gets \textsc{Max}(\beta', 1-\beta')$ 
+\STATE $\tilde{x} \gets \beta x + (1-\beta) x'$
+\STATE $\tilde{y} \gets \beta y + (1-\beta) y'$
+\STATE Add $\tilde{x}$ to $\tilde{\mathbf{x}}^L$
+\STATE Add $\tilde{y}$ to $\tilde{\mathbf{y}}^L$
+\ENDFOR
+\STATE \textbf{return} $\tilde{\mathbf{x}}^L, \tilde{\mathbf{y}}^L$
+\end{algorithmic}
+\end{algorithm}

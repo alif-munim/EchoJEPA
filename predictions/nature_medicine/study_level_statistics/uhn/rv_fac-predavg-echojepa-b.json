@@ -1,0 +1,18 @@
+{
+  "file": "uhn/rv_fac-predavg-echojepa-b",
+  "best_head": 3,
+  "type": "regression",
+  "n_clips": 72232,
+  "n_studies": 5666,
+  "R2": 0.2674,
+  "R2_ci": [
+    0.2535,
+    0.2802
+  ],
+  "Pearson": 0.5557,
+  "Pearson_ci": [
+    0.5374,
+    0.5731
+  ],
+  "MAE": 6.9758
+}

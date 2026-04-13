@@ -1,0 +1,159 @@
+\documentclass[twoside]{article}
+\usepackage[accepted]{aistats_cameraready_package/aistats2023}
+
+\input{_packages_to_import.tex}
+
+%% MCH SPACE-REDUCING HACK 1/3
+% Small captions
+\captionsetup[table]{font=small,labelfont=small}
+\captionsetup[figure]{font=small,labelfont=small}
+
+\begin{document}
+
+%% TITLE AND AUTHORS
+\twocolumn[
+\aistatstitle{Fix-A-Step: Semi-supervised Learning From Uncurated Unlabeled Data}
+% \aistatsauthor{ Author 1 \And Author 2 \And  Author 3 }
+% \aistatsaddress{ Institution 1 \And  Institution 2 \And Institution 3 } ]
+% \author {
+% 	Zhe Huang\textsuperscript{\rm 1},
+% 	Mary-Joy Sidhom\textsuperscript{\rm 1},
+% 	Benjamin S. Wessler\textsuperscript{\rm 2},
+%     Michael C. Hughes\textsuperscript{\rm 1}
+% }
+% \affiliations {
+%     \textsuperscript{\rm 1} Dept. of Computer Science, Tufts University\\
+%     \textsuperscript{\rm 2} Tufts Medical Center\\
+% }
+\aistatsauthor {
+	Zhe Huang\textsuperscript{\rm 1},
+	Mary-Joy Sidhom\textsuperscript{\rm 1},
+	Benjamin S. Wessler\textsuperscript{\rm 2},
+    Michael C. Hughes\textsuperscript{\rm 1}
+}
+\aistatsaddress {
+    \textsuperscript{\rm 1} Dept. of Computer Science, Tufts University, Medford, MA, USA\\
+    \textsuperscript{\rm 2} Division of Cardiology, Tufts Medical Center, Boston, MA, USA\\
+}]
+%% MCH SPACE-REDUCING HACK 2/3
+% Reduce spacing around floats 
+\setlength{\floatsep}{8pt plus 4pt minus 4pt}
+\setlength{\textfloatsep}{8pt plus 4pt minus 3pt}
+
+%% MCH SPACE-REDUCING HACK 3/3
+% Reset vertical space for equations 
+% (must be after \begin{document})
+\setlength{\abovedisplayskip}{2pt plus 3pt}
+\setlength{\belowdisplayskip}{2pt plus 3pt}
+
+
+\begin{abstract}
+\input{abstract.tex}
+\end{abstract}
+
+\section{INTRODUCTION}
+\input{intro}
+
+\input{fig_concept_diagram.tex}
+\section{BACKGROUND \& RELATED WORK}
+\label{sec:background}
+\label{sec:related_work}
+
+\input{background}
+\input{related_work}
+
+\section{METHODS}
+\input{methods}
+
+\section{EXPERIMENTS ON CIFAR}
+\label{sec:results-cifar}
+\input{results_cifar}
+
+\section{EXPERIMENTS ON HEART2HEART}
+\label{sec:results-tmed}
+\input{results_tmed}
+
+\section{DISCUSSION}
+\input{discussion}
+
+\subsubsection*{Acknowledgements}
+We acknowledge financial support from the Pilot Studies Program at the Tufts Clinical and Translational Science Institute (Tufts CTSI NIH CTSA UL1TR002544) and computing infrastructure support from NSF OAC CC* 2018149.
+Author B. W. was supported in part by K23AG055667 (NIH-NIA).
+Author M.-J. S. was supported by the Tufts Summer Scholars Program.
+
+\renewcommand{\bibsection}{\subsubsection*{References}}
+\bibliographystyle{abbrvnat}
+\bibliography{refs_from_zotero.bib,refs_manual.bib}
+
+
+\clearpage
+\appendix
+
+%% Config Table-of-Contents to track the sections of the appendix
+%\addtocontents{toc}{\protect\setcounter{tocdepth}{0}}
+
+\counterwithin{table}{section}
+\setcounter{table}{0}
+\counterwithin{figure}{section}
+\setcounter{figure}{0}
+\counterwithin{algorithm}{section}
+\setcounter{algorithm}{0}
+
+%% Use ONE counter for all figs and tables to give unique identifiers in supplement
+\makeatletter 
+\let\c@table\c@figure
+\let\c@lstlisting\c@figure
+\let\c@algorithm\c@figure
+\makeatother
+
+
+%\thispagestyle{empty}
+ 
+% For one-column format, uncomment the following:
+\onecolumn
+
+\begin{center}
+\Large Supplementary Material
+\end{center}
+~\\
+~\\
+In this supplement, we provide:
+\begin{itemize}
+  \setlength\itemsep{0em}
+\item Sec.~\ref{app:cifar}: CIFAR Experiments: Further Details, Results, and Analysis 
+\item Sec.~\ref{app:heart2heart}: Heart2Heart Experiments: Further Details, Results, and Analysis
+\item Sec.~\ref{app:methods}: Methods Supplement: Algorithms for \textsc{Aug+SoftLabel} and \textsc{MixMatchAug}
+\item Sec.~\ref{app:related_work}: Related Work Supplement: Further Discussion and Analysis 
+\item Sec.~\ref{app:hyperparameter_list}: Reproducibility Supplement: Hyperparameters, Settings, etc.
+\end{itemize}
+
+\section{CIFAR EXPERIMENTS: Details, Results, and Analysis}
+\label{app:cifar}
+
+\input{app_UnlabeledHelpfulMotivatingExample_MixMatch.tex}
+\input{app_cifar.tex}
+
+\section{HEART2HEART EXPERIMENTS: Details, Results, and Analysis}
+\label{app:heart2heart}
+\input{app_heart2heart.tex}
+
+\section{METHODS SUPPLEMENT}
+\label{app:methods}
+\input{app_methods.tex}
+
+
+\section{RELATED WORK SUPPLEMENT}
+\label{app:related_work}
+\input{app_related_work.tex}
+
+\section{REPRODUCIBILITY SUPPLEMENT}
+\label{app:experiment_details}
+\label{app:hyperparameter_list}
+\input{app_hyperparameter_list.tex}
+
+% \section{CIFAR-10 Class Mismatch description}
+% \label{app:CIFAR10_Class_Mismatch_description}
+% \input{app_CIFAR10_Class_Mismatch_description.tex}
+
+
+\end{document}

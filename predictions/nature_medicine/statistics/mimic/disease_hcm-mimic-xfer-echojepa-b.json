@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 56200,
+  "n_classes": 2,
+  "AUROC_macro": 0.4785,
+  "accuracy": 0.9651,
+  "F1_macro": 0.4916,
+  "confusion_matrix": [
+    [
+      54237,
+      58
+    ],
+    [
+      1904,
+      1
+    ]
+  ],
+  "class_distribution": {
+    "0": 54295,
+    "1": 1905
+  },
+  "file": "mimic/disease_hcm-mimic-xfer-echojepa-b.csv"
+}

@@ -259,13 +259,31 @@ curl -sL "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubunt
 sudo dpkg -i /tmp/session-manager-plugin.deb
 ```
 
+### Direct SSM to Compute Nodes
+
+When a job is running and occupying the full node, `srun` blocks. You can SSM directly to the compute node to read logs:
+
+```bash
+# Get compute node instance ID
+COMPUTE_ID="$(aws sagemaker list-cluster-nodes --cluster-name echojepa-h100-neurips --region us-west-2 \
+  --query "ClusterNodeSummaries[?InstanceGroupName=='echojepa-neurips-compute'].InstanceId" --output text)"
+
+# Read job output directly (doesn't compete with running job)
+script -q -c "timeout 30 aws ssm start-session --region us-west-2 \
+  --target 'sagemaker-cluster:n9we8xfqjv3p_echojepa-neurips-compute-${COMPUTE_ID}' \
+  --document-name AWS-StartNonInteractiveCommand \
+  --parameters '{\"command\":[\"tail -80 /tmp/nmed_predavg-16.out\"]}'" /dev/null
+```
+
+**When to use**: Reading stdout/stderr of running jobs. The sbatch output files (`/tmp/*-{jobid}.out`) are on the compute node, not the controller. `srun` to an occupied node blocks until the job finishes.
+
 ### SSH from Controller to Compute Nodes
 
 SSH keys are NOT configured by default on HyperPod. Use Slurm's `srun` instead:
 ```bash
 sudo su - ubuntu
-srun -N1 -w ip-10-0-50-184 --ntasks=1 --pty bash   # interactive shell
-srun -N1 -w ip-10-0-50-184 --ntasks=1 bash -c "hostname && nvidia-smi"  # one-off command
+srun -N1 -w ip-10-0-50-241 --ntasks=1 --pty bash   # interactive shell
+srun -N1 -w ip-10-0-50-241 --ntasks=1 bash -c "hostname && nvidia-smi"  # one-off command
 ```
 
 ### Network Topology
@@ -284,7 +302,7 @@ The git repo is cloned on the **controller** at `~/EchoJEPA-repo`. Use `scripts/
 # On the controller:
 cd ~/EchoJEPA-repo
 git pull                        # get latest from GitHub
-~/deploy.sh                     # deploy to ip-10-0-50-184
+~/deploy.sh                     # deploy to ip-10-0-50-241
 ~/deploy.sh ip-10-0-50-83      # deploy to other node (optional)
 sbatch ~/vjepa2_pretrain_h100.sbatch
 ```
@@ -295,6 +313,42 @@ The deploy script tars the repo (excluding .git, checkpoints, large data) and un
 - The controller has SSH access to GitHub for git pull/push
 
 After editing code on the controller (e.g. via Claude Code), always run `~/deploy.sh` before launching training.
+
+### Code Deployment via S3 (No Git on Controller)
+
+The `echojepa-h100-neurips` controller does **not** have GitHub SSH keys configured. Use the S3 tarball approach to deploy code from SageMaker:
+
+```bash
+# 1. On SageMaker: create minimal source tarball (code only, ~52 MB)
+cd /path/to/vjepa2
+tar czf /tmp/vjepa2-src.tar.gz \
+    --exclude='*.pt' --exclude='*.pth' --exclude='*.pkl' --exclude='*.npz' \
+    --exclude='__pycache__' --exclude='.ipynb_checkpoints' \
+    --exclude='evals/video_classification_frozen/modelcustom/EchoPrime/model_data*' \
+    --exclude='evals/*/output*' \
+    app/ evals/ src/ configs/ scripts/ \
+    pyproject.toml setup.py requirements.txt requirements-test.txt .flake8
+
+# 2. Upload to S3
+aws s3 cp /tmp/vjepa2-src.tar.gz s3://sagemaker-echojepa-h100-march-0d224785-bucket/setup/vjepa2-src.tar.gz
+
+# 3. Deploy to compute node AND extract sbatch on controller (via non-interactive SSM)
+TARGET="sagemaker-cluster:n9we8xfqjv3p_echojepa-neurips-controller-i-0415ce8f417564270"
+script -q -c 'timeout 120 aws ssm start-session --region us-west-2 \
+  --target "'$TARGET'" \
+  --document-name AWS-StartNonInteractiveCommand \
+  --parameters "{\"command\":[\"sudo -u ubuntu bash -c \\\"aws s3 cp s3://sagemaker-echojepa-h100-march-0d224785-bucket/setup/vjepa2-src.tar.gz /tmp/vjepa2-src.tar.gz --quiet && tar xzf /tmp/vjepa2-src.tar.gz -C /tmp/vjepa2-ctrl scripts/ && srun -N1 -w ip-10-0-50-241 --ntasks=1 bash -c '"'"'sudo tar xzf /tmp/vjepa2-src.tar.gz -C /opt/vjepa2'"'"' && echo DEPLOY_OK\\\"\"]}"' /dev/null
+
+# 4. Submit sbatch from controller (script is at /tmp/vjepa2-ctrl/scripts/)
+script -q -c 'timeout 30 aws ssm start-session --region us-west-2 \
+  --target "'$TARGET'" \
+  --document-name AWS-StartNonInteractiveCommand \
+  --parameters "{\"command\":[\"sudo -u ubuntu sbatch /tmp/vjepa2-ctrl/scripts/<job>.sbatch\"]}"' /dev/null
+```
+
+**Important**: sbatch runs on the controller, not the compute node. The sbatch script itself is read by Slurm on the controller, so it must be accessible there (extracted to `/tmp/vjepa2-ctrl/`). The actual Python code runs on the compute node at `/opt/vjepa2`.
+
+**Gotcha**: conda activate scripts fail under `set -u` (unbound `CONDA_PREFIX`). Use `set -eo pipefail` before `source activate`, then `set -u` after.
 
 ### The conda-pack Approach (One-Time Setup)
 
@@ -425,7 +479,7 @@ See `scripts/vjepa2_pretrain_h100.sbatch` for the canonical version. Key points:
 #SBATCH --output=/tmp/vjepa21_pretrain-%j.out
 #SBATCH --error=/tmp/vjepa21_pretrain-%j.err
 #SBATCH --time=7-00:00:00
-#SBATCH --nodelist=ip-10-0-50-184
+#SBATCH --nodelist=ip-10-0-50-241
 
 export PATH="/opt/vjepa2-312/bin:$PATH"
 source /opt/vjepa2-312/bin/activate
@@ -446,7 +500,7 @@ python -m app.main \
 
 ```bash
 # From controller, get a shell on compute node
-srun -N1 -w ip-10-0-50-184 --ntasks=1 --pty bash
+srun -N1 -w ip-10-0-50-241 --ntasks=1 --pty bash
 
 # Install Node.js and Claude Code
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
@@ -511,11 +565,11 @@ The SSM agent comes pre-installed on HyperPod AMI but cannot register without pr
 
 #### 3. SSH from Controller to Compute Fails (Permission Denied)
 
-**Symptom**: `ssh ip-10-0-50-184` returns "Permission denied (publickey)".
+**Symptom**: `ssh ip-10-0-50-241` returns "Permission denied (publickey)".
 
 **Solution**: Use Slurm's `srun` instead:
 ```bash
-srun -N1 -w ip-10-0-50-184 --ntasks=1 bash -c "command here"
+srun -N1 -w ip-10-0-50-241 --ntasks=1 bash -c "command here"
 ```
 
 #### 4. Lifecycle Script Timing Issue
@@ -534,7 +588,7 @@ srun -N1 -w ip-10-0-50-184 --ntasks=1 bash -c "command here"
 
 **Solution**: Upload the specific CSV to S3 and copy to the node:
 ```bash
-srun -N1 -w ip-10-0-50-184 --ntasks=1 bash -c \
+srun -N1 -w ip-10-0-50-241 --ntasks=1 bash -c \
   "aws s3 cp s3://<bucket>/setup/mimic_annotations_s3.csv /opt/vjepa2/data/csv/"
 ```
 

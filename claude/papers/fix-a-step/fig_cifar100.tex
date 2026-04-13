@@ -1,0 +1,39 @@
+\begin{figure*}[!t]
+\centering
+\begin{tabular}{c c}
+\includegraphics[width=.46\textwidth]{figures/CIFAR100_contamination50_ChangeFont.pdf}
+&
+\includegraphics[width=.46\textwidth]{figures/CIFAR100_contamination100_ChangeFont.pdf}
+\end{tabular}
+\caption{
+\textbf{Accuracy on CIFAR-100 50-class task.}
+Each bar represents the accuracy of a method with either off-the-shelf training (blue) or Fix-A-Step (orange).
+We try 2 scenarios: 50\% labeled/unlabeled class mismatch (\emph{left panel}) and 100\% class mismatch (\emph{right}).
+All numbers were produced by our implementation except those marked $*$ (UASD).
+}%endcaption	
+\label{fig:results-cifar100}
+\end{figure*}
+
+%Every method uses the same hyper-parameters as their corresponding CIFAR-10 experiments.
+%\todo{Asterisk $*$ indicate where we copied accuracy numbers from previous publications.}
+
+% \begin{figure*}[!t]
+% \centering
+% \begin{tabular}{c c c}
+% \begin{minipage}{.5cm}
+% \rotatebox[origin=c]{90}{{\Large 50 examples/class}}
+% \end{minipage}
+% &
+% \begin{minipage}{.3\textwidth}
+% \includegraphics[width=\textwidth]{figures/FixAStep_CIFAR10.pdf}
+% \end{minipage}
+% \end{tabular}
+% \caption{
+% SSL accuracy on larger CIFAR-100 (y-axis) as unlabeled set mismatch increases (x-axis), using XYZ instances/class.
+% \emph{Left:} off-the-shelf SSL and safe SSL methods.
+% \emph{Center:} SSL methods trained with Fix-A-Step.
+% Following the experimental design of \citet{oliverRealisticEvaluationDeep2018}, labeled set contains 6 animal classes.
+% Fraction of unlabeled set representing non-labeled classes increases from 0-100\%.
+% }%endcaption
+% \label{fig:results-cifar10}
+% \end{figure*}

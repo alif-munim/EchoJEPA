@@ -1,0 +1,18 @@
+{
+  "file": "mimic/nt_probnp-predavg-panecho",
+  "best_head": 14,
+  "type": "regression",
+  "n_clips": 9480,
+  "n_studies": 126,
+  "R2": 0.0549,
+  "R2_ci": [
+    0.008,
+    0.0984
+  ],
+  "Pearson": 0.3219,
+  "Pearson_ci": [
+    0.1715,
+    0.4894
+  ],
+  "MAE": 3479.6965
+}

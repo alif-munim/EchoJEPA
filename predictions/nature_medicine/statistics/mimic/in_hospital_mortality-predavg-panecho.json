@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 33612,
+  "n_classes": 2,
+  "AUROC_macro": 0.5997,
+  "accuracy": 0.9374,
+  "F1_macro": 0.4838,
+  "confusion_matrix": [
+    [
+      31507,
+      0
+    ],
+    [
+      2105,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 31507,
+    "1": 2105
+  },
+  "file": "mimic/in_hospital_mortality-predavg-panecho.csv"
+}

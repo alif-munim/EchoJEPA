@@ -6,6 +6,45 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-04-12
+
+### Nature Medicine Predavg Infrastructure + First Job Submission
+
+**Commit:** `5d48a28` (main)
+
+**What:** Created 6-way parallel prediction averaging sbatch script (`scripts/nmed_lvef_mr_predavg.sbatch`) and S3 asset prep script (`scripts/prep_nmed_predavg_s3.sh`) for Nature Medicine LVEF and MR severity inference across 3 models (EchoJEPA-G, EchoPrime, PanEcho).
+
+**Job 10** submitted to `echojepa-h100-neurips` cluster (ip-10-0-50-241). GPU allocation: G=2 GPUs per task (1B params), EP/Pan=1 GPU each. 6 runs in parallel on 8 H100s, estimated 30-60 min.
+
+**Key implementation details:**
+- sbatch dynamically generates YAML configs via `generate_config()` shell function (12-head HP grid, model-specific encoder kwargs)
+- All assets downloaded from S3 at job start: 6 probe checkpoints (~8.7GB), G encoder (16.5GB), EchoPrime encoder (133MB), PanEcho weights (482MB), view-filtered probe CSVs (549MB)
+- PanEcho weights pre-cached in `TORCH_HOME/hub/checkpoints/` (compute nodes have no GitHub access)
+- Includes cuBLAS bf16 fix, /dev/shm cleanup, orphan worker kill (Bug 011), stale output dir clear (Bug 012)
+- Fixed: `set -u` incompatibility with conda activate (`CONDA_PREFIX: unbound variable`)
+
+**Deployment:** New S3-based code deployment workflow for `echojepa-h100-neurips` (controller has no GitHub SSH keys). Tarball created on SageMaker → S3 → srun unpack on compute node + extract sbatch on controller → submit via non-interactive SSM.
+
+**Docs updated:**
+- `claude/nature_medicine/inference-tracker.md` — LVEF+MR marked as in-progress, added Active Jobs section
+- `claude/nature_medicine/inference-tracker-additional.md` — created (EchoJEPA-B/L-K/L tracking)
+- `claude/dev/hyperpod-ops.md` — updated compute node hostname (ip-10-0-50-241), added "Code Deployment via S3" section, conda activate gotcha
+
+### Predavg Job Fix Cycle (Jobs 10 → 14 → 16)
+
+**What:** Debugged and fixed 5 sequential failures across 3 job submissions to get the 6-way parallel prediction averaging fully running.
+
+**Failures and fixes:**
+1. **Job 10 — `CONDA_PREFIX: unbound variable`**: `set -euo pipefail` before `source activate` triggered unbound variable error in conda's activate script. **Fix**: `set -eo pipefail` before activate, `set -u` after.
+2. **Job 10 → 14 — `/opt/vjepa2` permission denied**: `sudo tar` created files owned by root. **Fix**: Added `sudo chown -R ubuntu:ubuntu /opt/vjepa2` to deployment command.
+3. **Job 14 — PanEcho `tasks.pkl` not found**: Source tarball excluded `*.pkl` and `*.npy` files. PanEcho encoder requires `content/tasks.pkl` and `content/tasks.npy` at runtime. **Fix**: Uploaded PanEcho content files (720KB: tasks.pkl, tasks.npy, panecho.yml, panecho.png, tasks.md) to `s3://.../nmed_predavg/panecho_content/`. Added download block to sbatch.
+4. **Job 14 — G-MR ETA exceeds time limit**: G-MR has ~400K clips, ETA ~6.4h on 2 GPUs, but SLURM `--time` was 3h. **Fix**: Increased `--time=0-03:00:00` to `--time=0-08:00:00`.
+5. **Job 14 cancelled, job 16 submitted**: Rebuilt source tarball (1.9MB, excluding eval outputs + model data), uploaded to S3, deployed to compute + controller, submitted job 16. All 6 runs confirmed healthy at 18:48 UTC.
+
+**Compute node direct SSM access**: Discovered that job output files (`/tmp/nmed_predavg-*.out`) live on the compute node, not the controller. Used direct SSM to compute node instance (`i-018db30ae0ea9076e`) to read logs while the job is running (srun to occupied node blocks).
+
+---
+
 ## 2026-04-08
 
 ### ViT-B Temporal Shortcut Pilot — Standard MAE vs Frame-Gap MAE

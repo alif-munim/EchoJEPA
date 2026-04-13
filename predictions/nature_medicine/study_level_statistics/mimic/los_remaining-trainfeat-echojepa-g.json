@@ -1,0 +1,18 @@
+{
+  "file": "mimic/los_remaining-trainfeat-echojepa-g",
+  "best_head": 9,
+  "type": "regression",
+  "n_clips": 162432,
+  "n_studies": 2239,
+  "R2": 0.0297,
+  "R2_ci": [
+    0.0177,
+    0.0435
+  ],
+  "Pearson": 0.2917,
+  "Pearson_ci": [
+    0.2592,
+    0.3279
+  ],
+  "MAE": 5.875
+}

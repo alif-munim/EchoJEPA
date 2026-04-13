@@ -1,0 +1,25 @@
+{
+  "file": "mimic/readmission_30d-predavg-echojepa-b",
+  "best_head": 7,
+  "type": "classification",
+  "n_clips": 31320,
+  "n_studies": 436,
+  "n_classes": 2,
+  "AUROC": 0.5842,
+  "accuracy": 0.7431,
+  "F1_macro": 0.5121,
+  "confusion_matrix": [
+    [
+      312,
+      16
+    ],
+    [
+      96,
+      12
+    ]
+  ],
+  "class_distribution": {
+    "0": 328,
+    "1": 108
+  }
+}

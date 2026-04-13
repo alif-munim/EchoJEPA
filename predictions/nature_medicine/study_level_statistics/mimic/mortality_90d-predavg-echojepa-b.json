@@ -1,0 +1,25 @@
+{
+  "file": "mimic/mortality_90d-predavg-echojepa-b",
+  "best_head": 5,
+  "type": "classification",
+  "n_clips": 79060,
+  "n_studies": 1087,
+  "n_classes": 2,
+  "AUROC": 0.7528,
+  "accuracy": 0.9301,
+  "F1_macro": 0.4819,
+  "confusion_matrix": [
+    [
+      1011,
+      0
+    ],
+    [
+      76,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 1011,
+    "1": 76
+  }
+}

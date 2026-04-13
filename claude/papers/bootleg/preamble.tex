@@ -1,0 +1,139 @@
+\usepackage[utf8]{inputenc} %
+\usepackage[T1]{fontenc}    %
+
+\usepackage{url} %
+
+\usepackage[dvipsnames,table]{xcolor} %
+
+\usepackage{graphicx}       %
+\usepackage{booktabs}       %
+\usepackage{multicol}       %
+\usepackage{multirow}       %
+\usepackage{makecell}       %
+\usepackage{colortbl}       %
+\usepackage{caption}        %
+\usepackage{subcaption}     %
+\usepackage{wrapfig}        %
+\usepackage{adjustbox}      %
+\usepackage{titletoc}       %
+
+\usepackage{mathtools}
+\usepackage{amsmath} %
+\usepackage{amsfonts}       %
+\usepackage{amssymb}        %
+\usepackage{nicefrac}       %
+\usepackage{microtype}      %
+\usepackage[scaled=1,varqu]{zi4} %
+\usepackage{listings}       %
+\usepackage{textcomp}       %
+
+\usepackage[capitalize]{cleveref}  %
+
+\usepackage{comment}        %
+\usepackage{array}
+\usepackage{relsize}         %
+
+\usepackage{doi}            %
+\usepackage[normalem]{ulem} %
+\usepackage{placeins}       %
+\usepackage[detect-all]{siunitx} %
+
+
+
+
+\definecolor{backcolour}{HTML}{F5F5F5}
+\definecolor{rulecolour}{HTML}{E0E0E0}
+\definecolor{codegreen}{HTML}{008000}
+\definecolor{codemagenta}{HTML}{AA22FF}
+\definecolor{codered}{HTML}{BA2121}
+\definecolor{codeblue}{HTML}{408080}
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small, %
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codeblue}\itshape,
+    keywordstyle=\color{codegreen}\bfseries,
+    emph={True},emphstyle=\color{codegreen}\bfseries,
+    stringstyle=\color{codered},
+    showstringspaces=false,
+    frame=single,
+    numbers=left, %
+    numberstyle=\footnotesize\color{gray}, %
+    rulecolor=\color{rulecolour},
+}%
+
+
+\usepackage{bbding}         %
+\definecolor{cold}{HTML}{008acd}
+\def\frozen{\raisebox{-.15ex}{\color{cold}\SnowflakeChevron}}
+\DeclareUnicodeCharacter{2744}{\frozen}%
+
+\usepackage{pifont}         %
+\def\cmark{\ding{51}} %
+\def\xmark{\ding{55}}
+\definecolor{vlightgray}{gray}{0.87}
+\def\myxmark{{\color{vlightgray}\xmark{}}}
+\def\correctmark{{\color{ForestGreen}\cmark{}}}
+\def\incorrectmark{{\color{red}\xmark{}}}
+
+\definecolor{lightgray}{gray}{0.7}
+\def\na{{\smaller\color{lightgray}N/A}}
+\def\mis{{\smaller\color{gray}--}}
+
+\newcommand{\gray}[1]{{\color{gray}#1}}
+
+
+\definecolor{tblue}{HTML}{1F77B4}
+\definecolor{torange}{HTML}{FF7F0E}
+\definecolor{tgreen}{HTML}{2CA02C}
+\definecolor{tred}{HTML}{FF0000}
+
+\definecolor{linkcolor}{HTML}{991408}  %
+\definecolor{citecolor}{HTML}{2E7E2A}  %
+\definecolor{filecolor}{HTML}{131877}  %
+\definecolor{menucolor}{HTML}{727500}  %
+\definecolor{runcolor} {HTML}{137776}  %
+\definecolor{urlcolor} {HTML}{0a2bbf}  %
+
+
+
+
+\renewcommand{\sectionautorefname}{Section}
+\let\subsectionautorefname\sectionautorefname
+\let\subsubsectionautorefname\sectionautorefname
+\newcommand{\appref}[1]{\hyperref[#1]{Appendix~\ref*{#1}}}%
+
+\crefname{section}{Sec.}{Sections}
+\crefname{appendix}{Appx.}{Appendices}
+\renewcommand*{\appref}[1]{\hyperref[#1]{Appx.~\ref*{#1}}}
+\renewcommand*{\figureautorefname}{Fig.}
+\renewcommand*{\equationautorefname}{Eq.}
+\renewcommand*{\tableautorefname}{Tab.}
+
+\def\Snospace~{\S{}}%
+
+\newcommand{\mypara}[1]{\noindent\textbf{#1}}
+
+\newcommand{\hreffoot}[2]{\href{#1}{#2}\footnote{\url{#1}}}
+
+\newcommand{\best}[1]{\ifmmode\mathbf{#1}\else\textbf{#1}\fi}
+\newcommand{\secbest}[1]{\underline{#1}}
+\newcommand{\sbest}[1]{\secbest{#1}}
+\newcommand{\runnerup}[1]{\secbest{#1}}
+\newcommand{\tpm}[1]{{\footnotesize$\pm #1$}}
+\newcommand{\missing}[0]{--}
+
+\newcommand{\incr}[1]{{\color{ForestGreen}$#1$}}
+\newcommand{\decr}[1]{{\color{red}$#1$}}
+\newcommand{\same}[1]{{$#1$}}
+\newcommand{\addon}[1]{{\smaller\smaller#1}}
+\newcommand{\aincr}[1]{{\smaller\smaller\color{ForestGreen}$#1$}}
+\newcommand{\adecr}[1]{{\smaller\smaller\color{red}$#1$}}
+\newcommand{\asame}[1]{{\smaller\smaller$#1$}}
+
+\newcommand{\hider}[1]{}
+\newcommand{\TODO}[1]{\textcolor{red}{[\textbf{TODO}: #1]}}
+\newcommand{\todo}[1]{}
+
+\newcommand{\wip}[1]{{\color{gray}#1}}
+\providecommand{\note}[1]{{\color{red}[NOTE: #1]}}

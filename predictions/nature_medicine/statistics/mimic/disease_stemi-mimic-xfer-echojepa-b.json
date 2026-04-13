@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 15656,
+  "n_classes": 2,
+  "AUROC_macro": 0.5153,
+  "accuracy": 0.8086,
+  "F1_macro": 0.4471,
+  "confusion_matrix": [
+    [
+      12659,
+      0
+    ],
+    [
+      2997,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 12659,
+    "1": 2997
+  },
+  "file": "mimic/disease_stemi-mimic-xfer-echojepa-b.csv"
+}

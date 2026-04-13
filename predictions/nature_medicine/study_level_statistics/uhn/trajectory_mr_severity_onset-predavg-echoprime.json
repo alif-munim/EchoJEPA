@@ -1,0 +1,25 @@
+{
+  "file": "uhn/trajectory_mr_severity_onset-predavg-echoprime",
+  "best_head": 10,
+  "type": "classification",
+  "n_clips": 292896,
+  "n_studies": 5932,
+  "n_classes": 2,
+  "AUROC": 0.6657,
+  "accuracy": 0.9547,
+  "F1_macro": 0.4957,
+  "confusion_matrix": [
+    [
+      5661,
+      10
+    ],
+    [
+      259,
+      2
+    ]
+  ],
+  "class_distribution": {
+    "0": 5671,
+    "1": 261
+  }
+}

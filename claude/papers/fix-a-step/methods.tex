@@ -1,0 +1,169 @@
+We have designed a training procedure for deep SSL classifiers that we call \emph{Fix-A-Step}, short for Fix via Augmentation and Step direction modification.
+Fix-A-Step can be applied to any SSL method that minimizes an SSL objective matching Eq.~\eqref{eq:loss-for-consistency-ssl} via gradient descent.
+Its goal is to make SSL classifiers robust to uncurated unlabeled data.
+
+Fig.~\ref{fig:fixastep_diagram} illustrates the two key concepts of our approach.
+First, unlabeled images, even when uncurated, can be \emph{helpful} in creating useful augmentations of the labeled set by injecting diversity.
+Second, we protect against accuracy deterioration due to the unlabeled set by modifying the gradient update of neural net weights.
+We do this not by filtering examples permanently, but by omitting the contribution of a batch's unlabeled loss gradient if its direction differs substantially from the labeled loss gradient. 
+These two ideas are implemented in consecutive phases that occur when visiting each minibatch during gradient descent training.
+Alg.~\ref{alg:FixAStep} provides pseudocode for Fix-A-Step, with further details below.
+% algorithm is provided in Alg.~\ref{alg:FixAStep}.
+
+\textbf{Phase 1: Augmentation.} In the \emph{Augmentation phase} (lines 3-4), our insight is to use \emph{all} unlabeled images in MixMatch-style augmentation~\citep{berthelotMixMatchHolisticApproach2019} of the labeled set.
+We transform each labeled pair $(x,y)$ using another pair $(x', y')$ drawn either from the labeled set or the unlabeled set.
+If only $x'$ is known, we use soft pseudo-label predictions for $y'$, see Alg.~\ref{alg:aug_softlabel}. 
+Given $x, y$ and $x', y'$, we build a new labeled pair $\tilde{x}, \tilde{y}$ via MixUp~\citep{zhangMixupEmpiricalRisk2017} (see Alg.~\ref{alg:mixmatch}).
+This new pair is used to compute the labeled loss. 
+We readily acknowledge that the success of MixMatch for standard closed-set SSL is widely known.
+However, for uncurated or open-set SSL, we believe MixMatch-style augmentation has been underexplored.
+
+% is under-explored whether this technique is
+%beneficial with uncurated data or compatible to other SSL algorithms. 
+
+Fig~\ref{fig:UnlabeledHelpfulMotivatingExample_MixMatch_main} shows the performance of standard MixMatch on the CIFAR-10 6-animal open-set task (Sec~\ref{sec:results-cifar}).
+The first takeaway is that at each level of class mismatch, MixMatch \textbf{works better with OOD samples in the unlabeled set than without}. We call the latter ``perfect OOD filtering''. This suggests the value of augmenting with all unlabeled images.
+% Details on the task description is in Sec ~\ref{sec:results-cifar}.}. We further show that MixMatch alone is not enough to handle contamination cases, see Fig ~\ref{fig:results-cifar10}
+%draw interpolation weight $u \sim \text{Beta}(\alpha, \alpha)$, then construct $x^* \gets u x + (1-u) x'$, $y^* \gets u y + (1-u) y'$. 
+%Unlabeled examples contribute diversity to augmentations.
+The second takeaway is that \textbf{MixMatch-style augmentation alone is not enough}: beyond 25\% mismatch, the labeled-set only baseline matches or beats MixMatch.
+Augmentation does not guard against the possible harm caused the unlabeled loss term, especially with OOD examples~\citep{saitoOpenMatchOpensetConsistency2021}. 
+
+\begin{figure}[!b]
+\centering
+\begin{tabular}{c}
+\includegraphics[width=.43\textwidth]{figures/MixMatch_ToShowUnlabeledDataValuable_WithPLFixAStep_errorbars_ChangeFont.pdf}
+\end{tabular}
+\caption{
+\textbf{Demo of benefits of Phase 1 (MixMatch using \emph{all} unlabeled images, even OOD) and Phase 2 (step direction)}, on CIFAR-10 6-animal task (400 examples/class).
+Results average across 5 train/test splits (shaded area shows standard deviation).
+%MixMatch with and without OOD sample cases use the same hyperparameters.
+}%endcaption	
+\label{fig:UnlabeledHelpfulMotivatingExample_MixMatch_main}
+\end{figure}
+
+Fix-A-Step combines augmentation (phase 1) with protection against accuracy deterioration from the unlabeled loss (phase 2, described below) to ``repair'' SSL base models.
+A final takeaway from Fig.~\ref{fig:UnlabeledHelpfulMotivatingExample_MixMatch_main} is that Fix-A-Step can repair a nine-year-old method, \citet{leePseudoLabelSimpleEfficient2013}'s Pseudo-label, to beat MixMatch across all mismatch levels.
+While we tune hyperparameters for MixMatch here (see App.~\ref{app:hyperparameter_list}), to compare fairly \emph{we do not tune hyperparameters for Fix-A-Step}.
+
+
+
+%%%%% ALGORITHM
+\input{alg_fixastep.tex}
+
+\textbf{Phase 2: Step direction modification.}
+We address the possible harm from the unlabeled loss in phase 2 (lines 5-7 of Alg.~\ref{alg:FixAStep}), by modifying how neural net weights are updated.
+The idea is to only use gradient information from the unlabeled loss if it improves labeled-set performance. 
+%In lines 5-10 of Alg.~\ref{alg:FixAStep}, we prioritize the labeled loss in parameter updates, only using the unlabeled loss if it improves labeled-set performance. Compared to using complicated OOD detectors, our approach adds little complexity to exiting models}. 
+%This way, we better ensure the diverse augmentations from phase one do not harm prediction quality.
+
+At each batch, we compute two gradient vectors, one for each term in the loss: Let $g^L = \nabla_w \ell^L$ and let $g^U = \nabla_w \ell^U$.
+%(using the MixMatch-derived $\tilde{x}, \tilde{y}$ from phase one),
+Our Fix-A-Step update for weights $w$ using step size $\epsilon$ is
+\begin{align}
+w \gets \begin{cases}
+ 	w - \epsilon (g^L + \lambda g^U) \!\!\! &\text{if~} \sum_d g^L_d g^U_d > 0
+ 	\\
+ 	w - \epsilon g^L & \text{otherwise}.
+ \end{cases}	
+ \label{eq:weight-update-fixastep}
+\end{align}
+In the top case, we do the standard steepest descent update that minimizes the two-term SSL objective in Eq.~\eqref{eq:loss-for-consistency-ssl}.
+In the bottom case, we perform an alternative update, using only the labeled-term gradient.
+% \todo{From the transfer-interference trade-off perspective, the bottom case can be regarded as an extreme case of zero weight sharing between the labeled samples and unlabeled samples, when the learning of unlabeled samples interfere with the learning of labeled samples, while the first case is full weight sharing that tries to maximize the use of unlabeled data when the gradients are complementary.}
+% that ensures we do not make labeled-set performance worse.
+%the usual SSL update may not be a descent direction for the labeled loss $\ell^L$, and thus might
+This two-case construction tries to ensure that SSL learning does not harm labeled set performance by ``turning off'' the gradient from an unlabeled batch when it interferes with the labeled loss.
+We give geometric intuition below, then formally show that the gradient update in Eq.~\eqref{eq:weight-update-fixastep} always move weights $w$ in a \emph{descent direction} for the labeled set loss at the current minibatch.
+
+\textbf{Geometric intuition for Phase 2.} Recall that two vectors $g^L$ and $g^U$ have positive inner product (top case update) only if the angle between the vectors is below 90 degrees, meaning their directions are similar.
+At angles larger than 90 (bottom case), $g^L$ and $g^U$ are pointing in different directions, and minimizing the unlabeled loss would hinder the labeled loss.
+In SSL, we care most about (heldout) classifier accuracy.
+Any improvement on the unlabeled loss is useful only if it helps improve accuracy.
+When $g^U$ points in a different direction than $g^L$, our update ignores the unlabeled gradient and updates weights $w$ using only $g^L$.
+% if learning on unlabeled samples hinders learning of the labeled samples.}
+% Thus, we can motivate the alternative lower case in Eq.~\eqref{eq:weight-update-fixastep} geometrically.
+% %If the two gradients point in similar directions, we perform the usual SSL parameter update (top case).
+% We usually care most about classifier accuracy, so when the two gradients point in opposing directions (bottom case), we might be better off ignoring the unlabeled and updating parameters using only the labeled loss.
+
+\textbf{Definition 1: Descent direction of loss $\ell$.}
+For any loss function $\ell$ for weight parameter vector $w \in \mathbb{R}^D$, a vector $v \in \mathbb{R}^D$ is a \emph{descent direction} of $\ell$ at $w$ if the inner product satisfies $v^T \nabla_w \ell < 0$ \citep{boydSecDescentMethods2004}.
+
+\textbf{Lemma 1: The update in Eq.~\eqref{eq:weight-update-fixastep} steps in a descent direction of the labeled loss $\ell^L$ at the current minibatch.}
+We prove for each case in Eq.~\eqref{eq:weight-update-fixastep}.
+\emph{Top case}: By assumption, $\lambda > 0$ and the inner product $\sum_d g^L_d g^U_d$ is positive. This implies that $v{=}-(g^L + \lambda g^U)$ is a descent direction:
+\begin{align}
+v^T g^L =
+	\underbrace{- \textstyle \sum_d (g^L_d)^2}_{\text{always negative}}
+	\quad - \lambda \underbrace{\textstyle \sum_d g^L_d g^U_d}_{\text{pos. by assumption}}
+< 0.
+\end{align}
+\emph{Bottom}: $-g^L$ is a descent direction for $\ell^L$ by definition.
+
+While Lemma 1 provides a justification for our approach, we cannot guarantee the labeled loss will decrease after each step, for the same reasons that stochastic gradient descent (SGD) does not always decrease the loss after each update:
+First, a descent direction of a minibatch may not be a descent direction of the entire dataset.
+Second, step size matters; if $\epsilon > 0$  is too large, the loss may increase.
+Nevertheless, with proper step size tuning, SGD has been wildly successful by following minibatch-specific descent directions.
+Thus far, we find Fix-A-Step also successful.
+% in practice.
+
+\textbf{Inspiration from multi-task learning.}
+Our step direction modification in Eq. (2) was developed independently but is similar to previous algorithms for multi-task learning with a ``main'' task and an ``auxiliary'' task~\citep{duAdaptingAuxiliaryLosses2020}.
+Others have explored variations of this ``gradient surgery''~\citep{yuGradientSurgeryMultiTask2020}.
+To our knowledge, such ideas have not yet been suggested or validated for closed-set or open-set SSL.
+
+\textbf{Inspiration from continual learning.}
+Our step modification phase is also inspired by the \textit{Transfer-Interference trade-off}~\citep{riemer2018learning, lopez-pazGradientEpisodicMemory2017}.
+This trade-off measures whether learning from one example will improve or impair learning on another example.
+These works formally define
+\emph{transfer} as the case where the inner product of each example's loss gradient with respect to weights is positive, and
+\emph{interference} as the case where the inner product is negative.
+Other continual learning work also pursues this direction~\citep{chaudhry2018efficient, he2018overcoming, zeng2019continual, farajtabar2020orthogonal}.
+We extend this transfer-interference idea to SSL.
+
+% MCH: cut for space. I think verbal descr above is enough.
+%Formally, when training with gradient descent, given current network weight $w$, loss function $L$ and two arbitrary distinct samples ($x_{i}$, $y_{i}$), ($x_{j}$, $y_{j}$). 
+%\textit{Transfer} occurs when:
+%\begin{align}
+% \frac{\partial L(x_{i}, y_{i})}{\partial w} \cdot \frac{\partial L(x_{j}, y_{j})}{\partial w} > 0
+% \label{def:transfer}
+%\end{align}
+
+%While \textit{Interference} occurs when:
+%\begin{align}
+% \frac{\partial L(x_{i}, y_{i})}{\partial w} \cdot \frac{\partial L(x_{j}, y_{j})}{\partial w} < 0
+% \label{def:interference}
+%\end{align}
+
+% MCH: cut for space
+% MCH: should we move to appendix?
+%\textbf{Definition 2: Learning of unlabeled sample harms the learning of labeled sample.} Given current network weight $w$, labeled loss function $L^{L}$, unlabeled loss function $L^{U}$, a labeled sample ($x^{L}_{i}$, $y^{L}_{i}$) and an unlabeled sample $x^{U}_{j}$. 
+%\begin{align}
+%\frac{\partial L^{L}(x^{L}_{i}, y^{L}_{i})}{\partial w} \cdot \frac{\partial L^{U}(x^{U}_{j})}{\partial w} < 0
+% \label{def:ssl_interference}
+%\end{align}
+
+
+% \textbf{Comparison to OOD filtering.}
+% Using the Fix-A-Step update, we know that each (stochastic) gradient step could beneficially reduce the labeled set loss, given a small-enough step size $\epsilon$.
+% We argue our step direction modification is \emph{safer} than simply learning to downweight individual terms in the unlabeled loss.
+% Without care, the latter could still take steps in a problematic non-descent direction of the labeled loss.
+
+
+
+\textbf{Simplicity compared to related work.}
+We emphasize a key advantage of Fix-A-Step is \emph{extreme simplicity}.
+Beyond the modest cost of MixMatch-like augmentation, we compute exactly the same losses and gradients as any standard deep SSL solving Eq.~\eqref{eq:loss-for-consistency-ssl}.
+Each possible weight update is straightforward.
+Determining which update to use depends only on an inner product, adding negligible runtime cost.
+Table 1 suggests Fix-A-Step is favorable to other open-set SSL approaches in its simplicity.
+There is no added complexity from extra backward passes, no extra neural networks that must be trained for OOD discrimination, no need for curriculum learning, and no expensive bi-level optimization problem to solve.
+Simplicity leads to faster training (App.~\ref{tab:cifar10_runtime_acc}, ~\ref{tab:TMED2_runtime_acc}) and (hopefully) easier adoption.
+
+\textbf{Synergy between Phase 1 and 2.}
+One might wonder if our step direction modification in Phase 2 leads to overfitting the labeled loss.
+We argue that Phase 1's augmentation should protect against overfitting, and our experiments thus far suggest overfitting is not a major concern.
+
+%concern since regularization techniques such as data augmentation and weight decay are used. Further, the ultimate goal is generalization performance, and whichever lead us to this goal (either from labeled loss or unlabeled loss) is fine.}
+
+

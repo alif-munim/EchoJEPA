@@ -1,0 +1,66 @@
+\begin{algorithm}[!h]
+\caption{Augment and Soft-Pseudo-Label}
+\label{alg:aug_softlabel}
+\textbf{Input}: Unlabeled batch features $\mathbf{x}^U$
+\\
+\textbf{Output}: Augmented features $\mathbf{x}^U_1, \mathbf{x}^U_2$, Soft pseudo labels $\tilde{\mathbf{y}}^U$
+\\
+\textbf{Hyperparameters}
+\begin{itemize}
+	\item Sharpening temperature $\tau{>}0$
+\end{itemize}
+\textbf{Procedure}
+\begin{algorithmic}[1] %[1] enables line numbers
+\FOR{each image $x$ in $\mathbf{x}^U$}
+\STATE $x^{(1)} \gets \text{BasicImageAugment}(x_n)$
+\STATE $x^{(2)} \gets \text{BasicImageAugment}(x_n)$
+\STATE $\rho^{(1)} \gets f_w( x^{(1)} )$ \texttt{~~~~~~~~// Probability vector predicted by neural net}
+\STATE $\rho^{(2)} \gets f_w( x^{(2)} )$
+\STATE $\tilde{r} \gets \left( 
+	  \frac{1}{2}\rho^{(1)} 
+	+ \frac{1}{2}\rho^{(2)} \right)
+	^{1 / \tau}$ \texttt{~~// Non-negative vector, sharpened by element-wise power}
+\STATE $S \gets \sum_c \tilde{r}_c$
+\STATE $\tilde{y} \gets [
+	\frac{\tilde{r}_1}{S},
+	\frac{\tilde{r}_2}{S},
+	\ldots
+	\frac{\tilde{r}_C}{S}]$ \texttt{~~~~~~// Normalize to ``soft'' label (proba. vector)}
+\STATE Add $x^{(1)}$ to $\tilde{\mathbf{x}}^U_1$
+\STATE Add $x^{(2)}$ to $\tilde{\mathbf{x}}^U_2$
+\STATE Add $\tilde{y}$ to $\tilde{\mathbf{y}}^U$
+\ENDFOR
+\STATE \textbf{return} $\tilde{\mathbf{x}}^U_1$, $\tilde{\mathbf{x}}^U_2$, $\tilde{\mathbf{y}}^U$
+\end{algorithmic}
+\end{algorithm}
+
+% \begin{algorithm}[tb]
+% \caption{Fix-A-Step Training}
+% \label{alg:FixAStep}
+% \textbf{Input}: Labeled set $\mathcal{D}^L$, Unlabeled set $\mathcal{D}^U$ (uncurated)
+% \\
+% \textbf{Output}: Trained weights $w^*$
+% \\
+% \textbf{Hyperparameters}
+% \begin{itemize}
+% 	\item Shape parameter $\alpha{>}0$ of Beta dist. for {\small \textsc{MixMatchAug}}
+% 	\item Initial weights $w$, Max. iterations $T$
+% 	\item Unlabeled-loss weight per iter $\lambda_1, \ldots \lambda_T$
+% \end{itemize}
+% \begin{algorithmic}[1] %[1] enables line numbers
+% \FOR{iter $t \in 1, 2, \ldots T$ until converged}
+% \STATE $\{\mathbf{x}^L, \mathbf{y}^L\}, \mathbf{x}^U \gets {\small \textsc{GetNextMinibatch}}()$
+% \STATE $\tilde{\mathbf{x}}^U, \tilde{\mathbf{y}}^U \gets {\small \textsc{Augment+SoftLabel}}(\mathbf{x}^U; w)$
+% \STATE $\tilde{\mathbf{x}}^L, \tilde{\mathbf{y}}^L \gets 
+% {\small \textsc{MixMatchAug}}(\{\mathbf{x}^L, \mathbf{y}^L\}, \tilde{\mathbf{x}}^U, \tilde{\mathbf{y}}^U; \alpha)$
+% \STATE $g^L \gets \nabla_w \ell^L( \tilde{\mathbf{x}}^L, \tilde{\mathbf{y}}^L; w)$
+% \STATE $g^U \gets \nabla_w \ell^U( \tilde{\mathbf{x}}^U, \tilde{\mathbf{y}}^U; w)$
+% \IF {${\small \textsc{InnerProduct}}(g^L,g^U) > 0$}
+% \STATE $w \gets w - \epsilon (g^L + \lambda_t g^U)$
+% \ELSE
+% \STATE $w \gets w - \epsilon g^L$
+% \ENDIF
+% \ENDFOR
+% \STATE \textbf{return} w
+% \end{algorithmic}
+% \end{algorithm}

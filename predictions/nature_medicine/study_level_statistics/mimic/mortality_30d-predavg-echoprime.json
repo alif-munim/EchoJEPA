@@ -1,0 +1,25 @@
+{
+  "file": "mimic/mortality_30d-predavg-echoprime",
+  "best_head": 10,
+  "type": "classification",
+  "n_clips": 79060,
+  "n_studies": 1087,
+  "n_classes": 2,
+  "AUROC": 0.8174,
+  "accuracy": 0.9586,
+  "F1_macro": 0.4894,
+  "confusion_matrix": [
+    [
+      1042,
+      0
+    ],
+    [
+      45,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 1042,
+    "1": 45
+  }
+}

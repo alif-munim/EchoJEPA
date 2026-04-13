@@ -1,0 +1,25 @@
+{
+  "file": "uhn/trajectory_lvef_onset-predavg-echojepa-g",
+  "best_head": 1,
+  "type": "classification",
+  "n_clips": 111976,
+  "n_studies": 3516,
+  "n_classes": 2,
+  "AUROC": 0.7944,
+  "accuracy": 0.8476,
+  "F1_macro": 0.5991,
+  "confusion_matrix": [
+    [
+      2874,
+      448
+    ],
+    [
+      88,
+      106
+    ]
+  ],
+  "class_distribution": {
+    "0": 3322,
+    "1": 194
+  }
+}

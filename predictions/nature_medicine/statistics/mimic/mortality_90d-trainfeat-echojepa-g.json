@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 366156,
+  "n_classes": 2,
+  "AUROC_macro": 0.774,
+  "accuracy": 0.9064,
+  "F1_macro": 0.6147,
+  "confusion_matrix": [
+    [
+      325226,
+      9552
+    ],
+    [
+      24732,
+      6646
+    ]
+  ],
+  "class_distribution": {
+    "0": 334778,
+    "1": 31378
+  },
+  "file": "mimic/mortality_90d-trainfeat-echojepa-g.csv"
+}

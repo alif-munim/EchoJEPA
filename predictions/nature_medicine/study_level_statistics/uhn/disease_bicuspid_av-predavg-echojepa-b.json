@@ -1,0 +1,25 @@
+{
+  "file": "uhn/disease_bicuspid_av-predavg-echojepa-b",
+  "best_head": 3,
+  "type": "classification",
+  "n_clips": 468956,
+  "n_studies": 23990,
+  "n_classes": 2,
+  "AUROC": 0.7927,
+  "accuracy": 0.9333,
+  "F1_macro": 0.6526,
+  "confusion_matrix": [
+    [
+      21976,
+      561
+    ],
+    [
+      1040,
+      413
+    ]
+  ],
+  "class_distribution": {
+    "0": 22537,
+    "1": 1453
+  }
+}

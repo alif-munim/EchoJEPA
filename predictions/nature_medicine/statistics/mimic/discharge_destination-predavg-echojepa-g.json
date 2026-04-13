@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 27284,
+  "n_classes": 2,
+  "AUROC_macro": 0.595,
+  "accuracy": 0.6783,
+  "F1_macro": 0.5328,
+  "confusion_matrix": [
+    [
+      16868,
+      2403
+    ],
+    [
+      6373,
+      1640
+    ]
+  ],
+  "class_distribution": {
+    "0": 19271,
+    "1": 8013
+  },
+  "file": "mimic/discharge_destination-predavg-echojepa-g.csv"
+}

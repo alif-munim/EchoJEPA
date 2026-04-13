@@ -1,0 +1,18 @@
+{
+  "file": "mimic/lactate-trainfeat-echojepa-g",
+  "best_head": 3,
+  "type": "regression",
+  "n_clips": 60740,
+  "n_studies": 874,
+  "R2": -0.0054,
+  "R2_ci": [
+    -0.023,
+    0.0138
+  ],
+  "Pearson": 0.2166,
+  "Pearson_ci": [
+    0.1363,
+    0.3016
+  ],
+  "MAE": 0.7788
+}

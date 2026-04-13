@@ -1,0 +1,18 @@
+{
+  "file": "uhn/edv-predavg-echoprime",
+  "best_head": 11,
+  "type": "regression",
+  "n_clips": 267048,
+  "n_studies": 15120,
+  "R2": 0.4247,
+  "R2_ci": [
+    0.4123,
+    0.4364
+  ],
+  "Pearson": 0.719,
+  "Pearson_ci": [
+    0.7077,
+    0.7296
+  ],
+  "MAE": 27.1699
+}

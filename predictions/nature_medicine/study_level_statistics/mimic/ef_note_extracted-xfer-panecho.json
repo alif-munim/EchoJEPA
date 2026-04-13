@@ -1,0 +1,18 @@
+{
+  "file": "mimic/ef_note_extracted-xfer-panecho",
+  "best_head": 7,
+  "type": "regression",
+  "n_clips": 27024,
+  "n_studies": 374,
+  "R2": 0.0802,
+  "R2_ci": [
+    0.0098,
+    0.147
+  ],
+  "Pearson": 0.7055,
+  "Pearson_ci": [
+    0.648,
+    0.7577
+  ],
+  "MAE": 10.189
+}

@@ -1,0 +1,14 @@
+Here, we provide implementation details of the two subprocedures in our Fix-A-Step training (Alg.~\ref{alg:FixAStep}).
+Both procedures were originally proposed by MixMatch~\citep{berthelotMixMatchHolisticApproach2019}, we provide them here in common notation as the rest of our paper for clarity.
+
+First, the algorithm \textsc{Aug+SoftLabel} is in Alg.~\ref{alg:aug_softlabel}. This procedure consumes a batch of raw images from the unlabeled set and returns two transformed batches, with a common set of ``sharpened'' soft (probabilistic) labels.
+
+Second, the algorithm \textsc{MixMatchAug} is in Alg.~\ref{alg:mixmatch}. This procedure consumes a batch of raw labeled data, and produces a transformed batch of the same size.
+
+\input{alg_aug_softlabel}
+
+\input{alg_mixmatch}
+
+\textbf{Fix-A-Step with FixMatch}. 
+Here, we further clarify how Fix-A-Step works with FixMatch-base. In the original FixMatch, each unlabeled image generates one weakly augmented version and one strongly-augmented. With
+Fix-A-Step, an additional weakly augmented version is generated. The two weak images are used in the Fix-A-Step augmentation phase to transform the labeled set. The unlabeled loss is calculated using one weak and one strong image as in FixMatch. In this work, we used the original images for \textit{unlabeled loss} calculation (not the transformed images from FixAStep augmentation phase) so that only the unlabeled set affect the labeled set but not vise versa, since we focus on analyzing the value of the unlabeled set to the labeled set. Network parameters are updated via Algorithm~\ref{alg:FixAStep} line 5-7.

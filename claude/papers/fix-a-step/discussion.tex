@@ -1,0 +1,35 @@
+In summary, this paper makes three contributions to deep SSL image classification.
+First, we argue that uncurated or OOD data in the unlabeled set can be \emph{helpful}, and should not merely be filtered out.
+Experiments in Fig.~\ref{fig:results-cifar10} show that even with perfect OOD filtering most SSL methods deliver underwhelming accuracy gains.
+% Second, building on insights from multi-task learning~\citep{duAdaptingAuxiliaryLosses2020}, our Fix-A-Step SSL training procedure uses gradient step modifications that prioritize the labeled-set loss, leading to effective SSL that is substantially simpler than alternatives (no new loss terms or extra neural networks).
+Second, we introduce a new training procedure called Fix-A-Step that achieves state-of-the-art SSL performance on uncurated unlabeled sets while being faster and simpler (no new loss terms or extra neural nets).
+%These methods hold substantial promise for real-world imaging datasets where labels are scarce.
+Finally, we hope our new Heart2Heart benchmark for SSL evaluation inspires robust studies of clinical model transportability across global populations.
+
+\textbf{Limitations.}
+Our work's exclusive focus is image classification.
+More work is needed to try Fix-A-Step on other data types like time series.
+%Fix-A-Step could apply to other types of data.
+% \todo{Our estimate of the cosine similarity between two gradients can be noisy. 2. does not guarantee maximizing transfer but only drop the worst case 3. Simliar to other works that use gradient similarity to measure transfer and interference, we are making the assumption that the unlabeled loss harming the learning of the labeled loss locally (at step t) implies it will affect the learning of the labeled loss globally. In theory however this is not neccessaritly the true.} 
+Our experiments on artificial unlabeled sets in Sec.~\ref{sec:results-cifar} focused exclusively on mismatch in the \emph{labels}. We did not systematically explore how shifts in the features $x$ between the labeled and unlabeled set impact performance, though we do emphasize that TMED-2's uncurated unlabeled set likely has such shifts due different acquisition criteria (see Sec.~\ref{sec:results-tmed}).
+Fix-A-Step's phase 2 step modification does not guarantee accuracy gains, only protects against possible deterioration.
+Omitting unlabeled loss gradients because of harm to a minibatch labeled loss may miss a chance to improve accuracy globally. Recently, \citet{schmutz2022don} found that the optimal choice of the unlabeled loss coefficient $\lambda$ depends on the covariance matrix between $g^L$ and $g^U$, which might provide another way to consider the step modification phase.
+% the learning of the labeled loss locally implies it will affect the learning of the labeled loss globally, which might not necessarily be the case.
+%Further, similar to prior works that explore such idea ~\citep{yuGradientSurgeryMultiTask2020, duAdaptingAuxiliaryLosses2020}, we are making the assumption that the unlabeled loss harming the learning of the labeled loss locally implies it will affect the learning of the labeled loss globally, which might not necessarily be the case.}
+%is also critical; more work is needed.
+% whose feature vectors have fixed dimension (required by MixUp).
+%More work is needed on alternative data types or multi-modal SSL.
+
+\textbf{Impact statement.}
+Work on SSL is often  motivated by its promise  in medical imaging~\citep{huangNewSemisupervisedLearning2021,madaniDeepEchocardiographyDataefficient2018}.
+Our Heart2Heart evaluation shows a proof-of-concept for generalization of ultrasound view classifiers across hospitals.
+More work is needed to rigorously assess generalizability and translate to improved patient care.
+Extra effort is needed to avoid widening current disparities~\citep{celiSourcesBiasArtificial2022}, as the data sources in our Heart2Heart benchmark do not reflect the geographic and racial diversity of many patient populations.
+%While all images in Heart2Heart are completely de-identified, we stress the responsibility we carry as researchers to protect the best interests of the individuals who contributed data.
+%and never attempt to reidentify patients.
+
+\textbf{Outlook.}
+Fix-A-Step is a promising new first-line approach to SSL that can unlock the promise of uncurated unlabeled sets.
+We hope future work explores  augmentation and step direction further, 
+while extending our focus on \emph{simplicity}, \emph{reproducibility}, and possible benefits of OOD images. 
+%\todo{Our gradient step modification rules are simple, and we believe better rules can be developed to further improve the performance of open-set SSL.}

@@ -1,0 +1,25 @@
+{
+  "file": "uhn/trajectory_lvef_onset-predavg-panecho",
+  "best_head": 11,
+  "type": "classification",
+  "n_clips": 111976,
+  "n_studies": 3516,
+  "n_classes": 2,
+  "AUROC": 0.7812,
+  "accuracy": 0.9184,
+  "F1_macro": 0.6095,
+  "confusion_matrix": [
+    [
+      3178,
+      144
+    ],
+    [
+      143,
+      51
+    ]
+  ],
+  "class_distribution": {
+    "0": 3322,
+    "1": 194
+  }
+}

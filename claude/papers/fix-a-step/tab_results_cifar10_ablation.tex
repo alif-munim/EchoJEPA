@@ -1,0 +1,28 @@
+\setlength{\tabcolsep}{.08cm}
+\begin{table}[!t]
+\centering
+\begin{tabular}{l | r  r  r  r r}
+& Pi-Model & MT & VAT & Pseudo & FixMatch
+\\ \hline
+off-the-shelf &
+	73.90 & 73.75 & 73.87 & 75.45 & 78.45
+\\
++G only &
+	74.50 & 74.33 & 75.35 & 75.92 & 79.73
+\\
++A only &
+	77.25 & \textbf{78.38} & \textbf{77.87} & \textbf{77.88} & 81.53
+\\
++A\&G (ours) &
+	\textbf{79.18} & \textbf{79.23} & \textbf{78.52} & \textbf{78.72} & \textbf{82.73}
+
+\end{tabular}
+    \caption{
+    \textbf{Ablations for CIFAR-10 6 animal task}, reporting accuracy for each SSL method (columns) if we only use our augmentation (+A), only use our gradient step modification (+G), or use the combination (+A\&G) that defines Fix-A-Step.
+    We \textbf{bold} the best result and all others within 1 percentage point.
+    Setting: 400 examples/class, $\zeta=100\%$.
+%\vspace{-0.5cm}
+}%endcaption
+    \label{tab:results_cifar10_ablation}
+\end{table}
+

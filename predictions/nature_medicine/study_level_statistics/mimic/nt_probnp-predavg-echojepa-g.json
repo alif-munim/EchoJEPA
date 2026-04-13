@@ -1,0 +1,18 @@
+{
+  "file": "mimic/nt_probnp-predavg-echojepa-g",
+  "best_head": 1,
+  "type": "regression",
+  "n_clips": 9480,
+  "n_studies": 126,
+  "R2": 0.1188,
+  "R2_ci": [
+    0.0168,
+    0.2197
+  ],
+  "Pearson": 0.3553,
+  "Pearson_ci": [
+    0.1841,
+    0.5334
+  ],
+  "MAE": 3308.5735
+}

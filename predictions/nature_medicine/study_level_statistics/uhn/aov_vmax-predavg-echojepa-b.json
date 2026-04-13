@@ -1,0 +1,18 @@
+{
+  "file": "uhn/aov_vmax-predavg-echojepa-b",
+  "best_head": 0,
+  "type": "regression",
+  "n_clips": 173060,
+  "n_studies": 14235,
+  "R2": 0.2348,
+  "R2_ci": [
+    0.2251,
+    0.2448
+  ],
+  "Pearson": 0.6146,
+  "Pearson_ci": [
+    0.6007,
+    0.6283
+  ],
+  "MAE": 0.4357
+}

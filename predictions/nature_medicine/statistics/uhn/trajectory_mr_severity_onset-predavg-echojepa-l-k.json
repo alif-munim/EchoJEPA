@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 292896,
+  "n_classes": 2,
+  "AUROC_macro": 0.5845,
+  "accuracy": 0.881,
+  "F1_macro": 0.5209,
+  "confusion_matrix": [
+    [
+      255982,
+      21531
+    ],
+    [
+      13325,
+      2058
+    ]
+  ],
+  "class_distribution": {
+    "0": 277513,
+    "1": 15383
+  },
+  "file": "uhn/trajectory_mr_severity_onset-predavg-echojepa-l-k.csv"
+}

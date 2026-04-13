@@ -1,0 +1,53 @@
+\subsection{CIFAR-10 6-animal task mismatch description}
+
+In Table~\ref{tab:CIFAR10_Class_MisMatch_Description} we define which classes form the labeled and unlabeled set at each level of mismatch for the CIFAR-10 6 animal task. This exactly follows ~\citet{oliverRealisticEvaluationDeep2018} and creates \emph{more challenging} scenarios than other ``mismatch'' tasks on CIFAR-10 tried previously (for example, ~\citep{saitoOpenMatchOpensetConsistency2021} examine a case with all 10 classes in the unlabeled set).
+
+\setlength{\tabcolsep}{.8cm}
+\begin{table}[!h]
+\centering
+\begin{tabular}{l | r | r  }
+& Labeled set & Unlabeled set
+\\ \hline
+$\zeta=0\%$ & {Bird, Cat, Deer, Dog, Frog, Horse} & {Deer, Dog, Frog, Horse}
+\\
+$\zeta=25\%$ & {Bird, Cat, Deer, Dog, Frog, Horse} & {\textbf{Airplane}, Dog, Frog, Horse}
+\\
+$\zeta=50\%$ & {Bird, Cat, Deer, Dog, Frog, Horse} & {\textbf{Airplane}, \textbf{Car}, Frog, Horse}
+\\
+$\zeta=75\%$ & {Bird, Cat, Deer, Dog, Frog, Horse} & {\textbf{Airplane}, \textbf{Car}, \textbf{Ship}, Horse}
+\\
+$\zeta=100\%$ & {Bird, Cat, Deer, Dog, Frog, Horse} & {\textbf{Airplane}, \textbf{Car}, \textbf{Ship}, \textbf{Truck}}
+\\
+
+\end{tabular}
+    \caption{
+    \textbf{Definition of labeled/unlabeled class mismatch scenario in CIFAR-10 6 animal task.} We bolded the non-animal classes in unlabeled set that are not in the labeled set.
+    All included classes are represented with equal frequency.
+    }%endcaption
+    \label{tab:CIFAR10_Class_MisMatch_Description}
+\end{table}
+
+
+% \subsection{Illustration: OOD Unlabeled Data can be Helpful}
+% \label{app:UnlabeledHelpfulMotivatingExample_MixMatch}
+
+% We motivate the hypothesis that unlabeled data even from out-of-distribution (OOD) classes could be useful by an experiment testing the off-the-shelf performance of MixMatch~\citep{berthelotMixMatchHolisticApproach2019} on the CIFAR-10 6 animal task (with 400 images per class in training set).
+% We compare MixMatch with and without perfect OOD filtering under three mismatch levels $\zeta=25\%, 50\% $ and $75\%$. 
+% Results are shown in Fig.~\ref{fig:UnlabeledHelpfulMotivatingExample_MixMatch}.
+% \emph{Counter-intuitively} we see that perfect OOD Filtering leads to clearly worse performance \textbf{at all mismatch levels}. This finding appears robust across 5 random train/test splits.
+% This result suggests to us that unlabeled data, even with OOD classes, could be useful via MixMatch style augmentation.
+% Note that our suggested Fix-A-Step procedure provides further safeguards via the gradient step modification, which are not used in Fig.~\ref{fig:UnlabeledHelpfulMotivatingExample_MixMatch}.
+
+% \begin{figure*}[!h]
+% \centering
+% \begin{tabular}{c}
+% \includegraphics[width=.6\textwidth]{figures/MixMatch_ToShowUnlabeledDataValuable.pdf}
+
+% \end{tabular}
+% \caption{
+% \textbf{CIFAR-10 6-animal, 400 examples/class}. Results average across 5 train/test splits (shaded area shows standard deviation).
+% %. Error bar showing the stanard deviation across the 5 split. 
+% Both methods use the same hyper-parameters for fair comparison.
+% }%endcaption	
+% \label{fig:UnlabeledHelpfulMotivatingExample_MixMatch}
+% \end{figure*}

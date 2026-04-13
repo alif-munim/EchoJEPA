@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 79060,
+  "n_classes": 2,
+  "AUROC_macro": 0.6447,
+  "accuracy": 0.8478,
+  "F1_macro": 0.5374,
+  "confusion_matrix": [
+    [
+      65898,
+      2110
+    ],
+    [
+      9920,
+      1132
+    ]
+  ],
+  "class_distribution": {
+    "0": 68008,
+    "1": 11052
+  },
+  "file": "mimic/mortality_1yr-predavg-echoprime.csv"
+}

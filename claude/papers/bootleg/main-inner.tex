@@ -1,0 +1,584 @@
+\begin{abstract}
+
+The landscape of self-supervised learning (SSL) is currently dominated by generative approaches (\eg{}, MAE) that reconstruct raw low-level data, and predictive approaches (\eg{}, I-JEPA) that predict high-level abstract embeddings.
+While generative methods provide strong grounding, they are computationally inefficient for high-redundancy modalities like imagery, and their training objective does not prioritize learning high-level, conceptual features.
+Conversely, predictive methods often suffer from training instability due to their reliance on the non-stationary targets of final-layer self-distillation.
+We introduce \textbf{Bootleg}, a method that bridges this divide by tasking the model with predicting latent representations from \emph{multiple hidden layers} of a teacher network.
+This hierarchical objective forces the model to capture features at varying levels of abstraction simultaneously.
+We demonstrate that Bootleg significantly outperforms comparable baselines (+10\% over I-JEPA) on classification of ImageNet-1K and iNaturalist-21, and semantic segmentation of ADE20K and Cityscapes.
+
+
+
+
+\end{abstract}
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=1.0\linewidth]{figures/diagram10.pdf}
+    \caption{%
+    Multi-layer self-distillation with Bootleg.
+    The teacher-encoder (blue), student-encoder (green), and predictor (orange) are ViTs, made of repeated transformer blocks.
+    A schematic of a single transformer block is overlaid (bottom right).
+    The teacher-encoder is an EMA of the student-encoder, and processes the full image.
+    The student-encoder sees a subset of the image and must create embeddings of them to facilitate the predictor.
+    The predictor processes the embeddings to predict representations at multiple layers within the teacher-encoder.}
+    \label{fig:method}
+\end{figure*}
+
+\section{Introduction}
+
+Large-scale pretraining using self-supervised learning (SSL) is an incredibly powerful representation learning technique, able to efficiently use large volumes of unlabelled data, and is thus used in many domains and applications.
+The most powerful image SSL methods at present are contrastive, such as DINOv3 \citep{simeoni2025dinov3} and Franca \citep{venkataramanan2025franca}, requiring multiple views derived from domain-specific data augmentation and interactions between samples within the batch, resulting in tremendous computational resources being needed to fit large batches in memory (\eg{} the smallest Franca training is distributed across 32 H100 GPUs).
+Among single-view and batch-size-independent methods, MAE \citep{he2022masked} and I-JEPA \citep{assran2023ijepa} remain SOTA and are widely used, \eg{}, in video \citep{wang2023videomaev2, bardes2024vjepa, assran2025vjepa2}, audio \citep{huang2022audiomae, fei2024ajepa, tuncay2025audiojepa, yuksel2025wavjepa}, remote sensing \citep{cong2022satmae, fuller2022satvit}, medical imaging \citep{zhou2023self, xiao2023delving}, 3D point clouds \citep{zhang2022point, chen2023pimae}, time series \citep{nie2023a, li2023ti}, DNA modelling \citep{safari2025enhancingdnafoundationmodels}, multimodal data \citep{bachmann2022multimae, chen2025vljepa, lei2025m3jepa}, and more \citep{dong2024brainjepa, Riou2024_StemJEPA, thimonier2025tjepa, hachana2025using}.
+These methods are more computationally accessible (in only needing smaller batches) and general (in not requiring specific augmentations).
+However, both have their own disadvantages.
+MAE builds a representation learning model out of a generative modelling task, resulting in embeddings which are useful in pixel-space, but are less capable of representing high-level features.
+Consequently, MAE pretrained models require fine-tuning to be useful for downstream tasks, and cannot reasonably be used without fine-tuning.
+On the other hand, I-JEPA relies on \emph{last layer} self-distillation, which is less stable to train because the targets are derived from the network we are training.
+This circularity means the training targets are less stimulus-driven/grounded, which can result in the model being detached from reality and collapsing during training.
+We thus introduce Bootleg, which learns superior representations by reconstructing \emph{multiple hidden layers} in its own teacher-encoder.
+
+
+\section{Background: ViTs and masked modelling}
+
+\mypara{Vision transformers.}
+ViTs \citep{dosovitskiy2021vit} split images into patches: $\mathbb{R}^{R \times R \times C} \to \mathbb{R}^{N \times P \cdot P \cdot C}$, where $N$ is the number of patches, $P$ is the patch size, $R$ is the image height and width, and $C$ is the number of channels.
+Patches are then projected to the model embedding dimension $D$ with positional embeddings added to make ``patch tokens'': $x \in \mathbb{R}^{N \times P \cdot P \cdot C} \to z^{\text{patch}} \in \mathbb{R}^{N \times D}$.
+ViTs then optionally prepend $G$ global tokens (class and register tokens \citep{darcet2024registers}) and process the token embeddings with $B$ blocks: $z_0:=(z^{\text{glob}},z^{\text{patch}})$ and $z_{l+1}=\operatorname{Block}_l(z_l)$, where $z_l \in  \mathbb{R}^{(G+N) \times D}$ is the feature map after the $l$-th block.
+Each block is comprised of a self-attention sub-block and a two-layer perceptron (MLP) sub-block, each of which adds to the representation through a residual connection:
+$r_l^\text{Attn} := \operatorname{Attn}_l(\operatorname{LN}(z_{l-1}))$,
+$z_l^\text{mid} := z_{l-1} + r_l^\text{Attn}$,
+$r_l^\text{MLP}:=\operatorname{MLP}_l(\operatorname{LN}(z_l^\text{mid}))$, and
+$z_l := z_l^\text{mid} + r_l^\text{MLP}$.
+ViTs can efficiently process a sparse subset of patches via ``masking'', in which a subset of the $N$ patch tokens are dropped according to a masking strategy.
+Masking significantly decreases computational costs since the masked-out tokens (and their self-attentive interactions with the other tokens) do not need to be processed;
+this pairs well with ``fill-in-the-blank'' style pretraining algorithms such as those we consider here. 
+
+\mypara{MAE and I-JEPA.}
+The {masked autoencoder} (MAE) and {image-based joint-embedding predictive architecture} (I-JEPA) are popular methods for pretraining that rely on masking for self-supervised learning.
+Both methods train a model comprised of a ViT encoder and predictor, trained end to end.
+Most image patches (around 75\%) are masked-out, and the remaining unmasked/visible patches are given to the encoder to produce visible-patch embeddings, $z_B^\text{vis}$.
+The visible-patch embeddings are concatenated with mask embeddings, $m^\text{mask}$, that represent the hidden-patch locations---these act as placeholders to be updated with the decoder's prediction.
+In MAE, the model's training objective is to predict the \emph{pixels} of the hidden patches ($\text{target}=x^\text{mask}$); whereas in I-JEPA, the models target the \emph{final embeddings} of the hidden patches ($\text{target}=\bar{z}_B^\text{mask}$).
+I-JEPA's target embeddings are computed by processing the full image with a teacher-encoder model, which follows the (student) encoder by using an exponential moving average (EMA) of its weights. 
+Conceptually, this choice of \emph{target} is the key difference between MAE and I-JEPA.
+Yet, as we will demonstrate, there are several implementation details that are also crucial. 
+For example, MAE samples masks uniformly at random, whereas I-JEPA uses a more involved masking strategy where four contiguous rectangular regions are masked out.
+
+\mypara{Data2vec.}
+Data2vec \citep{baevski2022data2vec, baevski2023data2vec2} uses a similar training methodology to MAE and I-JEPA with self-distillation.
+Its target is the mean of instance-norm standardized vectors from the final $K$ layers of the teacher, with the implicit assumption that representations across a large section of the network can be linearly integrated together.
+With a focus on efficient training, its predictor is a small convolutional module %
+and each pass through the teacher module is accompanied with 16 passes through the student encoder-predictor with different randomly sampled masks.\looseness-1
+
+
+
+
+\begin{figure*}
+    \centering%
+    \includegraphics[scale=\iftoggle{arxiv}{0.41}{0.31}]{figures/vits16-ijepa-i_attentiveprobe_solo-layers-both_nrw.pdf}
+    \includegraphics[scale=\iftoggle{arxiv}{0.41}{0.31}]{figures/vitb16-ijepa_attentiveprobe_solo-layers-only_nrw.pdf}
+    \includegraphics[scale=\iftoggle{arxiv}{0.41}{0.31}]{figures/vits16-mae-i_attentiveprobe_solo-layers-both_zoom_nrw.pdf}%
+    \caption{Bridging I-JEPA and MAE with %
+    targets across hidden layers.
+    \textit{Left:} We train ViT-S with I-JEPA, except for the target which we change to be a hidden layer ($x$-axis) of the teacher-encoder instead of its final output (blue curve) or in addition to the final output (red). We plot the frozen attentive probe top-1 accuracy on IN-1k ($y$-axis) for the respective encoders.
+    \textit{Middle:} Similar, but for ViT-B to verify at larger scale.
+    \textit{Right:} We train ViT-S using MAE, except we add EMA for self-distillation and change the target to be a hidden layer of the EMA model instead of the input pixels (blue) or in addition to the image pixels (green). We compare to a single target with our masking strategy (cyan). In all cases, self-distillation of a hidden target is able to improve on predicting only the input or the output.
+}
+    \label{fig:stabilizing}
+\end{figure*}
+
+\section{Motivation for hidden targets}
+
+\subsection{Intuition: abstraction, tasks, and stability}
+
+\mypara{Deeper embeddings are more abstract.} The abstraction level of representations generally increases with increasing network depth.
+Image models receive pixels, which are the lowest level of abstraction, as their input and transform them layer-by-layer into features that are more useful for the task.
+Models tend to represent ``low-level'' features in early layers (\eg{}, colours, edges, and textures) and ``high-level'' features in deep layers (\eg{}, objects and semantic concepts).
+This has been observed for CNNs \citep{zeiler2014visualizing, bau2017network, zhou2014object} and ViTs \citep{Raghu2021doViTsSeeCNNs, vilas2023analyzing} trained with supervised learning or various SSL algorithms \citep{park2023what, lepori2024beyond}.
+Similarly, other work has found that hidden representations in CNNs and ViTs are correlated with the visual hierarchy in human brains, with early layers of the network best correlated with activity in the primary visual cortex that represents low-level features (oriented edges) and subsequent layers correlated with activity in progressively higher-level brain regions \citep{Yamins2014, Yamins2016, Horikawa2017, Tang2025, raugel2025disentanglingfactorsconvergencebrains}.
+Our training approach can be seen as analogous to a predictive coding model of the brain \citep{Rao1999, friston2005, Friston2009, Clark2013, Keller2018, Nejad2025}---if we view the embeddings at masked locations as being desynchronous forward propagations of the same stimulus, the neurons corresponding to seen locations aim to predict the afferent representations which are about to be received from all layers to which they are connected.
+
+\mypara{Deepest may not be best.}
+The layer with the most useful features depends on the pretraining and downstream tasks.
+For example, the abstraction level can increase, peak, then decrease across layers for ViTs pretrained to predict masked \emph{pixels} \citep{park2023what}, in which case we may want to target a specific hidden layer to maximize the abstraction level of our target.
+And even if the final layer is the most abstract, mid-level embeddings are more useful for many tasks \citep{bolya2025perception, evci2022headtoe}.
+All of these studies consider \emph{trained} models, and their findings can directly inform distillation from a frozen teacher.
+Conversely, we pretrain from scratch via self-distillation, which makes choosing the target layer more complex: the optimal choice may change throughout pretraining and create feedback effects that influence which layers become most useful.
+To avoid committing to a specific hidden layer, our Bootleg predictor simultaneously targets early, mid, and deep embeddings, ``using the whole buffalo''.
+
+
+\mypara{Stability.}
+Self-distillation methods are known to be unstable, whereas MAE is reliable because it targets pixels, which prevent destructive feedback. 
+For example, slight changes to I-JEPA's masking strategy results in ${>}10$\% decreases in accuracy \citep{assran2023ijepa}.
+By targeting the teacher's embeddings at various depths (\eg{}, early, middle, and late), we include targets that are minimally processed (\ie{}, by fewer layers) and hence are more stimulus-driven, providing grounding to the training objective, which helps prevent degenerate solutions to the task.
+
+\mypara{Information bottleneck.}
+Our training objective can also be viewed through the lens of information compression.
+We task the model with predicting latent representations of the stimulus at multiple levels (\eg{} $|L|=4$) of abstraction, with a total of $|L|\times |M| \times D$ target elements, but the encoder must pass this information to the predictor through a bottleneck sized $1 \times |N| \times D_\text{pred}$, with $|N| < |M|$ and $D_\text{pred} < D$ since the majority of tokens are masked out and the predictor network is narrower than the encoder.
+By increasing $|L|$, we increase the bottleneck ratio and hence increase the amount of compression it must perform, which is only possible if it understands the stimulus sufficiently well \citep{tishby2000informationbottleneckmethod}.
+Moreover, note that there can be redundancy across both the embedding dimension ($D$), sequence dimension ($M$) and the target layers ($L$).
+Intuitively, such correlations can cause collapse during training if the entropy of the targets is smaller than the size of the bottleneck, but (1) there is less correlation across the sequence dimension for early layers in the network \citep{park2023what, Raghu2021doViTsSeeCNNs}
+and (2) 
+by training the model to self-distil multiple levels of abstraction into its own output layer, we ask it to compress the information from all these levels into the space of a single layer, repeatedly.
+
+\subsection{Illustrative experiments}
+\label{sec:bridging-exps}
+
+
+
+As a proof-of-concept, we explore bridging the MAE and I-JEPA methods by simply sweeping the targets from the input layer (pixels) to the output layer (latents).
+\cref{fig:stabilizing} shows the results of training ViT-S with a basic, \ie{}, ablated form of Bootleg: I-JEPA where the target is a layer of intermediate abstraction (a hidden layer within the teacher-encoder). We observe that it is superior to using the image or final embedding as the target, with the best self-distillation target being the output of the second layer of the teacher (left, blue line).
+A similar trend is seen for ViT-B (middle), where the best single target is the 6th layer. %
+In both cases, the performance falls for deeper layers before rising again when the target is the output layer (12th layer).
+Furthermore, multiple targets (a hidden layer of the teacher-encoder concatenated with its final layer), even with the same predictor capacity, yields superior performance to using a single hidden target (left, red line).
+
+When we train with MAE but change the prediction target to a hidden layer, we find that performance decreases, with the training instabilities causing a complete collapse in the model if the target is in the 4th layer or deeper (right, blue line).
+This issue is alleviated by predicting both the image pixels and a hidden layer (green line), which prevents the instabilities and model collapse. However, this is no better at the downstream task than predicting only pixels.
+Furthermore, we find that using the image pixels as one type of target amongst multiple levels of representation (\ie{} when the weighting on the pixel reconstruction loss term is less than a quarter of the total loss) is insufficient to prevent collapse during training (not shown).
+When we change the masking strategy from uniform random to either I-JEPA's masks (not shown) or Bootleg's masks (cyan line), this sole change to the MAE is sufficient to stabilize training with hidden-self-distillation, and we observe a trend that is similar to the hidden-self-distillation version of I-JEPA (left).
+
+
+
+\section{Method}
+\label{s:method}
+
+We now describe %
+our hidden-self-distillation training method, Bootleg, illustrated in \cref{fig:method}.
+
+\mypara{Objective.} Given ``seen'' patches of an image, create high-level representations of these patches to predict the missing representations of ``masked'' patches, with targets selected from multiple levels of the layer hierarchy.
+Our methodology is most similar to I-JEPA \citep{assran2023ijepa}, with the main conceptual difference being the expansion of the targets to multiple hidden layers, instead of only the final layer.
+
+\mypara{Masking.} Our masking method is based on that of I-JEPA, with technical improvements in implementation as described in \iftoggle{arxiv}{\cref{s:masking-implementation-improvements}}{the supplementary materials}, but without significant conceptual changes.
+For a given image, we split it into patches (of $P\times P$ pixels), as per the ViT tokenizer.
+We randomly select a size and aspect ratio of rectangles to mask out, then randomly select the placement of four rectangular masks.
+These four masks, which may overlap, determine the missing representations that the student-encoder and predictor must learn to predict.
+Any unmasked patches (in the complement of the union of the masks) are the input for the student-encoder, $z_0^\text{vis}$.
+
+\mypara{Targets.}
+The whole, unmasked, image is passed through a teacher-encoder.
+The teacher-encoder is a ViT with its weights an EMA of the student-encoder.
+For each of the masked locations, we collect the embeddings of the corresponding patch tokens outputted by certain ViT blocks within the teacher-encoder, $\bar{z}_l$ for $l \in L$.
+The $|L|$ target blocks are spread evenly across the depth of the encoder from the first transformer block to the final block, so as to maximize the diversity of embeddings used as targets.
+Specifically, we use every 4th block within the transformer, starting with the 1st and 4th, then 8th, \etc{}%
+The embeddings for each mask location, $j$, and each embedding depth, $l$, are independently z-scored by subtracting the mean and dividing by the standard deviation over the embedding dimension, $D$; $t_{l,j}:=\operatorname{zscore}(\bar{z}_{l,j})$.
+The targets for a given location $j$ are concatenated to make a single target vector of length $|L| \times D$ for each of the $M$ mask patches.
+
+\mypara{Student-Encoder.}
+The student-encoder starts by embedding all unmasked patches into tokens.
+Our encoder has a further five global tokens: one class (CLS) token and four register tokens (Reg) \citep{darcet2024registers}; these are concatenated to the sequence after patch tokenization.
+From the output of the encoder, $z_B$, the patch tokens and CLS token are passed to the predictor while the register tokens are discarded.
+
+
+\mypara{Predictor.}
+For each of the four masked regions, we take the CLS and patch embeddings from the encoder and append $|M|/4$ mask tokens.
+A frozen sin-cos position embedding vector is added to all tokens.
+The four mask regions are processed in parallel by the predictor, with self-attention allowing interaction between the tokens within a mask, but with no interaction between tokens in different mask regions.
+Additionally, we prepend 4 predictor-register tokens---these serve a similar ``global processing'' role as the register tokens in the encoder, but have their own learnable embeddings.
+We use a single predictor module to predict the concatenated target vector.
+The size of the predictor (width and depth) is unchanged from MAE---only the final linear layer is wider to project to the increased number of target elements.
+
+
+
+\section{Experiments}
+
+To verify the utility of the Bootleg training procedures, we perform experiments with self-supervised training on ImageNet-1k (IN-1k) \citep{ImageNet}.
+We pretrain all ViT models on 224\texttimes 224 images with a patch size of 16\texttimes 16.
+Full implementation details and hyperparameters are described in \iftoggle{arxiv}{\cref{s:pretraining-hparams}}{the supplementary materials}.
+
+For baseline comparisons, we use officially released model checkpoints where possible.
+For I-JEPA, no ViT-S, -B, or -L checkpoints were publicly available; we trained these using our fork of the I-JEPA codebase.
+For MAE \citep{he2022masked} and data2vec~2.0 \citep{baevski2022data2vec}, no ViT-S checkpoints were publicly available; we trained these using our implementation of their respective methodologies.
+
+
+
+
+
+
+
+
+\begin{table*}[tb]
+\centering
+\caption{
+Results for masked self-supervised learning with Bootleg and baselines.
+We show the top-1 accuracy (\%) for image classification on IN-1k and iNat21 using a probe on the frozen encoder (Patch, CLS, X-Blk).
+We also show mean-IoU (\%) for semantic segmentation on ADE20K and Cityscapes using a frozen encoder (kNN, Lin, Blk).
+We highlight the \best{best} and \sbest{second best} SSL method for each architecture size.
+Black: Directly comparable SSL methods which do not use cross-sample interactions, trained on IN-1k.
+{\color{gray}Grey}: SOTA SSL models trained for longer, on larger datasets, using contrastive methods.
+(dst): Distilled from pretrained ViT-g.
+}
+\label{tab:main-results}
+\adjustbox{max width=\textwidth}{
+{\setlength{\tabcolsep}{4pt}
+\small
+\begin{tabular}{lllr@{\hspace{3\tabcolsep}}ccc@{\hspace{3\tabcolsep}}ccc@{\hspace{3\tabcolsep}}ccc@{\hspace{3\tabcolsep}}ccc}
+\toprule
+ &  &  &  & \multicolumn{3}{c}{IN-1k acc.} & \multicolumn{3}{c}{iNat21 acc.} & \multicolumn{3}{c}{ADE20K mIoU} & \multicolumn{3}{c}{Cityscapes mIoU} \\
+\cmidrule(r){5-7} \cmidrule(r){8-10} \cmidrule(r){11-13} \cmidrule{14-16}
+Arch & Method & Data & Ep. & Patch & CLS & X-Blk & Patch & CLS & X-Blk & kNN & Lin & Blk & kNN & Lin & Blk \\
+\midrule
+ViT-S/16 & MAE & IN-1k & 800 & 47.0 & 49.8 & 66.4 & 22.3 & 26.2 & 57.5 & 10.2 & 14.1 & 28.7 & \sbest{26.9} & 24.7 & 29.3 \\
+ & CrossMAE & IN-1k & 800 & 51.8 & \sbest{50.9} & \sbest{68.8} & 25.7 & \sbest{26.7} & \sbest{59.8} & \sbest{10.5} & \sbest{15.2} & \sbest{31.2} & 25.8 & \sbest{25.7} & \sbest{30.8} \\
+ & data2vec 2.0 & IN-1k & 200 & 39.9 & 41.7 & 62.2 & 15.4 & 14.6 & 47.4 & \phantom{0}9.5 & \phantom{0}9.6 & 25.4 & 23.3 & 22.2 & 25.8 \\
+ & I-JEPA & IN-1k & 600 & \sbest{52.4} & \na{} & 61.9 & \sbest{26.8} & \na{} & 48.4 & \phantom{0}8.2 & 11.8 & 21.1 & 17.9 & 19.8 & 24.5 \\
+ & Bootleg (ours) & IN-1k & 600 & \best{69.8} & \best{70.4} & \best{75.3} & \best{42.6} & \best{47.8} & \best{67.4} & \best{23.5} & \best{26.6} & \best{33.9} & \best{29.4} & \best{32.1} & \best{35.1} \\
+\cmidrule(r){2-4}
+{\color{gray}ViT-S/14} & {\color{gray}DINOv2 (dst)} & {\color{gray}LVD} & {\color{gray}--} & {\color{gray}\best{77.9}} & {\color{gray}\best{80.6}} & {\color{gray}\best{81.5}} & {\color{gray}\best{64.2}} & {\color{gray}\best{74.0}} & {\color{gray}\best{78.9}} & {\color{gray}\best{34.0}} & {\color{gray}\best{39.7}} & {\color{gray}\best{42.7}} & {\color{gray}\best{39.0}} & {\color{gray}\best{46.4}} & {\color{gray}\best{47.1}} \\
+\midrule
+ViT-B/16 & MAE & IN-1k & 1600 & 66.1 & \sbest{67.2} & \sbest{76.0} & 37.4 & \sbest{43.3} & \sbest{70.7} & 17.6 & \sbest{24.7} & 35.8 & \sbest{28.0} & 30.5 & 34.9 \\
+ & CrossMAE & IN-1k & 800 & 65.5 & 64.8 & 75.6 & 38.3 & 41.7 & 70.2 & 14.9 & 24.1 & \sbest{36.9} & 27.4 & \sbest{31.2} & \sbest{36.2} \\
+ & data2vec 2.0 & IN-1k & 200 & 62.2 & 61.0 & 73.7 & 29.7 & 31.3 & 61.3 & \sbest{17.6} & 22.5 & 34.7 & 26.6 & 27.8 & 32.5 \\
+ & I-JEPA & IN-1k & 600 & \sbest{67.0} & \na{} & 72.4 & \sbest{41.4} & \na{} & 63.0 & 13.1 & 19.3 & 28.8 & 20.3 & 24.3 & 29.8 \\
+ & Bootleg (ours) & IN-1k & 600 & \best{75.5} & \best{76.7} & \best{79.2} & \best{50.9} & \best{58.3} & \best{74.2} & \best{25.1} & \best{30.9} & \best{38.8} & \best{30.4} & \best{35.9} & \best{39.7} \\
+\cmidrule(r){2-4}
+{\color{gray}ViT-B/14} & {\color{gray}Franca} & {\color{gray}IN-22k} & {\color{gray}(90)} & {\color{gray}\sbest{78.7}} & {\color{gray}\sbest{81.7}} & {\color{gray}\sbest{83.0}} & {\color{gray}\sbest{63.2}} & {\color{gray}\sbest{73.6}} & {\color{gray}\sbest{81.0}} & {\color{gray}\sbest{30.4}} & {\color{gray}\sbest{38.0}} & {\color{gray}\sbest{43.1}} & {\color{gray}\sbest{38.3}} & {\color{gray}\sbest{46.1}} & {\color{gray}\sbest{49.8}} \\
+{\color{gray}} & {\color{gray}DINOv2 (dst)} & {\color{gray}LVD} & {\color{gray}--} & {\color{gray}\best{82.2}} & {\color{gray}\best{83.7}} & {\color{gray}\best{84.2}} & {\color{gray}\best{71.4}} & {\color{gray}\best{80.4}} & {\color{gray}\best{84.3}} & {\color{gray}\best{36.0}} & {\color{gray}\best{42.8}} & {\color{gray}\best{45.8}} & {\color{gray}\best{41.4}} & {\color{gray}\best{49.6}} & {\color{gray}\best{51.1}} \\
+\midrule
+ViT-L/16 & MAE & IN-1k & 1600 & \sbest{73.0} & \sbest{75.5} & 79.5 & \sbest{43.9} & \sbest{51.8} & \sbest{76.3} & 20.0 & 28.8 & 40.9 & 27.2 & 34.7 & 38.3 \\
+ & CrossMAE & IN-1k & 800 & 71.5 & 71.8 & 78.7 & 43.2 & 50.1 & 75.1 & 18.2 & 28.8 & 39.8 & 28.6 & \sbest{36.7} & 39.5 \\
+ & data2vec 2.0 & IN-1k & 200 & 70.5 & 72.7 & \sbest{80.0} & 38.6 & 41.5 & 72.7 & \sbest{23.4} & \sbest{30.0} & \best{43.0} & \sbest{28.7} & 35.5 & \best{44.3} \\
+ & I-JEPA & IN-1k & 600 & 68.4 & \na{} & 72.3 & 41.1 & \na{} & 61.3 & 15.6 & 21.8 & 28.6 & 18.4 & 25.5 & 30.4 \\
+ & Bootleg (ours) & IN-1k & 600 & \best{77.5} & \best{79.1} & \best{80.6} & \best{53.2} & \best{61.2} & \best{77.1} & \best{27.2} & \best{34.7} & \sbest{41.2} & \best{29.1} & \best{39.1} & \sbest{42.8} \\
+\cmidrule(r){2-4}
+{\color{gray}ViT-L/14} & {\color{gray}CAPI} & {\color{gray}IN-1k} & {\color{gray}6394} & {\color{gray}77.6} & {\color{gray}\na{}} & {\color{gray}83.2} & {\color{gray}47.6} & {\color{gray}\na{}} & {\color{gray}80.7} & {\color{gray}28.6} & {\color{gray}38.9} & {\color{gray}46.1} & {\color{gray}32.9} & {\color{gray}43.7} & {\color{gray}48.1} \\
+{\color{gray}} & {\color{gray}Franca} & {\color{gray}LAION} & {\color{gray}(3.2)} & {\color{gray}\sbest{82.5}} & {\color{gray}\sbest{83.4}} & {\color{gray}\sbest{84.4}} & {\color{gray}\sbest{71.5}} & {\color{gray}\sbest{77.0}} & {\color{gray}\sbest{86.2}} & {\color{gray}\sbest{33.6}} & {\color{gray}\sbest{41.7}} & {\color{gray}\sbest{46.4}} & {\color{gray}\sbest{38.5}} & {\color{gray}\sbest{48.1}} & {\color{gray}\sbest{50.6}} \\
+{\color{gray}} & {\color{gray}DINOv2 (dst)} & {\color{gray}LVD} & {\color{gray}--} & {\color{gray}\best{84.1}} & {\color{gray}\best{85.4}} & {\color{gray}\best{85.9}} & {\color{gray}\best{76.3}} & {\color{gray}\best{83.2}} & {\color{gray}\best{87.3}} & {\color{gray}\best{34.6}} & {\color{gray}\best{43.4}} & {\color{gray}\best{47.3}} & {\color{gray}\best{42.4}} & {\color{gray}\best{50.9}} & {\color{gray}\best{52.5}} \\
+\bottomrule
+\end{tabular}
+}
+}
+\end{table*}
+
+
+\subsection{Image classification}
+\label{s:exp:in1k}
+
+After SSL pretraining of the ViT model with Bootleg, we evaluate the model's performance at supervised classification of IN-1k and iNaturalist-2021 (iNat21) images.
+iNaturalist \citep{Horn2018_iNaturalist} is a long-tailed, fine-grained classification task with domain shift from IN-1k. %
+
+\mypara{Method.}
+\label{s:in1k-probe}
+We investigate the alignment of the unmodified embeddings from the pretrained encoder with the image classification task.
+This is done with a probe of the frozen encoder, which we conduct in three ways.
+Firstly, we consider the linear probe of the average patch embeddings (column ``Patch'' in tables).
+For this, we discard the CLS token and register tokens, take the average of the patch embeddings, apply batch norm, and add a single learnable linear layer to predict the class labels.
+Secondly, we consider the performance of a linear probe of the CLS token embedding (column ``CLS'' in tables).
+We take the CLS token embeddings, apply batch norm, and train a single learnable linear layer.
+Thirdly, we consider the performance of a non-linear attentive probe (column ``X-Blk'' in tables).
+This was performed following the implementation in V-JEPA \citep{bardes2024vjepa, assran2025vjepa2}: we keep the patch, CLS, and any register embeddings produced by the model; these are passed to a cross-attention block with a single learnable query vector, and an MLP sub-block, followed by a linear head.
+We use the same width and number of attention heads as in the pretrained ViT.
+All probes were trained with cross-entropy for 20 epochs, with random crop, horizontal flip, and colour jitter augmentations only, and a simultaneous hyperparameter sweep of 25 learning rate and weight decay configurations. %
+For full implementation details, see \iftoggle{arxiv}{\cref{a:eval-method-classification-probe}}{the supplementary materials}.
+
+%
+
+\mypara{Results.}
+Our results, shown in \cref{tab:main-results}, demonstrate the effectiveness of Bootleg for image classification.
+Across all model sizes, ViTs pretrained with Bootleg outperform the within-category competitors. %
+This demonstrates the effectiveness of the pretraining methodology at learning to represent high-level image features.
+The largest margins ($>\!10\%$) were seen at the smallest model sizes.
+With full fine-tuning (see \iftoggle{arxiv}{\cref{s:results-ft}}{supplement}) the models are better able to align their final embeddings with the classification task so there is less variation in performance among models; frozen evaluations are more indicative of the quality of the learnt representations.
+
+
+
+\subsection{Semantic segmentation}
+
+\mypara{Method.}
+To check the performance of ViTs pretrained with Bootleg on a standard dense-prediction task, we run experiments on the ADE20K \citep{ade20k} and Cityscapes \citep{Cordts2016_Cityscapes} semantic segmentation benchmarks.
+
+First, we probe using the kNN methodology from CAPI \citep{darcet2025capi}.
+For this probe, images from the training partition are encoded without augmentations.
+The embeddings and pixel-wise segmentation labels for each patch token form the kNN training set; inference is performed by finding the $k$ nearest neighbours for each patch in the image and then using a majority vote across them for the class of each pixel.
+We sweep 4 neighbourhood sizes.
+
+Next we probe using a Segmenter \citep{strudel2021segmenter} head trained atop a frozen backbone.
+We consider two heads, trained separately: (Lin) a linear projector from the patch embeddings to the Segmenter, or (Blk) with one randomly initialized transformer block before the projector.
+Our training strategy is based on the BEiT evaluation methodology \citep{bao2021beit}; we train for 128 epochs with a batch size of 64, and augment the data with random resized cropping, horizontal flips, cut-out, and colour jitter.
+We sweep 4 LRs for each head type.
+For full implementation details, see \iftoggle{arxiv}{\cref{s:method-semseg}}{the supplementary materials}.
+
+
+
+\mypara{Results.}
+As shown in \cref{tab:main-results}, Bootleg performs competitively at semantic segmentation.
+The frozen probes show Bootleg is much better able to perform pixel-level segmentation than its self-distillation competitor, I-JEPA, demonstrating that distillation of features along the visual pathway facilitates the model's ability to perform at a range of levels of granularity.
+
+
+
+
+
+
+
+\subsection{Additional evaluations}
+
+We evaluated the pretrained models with fine-tuning on IN-1k and ADE20K, as described in \cref{s:results-ft}.
+Bootleg performed best for full fine-tuning on IN-1k with 100\% or 1\% (low-shot) of the training data, although the margins are smaller than for the probing evaluation because the models are trained further.
+For LoRA fine-tuning on IN-1k and full finetuning on ADE20K, Bootleg performs best for ViT-S and B, and data2vec best for ViT-L.
+
+We evaluated the pretrained models on the Visual Task Adaptation Benchmark (VTAB) \citep{Zhai2019_VTAB}, as described in \cref{s:vtab}.
+Our results show Bootleg models excel at representing naturalistic images (those corresponding to the IN-1k pretraining domain) and specialized imagery (\eg{} satellite and medical images), but are less performant on synthetic images (\eg{} Clevr, dSprites).
+
+
+\section{Ablations}
+
+We ablate key elements of our method, compare related extensions of other methods, and closely study the differences with I-JEPA.
+
+\subsection{Choice of target layers}
+\label{s:ablation:target}
+
+The core mechanism of Bootleg is the self-distillation of hidden layers---which poses the question of which hidden layers to distil.
+We explore the performance of ViT-S, -B, -L with different hidden targets for self-distillation during pretraining. %
+In addition to predicting the output of various hidden blocks, $z_l$, we explore the performance when predicting the mid-block representations, $z_l^\text{mid}$, and the residual terms $r_l^\text{Attn}$ and $r_l^\text{MLP}$ (tabulated in \iftoggle{arxiv}{\cref{s:target-choice}}{supplementary materials}).
+For ViT-S, we find two peaks in performance: one when using 3--4 equispaced block outputs as targets, and another when targeting multiple layers within every block.
+However, targeting the residual layers was only sometimes beneficial, and only seen for ViT-S.
+Overall, targeting the output of every fourth block in the teacher is a rule-of-thumb which gives consistently strong performance, and often the best performance of the configurations tried.
+
+In addition to investigating how many hidden layers to target and their types, 
+we consider where the targets should be taken from.
+As shown in \cref{tab:change-target-group}, we found using four spaced-out targets outperforms using consecutive targets from the start, middle, or final blocks of the teacher.
+Data2vec uses an average of the final 10 layers as its target, implicitly assuming the training signal across multiple hidden layers can be linearly integrated together.
+We, on the other hand, use a concatenation of the latent embeddings from multiple blocks as the distillation target, treating latents as distinct representations of intermediate abstraction.
+Using multiple layers of abstraction as distillation training targets improves performance over distilling a single target (\cref{tab:change-target-group}).
+
+\begin{table*}[tbh]
+\centering
+\caption{Target construction strategy.
+We compare four spaced-out targets (ours) to consecutive targets from the early, middle, or final layers of the network.
+We also consider two options of how to merge targets: either standardize and concatenate (ours) or standardize, average, and re-standardize (data2vec-style).
+Spaced-out, concatenated, targets yield the best training targets.
+Experiments trained for 300 ep. on IN-1k (based on our final training recipe; see \iftoggle{arxiv}{\cref{s:pretraining-hparams}}{supplement}) and evaluated with frozen probe.
+}
+\label{tab:change-target-group}
+\small
+\adjustbox{max width=\textwidth}{
+\begin{tabular}{llcccccc}
+\toprule
+ &  & \multicolumn{3}{c}{IN-1k acc.} & \multicolumn{3}{c}{ADE20K mIoU} \\
+\cmidrule(r){3-5} \cmidrule(r){6-8}
+Targets & Merge op. & Patch & CLS & X-Blk & kNN & Lin & Blk \\
+\midrule
+Pixel targets (MAE-style)                & \na{}   & 52.9 & 51.0 & 66.7 & 13.6 & 17.7 & 27.5 \\
+Blocks 1--4 (early only)                 & Concat  & 58.0 & 57.1 & 69.5 & 16.5 & 21.0 & 30.1 \\
+Blocks 5--8 (mid only)                   & Concat  & 61.6 & 61.7 & 72.2 & 18.6 & 23.0 & 33.0 \\
+Blocks 3--12 (last 10)                   & Concat  & \sbest{64.6} & \sbest{66.0} & \sbest{73.4} & \sbest{20.9} & \sbest{24.5} & \sbest{33.4} \\
+Blocks 9--12 (late only)                 & Concat  & 60.2 & 60.8 & 69.7 & 16.0 & 19.7 & 29.3 \\
+\rowcolor{vlightgray}
+Blocks $\{1, 4, 8, 12\}$ (spaced)        & Concat  & \best{67.8} & \best{68.9} & \best{74.4} & \best{22.1} & \best{26.6} & \best{34.2} \\
+\addlinespace
+Blocks 3--12 (last 10; d2v-style)        & Average & 44.1 & 37.9 & 59.9 & \phantom{0}8.8 & 12.8 & 24.2 \\
+Blocks $\{1, 4, 8, 12\}$ (spaced) & Average & 57.2 & 54.6 & 69.8 & 15.6 & 19.8 & 30.5 \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+
+
+\subsection{Bootleg editions of other masking methods}
+\label{s:ablation:bootleg-others}
+
+We explore the effect of adding our main conceptual contribution---self-distillation of hidden layers---to other masked image modelling methods with minimal other changes (\cref{tab:add-targets-to-others}).
+We train a ViT-S for 300 epochs on IN-1k using either the MAE, CrossMAE, data2vec 2.0, or I-JEPA framework, then evaluate with frozen probes on IN-1k, as described in \cref{s:in1k-probe}.
+
+\mypara{Adding EMA.} To facilitate self-distillation, we need to add an EMA teacher to MAE and CrossMAE; we first evaluate the performance of the EMA encoder without using it for distillation.
+Its performance is negligibly different from that of the encoder without EMA.
+
+\mypara{Masking.} As we show in \cref{sec:bridging-exps}, the masking strategy of MAE is a limiting factor for the adoption of self-distillation of targets deeper than Block 2.
+We thus change its masking strategy to our implementation of I-JEPA masking, which improved performance.
+For MAE and data2vec, we also apply the predictor once per mask region, allowing self-attention interactions within the tokens of each region.
+For CrossMAE, the use of cross- instead of self-attention means there is no interaction between the mask tokens, and so this is not a consideration; we use the concatenation of the mask tokens from all four regions for efficiency\footnote{Note that the overlap of mask regions means there are redundant mask tokens for the same patch location for the CrossMAE predictor; these serve only to increase the loss weighting on resampled mask locations, and for consistency we did not deduplicate these.}.
+
+\mypara{ViT predictor.}
+Data2vec 2.0 uses a light-weight CNN predictor module (much smaller than the ViT predictors used by MAE and I-JEPA), which lacks the capacity to handle predicting multiple target vectors.
+We hence changed the data2vec 2.0 predictor to our ViT architecture, yielding a significant performance gain.\looseness=-1
+
+\mypara{Hidden-self-distillation.} With these changes in place, we next change the target from the image pixels (MAE and CrossMAE), final layer (I-JEPA), and average over multiple layers (data2vec 2.0), to our target: a concatenation of hidden latent vectors.
+This greatly increases the performances for MAE and CrossMAE ($+10\%$ Patch and CLS probes, $+6\%$ to X-Blk probes) and I-JEPA ($+6\%$).
+For data2vec 2.0, using the concatenation of hidden layers instead of their average improves performance ($+2\%$), but changing the targets from the final 10 layers to every 4th layer does not ($-1\%$).
+These findings indicate masked image modelling can in general benefit from using our hidden-self-distillation, provided the masking strategy supports it.\looseness=-1
+
+
+
+\begin{table}[tbh]
+\centering
+\caption{%
+Effect of combining key Bootleg components with existing pretraining methods.
+Experiments conducted with ViT-S, 300 ep., and evaluated with frozen probe on IN-1k (top-1 acc, \%) and ADE20K (mIoU, \%).
+Modifications are cumulative.
+See \cref{s:ablation:bootleg-others} for details.
+}
+\label{tab:add-targets-to-others}
+\small
+\adjustbox{max width=\textwidth}{
+\iftoggle{arxiv}{
+  \def\tablespec{ll@{\hspace{2\tabcolsep}}r@{\hspace{\tabcolsep}}r@{\hspace{2\tabcolsep}}r@{\hspace{\tabcolsep}}r@{\hspace{2\tabcolsep}}r@{\hspace{\tabcolsep}}r@{\hspace{3\tabcolsep}}r@{\hspace{\tabcolsep}}r@{\hspace{2\tabcolsep}}r@{\hspace{\tabcolsep}}r}
+}{
+  \def\tablespec{ll@{\hspace{0.5em}}rr@{\hspace{0.5em}}rr@{\hspace{0.5em}}rr@{\hspace{0.5em}}rr@{\hspace{0.5em}}rr}
+}
+\expandafter\tabular\expandafter{\tablespec}
+\toprule
+        &                     & \multicolumn{6}{c}{IN-1k acc.} & \multicolumn{4}{c}{ADE20K mIoU} \\
+\cmidrule(r){3-8} \cmidrule(r){9-12}
+Base    & Modification        & \multicolumn{2}{l}{Patch} & \multicolumn{2}{l}{CLS} & \multicolumn{2}{l}{X-Blk} & \multicolumn{2}{l}{kNN} & \multicolumn{2}{l}{Lin} \\
+\midrule
+MAE      & Unmodified           & 44.7 &              & 47.0 &              & 65.1 &              & 9.3 &              & 13.1 &              \\
+         & +EMA                 & 44.8 & \aincr{+0.1} & 46.9 & \adecr{-0.1} & 65.1 & \adecr{-0.0} & 9.1 & \adecr{-0.2} & 13.1 & \adecr{-0.0} \\
+         & +our masking         & 51.2 & \aincr{+6.5} & 50.7 & \aincr{+3.8} & 66.0 & \aincr{+0.9} & 12.2 & \aincr{+3.1} & 16.6 & \aincr{+3.5} \\
+         & +change targets      & 62.4 & \aincr{+11.2} & 62.9 & \aincr{+12.2} & 72.1 & \aincr{+6.1} & 19.5 & \aincr{+7.3} & 24.1 & \aincr{+7.4} \\
+\addlinespace
+CrossMAE & Unmodified           & 45.7 &              & 44.4 &              & 65.2 &              & 8.5 &              & 12.7 &              \\
+         & +EMA                 & 45.7 & \aincr{+0.0} & 44.3 & \adecr{-0.1} & 65.3 & \aincr{+0.1} & 8.6 & \aincr{+0.1} & 12.7 & \aincr{+0.0} \\
+         & +our masking         & 51.5 & \aincr{+5.7} & 52.5 & \aincr{+8.2} & 66.6 & \aincr{+1.3} & 10.3 & \aincr{+1.7} & 15.8 & \aincr{+3.1} \\
+         & +change targets      & 60.8 & \aincr{+9.4} & 61.6 & \aincr{+9.1} & 71.8 & \aincr{+5.3} & 14.6 & \aincr{+4.4} & 21.4 & \aincr{+5.5} \\
+\addlinespace
+data2vec 2.0 & 300ep, 4 mask reps   & 40.9 &              & 40.3 &              & 61.4 &              & 8.8 &              & \missing{} &              \\
+         & +our masking         & 44.4 & \aincr{+3.5} & 49.2 & \aincr{+8.8} & 64.3 & \aincr{+2.9} & 9.8 & \aincr{+1.0} & 10.5 &              \\
+         & +our ViT predictor   & 58.8 & \aincr{+14.4} & 53.7 & \aincr{+4.6} & 70.7 & \aincr{+6.4} & 15.4 & \aincr{+5.5} & 20.5 & \aincr{+10.1} \\
+         & +concat targets      & 60.9 & \aincr{+2.1} & 52.5 & \adecr{-1.2} & 72.2 & \aincr{+1.5} & 18.3 & \aincr{+2.9} & 22.9 & \aincr{+2.4} \\
+         & +change targets      & 60.2 & \adecr{-0.7} & 50.0 & \adecr{-2.5} & 71.7 & \adecr{-0.6} & 17.6 & \adecr{-0.7} & 22.1 & \adecr{-0.9} \\
+\addlinespace
+I-JEPA   & Unmodified           & 53.4 &              & \na{} &              & 62.3 &              & 10.5 &              & 13.5 &              \\
+         & +change targets      & 59.5 & \aincr{+6.1} & \na{} &              & 69.3 & \aincr{+7.0} & 15.1 & \aincr{+4.6} & 19.3 & \aincr{+5.7} \\
+\bottomrule
+\endtabular
+}
+\end{table}
+
+
+\subsection{Interpolating between I-JEPA and Bootleg}
+
+We carefully identify and evaluate the differences between Bootleg and the closest existing masked image modelling method: I-JEPA.
+As shown in \cref{tab:config-interpolation}, we find changing the targets to be the outputs of multiple blocks is the largest single improvement made to the I-JEPA training configuration, followed by improving the implementation of the masking strategy and the addition of a CLS token.
+However, our final Bootleg training recipe is more heavily impacted by ablating features such as the larger predictor (which facilitates processing additional targets) than ablating the number of targets.
+
+
+\begin{table*}[tbh]
+\centering
+\caption{Ablation of the differences between I-JEPA and Bootleg.
+Each row isolates a single change to the training configuration.
+We show the performance of a model trained with a config equal to I-JEPA plus one change from Bootleg (``Only with''), and with a config equivalent to changing everything from the I-JEPA to Bootleg config except for one component (``Only without'').
+Next to each of these is the change in accuracy observed when adding that first component to I-JEPA's config, and when adding it as the final component to reach Bootleg.
+Changes between rows are not cumulatively stacked on top of each other.
+Experiments performed with ViT-S, 300 ep.
+}
+\label{tab:config-interpolation}
+\small
+\adjustbox{max width=\textwidth}{
+\begin{tabular}{lrlrlrlrlc}
+\toprule
+           & \multicolumn{4}{c}{IN-1k acc., X-Blk probe} & \multicolumn{4}{c}{ADE mIoU, Lin probe} &  \\
+\cmidrule(r){2-5}\cmidrule(r){6-9}
+Ablation  & \multicolumn{2}{c}{Only with} & \multicolumn{2}{c}{Only without} & \multicolumn{2}{c}{Only with} & \multicolumn{2}{c}{Only without} & Avg $\Delta$ \\
+\midrule
+I-JEPA (= with none) & 62.3 &             &      &             & 13.5 &             &      &             & \\
+\midrule
+Data transforms: +hflip, $\uparrow$min crop size & 63.2 & \incr{+0.8} & 74.2 & \incr{+0.2} & 13.3 & \decr{-0.2} & 25.8 & \incr{+0.8} & \incr{+0.4} \\
+Add CLS token        & 65.9 & \incr{+3.5} & 74.1 & \incr{+0.3} & 17.4 & \incr{+3.9} & 25.6 & \incr{+1.0} & \incr{+2.2} \\
+Add 4/4 reg tokens to encoder/predictor & 64.7 & \incr{+2.4} & 73.9 & \incr{+0.5} & 15.5 & \incr{+1.9} & 25.6 & \incr{+1.0} & \incr{+1.4} \\
+Predictor size: $\uparrow$ depth, $\uparrow$ heads & 64.1 & \incr{+1.8} & 72.5 & \incr{+1.9} & 13.9 & \incr{+0.3} & 23.6 & \incr{+3.0} & \incr{+1.8} \\
+Masking: implementation improvements & 68.2 & \incr{+5.9} & 72.6 & \incr{+1.8} & 18.0 & \incr{+4.5} & 24.5 & \incr{+2.2} & \incr{+3.6} \\
+Targets: $T=\{12\} \rightarrow \{1, 4, 8, 12\}$ & 69.3 & \incr{+7.0} & 73.9 & \incr{+0.4} & 19.3 & \incr{+5.7} & 25.2 & \incr{+1.4} & \incr{+3.6} \\
+Loss: Smooth L1 $\rightarrow$ L2 & 65.1 & \incr{+2.7} & 74.5 & \decr{-0.1} & 14.9 & \incr{+1.3} & 25.5 & \incr{+1.1} & \incr{+1.3} \\
+Hyperparams: $\uparrow$ LR, $\uparrow$ WU, $\downarrow$ WD & 63.7 & \incr{+1.3} & 73.1 & \incr{+1.2} & 13.0 & \decr{-0.5} & 24.1 & \incr{+2.5} & \incr{+1.2} \\
+\midrule
+Bootleg (= with all) &      &             & 74.4 &             &      &             & 26.6 &             & \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+
+\begin{table*}[tbh]
+\centering
+\caption{Changing masking strategy.
+Experiments trained for 300 ep. on IN-1k whilst using different masking strategies. Evaluated with frozen probe on IN-1k and ADE20K.
+}
+\label{tab:config-mask-strat}
+\small
+\adjustbox{max width=\textwidth}{
+\begin{tabular}{@{}lllcccccc@{}}
+\toprule
+ & &  & \multicolumn{3}{c}{IN-1k acc.} & \multicolumn{3}{c}{ADE20K mIoU} \\
+\cmidrule(r){4-6} \cmidrule(r){7-9}
+Masking strategy & Seen (\%) & Target (\%) & Patch & CLS & X-Blk & kNN & Lin & Blk \\
+\midrule
+Random (MAE-style)                  & 25.0 & 75.0 & \phantom{0}2.6 & \phantom{0}2.5 & 10.9 & \phantom{0}2.3 & \phantom{0}1.4 & \phantom{0}4.3 \\
+Green noise (ColorMAE-style)        & 25.0 & 75.0 & 36.0 & 32.0 & 58.3 & \phantom{0}7.6 & 10.5 & 23.5 \\
+Inverse block (data2vec-style; 1 rep.) & 20.0 & 80.0 & 58.0 & 53.6 & 69.5 & 16.3 & 21.5 & 30.2 \\
+Inverse block (data2vec-style; 4 rep.) & 20.0 & 80.0 & 59.2 & 53.1 & 70.1 & 16.9 & 21.1 & 31.8 \\
+Cyclic block (Franca/CAPI) & 25.0 (20--30) & 75.0 (70--80) & 67.0 & 65.8 & 73.7 & 20.8 & 25.1 & 32.2 \\
+Cyclic block (Franca/CAPI) & 30.0 (25--35) & 70.0 (65--75) & \best{68.0} & \sbest{67.4} & \sbest{74.0} & \sbest{21.4} & \sbest{25.8} & \sbest{32.4} \\
+Multi-block (I-JEPA)                & 24.3 (\phantom{0}9--37) & 44.5 (24--64) & 65.3 & 66.5 & 72.6 & 20.6 & 24.5 & 31.7 \\\rowcolor{vlightgray}
+Multi-block (ours)                  & 29.2 (13--43) & 47.5 (26--71) & \sbest{67.8} & \best{68.9} & \best{74.4} & \best{22.1} & \best{26.6} & \best{34.2} \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+
+
+
+
+
+\subsection{Changing masking strategy}
+\label{s:ablation:masking}
+
+We ablated our masking strategy, using methods from recent papers. The results are shown in \cref{tab:config-mask-strat}.
+
+When training with uniform random masks as per MAE, training became unstable after 160 epochs and the model collapsed.
+Using ``green'' structured noise from ColorMAE \citet{hinojosa2024colormae} or inverse-blocks as per data2vec \citet{baevski2023data2vec2}, training was unstable and performance suffered as a result, but not as badly as when using random noise.
+In contrast to this, cyclic block masking, used by CAPI and Franca \citep{darcet2025capi, venkataramanan2025franca}, %
+yielded stable training and even out-performed the I-JEPA implementation of multi-block masking.
+
+The key difference between these masking strategies is the size of the contiguous blocks which are masked out---larger mask sizes yielded better performance.
+We hypothesize this is because neighbouring patch tokens have highly correlated activations, especially deeper in the visual hierarchy.
+Hence it is important that the majority of target patches are not adjacent to a seen patch, otherwise the model learns to use the short-cut.
+This observation is comparable to that found in contrastive learning, where heavy colour augmentations need to be applied on the views to prevent the model from using correlations in the RGB histogram as a short-cut to solve the task \citep{chen2020simple}.
+
+
+\section{Related Work}
+We group SSL algorithms into two categories: single-view and multi-view methods.
+Single-view methods, such as MAE, I-JEPA, and our Bootleg, have two key advantages: (1) they do not require hand-crafted data augmentation strategies or rules to generate pairs of ``positive'' views to promote embedding similarity, and (2) they are independent of batch size since they do not require (explicit or implicit) ``negatives'' to promote embedding dissimilarity and avoid representational collapse.
+By not requiring large batches, single-view methods are more accessible and can be pretrained on a single consumer GPU.
+By not requiring data augmentation strategies, single-view methods can be easily adapted to other domains and input shapes (\eg{}, time series, 3D point clouds, \etc{}).
+We thus restrict our experimental comparisons of Bootleg to comparable single-view methods.
+
+\mypara{Single-view methods do \emph{not} require augmentations or large batches.}
+The first masked modelling methods for imagery encode \emph{mask tokens} alongside patch tokens, following BERT in natural language \citep{devlin-etal-2019-bert}.
+They are pretrained to predict the masked-out pixels \citep{xie2022simmim, dosovitskiy2021vit}, discrete patch tokens \citep{bao2021beit, dong2023peco}, or features \citep{zhou2022image, wei2022masked} with a small decoder.
+MAE \citep{he2022masked} introduced encoding visible tokens \emph{only} (no mask tokens) and a larger decoder, which reduces computation and improves representations; this token-dropping method has been widely leveraged since, \eg{}, by data2vec 2.0 \citep{baevski2023data2vec2}, I-JEPA \citep{assran2023ijepa}, and CrossMAE \citep{fu2025crossmae}.
+CrossMAE replaces MAE's self-attention-based decoder with a cross-attention-based decoder for reduced pretraining computation with similar downstream accuracy.
+Our Bootleg follows MAE/I-JEPA's asymmetric encoder-decoder design for efficient pretraining.
+
+\mypara{Multi-view methods require augmentations and large batches.}
+Canonical contrastive learning algorithms \citep{chen2020improved, chen2021empirical, chen2020simple} promote embedding similarity (for positives) and dissimilarity (for negatives) via InfoNCE-style losses \citep{oord2018representation}.
+And C-JEPA \citep{mo2024connecting} adds a contrastive-loss term to I-JEPA.
+Other methods such as iBOT \citep{zhou2022image} and CAPI \citep{darcet2025capi} merge contrastive objectives with masked imagery.
+These contrastive algorithms, such as Sinkhorn-Knopp \citep{Caron2020_SwAV}, require batches that contain several thousand samples, and multi-GPU training to meet their memory requirements.
+Methods such as Barlow Twins \citep{zbontar2021barlow}, VICReg \citep{bardes2021vicreg}, and MMCR \citep{yerxa2023learning}, use several hundred samples per batch, at minimum, and promote similarity between positives generated via data augmentation.
+These new methods spread-out the embedding space over the batch, for example by encouraging the standard deviation of each embedding dimension---calculated per batch, and is thus batch-size dependent---to be above a threshold.
+Similarly, Bootstrap Your Own Latent (BYOL, \citep{grill2020bootstrap}) was an earlier method that also requires implicit negatives to avoid collapse.
+It partially inspires our Bootleg name.
+State-of-the-art image SSL methods such as DINOv2 \citep{oquab2023dinov2} and Franca \citep{venkataramanan2025franca} have many self-supervised objectives, some of which also require multiple views and large batches (\eg{} 16,384).
+Our Bootleg does \emph{not} require data augmentation, thus is more general and less domain-specific, and can be pretrained with a single GPU, thus is more accessible.\looseness=-1
+
+
+\section{Discussion}
+
+We have presented Bootleg, a novel method for self-supervised representation learning of images.
+Our method uses hidden-self-distillation: the student must learn to predict latent representations from hidden layers within the teacher.
+
+\mypara{Strengths.}
+We have demonstrated hidden-self-distillation is a powerful pretraining method for representation learning and lends itself to creating embeddings well aligned with image classification, without needing labels during training.
+It does not use any within-batch interactions, meaning it can be readily deployed across a range of hardware even with small batch sizes.
+Furthermore, training does not rely on any domain-specific augmentations, so could be deployed in other domains with minimal modification.
+
+\mypara{Limitations.}
+Like other self-distillation techniques, our method makes use of a teacher-encoder.
+This has a non-trivial computational overhead (around 12\% of total training time), since the teacher sees all of the stimulus.
+Although we use more targets than I-JEPA, generating these does not require any additional passes through the teacher-encoder, as all targets for Bootleg can be collected in one pass.
+As Bootleg does use more targets, there is additional processing overhead for them (indexing mask locations and z-scoring embeddings), and for computation of the loss.
+However, when using every 4th block as a target, these costs only amount to 2\% training time, and is mitigated by only computing the gradient of the loss rather than the loss itself on most steps.
+Our remaining limitation is the requirement of a sufficiently sophisticated masking strategy to reduce correlations between seen and neighbouring target tokens.
+We leave open to future work the challenge of choosing an appropriate masking strategy for a given training dataset.

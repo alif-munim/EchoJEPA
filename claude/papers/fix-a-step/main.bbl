@@ -1,0 +1,588 @@
+\begin{thebibliography}{76}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Bae et~al.(2022)Bae, Lee, and Kim]{baeSafeSemisupervisedLearning2022}
+J.~Bae, M.~Lee, and S.~B. Kim.
+\newblock Safe semi-supervised learning using a bayesian neural network.
+\newblock \emph{Information Sciences}, 612:\penalty0 453--464, 2022.
+
+\bibitem[Banitalebi-Dehkordi et~al.(2022)Banitalebi-Dehkordi, Gujjar, and
+  Zhang]{banitalebi2022auxmix}
+A.~Banitalebi-Dehkordi, P.~Gujjar, and Y.~Zhang.
+\newblock Auxmix: Semi-supervised learning with unconstrained unlabeled data.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
+  and Pattern Recognition}, 2022.
+
+\bibitem[Barz and Denzler(2020)]{barzWeTrainTest2020}
+B.~Barz and J.~Denzler.
+\newblock Do {{We Train}} on {{Test Data}}? {{Purging CIFAR}} of
+  {{Near-Duplicates}}.
+\newblock \emph{Journal of Imaging}, 6\penalty0 (6):\penalty0 41, 2020.
+
+\bibitem[Berthelot et~al.(2019)Berthelot, Carlini, Goodfellow, Papernot,
+  Oliver, and Raffel]{berthelotMixMatchHolisticApproach2019}
+D.~Berthelot, N.~Carlini, I.~Goodfellow, N.~Papernot, A.~Oliver, and C.~Raffel.
+\newblock {{MixMatch}}: {{A Holistic Approach}} to {{Semi-Supervised
+  Learning}}.
+\newblock In \emph{Advances in {{Neural Information Processing Systems}}},
+  2019.
+\newblock URL \url{http://arxiv.org/abs/1905.02249}.
+
+\bibitem[Boyd and Vandenberghe(2004)]{boydSecDescentMethods2004}
+S.~P. Boyd and L.~Vandenberghe.
+\newblock Sec. 9.2: {{Descent}} methods.
+\newblock In \emph{Convex Optimization}. {Cambridge University Press},
+  {Cambridge, UK ; New York}, 2004.
+
+\bibitem[{Calderon-Ramirez} et~al.(2021){Calderon-Ramirez}, Giri, Yang,
+  Moemeni, Umana, Elizondo, {Torrents-Barrena}, and
+  {Molina-Cabello}]{calderon-ramirezDealingScarceLabelled2021}
+S.~{Calderon-Ramirez}, R.~Giri, S.~Yang, A.~Moemeni, M.~Umana, D.~Elizondo,
+  J.~{Torrents-Barrena}, and M.~A. {Molina-Cabello}.
+\newblock Dealing with scarce labelled data: {{Semi-supervised}} deep learning
+  with mix match for covid-19 detection using chest x-ray images.
+\newblock In \emph{International Conference on Pattern Recognition ({{ICPR}})},
+  2021.
+
+\bibitem[Calderon-Ramirez et~al.(2022)Calderon-Ramirez, Yang, and
+  Elizondo]{calderon2022semi}
+S.~Calderon-Ramirez, S.~Yang, and D.~Elizondo.
+\newblock Semi-supervised deep learning for image classification with
+  distribution mismatch: A survey.
+\newblock \emph{arXiv preprint arXiv:2203.00190}, 2022.
+
+\bibitem[Cao et~al.(2022)Cao, Brbic, and
+  Leskovec]{caoOpenworldSemisupervisedLearning2022}
+K.~Cao, M.~Brbic, and J.~Leskovec.
+\newblock Open-{{World Semi-Supervised Learning}}.
+\newblock In \emph{International {{Conference}} on {{Learning Representations}}
+  ({{ICLR}})}, 2022.
+\newblock URL \url{http://arxiv.org/abs/2102.03526}.
+
+\bibitem[Caron et~al.(2020)Caron, Misra, Mairal, Goyal, Bojanowski, and
+  Joulin]{caron2020unsupervised}
+M.~Caron, I.~Misra, J.~Mairal, P.~Goyal, P.~Bojanowski, and A.~Joulin.
+\newblock Unsupervised learning of visual features by contrasting cluster
+  assignments.
+\newblock \emph{Advances in Neural Information Processing Systems}, 2020.
+
+\bibitem[{Cascante-Bonilla} et~al.(2021){Cascante-Bonilla}, Tan, Qi, and
+  Ordonez]{cascante-bonillaCurriculumLabelingRevisiting2021}
+P.~{Cascante-Bonilla}, F.~Tan, Y.~Qi, and V.~Ordonez.
+\newblock Curriculum {{Labeling}}: {{Revisiting Pseudo-Labeling}} for
+  {{Semi-Supervised Learning}}.
+\newblock In \emph{Proceedings of the {{AAAI Conference}} on {{Artificial
+  Intelligence}}}, 2021.
+\newblock URL \url{http://arxiv.org/abs/2001.06001}.
+
+\bibitem[Celi et~al.(2022)Celi, Cellini, Charpignon, Dee, Dernoncourt, Eber,
+  Mitchell, Moukheiber, Schirmer, et~al.]{celiSourcesBiasArtificial2022}
+L.~A. Celi, J.~Cellini, M.-L. Charpignon, E.~C. Dee, F.~Dernoncourt, R.~Eber,
+  W.~G. Mitchell, L.~Moukheiber, J.~Schirmer, et~al.
+\newblock Sources of bias in artificial intelligence that perpetuate healthcare
+  disparities\textemdash{{A}} global review.
+\newblock \emph{PLOS Digital Health}, 1\penalty0 (3):\penalty0 e0000022, 2022.
+
+\bibitem[Chaudhry et~al.(2018)Chaudhry, Ranzato, Rohrbach, and
+  Elhoseiny]{chaudhry2018efficient}
+A.~Chaudhry, M.~Ranzato, M.~Rohrbach, and M.~Elhoseiny.
+\newblock Efficient lifelong learning with a-gem.
+\newblock \emph{arXiv preprint arXiv:1812.00420}, 2018.
+
+\bibitem[Chen et~al.(2020{\natexlab{a}})Chen, Kornblith, Norouzi, and
+  Hinton]{chen2020simple}
+T.~Chen, S.~Kornblith, M.~Norouzi, and G.~Hinton.
+\newblock A simple framework for contrastive learning of visual
+  representations.
+\newblock In \emph{International conference on machine learning}, pages
+  1597--1607. PMLR, 2020{\natexlab{a}}.
+
+\bibitem[Chen et~al.(2020{\natexlab{b}})Chen, Kornblith, Swersky, Norouzi, and
+  Hinton]{chenBigSelfSupervisedModels2020}
+T.~Chen, S.~Kornblith, K.~Swersky, M.~Norouzi, and G.~Hinton.
+\newblock Big {{Self-Supervised Models}} are {{Strong Semi-Supervised
+  Learners}}.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  2020{\natexlab{b}}.
+\newblock URL \url{http://arxiv.org/abs/2006.10029}.
+
+\bibitem[Chen et~al.(2020{\natexlab{c}})Chen, Fan, Girshick, and
+  He]{chen2020improved}
+X.~Chen, H.~Fan, R.~Girshick, and K.~He.
+\newblock Improved baselines with momentum contrastive learning.
+\newblock \emph{arXiv preprint arXiv:2003.04297}, 2020{\natexlab{c}}.
+
+\bibitem[Chen et~al.(2020{\natexlab{d}})Chen, Zhu, Li, and
+  Gong]{chenSemiSupervisedLearningClass2020}
+Y.~Chen, X.~Zhu, W.~Li, and S.~Gong.
+\newblock Semi-{{Supervised Learning}} under {{Class Distribution Mismatch}}.
+\newblock \emph{Proceedings of the AAAI Conference on Artificial Intelligence},
+  34\penalty0 (04):\penalty0 3569--3576, 2020{\natexlab{d}}.
+
+\bibitem[Chen et~al.(2022)Chen, Mancini, Zhu, and Akata]{chen2022semi}
+Y.~Chen, M.~Mancini, X.~Zhu, and Z.~Akata.
+\newblock Semi-supervised and unsupervised deep visual learning: A survey.
+\newblock \emph{IEEE Transactions on Pattern Analysis and Machine
+  Intelligence}, 2022.
+
+\bibitem[Deng et~al.(2009)Deng, Dong, Socher, Li, Li, and
+  Fei-Fei]{deng2009imagenet}
+J.~Deng, W.~Dong, R.~Socher, L.-J. Li, K.~Li, and L.~Fei-Fei.
+\newblock Imagenet: A large-scale hierarchical image database.
+\newblock In \emph{IEEE Conference on Computer Vision and Pattern Recognition},
+  2009.
+
+\bibitem[Du et~al.(2020)Du, Czarnecki, Jayakumar, Farajtabar, Pascanu, and
+  Lakshminarayanan]{duAdaptingAuxiliaryLosses2020}
+Y.~Du, W.~M. Czarnecki, S.~M. Jayakumar, M.~Farajtabar, R.~Pascanu, and
+  B.~Lakshminarayanan.
+\newblock Adapting {{Auxiliary Losses Using Gradient Similarity}}.
+\newblock \emph{arXiv preprint arXiv:1812.02224}, 2020.
+
+\bibitem[Farajtabar et~al.(2020)Farajtabar, Azizan, Mott, and
+  Li]{farajtabar2020orthogonal}
+M.~Farajtabar, N.~Azizan, A.~Mott, and A.~Li.
+\newblock Orthogonal gradient descent for continual learning.
+\newblock In \emph{International Conference on Artificial Intelligence and
+  Statistics}. PMLR, 2020.
+
+\bibitem[Geirhos et~al.(2020)Geirhos, Jacobsen, Michaelis, Zemel, Brendel,
+  Bethge, and Wichmann]{geirhosShortcutLearningDeep2020}
+R.~Geirhos, J.-H. Jacobsen, C.~Michaelis, R.~Zemel, W.~Brendel, M.~Bethge, and
+  F.~A. Wichmann.
+\newblock Shortcut learning in deep neural networks.
+\newblock \emph{Nature Machine Intelligence}, 2\penalty0 (11):\penalty0
+  665--673, 2020.
+
+\bibitem[Gong et~al.(2021)Gong, Wang, Li, Chen, Yan, Tian, Chandra,
+  et~al.]{gong2021nasvit}
+C.~Gong, D.~Wang, M.~Li, X.~Chen, Z.~Yan, Y.~Tian, V.~Chandra, et~al.
+\newblock Nasvit: Neural architecture search for efficient vision transformers
+  with gradient conflict aware supernet training.
+\newblock In \emph{International Conference on Learning Representations}, 2021.
+
+\bibitem[Guo et~al.(2020)Guo, Zhang, Jiang, Li, and
+  Zhou]{guoSafeDeepSemiSupervised2020}
+L.-Z. Guo, Z.-Y. Zhang, Y.~Jiang, Y.-F. Li, and Z.-H. Zhou.
+\newblock Safe {{Deep Semi-Supervised Learning}} for {{Unseen-Class Unlabeled
+  Data}}.
+\newblock In \emph{International {{Conference}} on {{Machine Learning}}},
+  page~10, 2020.
+\newblock URL \url{http://proceedings.mlr.press/v119/guo20i/guo20i.pdf}.
+
+\bibitem[Han et~al.(2020)Han, Gao, Yuan, and
+  Wang]{hanUnsupervisedSemanticAggregation2020}
+T.~Han, J.~Gao, Y.~Yuan, and Q.~Wang.
+\newblock Unsupervised {{Semantic Aggregation}} and {{Deformable Template
+  Matching}} for {{Semi-Supervised Learning}}.
+\newblock In \emph{Advances in {{Neural Information Processing Systems}}
+  ({{NeurIPS}})}, page~11, 2020.
+
+\bibitem[He et~al.(2020)He, Fan, Wu, Xie, and Girshick]{he2020momentum}
+K.~He, H.~Fan, Y.~Wu, S.~Xie, and R.~Girshick.
+\newblock Momentum contrast for unsupervised visual representation learning.
+\newblock In \emph{Proceedings of the {IEEE}/{CVF} Conference on Computer
+  Vision and Pattern Recognition}, 2020.
+
+\bibitem[He et~al.(2022{\natexlab{a}})He, Han, Lu, and
+  Yin]{heSafeStudentSafeDeep2022}
+R.~He, Z.~Han, X.~Lu, and Y.~Yin.
+\newblock Safe-{{Student}} for {{Safe Deep Semi-Supervised Learning}} with
+  {{Unseen-Class Unlabeled Data}}.
+\newblock In \emph{2022 {{IEEE}}/{{CVF Conference}} on {{Computer Vision}} and
+  {{Pattern Recognition}} ({{CVPR}})}, 2022{\natexlab{a}}.
+
+\bibitem[He et~al.(2022{\natexlab{b}})He, Han, Yang, and Yin]{he2022not}
+R.~He, Z.~Han, Y.~Yang, and Y.~Yin.
+\newblock Not all parameters should be treated equally: Deep safe
+  semi-supervised learning under class distribution mismatch.
+\newblock In \emph{Proceedings of the AAAI Conference on Artificial
+  Intelligence}, 2022{\natexlab{b}}.
+
+\bibitem[He and Jaeger(2018)]{he2018overcoming}
+X.~He and H.~Jaeger.
+\newblock Overcoming catastrophic interference using conceptor-aided
+  backpropagation.
+\newblock In \emph{International Conference on Learning Representations}, 2018.
+
+\bibitem[Howard et~al.(2021)Howard, Stowell, Cole, Ananthan, Demetrescu,
+  Pearce, Rajani, Sehmi, Vimalesvaran,
+  et~al.]{howardAutomatedLeftVentricular2021}
+J.~P. Howard, C.~C. Stowell, G.~D. Cole, K.~Ananthan, C.~D. Demetrescu,
+  K.~Pearce, R.~Rajani, J.~Sehmi, K.~Vimalesvaran, et~al.
+\newblock Automated {{Left Ventricular Dimension Assessment Using Artificial
+  Intelligence Developed}} and {{Validated}} by a {{UK-Wide Collaborative}}.
+\newblock \emph{Circulation: Cardiovascular Imaging}, 14\penalty0 (5):\penalty0
+  e011951, 2021.
+
+\bibitem[Huang et~al.(2021{\natexlab{a}})Huang, Fang, Chen, Chai, Wei, Wei,
+  Lin, and Li]{huangTrashTreasureHarvesting2021}
+J.~Huang, C.~Fang, W.~Chen, Z.~Chai, X.~Wei, P.~Wei, L.~Lin, and G.~Li.
+\newblock Trash to {{Treasure}}: {{Harvesting OOD Data}} with {{Cross-Modal
+  Matching}} for {{Open-Set Semi-Supervised Learning}}.
+\newblock In \emph{2021 {{IEEE}}/{{CVF International Conference}} on {{Computer
+  Vision}} ({{ICCV}})}, 2021{\natexlab{a}}.
+
+\bibitem[Huang et~al.(2021{\natexlab{b}})Huang, Long, Wessler, and
+  Hughes]{huangNewSemisupervisedLearning2021}
+Z.~Huang, G.~Long, B.~Wessler, and M.~C. Hughes.
+\newblock A {{New Semi-supervised Learning Benchmark}} for {{Classifying View}}
+  and {{Diagnosing Aortic Stenosis}} from {{Echocardiograms}}.
+\newblock In \emph{Proceedings of the 6th {{Machine Learning}} for {{Healthcare
+  Conference}}}. {PMLR}, 2021{\natexlab{b}}.
+\newblock URL \url{https://proceedings.mlr.press/v149/huang21a.html}.
+
+\bibitem[Huang et~al.(2021{\natexlab{c}})Huang, Xue, Han, Yang, and
+  Gong]{huangUniversalSemiSupervisedLearning2021}
+Z.~Huang, C.~Xue, B.~Han, J.~Yang, and C.~Gong.
+\newblock Universal {{Semi-Supervised Learning}}.
+\newblock In \emph{Advances in {{Neural Information Processing Systems}}},
+  2021{\natexlab{c}}.
+\newblock URL \url{https://openreview.net/forum?id=zmVumB1Flg}.
+
+\bibitem[Huang et~al.(2022{\natexlab{a}})Huang, Long, Wessler, and
+  Hughes]{huangTMEDDatasetSemiSupervised2022}
+Z.~Huang, G.~Long, B.~S. Wessler, and M.~C. Hughes.
+\newblock {{TMED}} 2: {{A Dataset}} for {{Semi-Supervised Classification}} of
+  {{Echocardiograms}}.
+\newblock In \emph{{{DataPerf}}: {{Benchmarking Data}} for {{Data-Centric AI
+  Workshop}}}, 2022{\natexlab{a}}.
+\newblock URL
+  \url{https://tmed.cs.tufts.edu/papers/HuangEtAl_TMED2_DataPerf_2022.pdf}.
+
+\bibitem[Huang et~al.(2022{\natexlab{b}})Huang, Yang, and
+  Gong]{huangTheyAreNot2022}
+Z.~Huang, J.~Yang, and C.~Gong.
+\newblock They are {{Not Completely Useless}}: {{Towards Recycling Transferable
+  Unlabeled Data}} for {{Class-Mismatched Semi-Supervised Learning}}.
+\newblock \emph{IEEE Transactions on Multimedia}, 2022{\natexlab{b}}.
+
+\bibitem[Kim et~al.(2020)Kim, Hur, Park, Yang, Hwang, and
+  Shin]{kim2020distribution}
+J.~Kim, Y.~Hur, S.~Park, E.~Yang, S.~J. Hwang, and J.~Shin.
+\newblock Distribution aligning refinery of pseudo-label for imbalanced
+  semi-supervised learning.
+\newblock \emph{Advances in neural information processing systems},
+  33:\penalty0 14567--14579, 2020.
+
+\bibitem[Kingma et~al.(2014)Kingma, Mohamed, Rezende, and
+  Welling]{kingmaSemisupervisedLearningDeep2014}
+D.~P. Kingma, S.~Mohamed, D.~J. Rezende, and M.~Welling.
+\newblock Semi-supervised learning with deep generative models.
+\newblock In \emph{Advances in {{Neural Information Processing Systems}}},
+  2014.
+\newblock URL
+  \url{https://papers.nips.cc/paper/5352-semi-supervised-learning-with-deep-generative-models.pdf}.
+
+\bibitem[Krizhevsky(2009)]{krizhevskyLearningMultipleLayers2009}
+A.~Krizhevsky.
+\newblock Learning {{Multiple Layers}} of {{Features}} from {{Tiny Images}}.
+\newblock Technical report, {University of Toronto}, 2009.
+\newblock URL
+  \url{https://www.cs.toronto.edu/~kriz/learning-features-2009-TR.pdf}.
+
+\bibitem[Kumar et~al.(2017)Kumar, Sattigeri, and
+  Fletcher]{kumarSemisupervisedLearningGANs2017}
+A.~Kumar, P.~Sattigeri, and T.~Fletcher.
+\newblock Semi-supervised {{Learning}} with {{GANs}}: {{Manifold Invariance}}
+  with {{Improved Inference}}.
+\newblock In \emph{Advances in {{Neural Information Processing Systems}}},
+  2017.
+
+\bibitem[Lai et~al.(2022)Lai, Wang, Gunawan, Cheung, and
+  Chuah]{lai2022smoothed}
+Z.~Lai, C.~Wang, H.~Gunawan, S.-C.~S. Cheung, and C.-N. Chuah.
+\newblock Smoothed adaptive weighting for imbalanced semi-supervised learning:
+  Improve reliability against unknown distribution data.
+\newblock In \emph{International Conference on Machine Learning}, pages
+  11828--11843. PMLR, 2022.
+
+\bibitem[Laine and Aila(2017)]{laineTemporalEnsemblingSemiSupervised2017}
+S.~Laine and T.~Aila.
+\newblock Temporal {{Ensembling}} for {{Semi-Supervised Learning}}.
+\newblock In \emph{International {{Conference}} on {{Learning
+  Representations}}}, 2017.
+\newblock URL \url{https://openreview.net/pdf?id=BJ6oOfqge}.
+
+\bibitem[Leclerc et~al.(2019)Leclerc, Smistad, Pedrosa, {\O}stvik, Cervenansky,
+  Espinosa, Espeland, Berg, Jodoin,
+  et~al.]{leclercDeepLearningSegmentation2019}
+S.~Leclerc, E.~Smistad, J.~Pedrosa, A.~{\O}stvik, F.~Cervenansky, F.~Espinosa,
+  T.~Espeland, E.~A.~R. Berg, P.-M. Jodoin, et~al.
+\newblock Deep {{Learning}} for {{Segmentation Using}} an {{Open Large-Scale
+  Dataset}} in {{2D Echocardiography}}.
+\newblock \emph{IEEE Transactions on Medical Imaging}, 38\penalty0 (9), 2019.
+
+\bibitem[Lee(2013)]{leePseudoLabelSimpleEfficient2013}
+D.-H. Lee.
+\newblock Pseudo-{{Label}} : {{The Simple}} and {{Efficient Semi-Supervised
+  Learning Method}} for {{Deep Neural Networks}}.
+\newblock In \emph{Workshop on {{Challenges}} in {{Representation Learning}} at
+  {{ICML}}}, 2013.
+\newblock URL
+  \url{http://deeplearning.net/wp-content/uploads/2013/03/pseudo_label_final.pdf}.
+
+\bibitem[{Lopez-Paz} and Ranzato(2017)]{lopez-pazGradientEpisodicMemory2017}
+D.~{Lopez-Paz} and M.~Ranzato.
+\newblock Gradient {{Episodic Memory}} for {{Continual Learning}}.
+\newblock In \emph{Advances in {{Neural Information Processing Systems}}},
+  2017.
+\newblock URL
+  \url{https://proceedings.neurips.cc/paper/2017/file/f87522788a2be2d171666752f97ddebb-Paper.pdf}.
+
+\bibitem[Luo et~al.(2021)Luo, Cheng, Meng, Gao, Li, Zhang, and
+  Sun]{luoEmpiricalStudyAnalysis2021}
+H.~Luo, H.~Cheng, F.~Meng, Y.~Gao, K.~Li, M.~Zhang, and X.~Sun.
+\newblock An {{Empirical Study}} and {{Analysis}} on {{Open-Set Semi-Supervised
+  Learning}}, 2021.
+\newblock URL \url{http://arxiv.org/abs/2101.08237}.
+
+\bibitem[Madani et~al.(2018{\natexlab{a}})Madani, Arnaout, Mofrad, and
+  Arnaout]{madaniFastAccurateView2018}
+A.~Madani, R.~Arnaout, M.~Mofrad, and R.~Arnaout.
+\newblock Fast and accurate view classification of echocardiograms using deep
+  learning.
+\newblock \emph{npj Digital Medicine}, 1\penalty0 (1):\penalty0 1--8,
+  2018{\natexlab{a}}.
+
+\bibitem[Madani et~al.(2018{\natexlab{b}})Madani, Ong, Tibrewal, and
+  Mofrad]{madaniDeepEchocardiographyDataefficient2018}
+A.~Madani, J.~R. Ong, A.~Tibrewal, and M.~R. Mofrad.
+\newblock Deep echocardiography: Data-efficient supervised and semi-supervised
+  deep learning towards automated diagnosis of cardiac disease.
+\newblock \emph{NPJ digital medicine}, 1\penalty0 (1):\penalty0 1--11,
+  2018{\natexlab{b}}.
+
+\bibitem[Mitchell et~al.(2019)Mitchell, Rahko, Blauwet, Canaday, Finstuen,
+  Foster, Horton, Ogunyankin, Palma,
+  et~al.]{mitchellGuidelinesPerformingComprehensive2019}
+C.~Mitchell, P.~S. Rahko, L.~A. Blauwet, B.~Canaday, J.~A. Finstuen, M.~C.
+  Foster, K.~Horton, K.~O. Ogunyankin, R.~A. Palma, et~al.
+\newblock Guidelines for {{Performing}} a {{Comprehensive Transthoracic
+  Echocardiographic Examination}} in {{Adults}}: {{Recommendations}} from the
+  {{American Society}} of {{Echocardiography}}.
+\newblock \emph{Journal of the American Society of Echocardiography},
+  32\penalty0 (1):\penalty0 1--64, 2019.
+
+\bibitem[Miyato et~al.(2019)Miyato, Maeda, Koyama, and
+  Ishii]{miyatoVirtualAdversarialTraining2019}
+T.~Miyato, S.-I. Maeda, M.~Koyama, and S.~Ishii.
+\newblock Virtual {{Adversarial Training}}: {{A Regularization Method}} for
+  {{Supervised}} and {{Semi-Supervised Learning}}.
+\newblock \emph{IEEE Transactions on Pattern Analysis and Machine
+  Intelligence}, 41\penalty0 (8):\penalty0 1979--1993, 2019.
+\newblock URL \url{https://ieeexplore.ieee.org/document/8417973/}.
+
+\bibitem[Nalisnick et~al.(2019)Nalisnick, Matsukawa, Teh, Gorur, and
+  Lakshminarayanan]{nalisnickHybridModelsDeep2019}
+E.~Nalisnick, A.~Matsukawa, Y.~W. Teh, D.~Gorur, and B.~Lakshminarayanan.
+\newblock Hybrid {{Models}} with {{Deep}} and {{Invertible Features}}.
+\newblock In \emph{International {{Conference}} on {{Machine Learning}}}, pages
+  4723--4732. {PMLR}, 2019.
+\newblock URL \url{http://proceedings.mlr.press/v97/nalisnick19b.html}.
+
+\bibitem[Netzer et~al.(2011)Netzer, Wang, Coates, Bissacco, Wu, and
+  Ng]{netzerReadingDigitsNatural2011}
+Y.~Netzer, T.~Wang, A.~Coates, A.~Bissacco, B.~Wu, and A.~Y. Ng.
+\newblock Reading {{Digits}} in {{Natural Images}} with {{Unsupervised Feature
+  Learning}}.
+\newblock In \emph{{{NeurIPS Workshop}} on {{Deep Learning}} and {{Unsupervised
+  Feature Learning}}}, 2011.
+\newblock URL \url{http://ufldl.stanford.edu/housenumbers}.
+
+\bibitem[Northcutt et~al.(2021)Northcutt, Athalye, and
+  Mueller]{northcuttPervasiveLabelErrors2021}
+C.~G. Northcutt, A.~Athalye, and J.~Mueller.
+\newblock Pervasive {{Label Errors}} in {{Test Sets Destabilize Machine
+  Learning Benchmarks}}.
+\newblock In \emph{Advances in {{Neural Information Processing Systems
+  Datasets}} and {{Benchmarks Track}}}, 2021.
+\newblock URL \url{https://openreview.net/forum?id=XccDXrDNLek}.
+
+\bibitem[Oliver et~al.(2018)Oliver, Odena, Raffel, Cubuk, and
+  Goodfellow]{oliverRealisticEvaluationDeep2018}
+A.~Oliver, A.~Odena, C.~A. Raffel, E.~D. Cubuk, and I.~Goodfellow.
+\newblock Realistic evaluation of deep semi-supervised learning algorithms.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2018.
+\newblock URL
+  \url{https://papers.nips.cc/paper/2018/file/c1fea270c48e8079d8ddf7d06d26ab52-Paper.pdf}.
+
+\bibitem[Paszke et~al.(2019)Paszke, Gross, Massa, Lerer, Bradbury, Chanan,
+  Killeen, Lin, Gimelshein, Antiga, et~al.]{paszke2019pytorch}
+A.~Paszke, S.~Gross, F.~Massa, A.~Lerer, J.~Bradbury, G.~Chanan, T.~Killeen,
+  Z.~Lin, N.~Gimelshein, L.~Antiga, et~al.
+\newblock Pytorch: An imperative style, high-performance deep learning library.
+\newblock \emph{Advances in neural information processing systems}, 32, 2019.
+
+\bibitem[Qi and Luo(2020)]{qi2020small}
+G.-J. Qi and J.~Luo.
+\newblock Small data challenges in big data era: A survey of recent progress on
+  unsupervised and semi-supervised methods.
+\newblock \emph{IEEE Transactions on Pattern Analysis and Machine
+  Intelligence}, 2020.
+
+\bibitem[Ren et~al.(2020)Ren, Yeh, and Schwing]{ren2020not}
+Z.~Ren, R.~Yeh, and A.~Schwing.
+\newblock Not all unlabeled data are equal: Learning to weight data in
+  semi-supervised learning.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2020.
+
+\bibitem[Riemer et~al.(2018)Riemer, Cases, Ajemian, Liu, Rish, Tu, and
+  Tesauro]{riemer2018learning}
+M.~Riemer, I.~Cases, R.~Ajemian, M.~Liu, I.~Rish, Y.~Tu, and G.~Tesauro.
+\newblock Learning to learn without forgetting by maximizing transfer and
+  minimizing interference.
+\newblock \emph{arXiv preprint arXiv:1810.11910}, 2018.
+
+\bibitem[Saito et~al.(2021)Saito, Kim, and
+  Saenko]{saitoOpenMatchOpensetConsistency2021}
+K.~Saito, D.~Kim, and K.~Saenko.
+\newblock {{OpenMatch}}: {{Open-set Consistency Regularization}} for
+  {{Semi-supervised Learning}} with {{Outliers}}.
+\newblock In \emph{Advances in {{Neural Information Processing Systems}}},
+  page~12, 2021.
+\newblock URL
+  \url{https://proceedings.neurips.cc/paper/2021/file/da11e8cd1811acb79ccf0fd62cd58f86-Paper.pdf}.
+
+\bibitem[Schmutz et~al.(2022)Schmutz, Humbert, and Mattei]{schmutz2022don}
+H.~Schmutz, O.~Humbert, and P.-A. Mattei.
+\newblock Don't fear the unlabelled: safe deep semi-supervised learning via
+  simple debiaising.
+\newblock \emph{arXiv preprint arXiv:2203.07512}, 2022.
+
+\bibitem[Shi et~al.(2021)Shi, Seely, Torr, Siddharth, Hannun, Usunier, and
+  Synnaeve]{shi2021gradient}
+Y.~Shi, J.~Seely, P.~H. Torr, N.~Siddharth, A.~Hannun, N.~Usunier, and
+  G.~Synnaeve.
+\newblock Gradient matching for domain generalization.
+\newblock \emph{arXiv preprint arXiv:2104.09937}, 2021.
+
+\bibitem[Sohn et~al.(2020)Sohn, Berthelot, Carlini, Zhang, Zhang, Raffel,
+  Cubuk, Kurakin, Li, et~al.]{sohnFixMatchSimplifyingSemisupervised2020}
+K.~Sohn, D.~Berthelot, N.~Carlini, Z.~Zhang, H.~Zhang, C.~A. Raffel, E.~D.
+  Cubuk, A.~Kurakin, C.-L. Li, et~al.
+\newblock {{FixMatch}}: {{Simplifying}} semi-supervised learning with
+  consistency and confidence.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2020.
+\newblock URL
+  \url{https://proceedings.neurips.cc/paper/2020/file/06964dce9addb1c5cb5d6e3d9838f733-Paper.pdf}.
+
+\bibitem[Su et~al.(2021)Su, Cheng, and Maji]{su2021realistic}
+J.-C. Su, Z.~Cheng, and S.~Maji.
+\newblock A realistic evaluation of semi-supervised learning for fine-grained
+  classification.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
+  and Pattern Recognition}, 2021.
+
+\bibitem[Tarvainen and Valpola(2017)]{tarvainenMeanTeachersAre2017}
+A.~Tarvainen and H.~Valpola.
+\newblock Mean teachers are better role models: {{Weight-averaged}} consistency
+  targets improve semi-supervised deep learning results.
+\newblock \emph{Advances in neural information processing systems},
+  30:\penalty0 1195--1204, 2017.
+
+\bibitem[Tsipras et~al.(2020)Tsipras, Santurkar, Engstrom, Ilyas, and
+  Madry]{tsiprasImageNetImageClassification2020}
+D.~Tsipras, S.~Santurkar, L.~Engstrom, A.~Ilyas, and A.~Madry.
+\newblock From {{ImageNet}} to {{Image Classification}}: {{Contextualizing
+  Progress}} on {{Benchmarks}}.
+\newblock In \emph{Proceedings of the 37 th International Conference on Machine
+  Learning (ICML)}, 2020.
+
+\bibitem[{van Engelen} and
+  Hoos(2020)]{vanengelenSurveySemisupervisedLearning2020}
+J.~E. {van Engelen} and H.~H. Hoos.
+\newblock A survey on semi-supervised learning.
+\newblock \emph{Machine Learning}, 109\penalty0 (2):\penalty0 373--440, 2020.
+
+\bibitem[Wang et~al.(2022)Wang, Chen, Fan, Wang, Tao, Hou, Wang, Yang, Zhou,
+  Guo, et~al.]{wang2022usb}
+Y.~Wang, H.~Chen, Y.~Fan, S.~Wang, R.~Tao, W.~Hou, R.~Wang, L.~Yang, Z.~Zhou,
+  L.-Z. Guo, et~al.
+\newblock {USB}: A unified semi-supervised learning benchmark for
+  classification.
+\newblock In \emph{Thirty-sixth Conference on Neural Information Processing
+  Systems Datasets and Benchmarks Track}, 2022.
+
+\bibitem[Wessler et~al.(2023)Wessler, Huang, Long, Pacifici, Prashar, Karmiy,
+  Sandler, Sokol, Sokol, Dehn, et~al.]{wessler2023automated}
+B.~S. Wessler, Z.~Huang, G.~Long, S.~Pacifici, N.~Prashar, S.~Karmiy, R.~A.
+  Sandler, J.~Sokol, D.~B. Sokol, M.~M. Dehn, et~al.
+\newblock Automated detection of aortic stenosis using machine learning.
+\newblock \emph{Journal of the American Society of Echocardiography}, 2023.
+
+\bibitem[Wu et~al.(2021)Wu, Huang, Shen, Park, Phang, Makino, Gene~Kim, Cho,
+  Heacock, Moy, et~al.]{wu2021reducing}
+N.~Wu, Z.~Huang, Y.~Shen, J.~Park, J.~Phang, T.~Makino, S.~Gene~Kim, K.~Cho,
+  L.~Heacock, L.~Moy, et~al.
+\newblock Reducing false-positive biopsies using deep neural networks that
+  utilize both local and global image context of screening mammograms.
+\newblock \emph{Journal of Digital Imaging}, 34\penalty0 (6):\penalty0
+  1414--1423, 2021.
+
+\bibitem[Xu et~al.(2021)Xu, Ding, Zhang, and
+  Zhou]{xuDPSSLRobustSemisupervised2021}
+Y.~Xu, J.~Ding, L.~Zhang, and S.~Zhou.
+\newblock {{DP-SSL}}: {{Towards Robust Semi-supervised Learning}} with {{A Few
+  Labeled Samples}}.
+\newblock In \emph{Advances in {{Neural Information Processing Systems}}
+  ({{NeurIPS}})}, page~13, 2021.
+\newblock URL \url{https://openreview.net/pdf?id=NlLynLBBi01}.
+
+\bibitem[Yadav and Bottou(2019)]{yadavColdCaseLost2019}
+C.~Yadav and L.~Bottou.
+\newblock Cold {{Case}}: {{The Lost MNIST Digits}}.
+\newblock In \emph{Advances in {{Neural Information Processing Systems}}},
+  2019.
+
+\bibitem[Yu et~al.(2020{\natexlab{a}})Yu, Ikami, Irie, and
+  Aizawa]{yuMultiTaskCurriculumFramework2020}
+Q.~Yu, D.~Ikami, G.~Irie, and K.~Aizawa.
+\newblock Multi-{{Task Curriculum Framework}} for {{Open-Set Semi-Supervised
+  Learning}}.
+\newblock In \emph{European {{Conference}} on {{Computer Vision}} ({{ECCV}})},
+  2020{\natexlab{a}}.
+
+\bibitem[Yu et~al.(2020{\natexlab{b}})Yu, Kumar, Gupta, Levine, Hausman, and
+  Finn]{yuGradientSurgeryMultiTask2020}
+T.~Yu, S.~Kumar, A.~Gupta, S.~Levine, K.~Hausman, and C.~Finn.
+\newblock Gradient {{Surgery}} for {{Multi-Task Learning}}.
+\newblock In \emph{Advances in {{Neural Information Processing Systems}}},
+  2020{\natexlab{b}}.
+\newblock URL
+  \url{https://proceedings.neurips.cc/paper/2020/file/3fe78a8acf5fda99de95303940a2420c-Paper.pdf}.
+
+\bibitem[Zagoruyko and Komodakis(2016)]{zagoruyko2016wide}
+S.~Zagoruyko and N.~Komodakis.
+\newblock Wide residual networks.
+\newblock \emph{arXiv preprint arXiv:1605.07146}, 2016.
+
+\bibitem[Zeng et~al.(2019)Zeng, Chen, Cui, and Yu]{zeng2019continual}
+G.~Zeng, Y.~Chen, B.~Cui, and S.~Yu.
+\newblock Continual learning of context-dependent processing in neural
+  networks.
+\newblock \emph{Nature Machine Intelligence}, 1\penalty0 (8):\penalty0
+  364--372, 2019.
+
+\bibitem[Zhang et~al.(2017)Zhang, Cisse, Dauphin, and
+  {Lopez-Paz}]{zhangMixupEmpiricalRisk2017}
+H.~Zhang, M.~Cisse, Y.~N. Dauphin, and D.~{Lopez-Paz}.
+\newblock Mixup: {{Beyond}} empirical risk minimization.
+\newblock \emph{arXiv preprint arXiv:1710.09412}, 2017.
+
+\bibitem[Zhao et~al.(2020)Zhao, Krishnateja, Iyer, and Chen]{zhao2020robust}
+X.~Zhao, K.~Krishnateja, R.~Iyer, and F.~Chen.
+\newblock Robust semi-supervised learning with out of distribution data.
+\newblock \emph{arXiv preprint arXiv:2010.03658}, 2020.
+
+\bibitem[Zhu(2005)]{zhuSemiSupervisedLearningLiterature2005}
+X.~Zhu.
+\newblock Semi-{{Supervised Learning Literature Survey}}.
+\newblock Technical Report Technical Report 1530, {Department of Computer
+  Science, University of Wisconsin Madison.}, 2005.
+
+\end{thebibliography}

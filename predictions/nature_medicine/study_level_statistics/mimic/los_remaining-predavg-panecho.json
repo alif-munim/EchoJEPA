@@ -1,0 +1,18 @@
+{
+  "file": "mimic/los_remaining-predavg-panecho",
+  "best_head": 13,
+  "type": "regression",
+  "n_clips": 31508,
+  "n_studies": 440,
+  "R2": -0.0077,
+  "R2_ci": [
+    -0.0298,
+    0.0086
+  ],
+  "Pearson": 0.1934,
+  "Pearson_ci": [
+    0.1149,
+    0.2665
+  ],
+  "MAE": 5.8813
+}

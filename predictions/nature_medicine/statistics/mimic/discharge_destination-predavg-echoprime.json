@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 27284,
+  "n_classes": 2,
+  "AUROC_macro": 0.5926,
+  "accuracy": 0.7037,
+  "F1_macro": 0.4754,
+  "confusion_matrix": [
+    [
+      18600,
+      671
+    ],
+    [
+      7413,
+      600
+    ]
+  ],
+  "class_distribution": {
+    "0": 19271,
+    "1": 8013
+  },
+  "file": "mimic/discharge_destination-predavg-echoprime.csv"
+}

@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 79060,
+  "n_classes": 2,
+  "AUROC_macro": 0.6178,
+  "accuracy": 0.9357,
+  "F1_macro": 0.4834,
+  "confusion_matrix": [
+    [
+      73973,
+      23
+    ],
+    [
+      5064,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 73996,
+    "1": 5064
+  },
+  "file": "mimic/mortality_90d-predavg-panecho.csv"
+}

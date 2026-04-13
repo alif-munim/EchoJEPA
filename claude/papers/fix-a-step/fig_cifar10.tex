@@ -1,0 +1,37 @@
+\begin{figure*}[!t]
+\centering
+\begin{tabular}{c c}
+\begin{minipage}{.15cm}
+\rotatebox[origin=c]{90}{{400 examples/class}}
+\end{minipage}
+&
+\begin{minipage}{.95\textwidth}
+\includegraphics[width=\textwidth]{figures/CIFAR10_400perclass_4col_mch_withOPMatch_ChangeFont.pdf}
+% \\
+% \includegraphics[width=\textwidth]{figures/CIFAR10_400perclass_4columns.pdf}
+\end{minipage}
+\\[2.3cm] % HACK add bit of whitespace between rows
+\begin{minipage}{.15cm}
+\rotatebox[origin=c]{90}{{50 examples/class}}
+\end{minipage}
+&
+\begin{minipage}{.95\textwidth}
+\includegraphics[width=\textwidth]{figures/CIFAR10_50perclass_4col_mch_withOPMatch_ChangeFont.pdf}
+\end{minipage}
+\end{tabular}
+\caption{
+\textbf{Accuracy on CIFAR-10 6 animal task.}
+Accuracy on test images of animals (y-axis) as unlabeled set mismatch (percentage of non-animal classes represented, x-axis) increases.
+\emph{Column 1 (from left):} Previous SSL methods trained in standard fashion.
+\emph{Col. 2:} SSL methods trained with our Fix-A-Step.
+\emph{Col. 3:} SSL methods with perfect OOD filtering of the unlabeled set (removing all non-animal images before training).
+\emph{Col. 4:} Previous methods designed for open-set or safe SSL.
+UASD and CL (marked $*$) taken from its publication, others from our experiments.
+\emph{Top row:} 400 examples/class; \emph{Bottom:} 50 examples/class.
+%% MCH cut the below for space
+%We plot results of our own experiments with carefully-matched implementations when possible; \todo{lines marked with asterisk $*$ indicate where we copied accuracy numbers from previous publications.}\todo{We directly apply the same hyper-parameters from 400 examples/class experiments to 50 examples/class experiments} 
+%Following the experimental design of \citet{oliverRealisticEvaluationDeep2018}, labeled set contains 6 animal classes.
+%Fraction of unlabeled set representing non-labeled classes increases from 0-100\%.
+}%endcaption
+\label{fig:results-cifar10}
+\end{figure*}

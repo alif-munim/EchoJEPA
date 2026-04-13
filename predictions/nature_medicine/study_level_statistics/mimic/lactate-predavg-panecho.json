@@ -1,0 +1,18 @@
+{
+  "file": "mimic/lactate-predavg-panecho",
+  "best_head": 12,
+  "type": "regression",
+  "n_clips": 10816,
+  "n_studies": 154,
+  "R2": -0.0,
+  "R2_ci": [
+    -0.0369,
+    0.0189
+  ],
+  "Pearson": 0.1608,
+  "Pearson_ci": [
+    -0.0254,
+    0.3028
+  ],
+  "MAE": 0.7435
+}

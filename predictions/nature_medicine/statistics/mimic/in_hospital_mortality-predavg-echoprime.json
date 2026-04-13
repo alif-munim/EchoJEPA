@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 33612,
+  "n_classes": 2,
+  "AUROC_macro": 0.6606,
+  "accuracy": 0.9344,
+  "F1_macro": 0.488,
+  "confusion_matrix": [
+    [
+      31397,
+      110
+    ],
+    [
+      2094,
+      11
+    ]
+  ],
+  "class_distribution": {
+    "0": 31507,
+    "1": 2105
+  },
+  "file": "mimic/in_hospital_mortality-predavg-echoprime.csv"
+}

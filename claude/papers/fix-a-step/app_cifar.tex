@@ -1,0 +1,110 @@
+\subsection{Ablation Study across different level of contamination}
+
+Expanding on the ablation table in the main paper, in Tab.~\ref{tab:results_cifar10_ablation_all_zeta} we show ablation comparisons (augmentation only, gradient step modification only, or both) across all tested values of the mismatch in labeled-vs-unlabeled class content $\zeta$.
+
+\begin{table}[!h]
+	\setlength{\tabcolsep}{.08cm}
+    \begin{tabular}{c c}
+		{\large Mismatch $\zeta=0\%$}
+		&
+		{\large Mismatch $\zeta=25\%$}
+		\\
+		\begin{minipage}{.5\textwidth}
+		\resizebox{\textwidth}{!}{%	
+			\input{tab_ablation_zeta000.tex}	
+		}
+		\end{minipage}
+		&
+		\begin{minipage}{.5\textwidth}
+		\resizebox{\textwidth}{!}{%	
+			\input{tab_ablation_zeta025.tex}	
+		}
+		\end{minipage}
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		\\ %%%%%%%%%%%%%%%%%%%%%%%%%%
+		{\large Mismatch $\zeta=50\%$}
+		&
+		{\large Mismatch $\zeta=75\%$}
+		\\
+		\begin{minipage}{.5\textwidth}
+		\resizebox{\textwidth}{!}{%	
+			\input{tab_ablation_zeta050.tex}	
+		}
+		\end{minipage}
+		&
+		\begin{minipage}{.5\textwidth}
+		\resizebox{\textwidth}{!}{%	
+			\input{tab_ablation_zeta075.tex}	
+		}
+		\end{minipage}
+	\end{tabular}
+	\caption{\textbf{Ablation analysis on CIFAR-10 6 animal task}, examining how accuracy changes for each SSL method if we only use our augmentation (+A), only use our gradient step modification (+G), and use the combination (+A\&G) which constitutes our Fix-A-Step. 
+	Each panel shows results for a fixed value of the mismatch percentage $\zeta$ describing the overlap in classes between labeled and unlabeled set.
+    For each method, we \textbf{bold} the best result.
+    Setting: 400 examples/class.
+    }%endcaption
+\label{tab:results_cifar10_ablation_all_zeta}
+\end{table}
+
+
+\subsection{Robustness of results across multiple train/test splits}
+
+In the main paper, we report results on CIFAR-10 6 animal task across many baselines methods.
+For each baseline, we use only one train/test split due to the huge computation required to compare all baselines.
+In Fig.~\ref{fig:cifar10_uncertainty}, for a subset of methods we assess the \emph{robustness} of the conclusions of that experiment across multiple separate training/test splits.
+
+We train the labeled-set-only baseline, FixMatch with and without Fix-A-Step, and Mean-Teacher with and without Fix-A-Step for 5 random splits of the data, across two levels of mismatch ($\zeta = 50\%$ and $\zeta = 100\%$).
+Results are in Fig.~\ref{fig:cifar10_uncertainty}.
+Broadly, we suggest that our conclusion that Fix-A-Step delivers successful accuracy gains holds even across 5 splits: both FixMatch and MeanTeacher show notable gains across both levels of mismatch $\zeta$.
+\textbf{Notably, MeanTeacher plus Fix-A-Step appears quite competitive with off-the-shelf FixMatch}, and FixMatch plus Fix-A-Step is the best of all.
+
+
+\begin{figure*}[!h]
+\centering
+\begin{tabular}{c c}
+\includegraphics[width=.35\textwidth]{figures/uncertainty_cifar10_400perclass/OliverContaminationLevel50_StdErrorBar_ChangeFont.pdf}
+&
+\includegraphics[width=.35\textwidth]{figures/uncertainty_cifar10_400perclass/OliverContaminationLevel100_StdErrorBar_ChangeFont.pdf}
+\end{tabular}
+\caption{
+\textbf{CIFAR10, 400 examples/class}. Bar height indicates the average across 5 random splits of the data. Error bars show the standard deviation across 5 splits.
+}%endcaption	
+\label{fig:cifar10_uncertainty}
+\end{figure*}
+
+\subsection{Sensitivity to hyperparameters}
+Since Deep SSL methods could be sensitive to hyper-parameters, we conduct sensitivity analysis to see how Fix-A-Step behave under different choice of sharpening temperature $\tau$ and Beta distribution shape $\alpha$. We analyzed the performance of Fix-A-Step using a Mean-Teacher base model across several reasonable choices of MixUp parameter $\alpha {\in} \{0.5, 0.75\}$ and sharpening temperature $\tau {\in} \{0.5, 0.95\}$ (totally 4 combinations). (See. Alg.~\ref{alg:FixAStep} for hyperparameter definitions).
+Results in Fig.~\ref{fig:cifar10_sensitivity} shows that Fix-A-Step's performance gains over the off-the-shelf (or ``vanilla'') Mean Teacher base do not appear overly sensitive to these hyperparameters.
+
+\begin{figure*}[!h]
+\centering
+\begin{tabular}{c c}
+\includegraphics[width=.42\textwidth]{figures/sensitivity_cifar10_400perclass_MT/OliverContaminationLevel50_MT_ChangeFont.pdf}
+&
+\includegraphics[width=.42\textwidth]{figures/sensitivity_cifar10_400perclass_MT/OliverContaminationLevel100_MT_ChangeFont.pdf}
+\end{tabular}
+\caption{
+\textbf{CIFAR10, 400 examples/class}. \emph{Vanilla MT}: Mean teacher SSL base model. \emph{Fix-A-Step MT1}: MT base Fix-A-Step with $\tau=0.5$ , $\alpha=0.5$, . \emph{Fix-A-Step MT2}: MT base Fix-A-Step with $\tau=0.95$, $\alpha=0.75$. \emph{Fix-A-Step MT3}: MT base Fix-A-Step with $\tau=0.5$, $\alpha=0.75$. \emph{Fix-A-Step MT4}: MT base Fix-A-Step with $\tau=0.95$, $\alpha=0.5$.  Results average across 5 random split of the data. Error bar showing standard deviation across the 5 split.
+}%endcaption	
+\label{fig:cifar10_sensitivity}
+\end{figure*}
+
+\vspace{2cm}
+\subsection{Comparison of computation cost and performance}
+\setlength{\tabcolsep}{.3cm}
+\begin{table}[!h]
+\centering
+\begin{tabular}{c | r r | r r | r r }
+\multicolumn{0}{c}{Methods} &\multicolumn{2}{c}{$\zeta=25\%$} &\multicolumn{2}{c}{$\zeta=50\%$} &\multicolumn{2}{c}{$\zeta=75\%$}\\
+
+& Acc & Runtime & Acc & Runtime & Acc & Runtime 
+ \\ \hline
+MT+Fix-A-Step & 81.77 & 1476 & 80.15 & 1331 & 81.08 & 1333\\
+VAT+Fix-A-Step & 82.63 & 1662 & 79.56 & 1691 & 81.20 & 1681\\
+OpenMatch & 85.45 & 2728 & 79.56 & 2803 & 79.62 & 3270\\
+\end{tabular}
+    \caption{
+    \textbf{Comparison of runtime and test accuracy on CIFAR-10 6 animal task}. Setting: 400 example/class. Mismatch percentage $\zeta$ describes the overlap in classes between labeled and unlabeled set. Runtime (in minutes) is based on training same number of steps on a Nvidia A100 GPU. 
+    }%endcaption
+    \label{tab:cifar10_runtime_acc}
+\end{table}

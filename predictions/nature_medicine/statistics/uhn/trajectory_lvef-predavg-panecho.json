@@ -1,0 +1,31 @@
+{
+  "type": "classification",
+  "n": 115280,
+  "n_classes": 3,
+  "AUROC_macro": 0.6111,
+  "accuracy": 0.6027,
+  "F1_macro": 0.4161,
+  "confusion_matrix": [
+    [
+      2504,
+      12331,
+      2794
+    ],
+    [
+      9328,
+      60727,
+      8769
+    ],
+    [
+      1472,
+      11104,
+      6251
+    ]
+  ],
+  "class_distribution": {
+    "0": 17629,
+    "1": 78824,
+    "2": 18827
+  },
+  "file": "uhn/trajectory_lvef-predavg-panecho.csv"
+}

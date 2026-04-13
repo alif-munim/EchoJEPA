@@ -1,0 +1,25 @@
+{
+  "file": "mimic/disease_stemi-mimic-xfer-echojepa-b",
+  "best_head": 4,
+  "type": "classification",
+  "n_clips": 15656,
+  "n_studies": 224,
+  "n_classes": 2,
+  "AUROC": 0.5238,
+  "accuracy": 0.7946,
+  "F1_macro": 0.4428,
+  "confusion_matrix": [
+    [
+      178,
+      0
+    ],
+    [
+      46,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 178,
+    "1": 46
+  }
+}

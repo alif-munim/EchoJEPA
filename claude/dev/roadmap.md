@@ -14,18 +14,17 @@ Organized by what `sn-article.tex` needs. ~30 `‡` markers (experiments not run
 
 **4 manuscript models**: EchoJEPA-G, EchoJEPA-L-K, EchoPrime, PanEcho. EchoJEPA-L is internal testing only.
 
-### Tier 0: Current Status (2026-03-27 04:45 UTC / 12:45 AM ET)
-- **GPUs 0-7**: Two concurrent jobs: (1) RV function pred avg EP RUNNING (G+L-K CRASHED NCCL, Pan queued); (2) MIMIC L-K LOS training ep 19/35.
-- **RV function ALL 4 TRAINED**: G **0.845**, L-K **0.769**, EP **0.709**, Pan **0.702**. **Pred avg: G+L-K CRASHED** (NCCL DistBackendError). EP running, Pan queued. G+L-K need re-run.
+### Tier 0: Current Status (2026-04-12 18:50 UTC / 2:50 PM ET)
+- **GPUs 0-7 (echojepa-h100-neurips)**: Job 16 RUNNING — 6-way parallel predavg (LVEF + MR severity × G/EP/Pan). All 6 runs confirmed healthy (probes loaded, S3 streaming active). ETA: EP/Pan ~1-2h, G-LVEF ~3-4h, G-MR ~6h (8h time limit).
+- **Predavg infrastructure**: `scripts/nmed_lvef_mr_predavg.sbatch` + `scripts/prep_nmed_predavg_s3.sh` created and committed (`5d48a28`). S3 assets verified. Code deployed via S3 tarball (no git SSH on controller).
+- **Job fix cycle**: Jobs 10→14→16. Fixed: conda `set -u` (job 10), `/opt/vjepa2` permissions (job 10→14), PanEcho missing `tasks.pkl` content files (job 14), SLURM time limit 3h→8h (job 14). PanEcho content files uploaded to S3 with download step in sbatch.
+- **Remaining predavg for G/EP/Pan**: 51 runs after current batch (49 UHN + 2 MIMIC). See `claude/nature_medicine/inference-tracker.md`.
+- **Additional models complete**: EchoJEPA-B (35 NPZs), L-K (22 NPZs), L (2 NPZs). See `inference-tracker-additional.md`.
 - **G Strategy E MIMIC: ALL 11/11 PA DONE** (in_hosp 0.861, readmit 0.608 now filled).
-- **MIMIC L-K**: 6/11 PA done, 90d/1yr stalled (ep 24/23, pred avg FAILED), LOS restarted ep 19/35.
-- **MIMIC EP/Pan**: mortality_90d training DONE (EP 0.748, Pan 0.682). Other 6 outcomes NOT STARTED.
 - **P3 forward prediction + anomaly detection: DONE** (40 experiments). Not in manuscript — repr distance not JEPA-specific.
 - **MIMIC xfer EXPANDED**: 4 diseases + MR severity + TR severity + EF note-extracted × 4-5 models DONE.
-- **B 2.1 now 13/13 complete** (AR severity DONE: 0.671). B 2.1 disease PA also complete.
 - **Disease pred avg — 7/7 DONE (all 4 manuscript models)**
-- **Physiological coherence analysis now unblocked**: EDV+ESV+LVEF all done → can compute derived EF correlation
-- **Next**: Finish EP+Pan RV function PA → re-run G+L-K PA → restart L-K 90d/1yr → start EP/Pan remaining outcomes → Bland-Altman analysis.
+- **Next**: Monitor job 16 → sync results from S3 → run study-level aggregation → submit next batch (remaining 17 UHN tasks).
 
 ### P1: Finish UHN Probe Pipeline (Alif, compute-only — blocks §2.2-2.4 tables)
 

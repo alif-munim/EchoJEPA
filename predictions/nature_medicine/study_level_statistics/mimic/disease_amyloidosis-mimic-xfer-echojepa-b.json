@@ -1,0 +1,25 @@
+{
+  "file": "mimic/disease_amyloidosis-mimic-xfer-echojepa-b",
+  "best_head": 4,
+  "type": "classification",
+  "n_clips": 2584,
+  "n_studies": 33,
+  "n_classes": 2,
+  "AUROC": 0.6278,
+  "accuracy": 0.5758,
+  "F1_macro": 0.3654,
+  "confusion_matrix": [
+    [
+      19,
+      0
+    ],
+    [
+      14,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 19,
+    "1": 14
+  }
+}

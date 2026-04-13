@@ -1,0 +1,25 @@
+{
+  "file": "mimic/in_hospital_mortality-predavg-echoprime",
+  "best_head": 11,
+  "type": "classification",
+  "n_clips": 33612,
+  "n_studies": 469,
+  "n_classes": 2,
+  "AUROC": 0.7886,
+  "accuracy": 0.9382,
+  "F1_macro": 0.484,
+  "confusion_matrix": [
+    [
+      440,
+      0
+    ],
+    [
+      29,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 440,
+    "1": 29
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "file": "mimic/disease_afib-predavg-echojepa-b",
+  "best_head": 6,
+  "type": "classification",
+  "n_clips": 79060,
+  "n_studies": 1087,
+  "n_classes": 2,
+  "AUROC": 0.7765,
+  "accuracy": 0.7314,
+  "F1_macro": 0.6855,
+  "confusion_matrix": [
+    [
+      605,
+      59
+    ],
+    [
+      233,
+      190
+    ]
+  ],
+  "class_distribution": {
+    "0": 664,
+    "1": 423
+  }
+}

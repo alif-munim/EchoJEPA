@@ -1,0 +1,18 @@
+{
+  "file": "mimic/ef_note_extracted-xfer-echojepa-g",
+  "best_head": 4,
+  "type": "regression",
+  "n_clips": 27024,
+  "n_studies": 374,
+  "R2": 0.4251,
+  "R2_ci": [
+    0.3564,
+    0.4895
+  ],
+  "Pearson": 0.7698,
+  "Pearson_ci": [
+    0.722,
+    0.811
+  ],
+  "MAE": 8.5607
+}

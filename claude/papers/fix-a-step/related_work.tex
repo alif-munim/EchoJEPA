@@ -1,0 +1,66 @@
+%We now situate our work in the broader literature of methods focused on open-set SSL (also called safe SSL).
+%In the supplement, we provide additional discussion of two other lines of related work: gradient step direction modifications and SSL for medical imaging.
+
+\textbf{Related work: Open-set SSL that filters out OOD.}
+%Recently, there are many efforts being made to tackle this real-world challenge. 
+Most previous work on open-set SSL focuses on detecting then removing or downweighting OOD samples, assuming these harm the ultimate accuracy of an SSL classifier \citep{calderon2022semi,chen2022semi, he2022not}.
+% under the assumption that OOD samples can only harm the ultimate accuracy of an SSL classifier 
+\citet{chenSemiSupervisedLearningClass2020}'s UASD ensembles model predictions temporally to produce probability predictions for unlabeled samples, with confidence-based thresholding to filter out OOD samples. 
+\citet{yuMultiTaskCurriculumFramework2020} propose a multi-task curriculum learning framework (MTCF) that alternates between updates to NN weights and updates to anomaly scores used to detect OOD images.
+\citet{guoSafeDeepSemiSupervised2020}'s Deep Safe Semi-supervised Learning (DS3L) employs meta-learning ideas to downweight OOD samples. 
+\citet{saitoOpenMatchOpensetConsistency2021}'s OpenMatch unifies FixMatch with novelty detection to learn representations of inliers while rejecting outliers.
+\citet{heSafeStudentSafeDeep2022}'s Safe-Student use a teacher-student network that identifies OOD via an energy discrepancy score, while
+\citet{baeSafeSemisupervisedLearning2022} filter OOD images via Bayesian neural networks.
+%Although proposed under the open-set SSL setting, a main focus of the paper has been the effectiveness of the proposed OOD detection module. 
+These methods have made notable strides on the class mismatch problem. 
+However, they \emph{focus on reducing possible harm by filtering OOD images but neglect the potential benefits.}
+% MCH: cut for space We will show later how OOD samples can be useful in SSL training.
+% HZ says: So i changed the framing here a little bit: previously it sounds like two completely opposite position: OOD harmful vs OOD helpful. Now re-frame it as previous study only focus on one aspect of OOD: the possible harm. While we realize there is another aspect of OOD: possible benefit. ---> Therefore we try to maximize the benefit while alleviating the harm.
+
+\textbf{Related work: Open-set SSL beyond filtering.}
+Some recent work tries to \emph{detect} OOD images but still learn something useful from them.
+For example, recent parallel work by
+\citet{huangTheyAreNot2022} suggests OOD images may not be ``completely useless.''
+Their TOOR method trains a model to classify in-distribution (ID) versus OOD images, and then, viewing OOD samples as from a related domain, pursue adversarial domain adaptation to ``recycle'' OOD samples.
+\citet{luoEmpiricalStudyAnalysis2021} try to reduce the distribution gap between ID and OOD samples via style transfer:
+transformed OOD samples are used as if they were ID samples in a consistency regularizer.
+\citet{banitalebi2022auxmix}~detect ID and OOD samples, then use consistency regularization on ID samples and entropy maximization on OOD samples. 
+\citet{huangTrashTreasureHarvesting2021}'s pretraining stage uses \emph{all unlabeled samples}, yet still filters out OOD samples later, assuming they would harm classifier accuracy.
+\citet{cascante-bonillaCurriculumLabelingRevisiting2021} propose a curriculum labeling (CL) approach to SSL.
+Over several training rounds, they increase the number of unlabeled images contributing pseudo-labels, eventually using all images.
+Yet they conjecture their success is due to an
+adaptive thresholding scheme  that can ``filter the out-of-distribution unlabeled samples''.
+In contrast, our work does not need any OOD detector or filter at all; we treat all unlabeled images equally.
+
+%% MCH TODO DISCUSS THIS WITH HZ
+%\citep{brennanProviderlevelVariabilityTreatment2019} 
+%\todo{DOES THIS BELONG HERE? Discuss \citet{laiSmoothedAdaptiveWeighting2022} }
+
+%% MCH: We should keep these, helps reader appreciate broader context
+\textbf{Other distantly related work.} 
+\citet{ren2020not} learn a unique weight for each unlabeled sample for closed-set SSL. \citet{huangUniversalSemiSupervisedLearning2021} focus on cases where both class and feature distributions are mismatched.
+\citet{caoOpenworldSemisupervisedLearning2022} study transductive learning for SSL in ``open worlds'' where novel classes appear in the unlabeled \emph{test set}.
+%lthough the method is proposed under closed-set SSL, it seems can be extended to open-set SSL straightforwardly.}
+
+% MCH: Maybe cite this in appendix?
+%\todo{\citep{chen2019distributionally} propose robust SSL algorithm that reduce person-specific discrepancy and preserve task-specific consistency for people-centric sensing tasks.} \todo{\citet{killamsetty2021retrieve} use coreset selection to enable faster training, while achieving robustness properties.}  \todo{\citet{he2022not} partition the model parameters into ``safe'' and ``harmful'', they optimize the safe parameters while disabling the harmful parameters.}
+
+%\textbf{Comparison to Fix-A-Step.}
+%We compare our approach to others across multiple axes in Tab.~\ref{tab:related_work_comparison}.
+%Unlike previous efforts, our Fix-A-Step approach is simpler both conceptually and in implementation cost: we do not require multiple stages or train any extra neural networks beyond a deep classifier.
+
+
+\textbf{SSL benchmarks.}
+SSL evaluations continue to focus on repurposed datasets such as CIFAR-10/100~\citep{krizhevskyLearningMultipleLayers2009}, or ImageNet~\citep{deng2009imagenet} (Tab.~\ref{tab:related_work_comparison}).
+In App.~\ref{app:related_work}, we argue this exclusive focus is insufficient because (1) the SSL application is \emph{artificial}, dropping known labels to create unlabeled sets and (2) CIFAR specifically suffers from both label leakage due to perceptual duplicates~\citep{barzWeTrainTest2020} and incorrect labels~\citep{northcuttPervasiveLabelErrors2021}.
+Some recent efforts strive to more realistically benchmark SSL algorithms~\citep{su2021realistic, wang2022usb}, but do not have a medical focus.
+We hope our Heart2Heart benchmark and its truly uncurated unlabeled set
+helps lead to impactful SSL for medical applications with plentiful images but hard-to-acquire labels.
+% we hope our Heart2Heart benchmark with its realistically uncurated unlabeled set is a useful addition to the field.
+%We argue that benchmarks using medical images with truly uncurated unlabeled sets are needed to properly assess SSL 
+
+
+%It will likely include content that differs from the labeled set (new classes, different frequencies of classes, distribution shifts among features).
+
+\textbf{Self-supervised learning.}
+Another major way to learn from unlabeled data is self-supervised learning \citep{qi2020small}. Self-supervised learning aims at obtaining good feature representations or good network initialization without using manual annotations. Recent advance in self-supervised learning have achieved impressive results in closing the performance gap with supervised pre-training. \citep{chen2020simple, he2020momentum, chen2020improved}. While the goal is different, self-supervised learning could be adapted to semi-supervised learning setting, for example pre-training on all available data (labeled and unlabeled), and then fine-tuning on the labeled data \citep{caron2020unsupervised, chenBigSelfSupervisedModels2020}. However, \cite{saitoOpenMatchOpensetConsistency2021} reported that self-supervised learning does not help open-set SSL. We thus focus our experimental comparisons on semi-supervised methods here, and leave a more comprehensive investigation of self-supervision for future study. 

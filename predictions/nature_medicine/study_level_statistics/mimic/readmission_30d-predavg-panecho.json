@@ -1,0 +1,25 @@
+{
+  "file": "mimic/readmission_30d-predavg-panecho",
+  "best_head": 11,
+  "type": "classification",
+  "n_clips": 31320,
+  "n_studies": 436,
+  "n_classes": 2,
+  "AUROC": 0.5944,
+  "accuracy": 0.7523,
+  "F1_macro": 0.4293,
+  "confusion_matrix": [
+    [
+      328,
+      0
+    ],
+    [
+      108,
+      0
+    ]
+  ],
+  "class_distribution": {
+    "0": 328,
+    "1": 108
+  }
+}

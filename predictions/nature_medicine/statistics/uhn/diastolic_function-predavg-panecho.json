@@ -1,0 +1,41 @@
+{
+  "type": "classification",
+  "n": 139920,
+  "n_classes": 4,
+  "AUROC_macro": 0.7804,
+  "accuracy": 0.6245,
+  "F1_macro": 0.4271,
+  "confusion_matrix": [
+    [
+      5842,
+      2314,
+      825,
+      1148
+    ],
+    [
+      14015,
+      71734,
+      10815,
+      15698
+    ],
+    [
+      973,
+      3142,
+      1364,
+      1574
+    ],
+    [
+      643,
+      843,
+      547,
+      8443
+    ]
+  ],
+  "class_distribution": {
+    "0": 10129,
+    "1": 112262,
+    "2": 7053,
+    "3": 10476
+  },
+  "file": "uhn/diastolic_function-predavg-panecho.csv"
+}

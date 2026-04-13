@@ -1,0 +1,3023 @@
+{
+  "mimic/creatinine-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 38524,
+    "R2": -0.0233,
+    "R2_ci": [
+      -0.025785160160470465,
+      -0.020879101456078186
+    ],
+    "Pearson": 0.0606,
+    "Pearson_ci": [
+      0.05155158916744656,
+      0.06930331721564709
+    ],
+    "MAE": 0.7581,
+    "RMSE": 1.6787,
+    "bias": -0.2726,
+    "file": "mimic/creatinine-predavg-echojepa-b.csv"
+  },
+  "mimic/creatinine-predavg-echojepa-g": {
+    "type": "regression",
+    "n": 38524,
+    "R2": 0.0051,
+    "R2_ci": [
+      0.002136362419722138,
+      0.008249099588684515
+    ],
+    "Pearson": 0.1546,
+    "Pearson_ci": [
+      0.14610095789472938,
+      0.16333680716109525
+    ],
+    "MAE": 0.757,
+    "RMSE": 1.6551,
+    "bias": -0.2229,
+    "file": "mimic/creatinine-predavg-echojepa-g.csv"
+  },
+  "mimic/creatinine-predavg-echojepa-l-k": {
+    "type": "regression",
+    "n": 38524,
+    "R2": -0.0063,
+    "R2_ci": [
+      -0.009292613900257268,
+      -0.0033411898722613873
+    ],
+    "Pearson": 0.1328,
+    "Pearson_ci": [
+      0.1251643501391621,
+      0.14034905756673952
+    ],
+    "MAE": 0.7521,
+    "RMSE": 1.6646,
+    "bias": -0.2565,
+    "file": "mimic/creatinine-predavg-echojepa-l-k.csv"
+  },
+  "mimic/creatinine-predavg-echoprime": {
+    "type": "regression",
+    "n": 38524,
+    "R2": -0.0125,
+    "R2_ci": [
+      -0.015382719310367993,
+      -0.00961452404636461
+    ],
+    "Pearson": 0.095,
+    "Pearson_ci": [
+      0.08585788527768107,
+      0.10383146912514273
+    ],
+    "MAE": 0.7636,
+    "RMSE": 1.6698,
+    "bias": -0.2423,
+    "file": "mimic/creatinine-predavg-echoprime.csv"
+  },
+  "mimic/creatinine-predavg-panecho": {
+    "type": "regression",
+    "n": 38524,
+    "R2": -0.0193,
+    "R2_ci": [
+      -0.021753355582205335,
+      -0.01667741557059396
+    ],
+    "Pearson": 0.0643,
+    "Pearson_ci": [
+      0.055348065853053185,
+      0.07342019876248654
+    ],
+    "MAE": 0.762,
+    "RMSE": 1.6753,
+    "bias": -0.2529,
+    "file": "mimic/creatinine-predavg-panecho.csv"
+  },
+  "mimic/creatinine-trainfeat-echojepa-g": {
+    "type": "regression",
+    "n": 198672,
+    "R2": 0.0259,
+    "R2_ci": [
+      0.0240772107345575,
+      0.02765210510877144
+    ],
+    "Pearson": 0.2236,
+    "Pearson_ci": [
+      0.21918513177783258,
+      0.22781597161750117
+    ],
+    "MAE": 0.7261,
+    "RMSE": 1.3206,
+    "bias": -0.1911,
+    "file": "mimic/creatinine-trainfeat-echojepa-g.csv"
+  },
+  "mimic/discharge_destination-predavg-echojepa-g": {
+    "type": "classification",
+    "n": 27284,
+    "n_classes": 2,
+    "AUROC_macro": 0.595,
+    "accuracy": 0.6783,
+    "F1_macro": 0.5328,
+    "confusion_matrix": [
+      [
+        16868,
+        2403
+      ],
+      [
+        6373,
+        1640
+      ]
+    ],
+    "class_distribution": {
+      "0": 19271,
+      "1": 8013
+    },
+    "file": "mimic/discharge_destination-predavg-echojepa-g.csv"
+  },
+  "mimic/discharge_destination-predavg-echojepa-l-k": {
+    "type": "classification",
+    "n": 27284,
+    "n_classes": 2,
+    "AUROC_macro": 0.5356,
+    "accuracy": 0.6481,
+    "F1_macro": 0.5065,
+    "confusion_matrix": [
+      [
+        16150,
+        3121
+      ],
+      [
+        6480,
+        1533
+      ]
+    ],
+    "class_distribution": {
+      "0": 19271,
+      "1": 8013
+    },
+    "file": "mimic/discharge_destination-predavg-echojepa-l-k.csv"
+  },
+  "mimic/discharge_destination-predavg-echoprime": {
+    "type": "classification",
+    "n": 27284,
+    "n_classes": 2,
+    "AUROC_macro": 0.5926,
+    "accuracy": 0.7037,
+    "F1_macro": 0.4754,
+    "confusion_matrix": [
+      [
+        18600,
+        671
+      ],
+      [
+        7413,
+        600
+      ]
+    ],
+    "class_distribution": {
+      "0": 19271,
+      "1": 8013
+    },
+    "file": "mimic/discharge_destination-predavg-echoprime.csv"
+  },
+  "mimic/discharge_destination-predavg-panecho": {
+    "type": "classification",
+    "n": 27284,
+    "n_classes": 2,
+    "AUROC_macro": 0.5447,
+    "accuracy": 0.7055,
+    "F1_macro": 0.4168,
+    "confusion_matrix": [
+      [
+        19223,
+        48
+      ],
+      [
+        7987,
+        26
+      ]
+    ],
+    "class_distribution": {
+      "0": 19271,
+      "1": 8013
+    },
+    "file": "mimic/discharge_destination-predavg-panecho.csv"
+  },
+  "mimic/discharge_destination-trainfeat-echojepa-g": {
+    "type": "classification",
+    "n": 142572,
+    "n_classes": 2,
+    "AUROC_macro": 0.6197,
+    "accuracy": 0.6752,
+    "F1_macro": 0.5445,
+    "confusion_matrix": [
+      [
+        86321,
+        10457
+      ],
+      [
+        35849,
+        9945
+      ]
+    ],
+    "class_distribution": {
+      "0": 96778,
+      "1": 45794
+    },
+    "file": "mimic/discharge_destination-trainfeat-echojepa-g.csv"
+  },
+  "mimic/disease_afib-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.6484,
+    "accuracy": 0.6308,
+    "F1_macro": 0.5991,
+    "confusion_matrix": [
+      [
+        36047,
+        11761
+      ],
+      [
+        17430,
+        13822
+      ]
+    ],
+    "class_distribution": {
+      "0": 47808,
+      "1": 31252
+    },
+    "file": "mimic/disease_afib-predavg-echojepa-b.csv"
+  },
+  "mimic/disease_amyloidosis-mimic-xfer-echojepa-b": {
+    "type": "classification",
+    "n": 2584,
+    "n_classes": 2,
+    "AUROC_macro": 0.5405,
+    "accuracy": 0.5909,
+    "F1_macro": 0.3714,
+    "confusion_matrix": [
+      [
+        1527,
+        0
+      ],
+      [
+        1057,
+        0
+      ]
+    ],
+    "class_distribution": {
+      "0": 1527,
+      "1": 1057
+    },
+    "file": "mimic/disease_amyloidosis-mimic-xfer-echojepa-b.csv"
+  },
+  "mimic/disease_dcm-mimic-xfer-echojepa-b": {
+    "type": "classification",
+    "n": 39688,
+    "n_classes": 2,
+    "AUROC_macro": 0.5873,
+    "accuracy": 0.8617,
+    "F1_macro": 0.5223,
+    "confusion_matrix": [
+      [
+        33826,
+        677
+      ],
+      [
+        4812,
+        373
+      ]
+    ],
+    "class_distribution": {
+      "0": 34503,
+      "1": 5185
+    },
+    "file": "mimic/disease_dcm-mimic-xfer-echojepa-b.csv"
+  },
+  "mimic/disease_hcm-mimic-xfer-echojepa-b": {
+    "type": "classification",
+    "n": 56200,
+    "n_classes": 2,
+    "AUROC_macro": 0.4785,
+    "accuracy": 0.9651,
+    "F1_macro": 0.4916,
+    "confusion_matrix": [
+      [
+        54237,
+        58
+      ],
+      [
+        1904,
+        1
+      ]
+    ],
+    "class_distribution": {
+      "0": 54295,
+      "1": 1905
+    },
+    "file": "mimic/disease_hcm-mimic-xfer-echojepa-b.csv"
+  },
+  "mimic/disease_stemi-mimic-xfer-echojepa-b": {
+    "type": "classification",
+    "n": 15656,
+    "n_classes": 2,
+    "AUROC_macro": 0.5153,
+    "accuracy": 0.8086,
+    "F1_macro": 0.4471,
+    "confusion_matrix": [
+      [
+        12659,
+        0
+      ],
+      [
+        2997,
+        0
+      ]
+    ],
+    "class_distribution": {
+      "0": 12659,
+      "1": 2997
+    },
+    "file": "mimic/disease_stemi-mimic-xfer-echojepa-b.csv"
+  },
+  "mimic/ef_note_extracted-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 27024,
+    "R2": 0.1017,
+    "R2_ci": [
+      0.09297825827024353,
+      0.11003122722426957
+    ],
+    "Pearson": 0.3298,
+    "Pearson_ci": [
+      0.3176561491880454,
+      0.34156879228766146
+    ],
+    "MAE": 10.7683,
+    "RMSE": 13.9444,
+    "bias": 1.1967,
+    "file": "mimic/ef_note_extracted-predavg-echojepa-b.csv"
+  },
+  "mimic/ef_note_extracted-xfer-echojepa-b": {
+    "type": "regression",
+    "n": 27024,
+    "R2": 0.0336,
+    "R2_ci": [
+      0.020608721796132923,
+      0.04541421901421527
+    ],
+    "Pearson": 0.2944,
+    "Pearson_ci": [
+      0.28100345843100677,
+      0.30679461395273333
+    ],
+    "MAE": 11.1018,
+    "RMSE": 14.4637,
+    "bias": 1.666,
+    "file": "mimic/ef_note_extracted-xfer-echojepa-b.csv"
+  },
+  "mimic/ef_note_extracted-xfer-echojepa-g": {
+    "type": "regression",
+    "n": 27024,
+    "R2": 0.2178,
+    "R2_ci": [
+      0.2045006057665469,
+      0.23110994196273663
+    ],
+    "Pearson": 0.5384,
+    "Pearson_ci": [
+      0.5286892832665595,
+      0.5479768063874366
+    ],
+    "MAE": 9.6819,
+    "RMSE": 13.0125,
+    "bias": 3.7494,
+    "file": "mimic/ef_note_extracted-xfer-echojepa-g.csv"
+  },
+  "mimic/ef_note_extracted-xfer-echojepa-l-k": {
+    "type": "regression",
+    "n": 27024,
+    "R2": 0.072,
+    "R2_ci": [
+      0.057097975410756084,
+      0.08654634460195514
+    ],
+    "Pearson": 0.3911,
+    "Pearson_ci": [
+      0.37945953583818687,
+      0.4032329182481766
+    ],
+    "MAE": 10.8423,
+    "RMSE": 14.1735,
+    "bias": 2.6003,
+    "file": "mimic/ef_note_extracted-xfer-echojepa-l-k.csv"
+  },
+  "mimic/ef_note_extracted-xfer-echoprime": {
+    "type": "regression",
+    "n": 27024,
+    "R2": 0.1628,
+    "R2_ci": [
+      0.15213458608207614,
+      0.17401216062681563
+    ],
+    "Pearson": 0.4773,
+    "Pearson_ci": [
+      0.4683843351980324,
+      0.4865410491628906
+    ],
+    "MAE": 9.9624,
+    "RMSE": 13.4622,
+    "bias": 3.7344,
+    "file": "mimic/ef_note_extracted-xfer-echoprime.csv"
+  },
+  "mimic/ef_note_extracted-xfer-panecho": {
+    "type": "regression",
+    "n": 27024,
+    "R2": -0.0268,
+    "R2_ci": [
+      -0.03990414071813995,
+      -0.013982400412663475
+    ],
+    "Pearson": 0.3453,
+    "Pearson_ci": [
+      0.33302320083248854,
+      0.3571553893194073
+    ],
+    "MAE": 10.9151,
+    "RMSE": 14.9089,
+    "bias": 5.5905,
+    "file": "mimic/ef_note_extracted-xfer-panecho.csv"
+  },
+  "mimic/in_hospital_mortality-predavg-echojepa-g": {
+    "type": "classification",
+    "n": 33612,
+    "n_classes": 2,
+    "AUROC_macro": 0.7381,
+    "accuracy": 0.9364,
+    "F1_macro": 0.5155,
+    "confusion_matrix": [
+      [
+        31401,
+        106
+      ],
+      [
+        2032,
+        73
+      ]
+    ],
+    "class_distribution": {
+      "0": 31507,
+      "1": 2105
+    },
+    "file": "mimic/in_hospital_mortality-predavg-echojepa-g.csv"
+  },
+  "mimic/in_hospital_mortality-predavg-echojepa-l-k": {
+    "type": "classification",
+    "n": 33612,
+    "n_classes": 2,
+    "AUROC_macro": 0.7268,
+    "accuracy": 0.9305,
+    "F1_macro": 0.5181,
+    "confusion_matrix": [
+      [
+        31185,
+        322
+      ],
+      [
+        2014,
+        91
+      ]
+    ],
+    "class_distribution": {
+      "0": 31507,
+      "1": 2105
+    },
+    "file": "mimic/in_hospital_mortality-predavg-echojepa-l-k.csv"
+  },
+  "mimic/in_hospital_mortality-predavg-echoprime": {
+    "type": "classification",
+    "n": 33612,
+    "n_classes": 2,
+    "AUROC_macro": 0.6606,
+    "accuracy": 0.9344,
+    "F1_macro": 0.488,
+    "confusion_matrix": [
+      [
+        31397,
+        110
+      ],
+      [
+        2094,
+        11
+      ]
+    ],
+    "class_distribution": {
+      "0": 31507,
+      "1": 2105
+    },
+    "file": "mimic/in_hospital_mortality-predavg-echoprime.csv"
+  },
+  "mimic/in_hospital_mortality-predavg-panecho": {
+    "type": "classification",
+    "n": 33612,
+    "n_classes": 2,
+    "AUROC_macro": 0.5997,
+    "accuracy": 0.9374,
+    "F1_macro": 0.4838,
+    "confusion_matrix": [
+      [
+        31507,
+        0
+      ],
+      [
+        2105,
+        0
+      ]
+    ],
+    "class_distribution": {
+      "0": 31507,
+      "1": 2105
+    },
+    "file": "mimic/in_hospital_mortality-predavg-panecho.csv"
+  },
+  "mimic/lactate-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 10816,
+    "R2": -0.002,
+    "R2_ci": [
+      -0.0049930354039134815,
+      0.000914460235075154
+    ],
+    "Pearson": 0.0283,
+    "Pearson_ci": [
+      0.008792633259376757,
+      0.049147883238934396
+    ],
+    "MAE": 0.7224,
+    "RMSE": 1.3194,
+    "bias": -0.0402,
+    "file": "mimic/lactate-predavg-echojepa-b.csv"
+  },
+  "mimic/lactate-predavg-echojepa-g": {
+    "type": "regression",
+    "n": 10816,
+    "R2": 0.0089,
+    "R2_ci": [
+      0.004411429687254112,
+      0.013280454289867573
+    ],
+    "Pearson": 0.1418,
+    "Pearson_ci": [
+      0.12211552117801037,
+      0.1612877856255664
+    ],
+    "MAE": 0.6933,
+    "RMSE": 1.3122,
+    "bias": -0.1209,
+    "file": "mimic/lactate-predavg-echojepa-g.csv"
+  },
+  "mimic/lactate-predavg-echojepa-l-k": {
+    "type": "regression",
+    "n": 10816,
+    "R2": 0.0138,
+    "R2_ci": [
+      0.006928970282750943,
+      0.020360708860553817
+    ],
+    "Pearson": 0.1344,
+    "Pearson_ci": [
+      0.1148292994911765,
+      0.15410078082207546
+    ],
+    "MAE": 0.7196,
+    "RMSE": 1.309,
+    "bias": -0.068,
+    "file": "mimic/lactate-predavg-echojepa-l-k.csv"
+  },
+  "mimic/lactate-predavg-echoprime": {
+    "type": "regression",
+    "n": 10816,
+    "R2": 0.0126,
+    "R2_ci": [
+      0.008519426858289787,
+      0.016313108699655125
+    ],
+    "Pearson": 0.1422,
+    "Pearson_ci": [
+      0.12369289604930493,
+      0.1610308942088062
+    ],
+    "MAE": 0.696,
+    "RMSE": 1.3097,
+    "bias": -0.0949,
+    "file": "mimic/lactate-predavg-echoprime.csv"
+  },
+  "mimic/lactate-predavg-panecho": {
+    "type": "regression",
+    "n": 10816,
+    "R2": -0.0012,
+    "R2_ci": [
+      -0.005416868018578108,
+      0.002692422296131801
+    ],
+    "Pearson": 0.0607,
+    "Pearson_ci": [
+      0.0402472651671425,
+      0.08089043483222695
+    ],
+    "MAE": 0.7081,
+    "RMSE": 1.3189,
+    "bias": -0.0836,
+    "file": "mimic/lactate-predavg-panecho.csv"
+  },
+  "mimic/lactate-trainfeat-echojepa-g": {
+    "type": "regression",
+    "n": 60740,
+    "R2": -0.0079,
+    "R2_ci": [
+      -0.010149327892800052,
+      -0.005611180797272392
+    ],
+    "Pearson": 0.1189,
+    "Pearson_ci": [
+      0.10943338925619925,
+      0.12856174112651914
+    ],
+    "MAE": 0.753,
+    "RMSE": 1.5792,
+    "bias": -0.2255,
+    "file": "mimic/lactate-trainfeat-echojepa-g.csv"
+  },
+  "mimic/los_remaining-predavg-echojepa-g": {
+    "type": "regression",
+    "n": 31508,
+    "R2": 0.0325,
+    "R2_ci": [
+      0.028889621759907457,
+      0.03600529619964093
+    ],
+    "Pearson": 0.1995,
+    "Pearson_ci": [
+      0.18716150534309214,
+      0.2117588298651628
+    ],
+    "MAE": 5.6277,
+    "RMSE": 9.6361,
+    "bias": -0.6507,
+    "file": "mimic/los_remaining-predavg-echojepa-g.csv"
+  },
+  "mimic/los_remaining-predavg-echojepa-l-k": {
+    "type": "regression",
+    "n": 31508,
+    "R2": 0.0319,
+    "R2_ci": [
+      0.027350600999195285,
+      0.03581001900315554
+    ],
+    "Pearson": 0.1904,
+    "Pearson_ci": [
+      0.17891982527480899,
+      0.2005288079843221
+    ],
+    "MAE": 5.6852,
+    "RMSE": 9.6391,
+    "bias": -0.6342,
+    "file": "mimic/los_remaining-predavg-echojepa-l-k.csv"
+  },
+  "mimic/los_remaining-predavg-echoprime": {
+    "type": "regression",
+    "n": 31508,
+    "R2": 0.0114,
+    "R2_ci": [
+      0.008674375767052222,
+      0.014187308703311193
+    ],
+    "Pearson": 0.1602,
+    "Pearson_ci": [
+      0.15045974583857746,
+      0.1700364348192673
+    ],
+    "MAE": 5.5408,
+    "RMSE": 9.7403,
+    "bias": -1.0194,
+    "file": "mimic/los_remaining-predavg-echoprime.csv"
+  },
+  "mimic/los_remaining-predavg-panecho": {
+    "type": "regression",
+    "n": 31508,
+    "R2": -0.0049,
+    "R2_ci": [
+      -0.007402395728898265,
+      -0.0025504105793802247
+    ],
+    "Pearson": 0.069,
+    "Pearson_ci": [
+      0.057668341310307604,
+      0.0805396605796809
+    ],
+    "MAE": 5.6586,
+    "RMSE": 9.8206,
+    "bias": -0.956,
+    "file": "mimic/los_remaining-predavg-panecho.csv"
+  },
+  "mimic/los_remaining-trainfeat-echojepa-g": {
+    "type": "regression",
+    "n": 162432,
+    "R2": 0.0193,
+    "R2_ci": [
+      0.01769132016545161,
+      0.020824304587594922
+    ],
+    "Pearson": 0.182,
+    "Pearson_ci": [
+      0.17734791020222473,
+      0.18669613227722132
+    ],
+    "MAE": 5.8658,
+    "RMSE": 11.3076,
+    "bias": -1.2096,
+    "file": "mimic/los_remaining-trainfeat-echojepa-g.csv"
+  },
+  "mimic/lvef_structured-predavg-echojepa-g": {
+    "type": "regression",
+    "n": 5800,
+    "R2": 0.4774,
+    "R2_ci": [
+      0.45487642521262867,
+      0.4985102112667121
+    ],
+    "Pearson": 0.7209,
+    "Pearson_ci": [
+      0.7055568614988154,
+      0.7351907260007613
+    ],
+    "MAE": 7.3352,
+    "RMSE": 9.651,
+    "bias": -0.7036,
+    "file": "mimic/lvef_structured-predavg-echojepa-g.csv"
+  },
+  "mimic/mitral_regurg-xfer-echojepa-g": {
+    "type": "classification",
+    "n": 20040,
+    "n_classes": 4,
+    "error": "Number of classes in y_true not equal to the number of columns in 'y_score'",
+    "file": "mimic/mitral_regurg-xfer-echojepa-g.csv"
+  },
+  "mimic/mitral_regurg-xfer-echojepa-l-k": {
+    "type": "classification",
+    "n": 20040,
+    "n_classes": 4,
+    "error": "Number of classes in y_true not equal to the number of columns in 'y_score'",
+    "file": "mimic/mitral_regurg-xfer-echojepa-l-k.csv"
+  },
+  "mimic/mitral_regurg-xfer-echoprime": {
+    "type": "classification",
+    "n": 20040,
+    "n_classes": 4,
+    "error": "Number of classes in y_true not equal to the number of columns in 'y_score'",
+    "file": "mimic/mitral_regurg-xfer-echoprime.csv"
+  },
+  "mimic/mitral_regurg-xfer-panecho": {
+    "type": "classification",
+    "n": 20040,
+    "n_classes": 4,
+    "error": "Number of classes in y_true not equal to the number of columns in 'y_score'",
+    "file": "mimic/mitral_regurg-xfer-panecho.csv"
+  },
+  "mimic/mortality_1yr-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.6778,
+    "accuracy": 0.8404,
+    "F1_macro": 0.5614,
+    "confusion_matrix": [
+      [
+        64751,
+        3257
+      ],
+      [
+        9359,
+        1693
+      ]
+    ],
+    "class_distribution": {
+      "0": 68008,
+      "1": 11052
+    },
+    "file": "mimic/mortality_1yr-predavg-echojepa-b.csv"
+  },
+  "mimic/mortality_1yr-predavg-echojepa-g": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.709,
+    "accuracy": 0.8293,
+    "F1_macro": 0.5991,
+    "confusion_matrix": [
+      [
+        62741,
+        5267
+      ],
+      [
+        8225,
+        2827
+      ]
+    ],
+    "class_distribution": {
+      "0": 68008,
+      "1": 11052
+    },
+    "file": "mimic/mortality_1yr-predavg-echojepa-g.csv"
+  },
+  "mimic/mortality_1yr-predavg-echojepa-l-k": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.7167,
+    "accuracy": 0.8334,
+    "F1_macro": 0.5905,
+    "confusion_matrix": [
+      [
+        63385,
+        4623
+      ],
+      [
+        8551,
+        2501
+      ]
+    ],
+    "class_distribution": {
+      "0": 68008,
+      "1": 11052
+    },
+    "file": "mimic/mortality_1yr-predavg-echojepa-l-k.csv"
+  },
+  "mimic/mortality_1yr-predavg-echoprime": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.6447,
+    "accuracy": 0.8478,
+    "F1_macro": 0.5374,
+    "confusion_matrix": [
+      [
+        65898,
+        2110
+      ],
+      [
+        9920,
+        1132
+      ]
+    ],
+    "class_distribution": {
+      "0": 68008,
+      "1": 11052
+    },
+    "file": "mimic/mortality_1yr-predavg-echoprime.csv"
+  },
+  "mimic/mortality_1yr-predavg-panecho": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.5875,
+    "accuracy": 0.8602,
+    "F1_macro": 0.463,
+    "confusion_matrix": [
+      [
+        67997,
+        11
+      ],
+      [
+        11045,
+        7
+      ]
+    ],
+    "class_distribution": {
+      "0": 68008,
+      "1": 11052
+    },
+    "file": "mimic/mortality_1yr-predavg-panecho.csv"
+  },
+  "mimic/mortality_1yr-trainfeat-echojepa-g": {
+    "type": "classification",
+    "n": 366156,
+    "n_classes": 2,
+    "AUROC_macro": 0.7547,
+    "accuracy": 0.8301,
+    "F1_macro": 0.6396,
+    "confusion_matrix": [
+      [
+        285066,
+        20988
+      ],
+      [
+        41235,
+        18867
+      ]
+    ],
+    "class_distribution": {
+      "0": 306054,
+      "1": 60102
+    },
+    "file": "mimic/mortality_1yr-trainfeat-echojepa-g.csv"
+  },
+  "mimic/mortality_30d-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.6814,
+    "accuracy": 0.9437,
+    "F1_macro": 0.528,
+    "confusion_matrix": [
+      [
+        74398,
+        1542
+      ],
+      [
+        2913,
+        207
+      ]
+    ],
+    "class_distribution": {
+      "0": 75940,
+      "1": 3120
+    },
+    "file": "mimic/mortality_30d-predavg-echojepa-b.csv"
+  },
+  "mimic/mortality_30d-predavg-echojepa-g": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.7832,
+    "accuracy": 0.9535,
+    "F1_macro": 0.5721,
+    "confusion_matrix": [
+      [
+        75015,
+        925
+      ],
+      [
+        2749,
+        371
+      ]
+    ],
+    "class_distribution": {
+      "0": 75940,
+      "1": 3120
+    },
+    "file": "mimic/mortality_30d-predavg-echojepa-g.csv"
+  },
+  "mimic/mortality_30d-predavg-echojepa-l-k": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.8101,
+    "accuracy": 0.9545,
+    "F1_macro": 0.5397,
+    "confusion_matrix": [
+      [
+        75256,
+        684
+      ],
+      [
+        2914,
+        206
+      ]
+    ],
+    "class_distribution": {
+      "0": 75940,
+      "1": 3120
+    },
+    "file": "mimic/mortality_30d-predavg-echojepa-l-k.csv"
+  },
+  "mimic/mortality_30d-predavg-echoprime": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.692,
+    "accuracy": 0.9588,
+    "F1_macro": 0.4953,
+    "confusion_matrix": [
+      [
+        75786,
+        154
+      ],
+      [
+        3101,
+        19
+      ]
+    ],
+    "class_distribution": {
+      "0": 75940,
+      "1": 3120
+    },
+    "file": "mimic/mortality_30d-predavg-echoprime.csv"
+  },
+  "mimic/mortality_30d-predavg-panecho": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.6419,
+    "accuracy": 0.9605,
+    "F1_macro": 0.4899,
+    "confusion_matrix": [
+      [
+        75940,
+        0
+      ],
+      [
+        3120,
+        0
+      ]
+    ],
+    "class_distribution": {
+      "0": 75940,
+      "1": 3120
+    },
+    "file": "mimic/mortality_30d-predavg-panecho.csv"
+  },
+  "mimic/mortality_30d-trainfeat-echojepa-g": {
+    "type": "classification",
+    "n": 366156,
+    "n_classes": 2,
+    "AUROC_macro": 0.7963,
+    "accuracy": 0.9448,
+    "F1_macro": 0.589,
+    "confusion_matrix": [
+      [
+        343296,
+        3520
+      ],
+      [
+        16706,
+        2634
+      ]
+    ],
+    "class_distribution": {
+      "0": 346816,
+      "1": 19340
+    },
+    "file": "mimic/mortality_30d-trainfeat-echojepa-g.csv"
+  },
+  "mimic/mortality_90d-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.617,
+    "accuracy": 0.9358,
+    "F1_macro": 0.484,
+    "confusion_matrix": [
+      [
+        73984,
+        12
+      ],
+      [
+        5061,
+        3
+      ]
+    ],
+    "class_distribution": {
+      "0": 73996,
+      "1": 5064
+    },
+    "file": "mimic/mortality_90d-predavg-echojepa-b.csv"
+  },
+  "mimic/mortality_90d-predavg-echojepa-g": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.7432,
+    "accuracy": 0.9167,
+    "F1_macro": 0.5741,
+    "confusion_matrix": [
+      [
+        71689,
+        2307
+      ],
+      [
+        4281,
+        783
+      ]
+    ],
+    "class_distribution": {
+      "0": 73996,
+      "1": 5064
+    },
+    "file": "mimic/mortality_90d-predavg-echojepa-g.csv"
+  },
+  "mimic/mortality_90d-predavg-echojepa-l-k": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.7442,
+    "accuracy": 0.931,
+    "F1_macro": 0.5134,
+    "confusion_matrix": [
+      [
+        73423,
+        573
+      ],
+      [
+        4882,
+        182
+      ]
+    ],
+    "class_distribution": {
+      "0": 73996,
+      "1": 5064
+    },
+    "file": "mimic/mortality_90d-predavg-echojepa-l-k.csv"
+  },
+  "mimic/mortality_90d-predavg-echoprime": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.6582,
+    "accuracy": 0.9298,
+    "F1_macro": 0.5058,
+    "confusion_matrix": [
+      [
+        73372,
+        624
+      ],
+      [
+        4924,
+        140
+      ]
+    ],
+    "class_distribution": {
+      "0": 73996,
+      "1": 5064
+    },
+    "file": "mimic/mortality_90d-predavg-echoprime.csv"
+  },
+  "mimic/mortality_90d-predavg-panecho": {
+    "type": "classification",
+    "n": 79060,
+    "n_classes": 2,
+    "AUROC_macro": 0.6178,
+    "accuracy": 0.9357,
+    "F1_macro": 0.4834,
+    "confusion_matrix": [
+      [
+        73973,
+        23
+      ],
+      [
+        5064,
+        0
+      ]
+    ],
+    "class_distribution": {
+      "0": 73996,
+      "1": 5064
+    },
+    "file": "mimic/mortality_90d-predavg-panecho.csv"
+  },
+  "mimic/mortality_90d-trainfeat-echojepa-g": {
+    "type": "classification",
+    "n": 366156,
+    "n_classes": 2,
+    "AUROC_macro": 0.774,
+    "accuracy": 0.9064,
+    "F1_macro": 0.6147,
+    "confusion_matrix": [
+      [
+        325226,
+        9552
+      ],
+      [
+        24732,
+        6646
+      ]
+    ],
+    "class_distribution": {
+      "0": 334778,
+      "1": 31378
+    },
+    "file": "mimic/mortality_90d-trainfeat-echojepa-g.csv"
+  },
+  "mimic/nt_probnp-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 9480,
+    "R2": 0.0305,
+    "R2_ci": [
+      0.022715334721503954,
+      0.03814164432019655
+    ],
+    "Pearson": 0.1758,
+    "Pearson_ci": [
+      0.15479482019990742,
+      0.19680412276956258
+    ],
+    "MAE": 3581.2362,
+    "RMSE": 5334.6834,
+    "bias": 99.543,
+    "file": "mimic/nt_probnp-predavg-echojepa-b.csv"
+  },
+  "mimic/nt_probnp-predavg-echojepa-g": {
+    "type": "regression",
+    "n": 9480,
+    "R2": 0.0661,
+    "R2_ci": [
+      0.049256566113981375,
+      0.08239567950846005
+    ],
+    "Pearson": 0.2833,
+    "Pearson_ci": [
+      0.26168888266213886,
+      0.3045856650463944
+    ],
+    "MAE": 3426.1964,
+    "RMSE": 5235.9417,
+    "bias": 174.8366,
+    "file": "mimic/nt_probnp-predavg-echojepa-g.csv"
+  },
+  "mimic/nt_probnp-predavg-echojepa-l-k": {
+    "type": "regression",
+    "n": 9480,
+    "R2": -0.0006,
+    "R2_ci": [
+      -0.02000534630966196,
+      0.016832433971699912
+    ],
+    "Pearson": 0.2338,
+    "Pearson_ci": [
+      0.2146636720788322,
+      0.25392362475308133
+    ],
+    "MAE": 3717.0039,
+    "RMSE": 5419.6198,
+    "bias": 521.9737,
+    "file": "mimic/nt_probnp-predavg-echojepa-l-k.csv"
+  },
+  "mimic/nt_probnp-predavg-echoprime": {
+    "type": "regression",
+    "n": 9480,
+    "R2": 0.054,
+    "R2_ci": [
+      0.0412564627961197,
+      0.06709620763044344
+    ],
+    "Pearson": 0.2456,
+    "Pearson_ci": [
+      0.22550460838494224,
+      0.2664349123527756
+    ],
+    "MAE": 3436.9394,
+    "RMSE": 5269.6235,
+    "bias": 39.3012,
+    "file": "mimic/nt_probnp-predavg-echoprime.csv"
+  },
+  "mimic/nt_probnp-predavg-panecho": {
+    "type": "regression",
+    "n": 9480,
+    "R2": 0.0306,
+    "R2_ci": [
+      0.02233115513149333,
+      0.03911523250238291
+    ],
+    "Pearson": 0.1791,
+    "Pearson_ci": [
+      0.1597335507786626,
+      0.1989865723201501
+    ],
+    "MAE": 3505.6839,
+    "RMSE": 5334.6151,
+    "bias": -9.1091,
+    "file": "mimic/nt_probnp-predavg-panecho.csv"
+  },
+  "mimic/nt_probnp-trainfeat-echojepa-g": {
+    "type": "regression",
+    "n": 45092,
+    "R2": 0.0877,
+    "R2_ci": [
+      0.08254931305733623,
+      0.09289988333589366
+    ],
+    "Pearson": 0.3429,
+    "Pearson_ci": [
+      0.3346228496116254,
+      0.3514999416976356
+    ],
+    "MAE": 4856.3,
+    "RMSE": 8567.3891,
+    "bias": -1336.581,
+    "file": "mimic/nt_probnp-trainfeat-echojepa-g.csv"
+  },
+  "mimic/readmission_30d-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 31320,
+    "n_classes": 2,
+    "AUROC_macro": 0.5394,
+    "accuracy": 0.6481,
+    "F1_macro": 0.5228,
+    "confusion_matrix": [
+      [
+        18173,
+        5769
+      ],
+      [
+        5253,
+        2125
+      ]
+    ],
+    "class_distribution": {
+      "0": 23942,
+      "1": 7378
+    },
+    "file": "mimic/readmission_30d-predavg-echojepa-b.csv"
+  },
+  "mimic/readmission_30d-predavg-echojepa-g": {
+    "type": "classification",
+    "n": 31320,
+    "n_classes": 2,
+    "AUROC_macro": 0.5616,
+    "accuracy": 0.763,
+    "F1_macro": 0.4367,
+    "confusion_matrix": [
+      [
+        23868,
+        74
+      ],
+      [
+        7348,
+        30
+      ]
+    ],
+    "class_distribution": {
+      "0": 23942,
+      "1": 7378
+    },
+    "file": "mimic/readmission_30d-predavg-echojepa-g.csv"
+  },
+  "mimic/readmission_30d-predavg-echojepa-l-k": {
+    "type": "classification",
+    "n": 31320,
+    "n_classes": 2,
+    "AUROC_macro": 0.5781,
+    "accuracy": 0.7623,
+    "F1_macro": 0.4412,
+    "confusion_matrix": [
+      [
+        23807,
+        135
+      ],
+      [
+        7311,
+        67
+      ]
+    ],
+    "class_distribution": {
+      "0": 23942,
+      "1": 7378
+    },
+    "file": "mimic/readmission_30d-predavg-echojepa-l-k.csv"
+  },
+  "mimic/readmission_30d-predavg-echoprime": {
+    "type": "classification",
+    "n": 31320,
+    "n_classes": 2,
+    "AUROC_macro": 0.5618,
+    "accuracy": 0.7644,
+    "F1_macro": 0.4334,
+    "confusion_matrix": [
+      [
+        23941,
+        1
+      ],
+      [
+        7377,
+        1
+      ]
+    ],
+    "class_distribution": {
+      "0": 23942,
+      "1": 7378
+    },
+    "file": "mimic/readmission_30d-predavg-echoprime.csv"
+  },
+  "mimic/readmission_30d-predavg-panecho": {
+    "type": "classification",
+    "n": 31320,
+    "n_classes": 2,
+    "AUROC_macro": 0.5294,
+    "accuracy": 0.7644,
+    "F1_macro": 0.4332,
+    "confusion_matrix": [
+      [
+        23942,
+        0
+      ],
+      [
+        7378,
+        0
+      ]
+    ],
+    "class_distribution": {
+      "0": 23942,
+      "1": 7378
+    },
+    "file": "mimic/readmission_30d-predavg-panecho.csv"
+  },
+  "mimic/readmission_30d-trainfeat-echojepa-g": {
+    "type": "classification",
+    "n": 162116,
+    "n_classes": 2,
+    "AUROC_macro": 0.5846,
+    "accuracy": 0.7742,
+    "F1_macro": 0.4573,
+    "confusion_matrix": [
+      [
+        124705,
+        1158
+      ],
+      [
+        35440,
+        813
+      ]
+    ],
+    "class_distribution": {
+      "0": 125863,
+      "1": 36253
+    },
+    "file": "mimic/readmission_30d-trainfeat-echojepa-g.csv"
+  },
+  "mimic/tricuspid_regurg-xfer-echojepa-g": {
+    "type": "classification",
+    "n": 6932,
+    "n_classes": 4,
+    "error": "Number of classes in y_true not equal to the number of columns in 'y_score'",
+    "file": "mimic/tricuspid_regurg-xfer-echojepa-g.csv"
+  },
+  "mimic/tricuspid_regurg-xfer-echojepa-l-k": {
+    "type": "classification",
+    "n": 6932,
+    "n_classes": 4,
+    "error": "Number of classes in y_true not equal to the number of columns in 'y_score'",
+    "file": "mimic/tricuspid_regurg-xfer-echojepa-l-k.csv"
+  },
+  "mimic/tricuspid_regurg-xfer-echoprime": {
+    "type": "classification",
+    "n": 6932,
+    "n_classes": 4,
+    "error": "Number of classes in y_true not equal to the number of columns in 'y_score'",
+    "file": "mimic/tricuspid_regurg-xfer-echoprime.csv"
+  },
+  "mimic/tricuspid_regurg-xfer-panecho": {
+    "type": "classification",
+    "n": 6932,
+    "n_classes": 4,
+    "error": "Number of classes in y_true not equal to the number of columns in 'y_score'",
+    "file": "mimic/tricuspid_regurg-xfer-panecho.csv"
+  },
+  "mimic/troponin_t-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 18008,
+    "R2": -0.0041,
+    "R2_ci": [
+      -0.00634500536235017,
+      -0.001859094891443721
+    ],
+    "Pearson": 0.0082,
+    "Pearson_ci": [
+      -0.007301338749119483,
+      0.024373642130512817
+    ],
+    "MAE": 0.2609,
+    "RMSE": 0.6566,
+    "bias": -0.0129,
+    "file": "mimic/troponin_t-predavg-echojepa-b.csv"
+  },
+  "mimic/troponin_t-predavg-echojepa-g": {
+    "type": "regression",
+    "n": 18008,
+    "R2": 0.0154,
+    "R2_ci": [
+      0.008881291759030333,
+      0.021734517136716043
+    ],
+    "Pearson": 0.1316,
+    "Pearson_ci": [
+      0.11065984106293127,
+      0.15301598087089485
+    ],
+    "MAE": 0.2444,
+    "RMSE": 0.6502,
+    "bias": -0.0255,
+    "file": "mimic/troponin_t-predavg-echojepa-g.csv"
+  },
+  "mimic/troponin_t-predavg-echojepa-l-k": {
+    "type": "regression",
+    "n": 18008,
+    "R2": -0.0022,
+    "R2_ci": [
+      -0.007294468267861826,
+      0.0024452040283687495
+    ],
+    "Pearson": 0.0745,
+    "Pearson_ci": [
+      0.059671012144446485,
+      0.08869421205673819
+    ],
+    "MAE": 0.2599,
+    "RMSE": 0.6559,
+    "bias": -0.0138,
+    "file": "mimic/troponin_t-predavg-echojepa-l-k.csv"
+  },
+  "mimic/troponin_t-predavg-echoprime": {
+    "type": "regression",
+    "n": 18008,
+    "R2": 0.0093,
+    "R2_ci": [
+      0.004894548702401311,
+      0.01333648390247388
+    ],
+    "Pearson": 0.1009,
+    "Pearson_ci": [
+      0.08101307780235424,
+      0.12134094350028138
+    ],
+    "MAE": 0.279,
+    "RMSE": 0.6522,
+    "bias": 0.0196,
+    "file": "mimic/troponin_t-predavg-echoprime.csv"
+  },
+  "mimic/troponin_t-predavg-panecho": {
+    "type": "regression",
+    "n": 18008,
+    "R2": -0.0005,
+    "R2_ci": [
+      -0.004169092821005254,
+      0.0028193354915909507
+    ],
+    "Pearson": 0.0574,
+    "Pearson_ci": [
+      0.03929551512053089,
+      0.07522298114134723
+    ],
+    "MAE": 0.2465,
+    "RMSE": 0.6554,
+    "bias": -0.0312,
+    "file": "mimic/troponin_t-predavg-panecho.csv"
+  },
+  "mimic/troponin_t-trainfeat-echojepa-g": {
+    "type": "regression",
+    "n": 90060,
+    "R2": 0.0148,
+    "R2_ci": [
+      0.012118276452386492,
+      0.01751407642285481
+    ],
+    "Pearson": 0.174,
+    "Pearson_ci": [
+      0.16296872705046572,
+      0.18504051172676592
+    ],
+    "MAE": 0.318,
+    "RMSE": 1.0473,
+    "bias": -0.1118,
+    "file": "mimic/troponin_t-trainfeat-echojepa-g.csv"
+  },
+  "uhn/aov_mean_grad-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 73564,
+    "R2": 0.0812,
+    "R2_ci": [
+      0.07593335238519622,
+      0.08644052743997915
+    ],
+    "Pearson": 0.3729,
+    "Pearson_ci": [
+      0.365767201441374,
+      0.37971451486230723
+    ],
+    "MAE": 7.387,
+    "RMSE": 12.4725,
+    "bias": -3.041,
+    "file": "uhn/aov_mean_grad-predavg-echojepa-b.csv"
+  },
+  "uhn/aov_vmax-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 173060,
+    "R2": 0.1509,
+    "R2_ci": [
+      0.14643593100342003,
+      0.1554744358936503
+    ],
+    "Pearson": 0.426,
+    "Pearson_ci": [
+      0.42062109782010065,
+      0.4314531452490176
+    ],
+    "MAE": 0.4677,
+    "RMSE": 0.7441,
+    "bias": -0.1386,
+    "file": "uhn/aov_vmax-predavg-echojepa-b.csv"
+  },
+  "uhn/ar_severity-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 285696,
+    "n_classes": 5,
+    "AUROC_macro": 0.6341,
+    "accuracy": 0.2174,
+    "F1_macro": 0.176,
+    "confusion_matrix": [
+      [
+        13419,
+        23969,
+        6064,
+        64828,
+        0
+      ],
+      [
+        5188,
+        12288,
+        2635,
+        35434,
+        0
+      ],
+      [
+        6620,
+        19897,
+        32570,
+        56490,
+        3
+      ],
+      [
+        215,
+        679,
+        150,
+        3822,
+        0
+      ],
+      [
+        43,
+        125,
+        30,
+        1227,
+        0
+      ]
+    ],
+    "class_distribution": {
+      "0": 108280,
+      "1": 55545,
+      "2": 115580,
+      "3": 4866,
+      "4": 1425
+    },
+    "file": "uhn/ar_severity-predavg-echojepa-b.csv"
+  },
+  "uhn/as_severity-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 270364,
+    "n_classes": 4,
+    "AUROC_macro": 0.7575,
+    "accuracy": 0.4868,
+    "F1_macro": 0.2916,
+    "confusion_matrix": [
+      [
+        88517,
+        102835,
+        3329,
+        11477
+      ],
+      [
+        3976,
+        41361,
+        608,
+        3369
+      ],
+      [
+        1207,
+        6556,
+        353,
+        1927
+      ],
+      [
+        426,
+        2782,
+        252,
+        1389
+      ]
+    ],
+    "class_distribution": {
+      "0": 206158,
+      "1": 49314,
+      "2": 10043,
+      "3": 4849
+    },
+    "file": "uhn/as_severity-predavg-echojepa-b.csv"
+  },
+  "uhn/cardiac_output-predavg-echojepa-g": {
+    "type": "regression",
+    "n": 33876,
+    "R2": 0.2837,
+    "R2_ci": [
+      0.2739033263778058,
+      0.2935257773601573
+    ],
+    "Pearson": 0.5551,
+    "Pearson_ci": [
+      0.5463433410867263,
+      0.5640790720599231
+    ],
+    "MAE": 1.1007,
+    "RMSE": 1.5299,
+    "bias": -0.2727,
+    "file": "uhn/cardiac_output-predavg-echojepa-g.csv"
+  },
+  "uhn/cardiac_output-predavg-echojepa-l-k": {
+    "type": "regression",
+    "n": 33876,
+    "R2": 0.1363,
+    "R2_ci": [
+      0.12902680400932634,
+      0.14334975909320916
+    ],
+    "Pearson": 0.3999,
+    "Pearson_ci": [
+      0.3898084490049496,
+      0.4092876369463008
+    ],
+    "MAE": 1.2208,
+    "RMSE": 1.6799,
+    "bias": -0.2549,
+    "file": "uhn/cardiac_output-predavg-echojepa-l-k.csv"
+  },
+  "uhn/cardiac_output-predavg-echoprime": {
+    "type": "regression",
+    "n": 33876,
+    "R2": 0.1061,
+    "R2_ci": [
+      0.09878914535639895,
+      0.11335846756442437
+    ],
+    "Pearson": 0.359,
+    "Pearson_ci": [
+      0.34905638936525013,
+      0.3693452095828852
+    ],
+    "MAE": 1.2368,
+    "RMSE": 1.7091,
+    "bias": -0.2633,
+    "file": "uhn/cardiac_output-predavg-echoprime.csv"
+  },
+  "uhn/cardiac_output-predavg-panecho": {
+    "type": "regression",
+    "n": 33876,
+    "R2": 0.1451,
+    "R2_ci": [
+      0.13816487672859745,
+      0.15235976291726663
+    ],
+    "Pearson": 0.3874,
+    "Pearson_ci": [
+      0.3776055952983219,
+      0.3978801810995993
+    ],
+    "MAE": 1.2334,
+    "RMSE": 1.6714,
+    "bias": -0.0882,
+    "file": "uhn/cardiac_output-predavg-panecho.csv"
+  },
+  "uhn/diastolic_function-predavg-echojepa-g": {
+    "type": "classification",
+    "n": 139920,
+    "n_classes": 4,
+    "AUROC_macro": 0.8776,
+    "accuracy": 0.6151,
+    "F1_macro": 0.5291,
+    "confusion_matrix": [
+      [
+        8049,
+        735,
+        847,
+        498
+      ],
+      [
+        11105,
+        65262,
+        30953,
+        4942
+      ],
+      [
+        1086,
+        1148,
+        3958,
+        861
+      ],
+      [
+        553,
+        175,
+        948,
+        8800
+      ]
+    ],
+    "class_distribution": {
+      "0": 10129,
+      "1": 112262,
+      "2": 7053,
+      "3": 10476
+    },
+    "file": "uhn/diastolic_function-predavg-echojepa-g.csv"
+  },
+  "uhn/diastolic_function-predavg-echojepa-l-k": {
+    "type": "classification",
+    "n": 139920,
+    "n_classes": 4,
+    "AUROC_macro": 0.8083,
+    "accuracy": 0.6178,
+    "F1_macro": 0.4601,
+    "confusion_matrix": [
+      [
+        7038,
+        1308,
+        851,
+        932
+      ],
+      [
+        19095,
+        69449,
+        16941,
+        6777
+      ],
+      [
+        1546,
+        2768,
+        1877,
+        862
+      ],
+      [
+        896,
+        613,
+        889,
+        8078
+      ]
+    ],
+    "class_distribution": {
+      "0": 10129,
+      "1": 112262,
+      "2": 7053,
+      "3": 10476
+    },
+    "file": "uhn/diastolic_function-predavg-echojepa-l-k.csv"
+  },
+  "uhn/diastolic_function-predavg-echoprime": {
+    "type": "classification",
+    "n": 139920,
+    "n_classes": 4,
+    "AUROC_macro": 0.8065,
+    "accuracy": 0.617,
+    "F1_macro": 0.4513,
+    "confusion_matrix": [
+      [
+        7134,
+        1584,
+        762,
+        649
+      ],
+      [
+        19663,
+        69521,
+        14930,
+        8148
+      ],
+      [
+        1598,
+        2736,
+        1746,
+        973
+      ],
+      [
+        1178,
+        818,
+        555,
+        7925
+      ]
+    ],
+    "class_distribution": {
+      "0": 10129,
+      "1": 112262,
+      "2": 7053,
+      "3": 10476
+    },
+    "file": "uhn/diastolic_function-predavg-echoprime.csv"
+  },
+  "uhn/diastolic_function-predavg-panecho": {
+    "type": "classification",
+    "n": 139920,
+    "n_classes": 4,
+    "AUROC_macro": 0.7804,
+    "accuracy": 0.6245,
+    "F1_macro": 0.4271,
+    "confusion_matrix": [
+      [
+        5842,
+        2314,
+        825,
+        1148
+      ],
+      [
+        14015,
+        71734,
+        10815,
+        15698
+      ],
+      [
+        973,
+        3142,
+        1364,
+        1574
+      ],
+      [
+        643,
+        843,
+        547,
+        8443
+      ]
+    ],
+    "class_distribution": {
+      "0": 10129,
+      "1": 112262,
+      "2": 7053,
+      "3": 10476
+    },
+    "file": "uhn/diastolic_function-predavg-panecho.csv"
+  },
+  "uhn/disease_amyloidosis-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 62856,
+    "n_classes": 2,
+    "AUROC_macro": 0.6069,
+    "accuracy": 0.9692,
+    "F1_macro": 0.4932,
+    "confusion_matrix": [
+      [
+        60919,
+        62
+      ],
+      [
+        1873,
+        2
+      ]
+    ],
+    "class_distribution": {
+      "0": 60981,
+      "1": 1875
+    },
+    "file": "uhn/disease_amyloidosis-predavg-echojepa-b.csv"
+  },
+  "uhn/disease_bicuspid_av-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 468956,
+    "n_classes": 2,
+    "AUROC_macro": 0.6913,
+    "accuracy": 0.8462,
+    "F1_macro": 0.572,
+    "confusion_matrix": [
+      [
+        386076,
+        50673
+      ],
+      [
+        21468,
+        10739
+      ]
+    ],
+    "class_distribution": {
+      "0": 436749,
+      "1": 32207
+    },
+    "file": "uhn/disease_bicuspid_av-predavg-echojepa-b.csv"
+  },
+  "uhn/disease_dcm-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 127428,
+    "n_classes": 2,
+    "AUROC_macro": 0.6468,
+    "accuracy": 0.7279,
+    "F1_macro": 0.5719,
+    "confusion_matrix": [
+      [
+        84839,
+        12310
+      ],
+      [
+        22361,
+        7918
+      ]
+    ],
+    "class_distribution": {
+      "0": 97149,
+      "1": 30279
+    },
+    "file": "uhn/disease_dcm-predavg-echojepa-b.csv"
+  },
+  "uhn/disease_hcm-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 186984,
+    "n_classes": 2,
+    "AUROC_macro": 0.7695,
+    "accuracy": 0.7745,
+    "F1_macro": 0.6644,
+    "confusion_matrix": [
+      [
+        125937,
+        13537
+      ],
+      [
+        28637,
+        18873
+      ]
+    ],
+    "class_distribution": {
+      "0": 139474,
+      "1": 47510
+    },
+    "file": "uhn/disease_hcm-predavg-echojepa-b.csv"
+  },
+  "uhn/disease_myxomatous_mv-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 548372,
+    "n_classes": 2,
+    "AUROC_macro": 0.7417,
+    "accuracy": 0.8716,
+    "F1_macro": 0.5572,
+    "confusion_matrix": [
+      [
+        469999,
+        57522
+      ],
+      [
+        12902,
+        7949
+      ]
+    ],
+    "class_distribution": {
+      "0": 527521,
+      "1": 20851
+    },
+    "file": "uhn/disease_myxomatous_mv-predavg-echojepa-b.csv"
+  },
+  "uhn/disease_rheumatic_mv-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 10080,
+    "n_classes": 2,
+    "AUROC_macro": 0.5959,
+    "accuracy": 0.6591,
+    "F1_macro": 0.5585,
+    "confusion_matrix": [
+      [
+        916,
+        1898
+      ],
+      [
+        1538,
+        5728
+      ]
+    ],
+    "class_distribution": {
+      "0": 2814,
+      "1": 7266
+    },
+    "file": "uhn/disease_rheumatic_mv-predavg-echojepa-b.csv"
+  },
+  "uhn/disease_stemi-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 9076,
+    "n_classes": 2,
+    "AUROC_macro": 0.6167,
+    "accuracy": 0.6915,
+    "F1_macro": 0.4622,
+    "confusion_matrix": [
+      [
+        6101,
+        79
+      ],
+      [
+        2721,
+        175
+      ]
+    ],
+    "class_distribution": {
+      "0": 6180,
+      "1": 2896
+    },
+    "file": "uhn/disease_stemi-predavg-echojepa-b.csv"
+  },
+  "uhn/edv-predavg-echojepa-g": {
+    "type": "regression",
+    "n": 267048,
+    "R2": 0.6957,
+    "R2_ci": [
+      0.6928463299508554,
+      0.6986577291790047
+    ],
+    "Pearson": 0.8358,
+    "Pearson_ci": [
+      0.8340159573313729,
+      0.8375555495110789
+    ],
+    "MAE": 20.9525,
+    "RMSE": 29.154,
+    "bias": -2.5874,
+    "file": "uhn/edv-predavg-echojepa-g.csv"
+  },
+  "uhn/edv-predavg-echojepa-l-k": {
+    "type": "regression",
+    "n": 267048,
+    "R2": 0.4467,
+    "R2_ci": [
+      0.4424696054882232,
+      0.45086342563978676
+    ],
+    "Pearson": 0.6761,
+    "Pearson_ci": [
+      0.6730013122138813,
+      0.6791828229345058
+    ],
+    "MAE": 28.0747,
+    "RMSE": 39.3131,
+    "bias": -5.2103,
+    "file": "uhn/edv-predavg-echojepa-l-k.csv"
+  },
+  "uhn/edv-predavg-echoprime": {
+    "type": "regression",
+    "n": 267048,
+    "R2": 0.3594,
+    "R2_ci": [
+      0.35560665057630314,
+      0.3632905172510072
+    ],
+    "Pearson": 0.6312,
+    "Pearson_ci": [
+      0.6278740670987579,
+      0.6345356597239727
+    ],
+    "MAE": 29.6239,
+    "RMSE": 42.3016,
+    "bias": -9.4425,
+    "file": "uhn/edv-predavg-echoprime.csv"
+  },
+  "uhn/edv-predavg-panecho": {
+    "type": "regression",
+    "n": 267048,
+    "R2": 0.4675,
+    "R2_ci": [
+      0.46399702672430065,
+      0.47089680649684806
+    ],
+    "Pearson": 0.7046,
+    "Pearson_ci": [
+      0.7018610215748663,
+      0.7073778266317307
+    ],
+    "MAE": 26.6226,
+    "RMSE": 38.5682,
+    "bias": -6.1142,
+    "file": "uhn/edv-predavg-panecho.csv"
+  },
+  "uhn/esv-predavg-echojepa-g": {
+    "type": "regression",
+    "n": 266274,
+    "R2": 0.7901,
+    "R2_ci": [
+      0.7873013496525582,
+      0.792884297032981
+    ],
+    "Pearson": 0.8899,
+    "Pearson_ci": [
+      0.8883164606635388,
+      0.8914606465129886
+    ],
+    "MAE": 12.2496,
+    "RMSE": 19.2455,
+    "bias": -1.1438,
+    "file": "uhn/esv-predavg-echojepa-g.csv"
+  },
+  "uhn/esv-predavg-echojepa-l-k": {
+    "type": "regression",
+    "n": 266274,
+    "R2": 0.6065,
+    "R2_ci": [
+      0.6018257068771009,
+      0.6111199845446948
+    ],
+    "Pearson": 0.7842,
+    "Pearson_ci": [
+      0.7812894676358446,
+      0.78724637212895
+    ],
+    "MAE": 16.3765,
+    "RMSE": 26.3481,
+    "bias": -3.2527,
+    "file": "uhn/esv-predavg-echojepa-l-k.csv"
+  },
+  "uhn/esv-predavg-echoprime": {
+    "type": "regression",
+    "n": 266274,
+    "R2": 0.5179,
+    "R2_ci": [
+      0.5138748345631643,
+      0.5220211730270472
+    ],
+    "Pearson": 0.7514,
+    "Pearson_ci": [
+      0.7483076704104275,
+      0.7544631507229786
+    ],
+    "MAE": 17.4994,
+    "RMSE": 29.1642,
+    "bias": -5.9937,
+    "file": "uhn/esv-predavg-echoprime.csv"
+  },
+  "uhn/esv-predavg-panecho": {
+    "type": "regression",
+    "n": 266274,
+    "R2": 0.5866,
+    "R2_ci": [
+      0.5822794409395199,
+      0.5907671360615122
+    ],
+    "Pearson": 0.7802,
+    "Pearson_ci": [
+      0.7771759479799006,
+      0.7831137870203116
+    ],
+    "MAE": 16.1378,
+    "RMSE": 27.005,
+    "bias": -2.5791,
+    "file": "uhn/esv-predavg-panecho.csv"
+  },
+  "uhn/lvef-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 266520,
+    "R2": 0.3929,
+    "R2_ci": [
+      0.38874648913881255,
+      0.39725602437718355
+    ],
+    "Pearson": 0.6321,
+    "Pearson_ci": [
+      0.6288633299877654,
+      0.6353600264449181
+    ],
+    "MAE": 6.881,
+    "RMSE": 9.6145,
+    "bias": 0.9778,
+    "file": "uhn/lvef-predavg-echojepa-b.csv"
+  },
+  "uhn/mr_severity-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 399596,
+    "n_classes": 5,
+    "AUROC_macro": 0.7533,
+    "accuracy": 0.2987,
+    "F1_macro": 0.218,
+    "confusion_matrix": [
+      [
+        8293,
+        1598,
+        18,
+        2522,
+        31
+      ],
+      [
+        16247,
+        89876,
+        97,
+        13692,
+        245
+      ],
+      [
+        72098,
+        62527,
+        945,
+        87310,
+        975
+      ],
+      [
+        6742,
+        7066,
+        107,
+        19935,
+        504
+      ],
+      [
+        1395,
+        1780,
+        11,
+        5253,
+        329
+      ]
+    ],
+    "class_distribution": {
+      "0": 12462,
+      "1": 120157,
+      "2": 223855,
+      "3": 34354,
+      "4": 8768
+    },
+    "file": "uhn/mr_severity-predavg-echojepa-b.csv"
+  },
+  "uhn/mv_ee_medial-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 126476,
+    "R2": 0.2446,
+    "R2_ci": [
+      0.23899937592288767,
+      0.25011256385358455
+    ],
+    "Pearson": 0.51,
+    "Pearson_ci": [
+      0.5048231249523035,
+      0.5150571401435957
+    ],
+    "MAE": 3.542,
+    "RMSE": 4.9999,
+    "bias": -0.6859,
+    "file": "uhn/mv_ee_medial-predavg-echojepa-b.csv"
+  },
+  "uhn/rv_fac-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 72232,
+    "R2": 0.1789,
+    "R2_ci": [
+      0.1736706885108712,
+      0.184670756290237
+    ],
+    "Pearson": 0.4243,
+    "Pearson_ci": [
+      0.41853627735730353,
+      0.43063955387503877
+    ],
+    "MAE": 7.4554,
+    "RMSE": 9.4594,
+    "bias": 0.0327,
+    "file": "uhn/rv_fac-predavg-echojepa-b.csv"
+  },
+  "uhn/rv_function-predavg-echoprime": {
+    "type": "classification",
+    "n": 548904,
+    "n_classes": 5,
+    "AUROC_macro": 0.6953,
+    "accuracy": 0.3326,
+    "F1_macro": 0.2784,
+    "confusion_matrix": [
+      [
+        104199,
+        73323,
+        21322,
+        49493,
+        4740
+      ],
+      [
+        3170,
+        13874,
+        2164,
+        10254,
+        553
+      ],
+      [
+        23699,
+        47790,
+        14865,
+        63053,
+        5609
+      ],
+      [
+        6102,
+        15716,
+        4023,
+        42520,
+        6817
+      ],
+      [
+        2441,
+        4478,
+        1089,
+        20483,
+        7127
+      ]
+    ],
+    "class_distribution": {
+      "0": 253077,
+      "1": 30015,
+      "2": 155016,
+      "3": 75178,
+      "4": 35618
+    },
+    "file": "uhn/rv_function-predavg-echoprime.csv"
+  },
+  "uhn/rv_function-predavg-panecho": {
+    "type": "classification",
+    "n": 548904,
+    "n_classes": 5,
+    "AUROC_macro": 0.6924,
+    "accuracy": 0.3108,
+    "F1_macro": 0.2767,
+    "confusion_matrix": [
+      [
+        86101,
+        86068,
+        30764,
+        49271,
+        873
+      ],
+      [
+        4119,
+        14276,
+        3074,
+        8387,
+        159
+      ],
+      [
+        19749,
+        49413,
+        21200,
+        62212,
+        2442
+      ],
+      [
+        4391,
+        17970,
+        5097,
+        42690,
+        5030
+      ],
+      [
+        1139,
+        5465,
+        1181,
+        21520,
+        6313
+      ]
+    ],
+    "class_distribution": {
+      "0": 253077,
+      "1": 30015,
+      "2": 155016,
+      "3": 75178,
+      "4": 35618
+    },
+    "file": "uhn/rv_function-predavg-panecho.csv"
+  },
+  "uhn/rv_sp-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 264048,
+    "R2": 0.1941,
+    "R2_ci": [
+      0.19091891832066651,
+      0.1973767133846238
+    ],
+    "Pearson": 0.4643,
+    "Pearson_ci": [
+      0.4614212500447774,
+      0.46726021398277207
+    ],
+    "MAE": 0.0213,
+    "RMSE": 0.0275,
+    "bias": 0.0041,
+    "file": "uhn/rv_sp-predavg-echojepa-b.csv"
+  },
+  "uhn/rvsp-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 100184,
+    "R2": 0.0303,
+    "R2_ci": [
+      0.025941652936030818,
+      0.03471256835988257
+    ],
+    "Pearson": 0.2988,
+    "Pearson_ci": [
+      0.2930078629761431,
+      0.3045760992122251
+    ],
+    "MAE": 10.138,
+    "RMSE": 14.9776,
+    "bias": -3.6912,
+    "file": "uhn/rvsp-predavg-echojepa-b.csv"
+  },
+  "uhn/rvsp-predavg-echojepa-g": {
+    "type": "regression",
+    "n": 100184,
+    "R2": 0.4301,
+    "R2_ci": [
+      0.42349373396260703,
+      0.436520027146755
+    ],
+    "Pearson": 0.6611,
+    "Pearson_ci": [
+      0.6561191826746621,
+      0.665921487338158
+    ],
+    "MAE": 8.0079,
+    "RMSE": 11.4822,
+    "bias": -1.2472,
+    "file": "uhn/rvsp-predavg-echojepa-g.csv"
+  },
+  "uhn/rvsp-predavg-echojepa-l-k": {
+    "type": "regression",
+    "n": 100184,
+    "R2": 0.2342,
+    "R2_ci": [
+      0.2280981186150497,
+      0.2402348831713544
+    ],
+    "Pearson": 0.4892,
+    "Pearson_ci": [
+      0.4831922414960581,
+      0.4950097918127866
+    ],
+    "MAE": 9.3525,
+    "RMSE": 13.3096,
+    "bias": -0.9577,
+    "file": "uhn/rvsp-predavg-echojepa-l-k.csv"
+  },
+  "uhn/rvsp-predavg-echojepa-l": {
+    "type": "regression",
+    "n": 100184,
+    "R2": 0.0811,
+    "R2_ci": [
+      0.07606771752039147,
+      0.08599259421979123
+    ],
+    "Pearson": 0.3332,
+    "Pearson_ci": [
+      0.32754573467780274,
+      0.33901663821461164
+    ],
+    "MAE": 10.0145,
+    "RMSE": 14.5802,
+    "bias": -2.28,
+    "file": "uhn/rvsp-predavg-echojepa-l.csv"
+  },
+  "uhn/rvsp-predavg-echoprime": {
+    "type": "regression",
+    "n": 100184,
+    "R2": 0.1231,
+    "R2_ci": [
+      0.11826412424594236,
+      0.12772099867275596
+    ],
+    "Pearson": 0.4192,
+    "Pearson_ci": [
+      0.41379490799849045,
+      0.42434484848319587
+    ],
+    "MAE": 9.4988,
+    "RMSE": 14.2427,
+    "bias": -3.4299,
+    "file": "uhn/rvsp-predavg-echoprime.csv"
+  },
+  "uhn/rvsp-predavg-panecho": {
+    "type": "regression",
+    "n": 100184,
+    "R2": 0.2011,
+    "R2_ci": [
+      0.19560794618394808,
+      0.20696707575025802
+    ],
+    "Pearson": 0.4599,
+    "Pearson_ci": [
+      0.4537809828770885,
+      0.4659656169142367
+    ],
+    "MAE": 9.3675,
+    "RMSE": 13.5943,
+    "bias": -1.546,
+    "file": "uhn/rvsp-predavg-panecho.csv"
+  },
+  "uhn/tapse-predavg-echojepa-b": {
+    "type": "regression",
+    "n": 191568,
+    "R2": 0.2782,
+    "R2_ci": [
+      0.2745558799858143,
+      0.2818522568150852
+    ],
+    "Pearson": 0.5333,
+    "Pearson_ci": [
+      0.5301861983218983,
+      0.5364721224835881
+    ],
+    "MAE": 0.3427,
+    "RMSE": 0.433,
+    "bias": 0.035,
+    "file": "uhn/tapse-predavg-echojepa-b.csv"
+  },
+  "uhn/tr_severity-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 340628,
+    "n_classes": 5,
+    "AUROC_macro": 0.7325,
+    "accuracy": 0.283,
+    "F1_macro": 0.2225,
+    "confusion_matrix": [
+      [
+        2838,
+        3329,
+        108,
+        1267,
+        26
+      ],
+      [
+        5322,
+        67874,
+        98,
+        11112,
+        772
+      ],
+      [
+        33689,
+        68592,
+        4361,
+        94975,
+        2890
+      ],
+      [
+        2638,
+        8909,
+        254,
+        20120,
+        1734
+      ],
+      [
+        460,
+        2522,
+        28,
+        5510,
+        1200
+      ]
+    ],
+    "class_distribution": {
+      "0": 7568,
+      "1": 85178,
+      "2": 204507,
+      "3": 33655,
+      "4": 9720
+    },
+    "file": "uhn/tr_severity-predavg-echojepa-b.csv"
+  },
+  "uhn/trajectory_lvef-predavg-echojepa-g": {
+    "type": "classification",
+    "n": 115280,
+    "n_classes": 3,
+    "AUROC_macro": 0.619,
+    "accuracy": 0.5535,
+    "F1_macro": 0.4262,
+    "confusion_matrix": [
+      [
+        6631,
+        9375,
+        1623
+      ],
+      [
+        20954,
+        52325,
+        5545
+      ],
+      [
+        4941,
+        9037,
+        4849
+      ]
+    ],
+    "class_distribution": {
+      "0": 17629,
+      "1": 78824,
+      "2": 18827
+    },
+    "file": "uhn/trajectory_lvef-predavg-echojepa-g.csv"
+  },
+  "uhn/trajectory_lvef-predavg-echojepa-l-k": {
+    "type": "classification",
+    "n": 115280,
+    "n_classes": 3,
+    "AUROC_macro": 0.5163,
+    "accuracy": 0.6527,
+    "F1_macro": 0.2997,
+    "confusion_matrix": [
+      [
+        57,
+        16375,
+        1197
+      ],
+      [
+        253,
+        73873,
+        4698
+      ],
+      [
+        63,
+        17454,
+        1310
+      ]
+    ],
+    "class_distribution": {
+      "0": 17629,
+      "1": 78824,
+      "2": 18827
+    },
+    "file": "uhn/trajectory_lvef-predavg-echojepa-l-k.csv"
+  },
+  "uhn/trajectory_lvef-predavg-echojepa-l": {
+    "type": "classification",
+    "n": 115280,
+    "n_classes": 3,
+    "AUROC_macro": 0.5379,
+    "accuracy": 0.6574,
+    "F1_macro": 0.3118,
+    "confusion_matrix": [
+      [
+        766,
+        16356,
+        507
+      ],
+      [
+        2759,
+        74242,
+        1823
+      ],
+      [
+        668,
+        17387,
+        772
+      ]
+    ],
+    "class_distribution": {
+      "0": 17629,
+      "1": 78824,
+      "2": 18827
+    },
+    "file": "uhn/trajectory_lvef-predavg-echojepa-l.csv"
+  },
+  "uhn/trajectory_lvef-predavg-echoprime": {
+    "type": "classification",
+    "n": 115280,
+    "n_classes": 3,
+    "AUROC_macro": 0.6284,
+    "accuracy": 0.5954,
+    "F1_macro": 0.4294,
+    "confusion_matrix": [
+      [
+        2624,
+        11142,
+        3863
+      ],
+      [
+        7737,
+        57726,
+        13361
+      ],
+      [
+        1791,
+        8743,
+        8293
+      ]
+    ],
+    "class_distribution": {
+      "0": 17629,
+      "1": 78824,
+      "2": 18827
+    },
+    "file": "uhn/trajectory_lvef-predavg-echoprime.csv"
+  },
+  "uhn/trajectory_lvef-predavg-panecho": {
+    "type": "classification",
+    "n": 115280,
+    "n_classes": 3,
+    "AUROC_macro": 0.6111,
+    "accuracy": 0.6027,
+    "F1_macro": 0.4161,
+    "confusion_matrix": [
+      [
+        2504,
+        12331,
+        2794
+      ],
+      [
+        9328,
+        60727,
+        8769
+      ],
+      [
+        1472,
+        11104,
+        6251
+      ]
+    ],
+    "class_distribution": {
+      "0": 17629,
+      "1": 78824,
+      "2": 18827
+    },
+    "file": "uhn/trajectory_lvef-predavg-panecho.csv"
+  },
+  "uhn/trajectory_lvef_onset-predavg-echojepa-b": {
+    "type": "classification",
+    "n": 111976,
+    "n_classes": 2,
+    "AUROC_macro": 0.5673,
+    "accuracy": 0.906,
+    "F1_macro": 0.4941,
+    "confusion_matrix": [
+      [
+        101239,
+        1832
+      ],
+      [
+        8699,
+        206
+      ]
+    ],
+    "class_distribution": {
+      "0": 103071,
+      "1": 8905
+    },
+    "file": "uhn/trajectory_lvef_onset-predavg-echojepa-b.csv"
+  },
+  "uhn/trajectory_lvef_onset-predavg-echojepa-g": {
+    "type": "classification",
+    "n": 111976,
+    "n_classes": 2,
+    "AUROC_macro": 0.7322,
+    "accuracy": 0.7913,
+    "F1_macro": 0.5726,
+    "confusion_matrix": [
+      [
+        84350,
+        18721
+      ],
+      [
+        4652,
+        4253
+      ]
+    ],
+    "class_distribution": {
+      "0": 103071,
+      "1": 8905
+    },
+    "file": "uhn/trajectory_lvef_onset-predavg-echojepa-g.csv"
+  },
+  "uhn/trajectory_lvef_onset-predavg-echojepa-l-k": {
+    "type": "classification",
+    "n": 111976,
+    "n_classes": 2,
+    "AUROC_macro": 0.623,
+    "accuracy": 0.919,
+    "F1_macro": 0.4827,
+    "confusion_matrix": [
+      [
+        102873,
+        198
+      ],
+      [
+        8870,
+        35
+      ]
+    ],
+    "class_distribution": {
+      "0": 103071,
+      "1": 8905
+    },
+    "file": "uhn/trajectory_lvef_onset-predavg-echojepa-l-k.csv"
+  },
+  "uhn/trajectory_lvef_onset-predavg-echoprime": {
+    "type": "classification",
+    "n": 111976,
+    "n_classes": 2,
+    "AUROC_macro": 0.7118,
+    "accuracy": 0.813,
+    "F1_macro": 0.5771,
+    "confusion_matrix": [
+      [
+        87332,
+        15739
+      ],
+      [
+        5202,
+        3703
+      ]
+    ],
+    "class_distribution": {
+      "0": 103071,
+      "1": 8905
+    },
+    "file": "uhn/trajectory_lvef_onset-predavg-echoprime.csv"
+  },
+  "uhn/trajectory_lvef_onset-predavg-panecho": {
+    "type": "classification",
+    "n": 111976,
+    "n_classes": 2,
+    "AUROC_macro": 0.7047,
+    "accuracy": 0.858,
+    "F1_macro": 0.5757,
+    "confusion_matrix": [
+      [
+        93710,
+        9361
+      ],
+      [
+        6536,
+        2369
+      ]
+    ],
+    "class_distribution": {
+      "0": 103071,
+      "1": 8905
+    },
+    "file": "uhn/trajectory_lvef_onset-predavg-panecho.csv"
+  },
+  "uhn/trajectory_mr_severity_onset-predavg-echojepa-g": {
+    "type": "classification",
+    "n": 292896,
+    "n_classes": 2,
+    "AUROC_macro": 0.6891,
+    "accuracy": 0.8262,
+    "F1_macro": 0.5331,
+    "confusion_matrix": [
+      [
+        237024,
+        40489
+      ],
+      [
+        10418,
+        4965
+      ]
+    ],
+    "class_distribution": {
+      "0": 277513,
+      "1": 15383
+    },
+    "file": "uhn/trajectory_mr_severity_onset-predavg-echojepa-g.csv"
+  },
+  "uhn/trajectory_mr_severity_onset-predavg-echojepa-l-k": {
+    "type": "classification",
+    "n": 292896,
+    "n_classes": 2,
+    "AUROC_macro": 0.5845,
+    "accuracy": 0.881,
+    "F1_macro": 0.5209,
+    "confusion_matrix": [
+      [
+        255982,
+        21531
+      ],
+      [
+        13325,
+        2058
+      ]
+    ],
+    "class_distribution": {
+      "0": 277513,
+      "1": 15383
+    },
+    "file": "uhn/trajectory_mr_severity_onset-predavg-echojepa-l-k.csv"
+  },
+  "uhn/trajectory_mr_severity_onset-predavg-echoprime": {
+    "type": "classification",
+    "n": 292896,
+    "n_classes": 2,
+    "AUROC_macro": 0.6273,
+    "accuracy": 0.9328,
+    "F1_macro": 0.5046,
+    "confusion_matrix": [
+      [
+        272766,
+        4747
+      ],
+      [
+        14931,
+        452
+      ]
+    ],
+    "class_distribution": {
+      "0": 277513,
+      "1": 15383
+    },
+    "file": "uhn/trajectory_mr_severity_onset-predavg-echoprime.csv"
+  },
+  "uhn/trajectory_mr_severity_onset-predavg-panecho": {
+    "type": "classification",
+    "n": 292896,
+    "n_classes": 2,
+    "AUROC_macro": 0.6424,
+    "accuracy": 0.8695,
+    "F1_macro": 0.5306,
+    "confusion_matrix": [
+      [
+        251787,
+        25726
+      ],
+      [
+        12486,
+        2897
+      ]
+    ],
+    "class_distribution": {
+      "0": 277513,
+      "1": 15383
+    },
+    "file": "uhn/trajectory_mr_severity_onset-predavg-panecho.csv"
+  }
+}

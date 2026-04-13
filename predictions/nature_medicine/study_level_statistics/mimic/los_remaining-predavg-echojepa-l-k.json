@@ -1,0 +1,18 @@
+{
+  "file": "mimic/los_remaining-predavg-echojepa-l-k",
+  "best_head": 11,
+  "type": "regression",
+  "n_clips": 31508,
+  "n_studies": 440,
+  "R2": 0.0515,
+  "R2_ci": [
+    0.0301,
+    0.0715
+  ],
+  "Pearson": 0.2981,
+  "Pearson_ci": [
+    0.2181,
+    0.3694
+  ],
+  "MAE": 5.8066
+}

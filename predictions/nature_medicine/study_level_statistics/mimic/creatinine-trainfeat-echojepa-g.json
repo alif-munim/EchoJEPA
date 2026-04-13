@@ -1,0 +1,18 @@
+{
+  "file": "mimic/creatinine-trainfeat-echojepa-g",
+  "best_head": 0,
+  "type": "regression",
+  "n_clips": 198672,
+  "n_studies": 2766,
+  "R2": 0.0451,
+  "R2_ci": [
+    0.0309,
+    0.0602
+  ],
+  "Pearson": 0.3339,
+  "Pearson_ci": [
+    0.3009,
+    0.3692
+  ],
+  "MAE": 0.7195
+}

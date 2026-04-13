@@ -1,0 +1,82 @@
+# V-JEPA 2.0 ViT-B calcium imaging viability test
+# 10 epochs on 1 Allen Brain Observatory session (~40K clips)
+app: vjepa
+nodes: 1
+tasks_per_node: 4
+cpus_per_task: 8
+mem_per_gpu: 40G
+folder: checkpoints/pretrain/calcium/vjepa2_vitb_224px_16f
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - data/calcium_imaging/clips_501794235/clips.csv
+  datasets_weights: [1.0]
+  batch_size: 64
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  fps: 10
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  seed: 42
+  use_sdpa: true
+
+model:
+  model_name: vit_base
+  pred_depth: 6
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: false
+  use_rope: true
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  zero_init_mask_tokens: true
+
+optimization:
+  epochs: 10
+  ipe: 300
+  ipe_scale: 1.0
+  warmup: 2
+  start_lr: 1.0e-4
+  lr: 1.0e-3
+  final_lr: 1.0e-6
+  weight_decay: 0.04
+  final_weight_decay: 0.4
+  ema: [0.998, 1.0]
+  betas: [0.9, 0.95]

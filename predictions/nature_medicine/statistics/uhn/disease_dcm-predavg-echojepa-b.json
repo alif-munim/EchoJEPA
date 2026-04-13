@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 127428,
+  "n_classes": 2,
+  "AUROC_macro": 0.6468,
+  "accuracy": 0.7279,
+  "F1_macro": 0.5719,
+  "confusion_matrix": [
+    [
+      84839,
+      12310
+    ],
+    [
+      22361,
+      7918
+    ]
+  ],
+  "class_distribution": {
+    "0": 97149,
+    "1": 30279
+  },
+  "file": "uhn/disease_dcm-predavg-echojepa-b.csv"
+}

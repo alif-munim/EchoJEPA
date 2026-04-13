@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 31320,
+  "n_classes": 2,
+  "AUROC_macro": 0.5616,
+  "accuracy": 0.763,
+  "F1_macro": 0.4367,
+  "confusion_matrix": [
+    [
+      23868,
+      74
+    ],
+    [
+      7348,
+      30
+    ]
+  ],
+  "class_distribution": {
+    "0": 23942,
+    "1": 7378
+  },
+  "file": "mimic/readmission_30d-predavg-echojepa-g.csv"
+}

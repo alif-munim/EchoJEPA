@@ -1,0 +1,18 @@
+{
+  "file": "mimic/creatinine-predavg-echojepa-g",
+  "best_head": 0,
+  "type": "regression",
+  "n_clips": 38524,
+  "n_studies": 535,
+  "R2": 0.014,
+  "R2_ci": [
+    -0.0119,
+    0.0454
+  ],
+  "Pearson": 0.2397,
+  "Pearson_ci": [
+    0.179,
+    0.3141
+  ],
+  "MAE": 0.7619
+}

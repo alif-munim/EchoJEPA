@@ -1,0 +1,25 @@
+{
+  "file": "uhn/disease_rheumatic_mv-predavg-echojepa-b",
+  "best_head": 0,
+  "type": "classification",
+  "n_clips": 10080,
+  "n_studies": 360,
+  "n_classes": 2,
+  "AUROC": 0.6781,
+  "accuracy": 0.7222,
+  "F1_macro": 0.5704,
+  "confusion_matrix": [
+    [
+      23,
+      77
+    ],
+    [
+      23,
+      237
+    ]
+  ],
+  "class_distribution": {
+    "0": 100,
+    "1": 260
+  }
+}

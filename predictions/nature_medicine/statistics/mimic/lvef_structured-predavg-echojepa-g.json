@@ -1,0 +1,18 @@
+{
+  "type": "regression",
+  "n": 5800,
+  "R2": 0.4774,
+  "R2_ci": [
+    0.45487642521262867,
+    0.4985102112667121
+  ],
+  "Pearson": 0.7209,
+  "Pearson_ci": [
+    0.7055568614988154,
+    0.7351907260007613
+  ],
+  "MAE": 7.3352,
+  "RMSE": 9.651,
+  "bias": -0.7036,
+  "file": "mimic/lvef_structured-predavg-echojepa-g.csv"
+}

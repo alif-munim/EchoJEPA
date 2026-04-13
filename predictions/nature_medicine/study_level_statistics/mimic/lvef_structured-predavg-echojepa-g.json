@@ -1,0 +1,18 @@
+{
+  "file": "mimic/lvef_structured-predavg-echojepa-g",
+  "best_head": 2,
+  "type": "regression",
+  "n_clips": 5800,
+  "n_studies": 659,
+  "R2": 0.692,
+  "R2_ci": [
+    0.6434,
+    0.7336
+  ],
+  "Pearson": 0.8348,
+  "Pearson_ci": [
+    0.8053,
+    0.8596
+  ],
+  "MAE": 5.6932
+}

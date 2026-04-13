@@ -1,0 +1,18 @@
+{
+  "file": "mimic/troponin_t-predavg-echojepa-g",
+  "best_head": 3,
+  "type": "regression",
+  "n_clips": 18008,
+  "n_studies": 240,
+  "R2": 0.0363,
+  "R2_ci": [
+    -0.0013,
+    0.0626
+  ],
+  "Pearson": 0.2641,
+  "Pearson_ci": [
+    0.07,
+    0.4498
+  ],
+  "MAE": 0.2391
+}

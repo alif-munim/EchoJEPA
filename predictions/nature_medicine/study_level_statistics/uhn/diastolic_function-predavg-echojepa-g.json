@@ -1,0 +1,43 @@
+{
+  "file": "uhn/diastolic_function-predavg-echojepa-g",
+  "best_head": 0,
+  "type": "classification",
+  "n_clips": 139920,
+  "n_studies": 4756,
+  "n_classes": 4,
+  "AUROC": 0.9034,
+  "accuracy": 0.6638,
+  "F1_macro": 0.5743,
+  "confusion_matrix": [
+    [
+      299,
+      20,
+      28,
+      10
+    ],
+    [
+      349,
+      2421,
+      939,
+      124
+    ],
+    [
+      36,
+      27,
+      162,
+      21
+    ],
+    [
+      20,
+      5,
+      20,
+      275
+    ]
+  ],
+  "class_distribution": {
+    "0": 357,
+    "1": 3833,
+    "2": 246,
+    "3": 320
+  }
+}

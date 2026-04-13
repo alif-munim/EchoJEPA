@@ -1,0 +1,46 @@
+A key roadblock to applying supervised learning to real applications is the need to assemble a large-enough labeled dataset for the intended task.
+Modern deep learning pipelines are especially data-hungry.
+In many cases, the acquisition of a large dataset of \emph{unlabeled} features is rather affordable.
+However, providing reliable labels for each example is cost-prohibitive, often requiring expensive, time-consuming work from human experts.
+This tradeoff is especially apt in our motivating application: classifying medical images where
+images are collected in the course of routine care and easily available by querying a hospital's electronic records.
+However, labeling images often requires clinical staff with years of training to spend minutes per image.
+
+If only a tiny labeled set is available but we can access a big \emph{unlabeled} set of images, one promising approach is \emph{semi-supervised learning} (SSL)~\citep{zhuSemiSupervisedLearningLiterature2005,vanengelenSurveySemisupervisedLearning2020}. 
+Recent years have seen amazing progress on standard benchmarks such as recognizing address digits from photos of houses (SVHN;~\citet{netzerReadingDigitsNatural2011}).
+With only 100 labeled examples per digit class, a supervised neural net's error rate is roughly 12\%. 
+Using a large unlabeled set, the FixMatch SSL method~\citep{sohnFixMatchSimplifyingSemisupervised2020} delivers error below 2.5\%, while even more recent work has pushed below 2\%~\citep{xuDPSSLRobustSemisupervised2021, hanUnsupervisedSemanticAggregation2020}.
+
+Unfortunately, common benchmarks like SVHN may be too optimistic. 
+In real tasks, unlabeled sets will be collected automatically at scale for convenience, and thus \emph{uncurated}: they may differ from the labeled set in terms of represented classes, class frequencies, or even features.
+% To maintain the efficiency that motivates SSL, the effort required to curate the unlabeled set -- that is, apply labels and assess differences -- remains prohibitive.
+Effective SSL must improve accuracy despite such uncurated data.
+
+Off-the-shelf SSL using mismatched unlabeled sets often predicts \emph{worse} than just ignoring unlabeled data~\citep{oliverRealisticEvaluationDeep2018,calderon-ramirezDealingScarceLabelled2021}.
+Recent methods try to be robust to unlabeled sets that differ from the labeled set (see Tab.~\ref{tab:related_work_comparison}).
+% line of work called ``safe'' or ``open-set'' SSL.
+%deliver accuracy that is at least as good as using the labeled set alone but better when possible.
+The dominant paradigm is intuitive: 
+identify examples in the unlabeled set that are \emph{out-of-distribution} (OOD), then remove or downweight them \citep{calderon2022semi,chen2022semi, he2022not}.
+We find this line of work delivers insufficient gains in accuracy, while adding complexity due to OOD detection and discarding a substantial amount of unlabeled data.
+%The resulting algorithms thus depend heavily on the OOD detector's performance.
+% which adds additional complexity \todo{while delivering only modest gains.} 
+
+% Larger, more reliable gains are needed to enable SSL in real uncurated applications.
+%\todo{Further, viewing OOD samples as completely useless limited the possible performance of SSL algorithms in real applications, since a substantial portion of the unlabeled data could be discarded}. 
+
+This study makes 3 contributions toward robust SSL backed by reproducible experiments\footnote{Code and Heart2Heart data: \href{https://github.com/tufts-ml/fix-a-step}{github.com/tufts-ml/fix-a-step}}.
+First, we challenge the dominant paradigm of filtering out or downweighting OOD examples in the unlabeled set.
+Our experiments suggest that even perfect OOD filtering, which is unrealistic in practice, does not perform well (see Fig.~\ref{fig:results-cifar10}).
+Instead of viewing OOD images as probably harmful, we argue for a \textbf{new paradigm: OOD images from uncurated unlabeled sets are possibly helpful}.
+%this sentence need to break down?
+
+Second, following this paradigm we introduce \textbf{a new training procedure called \emph{Fix-A-Step} that delivers accuracy gains from uncurated unlabeled sets}.
+When applied to repair several deep SSL methods across a range of labeled-unlabeled class mismatch levels, our Fix-A-Step improves predictions better than alternative methods while being substantially simpler and faster too.
+
+Finally, we offer a \textbf{new SSL benchmark called Heart2Heart that uses truly uncurated unlabeled medical images and assesses cross-hospital generalization}.
+%For too long, SSL methods advances have been evaluated only on the same repurposed generic object recognition datasets. 
+Using three inter-operable open-access datasets -- TMED~\citep{huangNewSemisupervisedLearning2021}, CAMUS~\citep{leclercDeepLearningSegmentation2019}, and Unity~\citep{howardAutomatedLeftVentricular2021} --
+we pursue a clinically-relevant problem: recognizing the view type of an echocardiogram image of the heart.
+Future methods that learn from limited data can follow our reproducible protocol. 
+We hope this new Heart2Heart benchmark enables authentic SSL applications in medicine and ultimately improves care for patients with heart disease.

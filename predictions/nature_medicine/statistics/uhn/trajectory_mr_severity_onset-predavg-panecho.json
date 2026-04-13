@@ -1,0 +1,23 @@
+{
+  "type": "classification",
+  "n": 292896,
+  "n_classes": 2,
+  "AUROC_macro": 0.6424,
+  "accuracy": 0.8695,
+  "F1_macro": 0.5306,
+  "confusion_matrix": [
+    [
+      251787,
+      25726
+    ],
+    [
+      12486,
+      2897
+    ]
+  ],
+  "class_distribution": {
+    "0": 277513,
+    "1": 15383
+  },
+  "file": "uhn/trajectory_mr_severity_onset-predavg-panecho.csv"
+}

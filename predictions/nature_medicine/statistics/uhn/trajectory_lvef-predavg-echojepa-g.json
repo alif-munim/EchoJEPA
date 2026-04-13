@@ -1,0 +1,31 @@
+{
+  "type": "classification",
+  "n": 115280,
+  "n_classes": 3,
+  "AUROC_macro": 0.619,
+  "accuracy": 0.5535,
+  "F1_macro": 0.4262,
+  "confusion_matrix": [
+    [
+      6631,
+      9375,
+      1623
+    ],
+    [
+      20954,
+      52325,
+      5545
+    ],
+    [
+      4941,
+      9037,
+      4849
+    ]
+  ],
+  "class_distribution": {
+    "0": 17629,
+    "1": 78824,
+    "2": 18827
+  },
+  "file": "uhn/trajectory_lvef-predavg-echojepa-g.csv"
+}

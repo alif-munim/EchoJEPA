@@ -1,0 +1,18 @@
+{
+  "file": "mimic/troponin_t-trainfeat-echojepa-g",
+  "best_head": 3,
+  "type": "regression",
+  "n_clips": 90060,
+  "n_studies": 1204,
+  "R2": 0.0273,
+  "R2_ci": [
+    0.0103,
+    0.0562
+  ],
+  "Pearson": 0.3298,
+  "Pearson_ci": [
+    0.2472,
+    0.4424
+  ],
+  "MAE": 0.3214
+}

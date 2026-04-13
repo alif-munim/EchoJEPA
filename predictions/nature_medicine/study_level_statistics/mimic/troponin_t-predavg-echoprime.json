@@ -1,0 +1,18 @@
+{
+  "file": "mimic/troponin_t-predavg-echoprime",
+  "best_head": 12,
+  "type": "regression",
+  "n_clips": 18008,
+  "n_studies": 240,
+  "R2": 0.0179,
+  "R2_ci": [
+    -0.0377,
+    0.0283
+  ],
+  "Pearson": 0.21,
+  "Pearson_ci": [
+    0.0457,
+    0.3429
+  ],
+  "MAE": 0.2777
+}
