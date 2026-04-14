@@ -1,0 +1,20 @@
+{
+  "task": "trajectory_tr_severity",
+  "output_task": "trajectory_tr_severity_tr_severity_onset",
+  "mode": "onset_binary",
+  "direction": "worsen",
+  "classes": {
+    "0": "stable",
+    "1": "worsened"
+  },
+  "allowed_views": [
+    "A4C",
+    "Subcostal",
+    "PLAX"
+  ],
+  "bmode_only": false,
+  "min_days": null,
+  "max_days": null,
+  "baseline_max": 2.0,
+  "future_above": 3.0
+}

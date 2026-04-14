@@ -40,6 +40,7 @@ TRAJECTORY_TASKS = [
     "trajectory_lv_mass",
     "trajectory_rv_sp",
     "trajectory_mr_severity",
+    "trajectory_tr_severity",
 ]
 
 # View filters for trajectory tasks (same as the base measurement).
@@ -50,6 +51,7 @@ TRAJECTORY_VIEW_FILTERS = {
     "trajectory_lv_mass": ["PLAX", "A4C", "A2C", "PSAX-AV", "PSAX-MV", "PSAX-PM", "PSAX-AP"],
     "trajectory_rv_sp": ["A4C", "Subcostal"],
     "trajectory_mr_severity": ["A4C", "A2C", "A3C", "PLAX"],
+    "trajectory_tr_severity": ["A4C", "Subcostal", "PLAX"],
 }
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

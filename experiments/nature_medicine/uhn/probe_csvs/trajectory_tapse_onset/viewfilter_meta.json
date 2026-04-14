@@ -1,0 +1,18 @@
+{
+  "task": "trajectory_tapse",
+  "output_task": "trajectory_tapse_tapse_onset",
+  "mode": "onset_binary",
+  "direction": "decline",
+  "classes": {
+    "0": "stable",
+    "1": "decline"
+  },
+  "allowed_views": [
+    "A4C"
+  ],
+  "bmode_only": false,
+  "min_days": null,
+  "max_days": null,
+  "baseline_min": 1.7,
+  "future_below": 1.7
+}

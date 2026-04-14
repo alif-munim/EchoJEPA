@@ -1,31 +1,17 @@
 #!/bin/bash
-#SBATCH --job-name=nmed-a4c
+#SBATCH --job-name=nmed-a4c-pe
 #SBATCH --partition=ml-p5-48xlarge
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=8
 #SBATCH --cpus-per-task=96
-#SBATCH --output=/tmp/nmed_a4c-%j.out
-#SBATCH --error=/tmp/nmed_a4c-%j.err
-#SBATCH --time=0-03:00:00
+#SBATCH --output=/tmp/nmed_a4c_pe-%j.out
+#SBATCH --error=/tmp/nmed_a4c_pe-%j.err
+#SBATCH --time=0-01:00:00
 #SBATCH --nodelist=ip-10-0-50-7
 
-# Nature Medicine: A4C-only single-view ablation (inference only)
-# Reuses existing multi-view probes, runs inference on A4C-only B-mode test clips.
-# Same probe, restricted input — isolates the view restriction effect.
-#
-# 3 tasks × 1 model (EchoJEPA-G) = 3 inference runs
-#   AS severity (4-class): ~45 min (154K clips × 1B params)
-#   MR severity (5-class): ~40 min (144K clips × 1B params)
-#   AoV Vmax (regression): ~30 min (105K clips × 1B params)
-#
-# Estimated total: ~2h
-#
-# Prerequisites:
-#   1. A4C-only view-filtered CSVs uploaded to S3
-#   2. Multi-view probe checkpoints uploaded to S3
-#   3. Deploy code: cd ~/EchoJEPA-repo && git pull && ~/deploy.sh
-#   4. Submit: sbatch scripts/nmed_a4c_ablation.sbatch
+# Nature Medicine: A4C-only single-view ablation -- PanEcho baselines only
+# Retry after tasks.pkl deployment fix.
 
 set -eo pipefail
 
@@ -41,8 +27,8 @@ export TORCH_HOME="/opt/dlami/nvme/torch_cache"
 rm -rf /dev/shm/* 2>/dev/null || true
 
 S3_BASE="s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts"
-LOCAL="/opt/dlami/nvme/nmed_a4c"
-OUT_DIR="/opt/dlami/nvme/nmed_a4c/output"
+LOCAL="/opt/dlami/nvme/nmed_a4c_pe"
+OUT_DIR="/opt/dlami/nvme/nmed_a4c_pe/output"
 S3_OUT="${S3_BASE}/nmed_a4c/results"
 
 log() { echo "[$(date +%H:%M:%S)] $*"; }
@@ -51,26 +37,27 @@ log() { echo "[$(date +%H:%M:%S)] $*"; }
 # Step 1: Download assets from S3
 # ============================================================
 log "=== Downloading assets from S3 ==="
-mkdir -p ${LOCAL}/{encoder,probes/as_severity,probes/mr_severity,probes/aov_vmax,csvs/as_severity_a4c,csvs/mr_severity_a4c,csvs/aov_vmax_a4c}
+mkdir -p ${LOCAL}/{probes/as_severity/panecho,probes/aov_vmax/panecho,csvs/as_severity_a4c,csvs/aov_vmax_a4c}
 
-# EchoJEPA-G encoder (~16.5GB)
-if [ ! -f "${LOCAL}/encoder/pt-280-an81.pt" ]; then
-    log "  Downloading G encoder..."
-    aws s3 cp "${S3_BASE}/checkpoints/anneal/keep/pt-280-an81.pt" "${LOCAL}/encoder/pt-280-an81.pt"
-fi
-
-# Existing multi-view probe checkpoints (reuse, not retrain)
-for TASK in as_severity mr_severity aov_vmax; do
-    DEST="${LOCAL}/probes/${TASK}/echojepa-g"
-    mkdir -p "$DEST"
+# Probe checkpoints
+for TASK in as_severity aov_vmax; do
+    DEST="${LOCAL}/probes/${TASK}/panecho"
     if [ ! -f "${DEST}/best.pt" ]; then
-        log "  Downloading probe: ${TASK}/echojepa-g"
-        aws s3 cp "${S3_BASE}/checkpoints/probes/${TASK}/echojepa-g/best.pt" "${DEST}/best.pt"
+        log "  Downloading probe: ${TASK}/panecho"
+        aws s3 cp "${S3_BASE}/checkpoints/probes/${TASK}/panecho/best.pt" "${DEST}/best.pt"
     fi
 done
 
-# A4C-only probe CSVs (test set + train for dummy reference)
-for TASK in as_severity_a4c mr_severity_a4c aov_vmax_a4c; do
+# PanEcho weights (torch.hub cache)
+PE_CACHE="${TORCH_HOME}/hub/checkpoints"
+mkdir -p "$PE_CACHE"
+if [ ! -f "${PE_CACHE}/panecho.pt" ]; then
+    log "  Downloading PanEcho weights to torch hub cache..."
+    aws s3 cp "${S3_BASE}/setup/panecho.pt" "${PE_CACHE}/panecho.pt"
+fi
+
+# A4C-only probe CSVs
+for TASK in as_severity_a4c aov_vmax_a4c; do
     for f in train_vf.csv test_vf.csv; do
         if [ ! -f "${LOCAL}/csvs/${TASK}/${f}" ]; then
             aws s3 cp "${S3_BASE}/nmed_a4c/probe_csvs/${TASK}/${f}" "${LOCAL}/csvs/${TASK}/${f}"
@@ -82,19 +69,19 @@ done
 log "=== All assets downloaded ==="
 
 # ============================================================
-# Step 2: Config generation (inference only)
+# Step 2: Config generation
 # ============================================================
-generate_config() {
-    local TASK_A4C="$1"      # e.g. as_severity_a4c
-    local TASK_BASE="$2"     # e.g. as_severity (for probe checkpoint)
+generate_config_panecho() {
+    local TASK_A4C="$1"
+    local TASK_BASE="$2"
     local TASK_TYPE="$3"
     local NUM_CLASSES="$4"
     local VAL_BS="$5"
 
-    local PROBE_CKPT="${LOCAL}/probes/${TASK_BASE}/echojepa-g/best.pt"
+    local PROBE_CKPT="${LOCAL}/probes/${TASK_BASE}/panecho/best.pt"
     local TRAIN_CSV="${LOCAL}/csvs/${TASK_A4C}/train_vf.csv"
     local TEST_CSV="${LOCAL}/csvs/${TASK_A4C}/test_vf.csv"
-    local OUTFILE="/opt/dlami/nvme/nmed_a4c_cfg_${TASK_A4C}.yaml"
+    local OUTFILE="/opt/dlami/nvme/nmed_a4c_pe_cfg_${TASK_A4C}_panecho.yaml"
 
     cat > "$OUTFILE" <<YAML
 app: vjepa
@@ -109,7 +96,7 @@ eval_name: video_classification_frozen
 val_only: true
 resume_checkpoint: true
 probe_checkpoint: ${PROBE_CKPT}
-tag: ${TASK_A4C}-predavg-echojepa-g
+tag: ${TASK_A4C}-predavg-panecho
 
 experiment:
   classifier:
@@ -129,6 +116,9 @@ experiment:
     num_segments: 2
     num_views_per_segment: 1
     study_sampling: true
+    normalization:
+      - [0.0, 0.0, 0.0]
+      - [1.0, 1.0, 1.0]
 
   optimization:
     batch_size: 2
@@ -137,7 +127,6 @@ experiment:
     use_bfloat16: true
     use_pos_embed: false
     multihead_kwargs:
-    # 12-head grid (4 LR x 3 WD) — must match training grid
     - {lr: 0.0005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.001, final_weight_decay: 0.001}
     - {lr: 0.0005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.01,  final_weight_decay: 0.01}
     - {lr: 0.0005, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
@@ -152,20 +141,10 @@ experiment:
     - {lr: 0.00001, start_lr: 0.0, warmup: 2.0, final_lr: 0.0, weight_decay: 0.1,   final_weight_decay: 0.1}
 
 model_kwargs:
-  checkpoint: ${LOCAL}/encoder/pt-280-an81.pt
-  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
-  pretrain_kwargs:
-    encoder:
-      checkpoint_key: target_encoder
-      img_temporal_dim_size: null
-      model_name: vit_giant_xformers
-      patch_size: 16
-      tubelet_size: 2
-      uniform_power: true
-      use_rope: true
-  wrapper_kwargs:
-    max_frames: 128
-    use_pos_embed: false
+  checkpoint: null
+  module_name: evals.video_classification_frozen.modelcustom.panecho_encoder
+  pretrain_kwargs: {}
+  wrapper_kwargs: {}
 YAML
     echo "$OUTFILE"
 }
@@ -182,13 +161,11 @@ run_single() {
     export MASTER_PORT="$PORT"
     local START=$(date +%s)
 
-    # Kill orphaned workers
     ps -eo pid,ppid,args | grep "multiprocessing.spawn" | grep -v grep | awk '$2 == 1 {print $1}' | xargs -r kill 2>/dev/null || true
     sleep 2
 
     log "[${TAG}] Starting on ${DEVICES} (port ${PORT})"
 
-    # Clear stale output dir
     local OUT_TAG_DIR="${OUT_DIR}/video_classification_frozen/${TAG##*:}"
     rm -rf "$OUT_TAG_DIR" 2>/dev/null || true
 
@@ -205,29 +182,23 @@ run_single() {
 }
 
 # ============================================================
-# Step 4: Run inference (existing probes, A4C-only test data)
+# Step 4: Run inference
 # ============================================================
 ALL_DEVICES="cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7"
 FAILURES=0
-TOTAL=3
+TOTAL=2
 
-log "=== A4C-only inference with existing multi-view probes ==="
+log "=== A4C-only inference: PanEcho baselines ==="
 
 # AS severity (4-class)
 AS_CLASSES=$(awk '{print $NF}' "${LOCAL}/csvs/as_severity_a4c/train_vf.csv" | sort -u | wc -l)
-log "AS severity: ${AS_CLASSES} classes"
-CFG=$(generate_config "as_severity_a4c" "as_severity" "classification" "${AS_CLASSES}" "128")
-run_single "$CFG" "predavg:as_severity_a4c-predavg-echojepa-g" "$ALL_DEVICES" "29500" || FAILURES=$((FAILURES + 1))
-
-# MR severity (5-class)
-MR_CLASSES=$(awk '{print $NF}' "${LOCAL}/csvs/mr_severity_a4c/train_vf.csv" | sort -u | wc -l)
-log "MR severity: ${MR_CLASSES} classes"
-CFG=$(generate_config "mr_severity_a4c" "mr_severity" "classification" "${MR_CLASSES}" "128")
-run_single "$CFG" "predavg:mr_severity_a4c-predavg-echojepa-g" "$ALL_DEVICES" "29500" || FAILURES=$((FAILURES + 1))
+log "AS severity (PanEcho): ${AS_CLASSES} classes"
+CFG=$(generate_config_panecho "as_severity_a4c" "as_severity" "classification" "${AS_CLASSES}" "128")
+run_single "$CFG" "predavg:as_severity_a4c-predavg-panecho" "$ALL_DEVICES" "29500" || FAILURES=$((FAILURES + 1))
 
 # AoV Vmax (regression)
-CFG=$(generate_config "aov_vmax_a4c" "aov_vmax" "regression" "1" "128")
-run_single "$CFG" "predavg:aov_vmax_a4c-predavg-echojepa-g" "$ALL_DEVICES" "29500" || FAILURES=$((FAILURES + 1))
+CFG=$(generate_config_panecho "aov_vmax_a4c" "aov_vmax" "regression" "1" "128")
+run_single "$CFG" "predavg:aov_vmax_a4c-predavg-panecho" "$ALL_DEVICES" "29500" || FAILURES=$((FAILURES + 1))
 
 log "=== Results: $((TOTAL - FAILURES))/${TOTAL} succeeded ==="
 
@@ -235,17 +206,17 @@ log "=== Results: $((TOTAL - FAILURES))/${TOTAL} succeeded ==="
 # Step 5: Upload results to S3
 # ============================================================
 log "=== Uploading results to S3 ==="
-for TASK in as_severity_a4c mr_severity_a4c aov_vmax_a4c; do
-    DIR="${OUT_DIR}/video_classification_frozen/${TASK}-predavg-echojepa-g"
+for TASK in as_severity_a4c aov_vmax_a4c; do
+    DIR="${OUT_DIR}/video_classification_frozen/${TASK}-predavg-panecho"
     if [ -d "$DIR" ]; then
-        aws s3 sync "$DIR" "${S3_OUT}/uhn/${TASK}-predavg-echojepa-g/"
-        log "  Uploaded: ${TASK}-predavg-echojepa-g"
+        aws s3 sync "$DIR" "${S3_OUT}/uhn/${TASK}-predavg-panecho/"
+        log "  Uploaded: ${TASK}-predavg-panecho"
     fi
 done
 
 # ============================================================
-# Step 6: Cleanup (prevent disk space issues on root fs)
+# Step 6: Cleanup
 # ============================================================
 log "=== Cleaning up ==="
-rm -rf "${LOCAL}/encoder" "${LOCAL}/probes" "${LOCAL}/csvs" "${LOCAL}/output" "${TORCH_HOME}" 2>/dev/null || true
+rm -rf "${LOCAL}" "${TORCH_HOME}" 2>/dev/null || true
 log "=== Job complete ==="
