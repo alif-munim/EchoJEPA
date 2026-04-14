@@ -81,5 +81,17 @@ if __name__ == "__main__":
     else:
         num_gpus = len(args.devices)
         mp.set_start_method("spawn")
+        children = []
         for rank in range(num_gpus):
-            mp.Process(target=process_main, args=(rank, args.fname, num_gpus, args.devices)).start()
+            p = mp.Process(target=process_main, args=(rank, args.fname, num_gpus, args.devices))
+            p.start()
+            children.append(p)
+        failed = 0
+        for p in children:
+            p.join()
+            if p.exitcode != 0:
+                print(f"[app.main] Worker pid={p.pid} exited with code {p.exitcode}", flush=True)
+                failed += 1
+        if failed:
+            print(f"[app.main] {failed}/{num_gpus} workers failed", flush=True)
+            raise SystemExit(1)
