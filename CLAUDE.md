@@ -16,7 +16,7 @@ The `claude/` directory contains persistent reference docs organized by topic. S
 
 - **`claude/architecture/`** — codebase internals: pretraining pipeline, probe system (attentive/linear/MLP), classifier pipeline
 - **`claude/data/`** — datasets and manuscript: `data/` directory layout, Nature Medicine scope, UHN database schemas, MIMIC-IV linkage
-- **`claude/dev/`** — development log: bug tracker (6 issues), changelog, code review findings, UHN extraction ops guide, `hyperpod-ops.md` (cluster provisioning, S3 code deployment, non-interactive SSM job submission, 15 troubleshooting issues). See `dev/README.md` for the bug index and planned fixes
+- **`claude/dev/`** — development log: bug tracker (6 issues), changelog, code review findings, UHN extraction ops guide, HyperPod ops (split across 4 files: `hyperpod-ops.md` hub with connectivity/SSM, `hyperpod-cluster-creation.md`, `hyperpod-deployment.md`, `hyperpod-troubleshooting.md` with 19 issues). See `dev/README.md` for the bug index and planned fixes
 - **`claude/nature_medicine/`** — inference tracking for prediction averaging: `inference-tracker.md` (primary 3-model G/EP/Pan NPZ inventory, 69 ready + 57 pending), `inference-tracker-additional.md` (supplementary models B/L-K/L, 59 NPZs). Copies synced to `uhn_echo/nature_medicine/context_files/dev/`
 - **`claude/preprint/`** — ICML preprint analysis: encoder fairness confounds, probe architecture mismatch (attentive vs linear inversion), claim validity assessment, hindsight recommendations for camera-ready. Full preprint LaTeX at `user-default-efs/vjepa2/claude/preprint/icml_preprint.tex`
 - **`claude/rebuttals/`** — ICML rebuttal (scores 2/3/3/4, all maintained post-rebuttal). See `rebuttals/README.md` for the full file index. Start with **`13-post-rebuttal-outcome.md`** for current status (10-20% acceptance, decision with AC). Key docs: `08-rebuttal-v2.md` (strategy & framing), `10-rebuttal-experiment-results.md` (consolidated results & key findings), `09-three-way-comparison-results.md` (JEPA/BYOL/MAE 50ep detail), `12-checkpoint-reference.md` (all checkpoint paths). **`experiments/frame-shuffling.md`** documents the 6-condition temporal ablation (dropped from ICML rebuttal, intended for NeurIPS). All rebuttal experiments feed Nature Medicine and NeurIPS resubmission
@@ -59,8 +59,8 @@ python -m app.main_distributed --fname configs/train/vitl16/pretrain-mimic-224px
 ### HyperPod (H100 clusters)
 ```bash
 # Active cluster: echojepa-h100-neurips (training plan: EchoJEPA-NeurIPS, Apr 12 – May 2)
-# Compute node: ip-10-0-50-241 (ml.p5.48xlarge, 8x H100 80GB)
-# Connect to controller via SSM (see claude/dev/hyperpod-ops.md for full details)
+# Compute node: ip-10-0-50-7 (ml.p5.48xlarge, 8x H100 80GB)
+# Connect to controller via SSM (see claude/dev/hyperpod-ops.md for connectivity details)
 CLUSTER=echojepa-h100-neurips
 CLUSTER_ID=n9we8xfqjv3p
 GROUP_PREFIX=echojepa-neurips
@@ -77,9 +77,9 @@ cd ~/EchoJEPA-repo && git pull   # get latest changes (requires GitHub SSH key)
 sbatch scripts/<job>.sbatch      # all sbatch scripts use /opt/vjepa2
 ```
 
-**IMPORTANT: Always deploy code before every `sbatch` submission.** Compute nodes are in a private subnet with no GitHub access. Two deployment workflows exist (see `claude/dev/hyperpod-ops.md`):
+**IMPORTANT: Always deploy code before every `sbatch` submission.** Compute nodes are in a private subnet with no GitHub access. Two deployment workflows exist (see `claude/dev/hyperpod-deployment.md`):
 1. **Git workflow** (if controller has GitHub SSH key): `cd ~/EchoJEPA-repo && git pull && ~/deploy.sh`
-2. **S3 tarball workflow** (current — no git SSH on echojepa-h100-neurips): Create tarball on SageMaker → upload to S3 → deploy via non-interactive SSM + srun. See "Code Deployment via S3" in hyperpod-ops.md.
+2. **S3 tarball workflow** (current — no git SSH on echojepa-h100-neurips): Create tarball on SageMaker → upload to S3 → deploy via non-interactive SSM + srun. See "Code Deployment via S3" in `claude/dev/hyperpod-deployment.md`.
 
 ### Non-Interactive SSM Commands (for Claude Code)
 

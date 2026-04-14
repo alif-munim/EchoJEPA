@@ -57,7 +57,10 @@ Development log: bug tracker, changelog, operational guides, and code review fin
 | `changelog.md` | Chronological record of code changes, bug fixes, extraction runs, config changes |
 | `code-review.md` | Full-repo review: 5 encoder adapters, extraction scripts, pooling, remapping, probe training, eval scaffold. Per-component verdict table |
 | `ops.md` | UHN 18M extraction operational guide: launch commands, DataLoader tuning (prefetch_factor, batch_size, num_workers), S3 bottleneck, crash recovery, timing reference, failure modes |
-| `hyperpod-ops.md` | SageMaker HyperPod cluster operations: cluster creation checklist, SSM connectivity (special target format), conda-pack deployment, lifecycle scripts, Slurm job submission, S3 bucket layout, 8 troubleshooting issues with fixes. Covers echojepa-h100-march setup (2026-03-26) |
+| `hyperpod-ops.md` | SageMaker HyperPod cluster operations hub: cluster inventory, SSM connectivity (special target format), management commands, non-interactive SSM remote execution. Cross-references 3 companion files below |
+| `hyperpod-cluster-creation.md` | Step-by-step cluster provisioning (7 steps): prerequisites, naming, S3 bucket, provisioning_parameters.json, create-cluster API, monitoring, post-provisioning setup, reusable config reference |
+| `hyperpod-deployment.md` | Code deployment (git + S3 tarball workflows), conda-pack, lifecycle scripts, S3 bucket layouts, job submission, monitoring running jobs, multi-node distributed training, BYOL-Video training status |
+| `hyperpod-troubleshooting.md` | 19 troubleshooting issues with fixes (2026-03 -- 2026-04): SSM connectivity, VPC endpoints, cuBLAS bf16 bug, provisioning_parameters.json mismatches, permission errors, scaling, tarball bloat, root filesystem full |
 | `bugs/001-shuffle-bug.md` | **CRITICAL**: DistributedSampler shuffle=True corrupts embedding-CSV alignment. Root cause, impact, post-hoc fix scripts, verification |
 | `bugs/002-normalization-bugs.md` | **HIGH**: PanEcho double norm, EchoPrime/EchoFM missing de-norm. 3 MIMIC models need re-extraction |
 | `bugs/003-echofm-padding.md` | Moderate: Last-frame repetition → linspace interleave. Fixed |
