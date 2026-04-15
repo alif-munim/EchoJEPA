@@ -6,6 +6,24 @@ Comprehensive record of all code changes, bug fixes, extraction runs, infrastruc
 
 ---
 
+## 2026-04-15
+
+### No-Study-Sampling Mortality Ablation — AUROC 0.858 (+3.1pp)
+
+**Job 135** (`nmed-m90d-noss`) on `echojepa-h100-neurips`. COMPLETED in 21h 5m (exit code 1 from script wrapper, but all outputs written successfully).
+
+**Background**: Strategy E with study sampling (1 random clip/study/epoch) underperformed CY's sklearn by 5.6pp on 90-day mortality (0.827 vs 0.883). Hypothesis: study sampling under-exposes the probe on MIMIC, where studies average ~70 clips. Disabling it trains on all 366K clips per epoch (18× more data per epoch) at the cost of longer training time.
+
+**Config**: EchoJEPA-G, 90-day mortality, 15 epochs, `study_sampling: false`, 366,156 train clips, 79,060 test clips, 12-head HP grid (4 LR × 3 WD), BS 2/GPU × 8 H100s. ~1h 23m/epoch (22,885 iterations), 20h 45m training + 18m pred avg.
+
+**Results**: AUROC **0.858** (head 10), AUPRC 0.336 (head 11), BalAcc 0.596 (head 6), Kappa 0.256 (head 6). +3.1pp over study sampling (0.827), closes ~55% of the gap to CY sklearn (0.883).
+
+**Outputs**: `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/nmed_mimic_noss/results/mortality_90d_noss-predavg-echojepa-g/` (study_predictions.csv, clip_outputs.npz, best.pt).
+
+**Sbatch**: `scripts/nmed_mimic_90d_noss.sbatch` (on controller at `/tmp/vjepa2-ctrl/scripts/`).
+
+---
+
 ## 2026-04-12
 
 ### Nature Medicine Predavg Infrastructure + First Job Submission

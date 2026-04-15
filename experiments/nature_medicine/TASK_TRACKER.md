@@ -209,6 +209,27 @@ Regression (R² / Pearson):
 
 **Key finding**: Strategy E d=1 attentive probes **underperform** CY's mean-pooled linear probes on MIMIC outcomes by 1-6pp. This is the opposite of the UHN pattern where attentive probes consistently beat linear probes. Possible causes: (1) smaller MIMIC datasets (126-1087 test studies), (2) 15-head HP grid may not cover optimal range, (3) study sampler gives limited exposure per epoch.
 
+### No-Study-Sampling Ablation (2026-04-15)
+
+**Hypothesis**: Study sampling (1 random clip/study/epoch) limits data exposure on MIMIC, where studies have ~70 clips on average. Disabling study sampling trains on all 366K clips per epoch (vs ~20K studies), giving the probe 18× more examples per epoch.
+
+**Config**: EchoJEPA-G, 90-day mortality, 15 epochs, 366,156 train clips (no study sampling), 79,060 test clips, 12-head HP grid (4 LR × 3 WD), BS 2 per GPU × 8 GPUs. Job 135 on `echojepa-h100-neurips`. Total runtime: 21h 5m (20h 45m training, 18m pred avg). Each epoch ~1h 23m (22,885 iterations).
+
+**Result**: **AUROC 0.858** (head 10), AUPRC 0.336 (head 11), BalAcc 0.596 (head 6), Kappa 0.256 (head 6).
+
+| Method | 90d Mortality AUROC |
+|--------|-------------------|
+| CY sklearn (manuscript) | **0.883** |
+| **Strategy E no-SS (this run)** | **0.858** |
+| Strategy E with SS | 0.827 |
+
+**Key finding**: Disabling study sampling improves 90d mortality AUROC by **+3.1pp** (0.827 → 0.858), closing ~55% of the gap to CY's sklearn result (0.883). This confirms that study sampling under-exposes the probe to MIMIC's large multi-clip studies, and that the Strategy E vs CY gap is partly a data exposure issue, not an architectural one.
+
+**Output**: `s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/nmed_mimic_noss/results/mortality_90d_noss-predavg-echojepa-g/`
+- `study_predictions.csv` (1,087 studies)
+- `clip_outputs.npz` (79,064 clips, 15 heads, features shape 79064×1408)
+- `best.pt` (probe checkpoint)
+
 **Notable observations (2026-03-27, chain complete):**
 - **G dominates mortality** by +4-12pp over EP/Pan. Strongest: in_hospital_mortality (G 0.861 vs Pan 0.737, +12.4pp)
 - **L-K is surprisingly competitive**: beats G on readmission_30d (0.626 vs 0.608), los_remaining (R²=0.052 vs 0.038), lactate (R²=0.032 vs 0.004). L-K nearly matches G on mortality_30d (0.878 vs 0.884). On 1yr/90d mortality, L-K (0.779/0.808) is second-best after G (0.792/0.827)
