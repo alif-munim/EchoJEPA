@@ -15,6 +15,34 @@ Previously `scripts/rebuttal/` (from the ICML rebuttal). Renamed April 2026; all
 | `salt` | SALT-S2v1-e79, SALT-S2v3-e79 | SALT variants |
 | `baselines` | EchoPrime, PanEcho | System-level baselines |
 
+## Pretrained Checkpoints
+
+All NeurIPS primary encoders use ImageNet-21K init, ViT-L (304M params), trained on MIMIC-IV-Echo (525K clips).
+
+**S3 (canonical):** `s3://echodata25/neurips/encoders/`
+
+| Model | S3 filename | EFS path | Size |
+|-------|-------------|----------|------|
+| JEPA IN21K e100 | `jepa_in21k_vitl_e100.pt` | `checkpoints/jepa_in21k_vitl_e95.pt` | 4.8 GB |
+| BYOL e100 | `byol_vitl_e100.pt` | `checkpoints/byol_vitl_imagenet_v2_e100.pt` | 2.3 GB |
+| MAE e99 | `mae_vitl_e99.pth` | `checkpoints/videomae_l_mimic_ep99.pth` | 3.6 GB |
+| SALT S2v1 e79 | `salt_s2_vitl_e79.pt` | `checkpoints/pretrain/mimic/salt_s2v1_e79.pt` | 3.7 GB |
+
+**GDrive:** `echo_foundation/nature_medicine/neurips/` (same checkpoints mirrored for collaborator access)
+
+**Baselines (not trained by us):**
+
+| Model | EFS path | Size |
+|-------|----------|------|
+| EchoPrime | `checkpoints/echo_prime_encoder.pt` | — |
+| PanEcho | `checkpoints/panecho.pt` | — |
+
+**Initialization checkpoint:** `checkpoints/vitl_in21k.pt` (ImageNet-21K supervised ViT-L, 2D, inflated to 3D at load time). Same init used for JEPA, BYOL, MAE, and SALT Stage 1.
+
+**Probes (EchoNet-Dynamic LVEF):** `s3://echodata25/neurips/probes/end_lvef_e100/{model}/best.pt`
+
+> **Warning:** Always use `s3://echodata25/neurips/` (CLEAN) encoder paths. The older `HYP/runs/` paths for JEPA reference a different training run (run 125 vs canonical run 376) and produce near-random predictions when paired with the canonical probes. See `claude/neurips/canonical-checkpoints.md` for md5 checksums.
+
 ## Frame Shuffling
 
 Core experiment. Randomly permute video frames before inference to measure temporal dependence.
