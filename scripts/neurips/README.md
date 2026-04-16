@@ -128,6 +128,98 @@ How much speckle noise does each model encode?
 | `run_rvsp_noise_grid.py` | RVSP evaluation across perturbation parameter sweep |
 | `run_rvsp_noise_grid.sh` | Shell wrapper |
 
+## Probe Training and Inference
+
+All probe training uses the `evals.main` entry point with YAML configs. Configs for the NeurIPS controlled comparison are in `configs/eval/vitl/neurips/`.
+
+### EchoNet-Dynamic LVEF (primary benchmark)
+
+Train a frozen attentive probe for LVEF regression. Probes are trained on the EchoNet-Dynamic training split (7,465 videos) and evaluated on the test split (1,277 videos). LVEF labels are z-score normalized at runtime (mean=55.78, std=12.41).
+
+```bash
+# JEPA e100 — d=4 attentive probe, 16-head HP grid
+python -m evals.main \
+    --fname configs/eval/vitl/neurips/echobyol_l_e100_end_lvef_d4.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+
+# Run all 4 models in parallel (one config per model):
+#   echojepa_l_e100_end_lvef_d4.yaml   (JEPA, not yet created — use enp as template)
+#   echobyol_l_e100_end_lvef_d4.yaml   (BYOL)
+#   echomae_l_e100_end_lvef_d4.yaml    (MAE — note: uses videomae module)
+#   salt_s2v1_echonet_lvef_d4.yaml     (SALT)
+```
+
+Key config fields:
+- `experiment.classifier.num_probe_blocks: 4` (d=4) or `1` (d=1)
+- `experiment.classifier.num_heads: 16` (HP grid size; best head selected by val loss)
+- `experiment.data.dataset_train/val`: paths to space-separated CSVs (`<s3_path> <raw_float_label>`)
+- `model_kwargs.checkpoint`: path to frozen encoder
+
+Output: `{folder}/best.pt` (probe checkpoint), `{folder}/log_r0.csv` (per-epoch metrics).
+
+### EchoNet-Pediatric (zero-shot transfer)
+
+No training needed — apply adult-trained probes to pediatric data. Uses d=1 attentive probes trained on EchoNet-Dynamic, evaluated on EchoNet-Pediatric (368 test videos).
+
+```bash
+# JEPA e100 → pediatric zero-shot
+python -m evals.main \
+    --fname configs/eval/vitl/neurips/echojepa_l_e100_enp_lvef_d1.yaml \
+    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+
+# Similarly for BYOL, MAE, SALT:
+#   echobyol_l_e100_enp_lvef_d1.yaml
+#   echomae_l_e99_enp_lvef_d1.yaml
+#   salt_s2v1_e79_enp_lvef_d1.yaml
+```
+
+These configs set `val_only: true` and load a pre-trained probe via `probe_checkpoint`. The probe was trained on adult EchoNet-Dynamic data and is evaluated directly on pediatric data without retraining.
+
+### CAMUS Segmentation
+
+CAMUS uses a separate segmentation pipeline (`evals/segmentation_frozen/`) with a UNetR-style linear decoder head on frozen encoder features. The dataset is loaded from NIfTI files via `evals/segmentation_frozen/camus_dataset.py`.
+
+```bash
+# Train segmentation decoder (single GPU, ~1 hour per model)
+python evals/segmentation_frozen/train.py \
+    --encoder_type vjepa \
+    --encoder_checkpoint checkpoints/jepa_in21k_vitl_e95.pt \
+    --encoder_model_name vit_large \
+    --lr 5e-2 --weight_decay 1e-4 \
+    --epochs 100 --batch_size 4 \
+    --output_dir results/segmentation/echojepa_l_e100/ \
+    --device cuda:0
+
+# Evaluate (reports per-structure Dice: LV, MYO, LA)
+python evals/segmentation_frozen/eval.py \
+    --encoder_type vjepa \
+    --encoder_checkpoint checkpoints/jepa_in21k_vitl_e95.pt \
+    --encoder_model_name vit_large \
+    --decoder_checkpoint results/segmentation/echojepa_l_e100/lr5e-02_wd1e-04/best_decoder.pt \
+    --device cuda:0
+
+# Frame shuffling on CAMUS (uses the trained decoder)
+python scripts/neurips/frame_shuffle_segmentation.py \
+    --encoder_type vjepa \
+    --encoder_checkpoint checkpoints/jepa_in21k_vitl_e95.pt \
+    --encoder_model_name vit_large \
+    --decoder_checkpoint results/segmentation/echojepa_l_e100/lr5e-02_wd1e-04/best_decoder.pt \
+    --device cuda:0 --label echojepa_l_e100
+
+# Noised segmentation (perturbation robustness)
+python scripts/neurips/noised_segmentation.py \
+    --encoder_type vjepa \
+    --encoder_checkpoint checkpoints/jepa_in21k_vitl_e95.pt \
+    --encoder_model_name vit_large \
+    --decoder_checkpoint results/segmentation/echojepa_l_e100/lr5e-02_wd1e-04/best_decoder.pt \
+    --device cuda:0 --label echojepa_l_e100
+```
+
+For VideoMAE, use `--encoder_type videomae` (no `--encoder_model_name` or `--encoder_key` needed). For BYOL, use `--encoder_type byol`. See the docstrings in each script for full examples with all four models.
+
+CAMUS data is expected at `data/camus/CAMUS_public/` (unzip `camus.zip` from GDrive).
+
+
 ## Perturbation Module API
 
 ```python
