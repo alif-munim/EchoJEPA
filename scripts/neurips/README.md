@@ -4,44 +4,30 @@ Scripts for the NeurIPS 2026 paper: *"The Temporal Shortcut in Self-Supervised V
 
 Previously `scripts/rebuttal/` (from the ICML rebuttal). Renamed April 2026; all internal references updated.
 
-## Model Registry
+## Checkpoints
 
-**`model_registry.py`** — Central registry of all checkpoints used across experiments. Select models by name or group:
+**`model_registry.py`** — Central registry of all checkpoint paths and model configs. Scripts use `--model` or `--group` to select models.
 
-| Group | Models | Use |
-|-------|--------|-----|
-| `e100` | JEPA-IN21K-e100, BYOL-e100, MAE-e99, SALT-S2v1-e79 | NeurIPS primary (init-matched) |
-| `pt50` | JEPA-L-pt50, BYOL-L-pt50, MAE-L-pt50 | ICML rebuttal (50-epoch) |
-| `salt` | SALT-S2v1-e79, SALT-S2v3-e79 | SALT variants |
-| `baselines` | EchoPrime, PanEcho | System-level baselines |
+All four models use the same ViT-L (304M params), ImageNet-21K init, trained on MIMIC-IV-Echo (525K clips). Checkpoints at e25/e50/e75/e100 are used for training dynamics analysis.
 
-## Pretrained Checkpoints
+**GDrive (primary):** `echo_foundation/nature_medicine/neurips/`
 
-All NeurIPS primary encoders use ImageNet-21K init, ViT-L (304M params), trained on MIMIC-IV-Echo (525K clips).
+| Model | Checkpoints | GDrive path |
+|-------|------------|-------------|
+| **JEPA** | e25, e50, e75, e100 | `neurips/encoders/jepa_in21k_vitl_e{25,50,75,100}.pt` |
+| **BYOL** | e24, e50, e75, e100 | `neurips/encoders/byol_vitl_e{24,50,75,100}.pt` |
+| **MAE** | e24, e50, e74, e99 | `neurips/encoders/mae_vitl_e{24,50,74,99}.pth` |
+| **SALT** | e29, e49, e79 | `neurips/encoders/salt_s2_vitl_e{29,49,79}.pt` |
 
-**S3 (canonical):** `s3://echodata25/neurips/encoders/`
+**S3 mirror:** `s3://echodata25/neurips/encoders/` (same files)
 
-| Model | S3 filename | EFS path | Size |
-|-------|-------------|----------|------|
-| JEPA IN21K e100 | `jepa_in21k_vitl_e100.pt` | `checkpoints/jepa_in21k_vitl_e95.pt` | 4.8 GB |
-| BYOL e100 | `byol_vitl_e100.pt` | `checkpoints/byol_vitl_imagenet_v2_e100.pt` | 2.3 GB |
-| MAE e99 | `mae_vitl_e99.pth` | `checkpoints/videomae_l_mimic_ep99.pth` | 3.6 GB |
-| SALT S2v1 e79 | `salt_s2_vitl_e79.pt` | `checkpoints/pretrain/mimic/salt_s2v1_e79.pt` | 3.7 GB |
+**Baselines:** EchoPrime (`checkpoints/echo_prime_encoder.pt`), PanEcho (`checkpoints/panecho.pt`)
 
-**GDrive:** `echo_foundation/nature_medicine/neurips/` (same checkpoints mirrored for collaborator access)
+**Init:** `checkpoints/vitl_in21k.pt` (ImageNet-21K supervised ViT-L, 2D, inflated to 3D at load). Same init for all four models (SALT uses it for Stage 1).
 
-**Baselines (not trained by us):**
+**Probes:** `s3://echodata25/neurips/probes/end_lvef_e100/{model}/best.pt`
 
-| Model | EFS path | Size |
-|-------|----------|------|
-| EchoPrime | `checkpoints/echo_prime_encoder.pt` | — |
-| PanEcho | `checkpoints/panecho.pt` | — |
-
-**Initialization checkpoint:** `checkpoints/vitl_in21k.pt` (ImageNet-21K supervised ViT-L, 2D, inflated to 3D at load time). Same init used for JEPA, BYOL, MAE, and SALT Stage 1.
-
-**Probes (EchoNet-Dynamic LVEF):** `s3://echodata25/neurips/probes/end_lvef_e100/{model}/best.pt`
-
-> **Warning:** Always use `s3://echodata25/neurips/` (CLEAN) encoder paths. The older `HYP/runs/` paths for JEPA reference a different training run (run 125 vs canonical run 376) and produce near-random predictions when paired with the canonical probes. See `claude/neurips/canonical-checkpoints.md` for md5 checksums.
+> **Warning:** For JEPA, always use the canonical run 376 encoder (`jepa_in21k_vitl_e100.pt`). The older run 125 encoder has a different md5 and produces near-random predictions with the canonical probes. See `claude/neurips/canonical-checkpoints.md`.
 
 ## Frame Shuffling
 
