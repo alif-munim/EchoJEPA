@@ -28,6 +28,20 @@ All four models use the same ViT-L (304M params), ImageNet-21K init, trained on 
 
 **Probes:** `s3://echodata25/neurips/probes/end_lvef_e100/{model}/best.pt`
 
+## Datasets
+
+**GDrive:** `echo_foundation/nature_medicine/neurips/datasets/`
+
+| Dataset | File | Size | Use |
+|---------|------|------|-----|
+| EchoNet-Dynamic | `echonet_data.zip` | 6.6 GB | LVEF regression (1,277 test), primary benchmark |
+| EchoNet-Pediatric | `echonet_pediatric.tar.gz` | 2.1 GB | Zero-shot pediatric transfer (368 test) |
+| CAMUS | `camus.zip` | 3.6 GB | Cardiac segmentation (50 test patients), ranking inversion |
+
+**EFS:** `data/camus/CAMUS_public/` (unzipped), `data/EchoNet-Dynamic/`, `data/echonetpediatric/`
+
+**S3:** `s3://echodata25/neurips/datasets/` (same files mirrored)
+
 > **Warning:** For JEPA, always use the canonical run 376 encoder (`jepa_in21k_vitl_e100.pt`). The older run 125 encoder has a different md5 and produces near-random predictions with the canonical probes. See `claude/neurips/canonical-checkpoints.md`.
 
 ## Frame Shuffling
