@@ -67,35 +67,35 @@ echo "[INFO] e29 probe: $(ls ${REPO_DIR}/evals/vitl/neurips/salt_s2v1_e29_echone
 # ---------------------------------------------------------------
 echo ""
 echo "[INFO] $(date) === Severity Gradient: SALT-S2-e4 (cuda:0) ==="
-${PYTHON} scripts/rebuttal/frame_shuffle_severity.py \
+${PYTHON} scripts/neurips/frame_shuffle_severity.py \
     --test_csv "${TEST_CSV}" \
     --models SALT-S2-e4 \
     --device cuda:0 \
-    --output scripts/rebuttal/samples/severity_SALT_S2_e4.csv &
+    --output scripts/neurips/samples/severity_SALT_S2_e4.csv &
 PID1=$!
 
 echo "[INFO] $(date) === Severity Gradient: SALT-S2-e29 (cuda:1) ==="
-${PYTHON} scripts/rebuttal/frame_shuffle_severity.py \
+${PYTHON} scripts/neurips/frame_shuffle_severity.py \
     --test_csv "${TEST_CSV}" \
     --models SALT-S2-e29 \
     --device cuda:1 \
-    --output scripts/rebuttal/samples/severity_SALT_S2_e29.csv &
+    --output scripts/neurips/samples/severity_SALT_S2_e29.csv &
 PID2=$!
 
 echo "[INFO] $(date) === 6-Condition: SALT-S2-e4 (cuda:2) ==="
-${PYTHON} scripts/rebuttal/frame_shuffle_6cond.py \
+${PYTHON} scripts/neurips/frame_shuffle_6cond.py \
     --test_csv "${TEST_CSV}" \
     --models SALT-S2-e4 \
     --device cuda:2 \
-    --output scripts/rebuttal/samples/6cond_SALT_S2_e4.csv &
+    --output scripts/neurips/samples/6cond_SALT_S2_e4.csv &
 PID3=$!
 
 echo "[INFO] $(date) === 6-Condition: SALT-S2-e29 (cuda:3) ==="
-${PYTHON} scripts/rebuttal/frame_shuffle_6cond.py \
+${PYTHON} scripts/neurips/frame_shuffle_6cond.py \
     --test_csv "${TEST_CSV}" \
     --models SALT-S2-e29 \
     --device cuda:3 \
-    --output scripts/rebuttal/samples/6cond_SALT_S2_e29.csv &
+    --output scripts/neurips/samples/6cond_SALT_S2_e29.csv &
 PID4=$!
 
 echo "[INFO] Waiting for all 4 parallel runs..."
@@ -106,4 +106,4 @@ wait $PID4 && echo "[INFO] $(date) 6-condition e29 DONE" || echo "[WARN] 6-condi
 
 echo ""
 echo "[INFO] $(date) === All Node 83 jobs complete ==="
-ls -la scripts/rebuttal/samples/*SALT_S2_e4* scripts/rebuttal/samples/*SALT_S2_e29* 2>/dev/null
+ls -la scripts/neurips/samples/*SALT_S2_e4* scripts/neurips/samples/*SALT_S2_e29* 2>/dev/null

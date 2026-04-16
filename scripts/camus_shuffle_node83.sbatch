@@ -132,7 +132,7 @@ echo "[$(date)] Launching frame shuffling for 3 models in parallel..."
 
 # JEPA on cuda:0
 echo "[$(date)] Starting JEPA IN21K e100..."
-${PYTHON} scripts/rebuttal/frame_shuffle_segmentation.py \
+${PYTHON} scripts/neurips/frame_shuffle_segmentation.py \
     --encoder_type vjepa \
     --encoder_checkpoint "${JEPA_CKPT}" \
     --encoder_model_name vit_large \
@@ -144,7 +144,7 @@ PID_JEPA=$!
 
 # BYOL on cuda:1
 echo "[$(date)] Starting BYOL e100..."
-${PYTHON} scripts/rebuttal/frame_shuffle_segmentation.py \
+${PYTHON} scripts/neurips/frame_shuffle_segmentation.py \
     --encoder_type vjepa \
     --encoder_checkpoint "${BYOL_CKPT}" \
     --encoder_model_name vit_large \
@@ -156,7 +156,7 @@ PID_BYOL=$!
 
 # MAE on cuda:2
 echo "[$(date)] Starting MAE e99..."
-${PYTHON} scripts/rebuttal/frame_shuffle_segmentation.py \
+${PYTHON} scripts/neurips/frame_shuffle_segmentation.py \
     --encoder_type videomae \
     --encoder_checkpoint "${MAE_CKPT}" \
     --decoder_checkpoint "${MAE_DEC}" \
@@ -182,7 +182,7 @@ echo "[$(date)] MAE complete (exit=$?)"
 # ============================================================
 echo ""
 echo "[$(date)] === CAMUS Frame Shuffling Results ==="
-SAMPLES="${REPO_DIR}/scripts/rebuttal/samples"
+SAMPLES="${REPO_DIR}/scripts/neurips/samples"
 
 for f in jepa_in21k_e100 byol_e100 mae_e99; do
     CSV="${SAMPLES}/${f}_frame_shuffle_segmentation.csv"

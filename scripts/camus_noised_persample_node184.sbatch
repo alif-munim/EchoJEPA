@@ -15,7 +15,7 @@ set -uo pipefail
 REPO_DIR="/opt/vjepa2"
 PYTHON="/opt/vjepa2-312/bin/python3"
 SCRATCH="/opt/dlami/nvme"
-SCRIPT="scripts/rebuttal/noised_segmentation_persample.py"
+SCRIPT="scripts/neurips/noised_segmentation_persample.py"
 
 cd "${REPO_DIR}"
 ${PYTHON} -m pip install nibabel 2>&1 | tail -1
@@ -30,6 +30,6 @@ ${PYTHON} ${SCRIPT} --encoder_type vjepa --encoder_checkpoint "${SALT_CKPT}" \
 
 echo "[$(date)] Uploading..."
 S3="s3://echodata25/neurips/results/camus_frame_shuffle"
-CSV="scripts/rebuttal/samples/salt_s2v1_e79_noised_seg_persample.csv"
+CSV="scripts/neurips/samples/salt_s2v1_e79_noised_seg_persample.csv"
 [ -f "${CSV}" ] && aws s3 cp "${CSV}" "${S3}/salt_s2v1_e79_noised_seg_persample.csv"
 echo "[$(date)] Done."

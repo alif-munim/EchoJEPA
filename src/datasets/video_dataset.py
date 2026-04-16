@@ -52,7 +52,7 @@ class _PerturbationFn:
 
     def __call__(self, clip, video_path):
         import hashlib
-        from scripts.rebuttal.echo_perturbations import apply_perturbation, create_scan_mask
+        from scripts.neurips.echo_perturbations import apply_perturbation, create_scan_mask
         seed = int(hashlib.md5(str(video_path).encode()).hexdigest()[:8], 16)
         mask = create_scan_mask(clip[:, 0, :, :])
         return apply_perturbation(clip, self.ptype, self.severity, scan_mask=mask,

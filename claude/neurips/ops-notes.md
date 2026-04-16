@@ -22,7 +22,7 @@ Lessons learned from running experiments on A100 (SageMaker) and HyperPod H100 c
 
 ## Frame shuffling severity script
 
-- The script `scripts/rebuttal/frame_shuffle_severity.py` has hardcoded model configs in `PT50_END_CONFIGS` and `ALL_CONFIGS` dicts. When adding new models, update both dicts.
+- The script `scripts/neurips/frame_shuffle_severity.py` has hardcoded model configs in `PT50_END_CONFIGS` and `ALL_CONFIGS` dicts. When adding new models, update both dicts.
 - Use `--models MODEL_NAME` to run a single model per GPU. Do NOT use `--all` in a single process — it runs models sequentially on one GPU.
 - For parallel runs, launch one process per model per GPU with separate output files.
 

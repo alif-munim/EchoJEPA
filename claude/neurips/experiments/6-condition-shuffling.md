@@ -1,7 +1,7 @@
 # 6-Condition Frame Shuffling — Training Dynamics
 
 **Date:** 2026-04-06
-**Script:** `scripts/rebuttal/frame_shuffle_6cond.py`
+**Script:** `scripts/neurips/frame_shuffle_6cond.py`
 **Dataset:** EchoNet-Dynamic test (1,277 videos)
 **Protocol:** 6 temporal disruption conditions with increasing severity. Stochastic conditions use 3 seeds (100, 101, 102). No RoPE remapping for matched/matched_frame (standalone script limitation — see note below).
 
@@ -200,22 +200,22 @@ This is the *teacher dynamics* component of the §4.5 SALT discussion: JEPA's ad
 
 | Model | CSV Path |
 |-------|----------|
-| JEPA IN21K e25 | `scripts/rebuttal/samples/6cond_JEPA_IN21K_e25.csv` |
-| JEPA IN21K e50 | `scripts/rebuttal/samples/6cond_JEPA_IN21K_e50.csv` |
-| JEPA IN21K e75 | `scripts/rebuttal/samples/6cond_JEPA_IN21K_e75.csv` |
-| JEPA IN21K e100 | `scripts/rebuttal/samples/6cond_JEPA_IN21K_e100.csv` |
-| BYOL e24 | `scripts/rebuttal/samples/6cond_BYOL_e24.csv` |
-| BYOL e50 | `scripts/rebuttal/samples/6cond_BYOL_e50.csv` |
-| BYOL e75 | `scripts/rebuttal/samples/6cond_BYOL_e75.csv` |
-| BYOL e100 | `scripts/rebuttal/samples/6cond_BYOL_e100.csv` |
-| MAE e24 | `scripts/rebuttal/samples/6cond_MAE_e24.csv` |
-| MAE e50 | `scripts/rebuttal/samples/6cond_MAE_e50.csv` |
-| MAE e74 | `scripts/rebuttal/samples/6cond_MAE_e74.csv` |
-| MAE e99 | `scripts/rebuttal/samples/6cond_MAE_e99.csv` |
-| SALT S2 e4 | `scripts/rebuttal/samples/6cond_SALT_S2_e4.csv` |
-| SALT S2 e29 | `scripts/rebuttal/samples/6cond_SALT_S2_e29.csv` |
-| SALT S2 e54 | `scripts/rebuttal/samples/6cond_SALT_S2_e54.csv` |
-| SALT S2 e79 | `scripts/rebuttal/samples/6cond_SALT_S2_e79.csv` |
+| JEPA IN21K e25 | `scripts/neurips/samples/6cond_JEPA_IN21K_e25.csv` |
+| JEPA IN21K e50 | `scripts/neurips/samples/6cond_JEPA_IN21K_e50.csv` |
+| JEPA IN21K e75 | `scripts/neurips/samples/6cond_JEPA_IN21K_e75.csv` |
+| JEPA IN21K e100 | `scripts/neurips/samples/6cond_JEPA_IN21K_e100.csv` |
+| BYOL e24 | `scripts/neurips/samples/6cond_BYOL_e24.csv` |
+| BYOL e50 | `scripts/neurips/samples/6cond_BYOL_e50.csv` |
+| BYOL e75 | `scripts/neurips/samples/6cond_BYOL_e75.csv` |
+| BYOL e100 | `scripts/neurips/samples/6cond_BYOL_e100.csv` |
+| MAE e24 | `scripts/neurips/samples/6cond_MAE_e24.csv` |
+| MAE e50 | `scripts/neurips/samples/6cond_MAE_e50.csv` |
+| MAE e74 | `scripts/neurips/samples/6cond_MAE_e74.csv` |
+| MAE e99 | `scripts/neurips/samples/6cond_MAE_e99.csv` |
+| SALT S2 e4 | `scripts/neurips/samples/6cond_SALT_S2_e4.csv` |
+| SALT S2 e29 | `scripts/neurips/samples/6cond_SALT_S2_e29.csv` |
+| SALT S2 e54 | `scripts/neurips/samples/6cond_SALT_S2_e54.csv` |
+| SALT S2 e79 | `scripts/neurips/samples/6cond_SALT_S2_e79.csv` |
 
 ## For NeurIPS
 

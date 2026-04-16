@@ -110,7 +110,7 @@ The initial hypothesis was backwards. The correct framing:
 
 ## Log Files
 
-All logs are at `scripts/rebuttal/samples/`:
+All logs are at `scripts/neurips/samples/`:
 
 | Log File | Model | Condition |
 |----------|-------|-----------|
@@ -144,13 +144,13 @@ All logs are at `scripts/rebuttal/samples/`:
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/rebuttal/frame_shuffle_task.py` | Standalone task-level evaluation (single center clip, no prediction averaging). Used for initial exploration. |
+| `scripts/neurips/frame_shuffle_task.py` | Standalone task-level evaluation (single center clip, no prediction averaging). Used for initial exploration. |
 | `src/datasets/video_dataset.py:375-412` | Temporal ablation implementation in VideoDataset (used by `evals.main` pipeline). |
-| `scripts/rebuttal/frame_shuffling.py` | Representation-level cosine similarity analysis (too insensitive — see below). |
+| `scripts/neurips/frame_shuffling.py` | Representation-level cosine similarity analysis (too insensitive — see below). |
 
 ## Representation-Level Results (Supplementary)
 
-Cosine similarity between mean-pooled features of original vs shuffled clips. Run on 200 EchoNet-Dynamic videos via `scripts/rebuttal/frame_shuffling.py`. These proved **too insensitive** for meaningful conclusions — all models show >0.93 cosine similarity even under full shuffle, because mean-pooling washes out temporal structure.
+Cosine similarity between mean-pooled features of original vs shuffled clips. Run on 200 EchoNet-Dynamic videos via `scripts/neurips/frame_shuffling.py`. These proved **too insensitive** for meaningful conclusions — all models show >0.93 cosine similarity even under full shuffle, because mean-pooling washes out temporal structure.
 
 | Model | cos(orig, shuffled) | Degradation |
 |-------|-------------------|-------------|

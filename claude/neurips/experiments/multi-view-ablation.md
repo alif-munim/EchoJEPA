@@ -66,5 +66,5 @@ The multi-view probing framework (factorized stream embeddings, early fusion, vi
 ## References
 
 **Source:** `claude/rebuttals/10-rebuttal-experiment-results.md` §6b, §6c
-**Scripts:** `scripts/rebuttal/run_rvsp_noise_grid.py`
+**Scripts:** `scripts/neurips/run_rvsp_noise_grid.py`
 **Predictions:** `predictions/icml-echojepa-l-pt50-rvsp-{a4c,psax}-test.csv`

@@ -236,7 +236,7 @@ Total MIMIC: ~6 hours wall-clock if 4 probes truly parallelize, ~12 hours if the
 
 ### Phase 2: Supplementary evaluations (~4 hours)
 
-- **CAMUS SALT segmentation decoder** (1 probe, ~2 hours) — clone `scripts/rebuttal/noised_segmentation.py` or the existing CAMUS training script, swap encoder to SALT v1 e79
+- **CAMUS SALT segmentation decoder** (1 probe, ~2 hours) — clone `scripts/neurips/noised_segmentation.py` or the existing CAMUS training script, swap encoder to SALT v1 e79
 - **Pediatric zero-shot SALT inference** (~30 min) — reuse SALT UHN LVEF probe; just run pred-avg inference on `echonet_pediatric_test_*.csv`
 - **UHN LVEF 4-way probes** (4 probes, ~4 hours) — clone `configs/eval/vitl/icml/echojepa_l_pt50_lvef_d4.yaml` and swap encoders for init-matched comparison
 

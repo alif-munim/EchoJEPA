@@ -45,7 +45,7 @@ Once S2 checkpoint exists, run the same evaluation as the existing 3-way:
 |------|----------------|------|-------------|---------------|
 | LVEF (UHN, 10K/53K) | `echojepa_l_pt50_lvef_d4.yaml` (adapt) | `lvef_train_10k.csv` | 20 | ~4 hours |
 | RVSP (UHN, 41K/5K, multi-view) | `echojepa_l_pt50_rvsp_d4_full.yaml` (adapt) | `rvsp_{train,val,test}_{a4c,psax}.csv` | 20 | ~8 hours |
-| CAMUS segmentation | `scripts/rebuttal/camus_frozen_*` (adapt) | CAMUS | 50 | ~4 hours |
+| CAMUS segmentation | `scripts/neurips/camus_frozen_*` (adapt) | CAMUS | 50 | ~4 hours |
 | EchoNet-Dynamic LVEF | `echojepa_l_pt50_end_lvef_d4.yaml` (adapt) | `echonet_dynamic_{train,val,test}_*.csv` | 20 | ~4 hours |
 | Pediatric zero-shot | No training — run UHN probe on pediatric test | `echonet_pediatric_test_*.csv` | 0 | ~30 min |
 
@@ -56,7 +56,7 @@ Once S2 checkpoint exists, run the same evaluation as the existing 3-way:
 Run the same perturbation matrix as existing models:
 - 3 perturbation types (depth attenuation, acoustic shadow, haze) × 3 severity levels
 - On EchoNet-Dynamic LVEF (1,277 test) and CAMUS segmentation (50 test patients)
-- Script: `scripts/rebuttal/noised_inference.py` (adapt for SALT encoder)
+- Script: `scripts/neurips/noised_inference.py` (adapt for SALT encoder)
 - Compute: ~4 hours
 
 ### SALT Frame Shuffling (6 Conditions)
@@ -69,7 +69,7 @@ Run the same temporal ablation as existing models:
 
 ### SALT Speckle Probing
 
-Run `scripts/rebuttal/information_probing.py` on SALT encoder embeddings:
+Run `scripts/neurips/information_probing.py` on SALT encoder embeddings:
 - Extract mean-pooled features from 2,554 EchoNet-Dynamic clips
 - Train linear probes for speckle energy, mean intensity, texture variance
 - Compute partial R² controlling for intensity
@@ -106,7 +106,7 @@ These experiments extend the existing 6-condition frame shuffling results (see `
 
 **Output:** Degradation curves (R² vs shuffle percentage) per model — a clean additional figure for NeurIPS §4.
 
-**Implementation:** Modify `src/datasets/video_dataset.py` temporal ablation to accept a `shuffle_fraction` parameter. Or create a new script extending `scripts/rebuttal/frame_shuffle_task.py`. Use the `evals.main` pipeline for prediction averaging consistency.
+**Implementation:** Modify `src/datasets/video_dataset.py` temporal ablation to accept a `shuffle_fraction` parameter. Or create a new script extending `scripts/neurips/frame_shuffle_task.py`. Use the `evals.main` pipeline for prediction averaging consistency.
 
 **Compute:** ~3 hours (5 severity levels × 3 models × 3 seeds each, reusing existing probes)
 **Depends on:** Existing END LVEF probes (already trained)
@@ -124,7 +124,7 @@ These experiments extend the existing 6-condition frame shuffling results (see `
 
 **If the prediction fails** (some model degrades substantially on segmentation under shuffling): that would mean temporal context aids even spatial tasks, which is interesting but complicates the clean story. Still publishable as a nuance.
 
-**Implementation:** Adapt `scripts/rebuttal/noised_segmentation.py` to apply frame shuffling instead of noise perturbations. Needs the `matched_frame` shuffle type from `src/datasets/video_dataset.py`.
+**Implementation:** Adapt `scripts/neurips/noised_segmentation.py` to apply frame shuffling instead of noise perturbations. Needs the `matched_frame` shuffle type from `src/datasets/video_dataset.py`.
 
 **Compute:** ~1 hour (3 models × 1 condition × 50 test patients)
 **Depends on:** Existing CAMUS segmentation decoders (already trained)

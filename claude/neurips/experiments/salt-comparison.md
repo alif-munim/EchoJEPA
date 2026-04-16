@@ -13,7 +13,7 @@
 - **Encoder:** `checkpoints/salt_s2_vitl_e79.pt` (local) / `HYP/runs/salt_s2_pretrain_388/checkpoints/e79.pt` (S3)
 - **END LVEF probe:** `evals/vitl/icml/salt_s2_e79_end_lvef_224/video_classification_frozen/icml-salt-s2-e79-end-lvef-d4/best.pt`
 - **Pred-avg inference config:** `configs/eval/vitl/icml/salt_s2_e79_end_lvef_d4_predavg.yaml`
-- **Registered as:** `SALT-S2-e79` in `scripts/rebuttal/frame_shuffle_severity.ALL_CONFIGS`
+- **Registered as:** `SALT-S2-e79` in `scripts/neurips/frame_shuffle_severity.ALL_CONFIGS`
 - **Best test numbers:** R²=0.414, MAE=6.66, Pearson=0.659 on EchoNet-Dynamic (1,277 videos)
 
 **For any new SALT experiment** (UHN LVEF, RVSP, CAMUS segmentation, Pediatric zero-shot, EchoBench, frame shuffling, speckle probing, etc.): clone the JEPA-IN21K-e100 config and swap the encoder checkpoint to `salt_s2_vitl_e79.pt`. Do **not** re-run v3 or v1 e199 on new tasks — one variant for the main table keeps the story clean. v3 and e199 remain as appendix robustness lines on END LVEF only.
@@ -124,7 +124,7 @@ This is one sentence in the appendix.
 
 **Does SALT inherit MAE's low effective dimensionality from its frozen pixel-reconstruction teacher?**
 
-**Answer: No.** RankMe (spectral entropy) on 500 EchoNet-Dynamic test videos, same script (`scripts/rebuttal/rankme.py`), same GPU:
+**Answer: No.** RankMe (spectral entropy) on 500 EchoNet-Dynamic test videos, same script (`scripts/neurips/rankme.py`), same GPU:
 
 | Model | RankMe Eff Dim | Usage |
 |-------|---------------|-------|
@@ -216,16 +216,16 @@ All probes are 6-head HP grid (LR × WD), 20 training epochs, same d=4 attentive
 
 ### Frame-shuffling and representation-analysis result CSVs
 
-All result CSVs live in `scripts/rebuttal/samples/` (gitignored by `*.csv` rule — not tracked in git; raw data lives on EFS only, interpretation in markdown is what gets versioned). Always recomputable from the checkpoints + configs above if needed.
+All result CSVs live in `scripts/neurips/samples/` (gitignored by `*.csv` rule — not tracked in git; raw data lives on EFS only, interpretation in markdown is what gets versioned). Always recomputable from the checkpoints + configs above if needed.
 
 | Script | CSV output | Log | Status | Notes |
 |---|---|---|---|---|
-| `scripts/rebuttal/frame_shuffle_severity.py` (registered as `SALT-S2-e79` in `ALL_CONFIGS`) | `scripts/rebuttal/samples/severity_SALT_e79.csv` | `severity_SALT_e79.log`, `severity_SALT_e79.json` | Complete (2026-04-05) | 5 fractions × 3 seeds = 13 rows + header. Used in §4.2 severity gradient matrix. |
-| `scripts/rebuttal/frame_shuffle_6cond.py` (uses same registry) | `scripts/rebuttal/samples/6cond_SALT_e79.csv` | `6cond_SALT_e79.log` | **Complete (2026-04-08)** | 6 conditions × {1 det, 3 seeds} = 14 rows + header. Used in §4.1 cross-model 4-way table. |
-| `scripts/rebuttal/rankme.py` | (aggregated, no per-model CSV) | — | Complete (2026-04-07) | Single RankMe score: 202.7 (20% of 1024-dim space). In §4.3 effective-dim table. |
-| `scripts/rebuttal/information_probing.py` | (integrated with other models) | — | Complete | Speckle probing partial R² — SALT not the primary focus here. |
+| `scripts/neurips/frame_shuffle_severity.py` (registered as `SALT-S2-e79` in `ALL_CONFIGS`) | `scripts/neurips/samples/severity_SALT_e79.csv` | `severity_SALT_e79.log`, `severity_SALT_e79.json` | Complete (2026-04-05) | 5 fractions × 3 seeds = 13 rows + header. Used in §4.2 severity gradient matrix. |
+| `scripts/neurips/frame_shuffle_6cond.py` (uses same registry) | `scripts/neurips/samples/6cond_SALT_e79.csv` | `6cond_SALT_e79.log` | **Complete (2026-04-08)** | 6 conditions × {1 det, 3 seeds} = 14 rows + header. Used in §4.1 cross-model 4-way table. |
+| `scripts/neurips/rankme.py` | (aggregated, no per-model CSV) | — | Complete (2026-04-07) | Single RankMe score: 202.7 (20% of 1024-dim space). In §4.3 effective-dim table. |
+| `scripts/neurips/information_probing.py` | (integrated with other models) | — | Complete | Speckle probing partial R² — SALT not the primary focus here. |
 
-**Registry entry for reproducibility** (`scripts/rebuttal/frame_shuffle_severity.py:82-89`):
+**Registry entry for reproducibility** (`scripts/neurips/frame_shuffle_severity.py:82-89`):
 
 ```python
 "SALT-S2-e79": {
@@ -242,7 +242,7 @@ Both `frame_shuffle_severity.py` and `frame_shuffle_6cond.py` import this regist
 
 ### Result tables (authoritative numbers)
 
-**EchoNet-Dynamic LVEF — 6-condition frame shuffling, SALT-S2-e79** (1,277 test videos, 3 seeds for stochastic conditions; from `scripts/rebuttal/samples/6cond_SALT_e79.csv`, cliff profile):
+**EchoNet-Dynamic LVEF — 6-condition frame shuffling, SALT-S2-e79** (1,277 test videos, 3 seeds for stochastic conditions; from `scripts/neurips/samples/6cond_SALT_e79.csv`, cliff profile):
 
 | Condition | R² (mean) | R² σ | Pearson (mean) | MAE (mean) | ΔR² vs clean |
 |---|---|---|---|---|---|
@@ -255,7 +255,7 @@ Both `frame_shuffle_severity.py` and `frame_shuffle_6cond.py` import this regist
 
 Interpretation: **cliff profile** — flat under local disruption (tubelet, matched, even reverse holds ~70% of clean R²), catastrophic under global frame-level disruption. The cliff happens at the tubelet granularity boundary: tubelet/matched permutations respect the 2-frame tubelet unit (SALT's pretraining patch-embed granularity), while shuffle/matched_frame operate below that boundary. SALT learned tubelet-level temporal features the frozen teacher provided but has no mechanism to generalize below the tubelet unit. Note σ on matched_frame (0.052) is ~5× the other stochastic conditions due to fixed permutation choice per seed; all three seeds are still strongly negative (−0.495, −0.455, −0.368). See `claude/neurips/experiments/6-condition-shuffling.md` for the full interpretation and connection to the §4.1 4-way table.
 
-**EchoNet-Dynamic LVEF — severity gradient, SALT-S2-e79** (1,277 test videos, 3 seeds per non-zero fraction; from `scripts/rebuttal/samples/severity_SALT_e79.csv`):
+**EchoNet-Dynamic LVEF — severity gradient, SALT-S2-e79** (1,277 test videos, 3 seeds per non-zero fraction; from `scripts/neurips/samples/severity_SALT_e79.csv`):
 
 | Fraction shuffled | R² (mean) | Pearson (mean) | MAE (mean) |
 |---|---|---|---|

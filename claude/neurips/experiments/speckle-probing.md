@@ -96,7 +96,7 @@ Three hypotheses were tested for "why does JEPA outperform MAE on functional tas
 |-----------|---------|---------|
 | "JEPA filters frame-varying noise via EMA target averaging" | speckle probing, temporal consistency, autocorrelation sweep | **❌ Not supported.** Multiple independent tests fail to support this. |
 | "JEPA encodes temporal dynamics that MAE doesn't" | frame shuffling (3 regimes), severity gradient | **✅ Supported.** JEPA consolidates temporal encoding (−17% post-shuffle at e100); MAE abandons it (−4% — invariant because there's nothing to disrupt). |
-| "JEPA uses representational capacity more efficiently" | effective dimensionality (spectral entropy) | **❌ Not supported (revised 2026-04-07).** Consistent 4-model RankMe (`scripts/rebuttal/rankme.py`): JEPA 245, BYOL 221, MAE 206, SALT 203. All in the 200-245 range — no 3× collapse. Prior MAE=63 not reproducible. |
+| "JEPA uses representational capacity more efficiently" | effective dimensionality (spectral entropy) | **❌ Not supported (revised 2026-04-07).** Consistent 4-model RankMe (`scripts/neurips/rankme.py`): JEPA 245, BYOL 221, MAE 206, SALT 203. All in the 200-245 range — no 3× collapse. Prior MAE=63 not reproducible. |
 
 **Revised mechanistic story for §4 of the NeurIPS paper:**
 
@@ -131,5 +131,5 @@ For historical reference only. **Do not cite these numbers in current documents.
 - **Canonical (current):** `claude/neurips/experiments/representation-analysis.md` — full e100 init-matched analysis
 - **NeurIPS framing:** `claude/neurips/paper-outline.md` §4 (Mechanism)
 - **Historical (do not cite):** `claude/rebuttals/10-rebuttal-experiment-results.md` §6e
-- **Scripts:** `scripts/rebuttal/information_probing.py`, `scripts/rebuttal/representation_analysis.py`
-- **Data (e100):** `scripts/rebuttal/samples/representation_analysis_*.npz`
+- **Scripts:** `scripts/neurips/information_probing.py`, `scripts/neurips/representation_analysis.py`
+- **Data (e100):** `scripts/neurips/samples/representation_analysis_*.npz`

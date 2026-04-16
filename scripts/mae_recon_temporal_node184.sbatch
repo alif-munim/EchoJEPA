@@ -17,9 +17,9 @@ export LD_LIBRARY_PATH="/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cubl
 REPO_DIR="/opt/vjepa2"
 PYTHON="/opt/vjepa2-312/bin/python3"
 SCRATCH="/opt/dlami/nvme"
-SCRIPT="scripts/rebuttal/mae_reconstruction_temporal.py"
+SCRIPT="scripts/neurips/mae_reconstruction_temporal.py"
 TEST_CSV="${SCRATCH}/echonet_dynamic/test_local.csv"
-SAVE_DIR="scripts/rebuttal/mae_recon_vis"
+SAVE_DIR="scripts/neurips/mae_recon_vis"
 S3_BUCKET="s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs"
 
 cd "${REPO_DIR}"

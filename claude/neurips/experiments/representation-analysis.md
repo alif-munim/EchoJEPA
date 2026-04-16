@@ -7,7 +7,7 @@
 
 ## 1. Effective Dimensionality (spectral entropy)
 
-Computed as exp(-Σ σ̄ᵢ log σ̄ᵢ) where σ̄ᵢ are normalized singular values of the [N_videos, D] mean-pooled embedding matrix. Higher = more diverse/informative features. Script: `scripts/rebuttal/rankme.py`.
+Computed as exp(-Σ σ̄ᵢ log σ̄ᵢ) where σ̄ᵢ are normalized singular values of the [N_videos, D] mean-pooled embedding matrix. Higher = more diverse/informative features. Script: `scripts/neurips/rankme.py`.
 
 ### Consistent 4-model comparison (2026-04-07, job 510/525)
 
@@ -115,7 +115,7 @@ Static noise is worst for all models (opposite of predicted). JEPA most robust a
 ## 7. Cross-Temporal Attention Analysis
 
 **Date:** 2026-04-09
-**Script:** `scripts/rebuttal/temporal_attention_trial.py` (HyperPod jobs 919, 931)
+**Script:** `scripts/neurips/temporal_attention_trial.py` (HyperPod jobs 919, 931)
 
 For each layer, compute the fraction of attention flowing between tokens at different temporal positions (cross-temporal ratio). Approach: set `use_sdpa=False` to force explicit attention computation, hook into `attn_drop` (nn.Dropout) whose input is the post-softmax attention weight matrix `[B, H, N, N]`. Tokens are ordered `[T_patches × H_patches × W_patches]` = `[8 × 14 × 14]` = 1568. A token's temporal index = `token_id // 196`. Random baseline = 7/8 = 0.875 (7 of 8 temporal positions are "other").
 
@@ -190,12 +190,12 @@ JEPA's advantage is about **temporal structure encoding**, not noise filtering o
 
 | Experiment | Files |
 |-----------|-------|
-| Effective dimensionality (4-model) | `scripts/rebuttal/samples/rankme_all.csv` (job 510/525, consistent pipeline) |
-| Speckle probing (mean-pooled) | `scripts/rebuttal/samples/speckle_probing_{JEPA_IN21K_e100,BYOL_e100,MAE_e99}.png` |
-| Layer-wise speckle | `scripts/rebuttal/samples/layerwise_speckle_{JEPA-IN21K-e100,BYOL-L-e100,MAE-L-e99}.csv` |
-| Token-level speckle | `scripts/rebuttal/samples/token_speckle_{JEPA-IN21K-e100,BYOL-L-e100,MAE-L-e99}.csv` |
-| Temporal consistency | `scripts/rebuttal/samples/temporal_consistency_{JEPA,BYOL,MAE}.csv` |
-| Autocorrelation sweep | `scripts/rebuttal/samples/autocorr_{JEPA_IN21K_e100,BYOL_e100,MAE_e99}.csv` |
-| Cross-temporal attention (~e100) | `scripts/rebuttal/temporal_attention/{jepa_e100,byol_e100,mae_e99,salt_s2v1_e79}_temporal_attention.csv` |
-| Cross-temporal attention (~e50) | `scripts/rebuttal/temporal_attention/{jepa_pt50,byol_pt50,mae_pt50,salt_s2v1_e29}_temporal_attention.csv` |
-| Cross-temporal attention (per-head) | `scripts/rebuttal/temporal_attention/*_per_head.csv` |
+| Effective dimensionality (4-model) | `scripts/neurips/samples/rankme_all.csv` (job 510/525, consistent pipeline) |
+| Speckle probing (mean-pooled) | `scripts/neurips/samples/speckle_probing_{JEPA_IN21K_e100,BYOL_e100,MAE_e99}.png` |
+| Layer-wise speckle | `scripts/neurips/samples/layerwise_speckle_{JEPA-IN21K-e100,BYOL-L-e100,MAE-L-e99}.csv` |
+| Token-level speckle | `scripts/neurips/samples/token_speckle_{JEPA-IN21K-e100,BYOL-L-e100,MAE-L-e99}.csv` |
+| Temporal consistency | `scripts/neurips/samples/temporal_consistency_{JEPA,BYOL,MAE}.csv` |
+| Autocorrelation sweep | `scripts/neurips/samples/autocorr_{JEPA_IN21K_e100,BYOL_e100,MAE_e99}.csv` |
+| Cross-temporal attention (~e100) | `scripts/neurips/temporal_attention/{jepa_e100,byol_e100,mae_e99,salt_s2v1_e79}_temporal_attention.csv` |
+| Cross-temporal attention (~e50) | `scripts/neurips/temporal_attention/{jepa_pt50,byol_pt50,mae_pt50,salt_s2v1_e29}_temporal_attention.csv` |
+| Cross-temporal attention (per-head) | `scripts/neurips/temporal_attention/*_per_head.csv` |

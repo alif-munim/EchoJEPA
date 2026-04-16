@@ -189,7 +189,7 @@ Predictions saved: `predictions/icml-echo{jepa,byol,mae}-l-pt50-rvsp-test.csv` (
 | EchoJEPA-G (384px) | 0.729 | **0.606** | **-0.123 worse** |
 | EchoJEPA-L pt50 (224px) | 0.815 | **0.826** | +0.011 (marginal) |
 
-The orientation fix **hurts G dramatically** — the G model (pretrained on 18M diverse UHN echos) likely learned orientation-invariant features or encountered similar rotations in pretraining. The fix helps L pt50 marginally (+1.1pp). **Conclusion:** The G < L gap (0.729 vs 0.818) is NOT explained by orientation — it's primarily the resolution mismatch (384px pretrain → 224px eval). The orientation fix should NOT be applied for G. Visual: `scripts/rebuttal/samples/camus_orientation_fix_comparison.png`.
+The orientation fix **hurts G dramatically** — the G model (pretrained on 18M diverse UHN echos) likely learned orientation-invariant features or encountered similar rotations in pretraining. The fix helps L pt50 marginally (+1.1pp). **Conclusion:** The G < L gap (0.729 vs 0.818) is NOT explained by orientation — it's primarily the resolution mismatch (384px pretrain → 224px eval). The orientation fix should NOT be applied for G. Visual: `scripts/neurips/samples/camus_orientation_fix_comparison.png`.
 
 **50-epoch controlled comparison:**
 
@@ -773,7 +773,7 @@ Speckle-intensity Pearson correlation: r=0.530 (moderate confound — partial R�
 
 **Interpretation:** The probing matrix tells a consistent story. MAE retains more pixel-level information (high nuisance R², better ESV/EDV which are spatial measures) because the reconstruction objective forces retention of image detail. JEPA filters speckle but encodes clinical function in a spatially distributed way that requires attention to decode. The downstream task advantage (JEPA R²=0.552 vs MAE 0.351 on LVEF) comes from richer clinical signal in the attended token space, not from mean-pooled global features.
 
-Data saved: `scripts/rebuttal/samples/information_probing_{model}.npz`
+Data saved: `scripts/neurips/samples/information_probing_{model}.npz`
 
 ### 5h. RVSP Data Is Truly Multi-View (UHN DICOM Audit)
 
@@ -814,8 +814,8 @@ Existing infrastructure for EchoNet-Dynamic/Pediatric noise experiments:
 | EchoNet-Dynamic LVEF probes (fully-trained models: 5 models) | Done — `checkpoints/eval_probes/lvef/echonet-dynamic/` |
 | EchoNet-Pediatric LVEF probes (fully-trained models: 5 models) | Done — `checkpoints/eval_probes/lvef/echonet-pediatric/` |
 | Inference configs | Done — `configs/inference/vitg-384/lvef/echonet-dynamic/`, `echonet-pediatric/` |
-| Perturbation generation pipeline | Done — `scripts/rebuttal/generate_perturbed_videos.py`, `data/scripts/apply_depth_attenuation.py` |
-| Frame shuffling script | Done — `scripts/rebuttal/frame_shuffling.py` |
+| Perturbation generation pipeline | Done — `scripts/neurips/generate_perturbed_videos.py`, `data/scripts/apply_depth_attenuation.py` |
+| Frame shuffling script | Done — `scripts/neurips/frame_shuffling.py` |
 | Clean test predictions (fully-trained) | Partially done — some models in `predictions/` |
 
 **pt50 EchoNet-Pediatric LVEF probes (3-way, 224px, DONE):**

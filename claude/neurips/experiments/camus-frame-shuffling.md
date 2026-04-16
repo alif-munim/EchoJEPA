@@ -43,11 +43,11 @@ SALT probe training: best config `lr5e-02_wd1e-04`, test mean Dice = 0.737, grid
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/rebuttal/frame_shuffle_segmentation.py` | Basic full-shuffle (clean vs shuffled × 3 seeds) |
-| `scripts/rebuttal/frame_shuffle_segmentation_extended.py` | Severity gradient + 6-condition (aggregate output) |
-| `scripts/rebuttal/frame_shuffle_segmentation_persample.py` | Per-sample output for bootstrap CIs |
-| `scripts/rebuttal/frame_shuffle_segmentation_tracked.py` | Version B: tracked extraction (inverse perm) |
-| `scripts/rebuttal/camus_bootstrap_persample.py` | Paired bootstrap CI computation (10K resamples) |
+| `scripts/neurips/frame_shuffle_segmentation.py` | Basic full-shuffle (clean vs shuffled × 3 seeds) |
+| `scripts/neurips/frame_shuffle_segmentation_extended.py` | Severity gradient + 6-condition (aggregate output) |
+| `scripts/neurips/frame_shuffle_segmentation_persample.py` | Per-sample output for bootstrap CIs |
+| `scripts/neurips/frame_shuffle_segmentation_tracked.py` | Version B: tracked extraction (inverse perm) |
+| `scripts/neurips/camus_bootstrap_persample.py` | Paired bootstrap CI computation (10K resamples) |
 
 ### Sbatch Scripts
 
@@ -63,7 +63,7 @@ SALT probe training: best config `lr5e-02_wd1e-04`, test mean Dice = 0.737, grid
 | `scripts/camus_tracked_node83.sbatch` | 83 | 761 | JEPA/BYOL/MAE tracked extraction (Version B) |
 | `scripts/camus_tracked_node184.sbatch` | 184 | 762 | SALT tracked extraction (Version B) |
 
-### Output CSVs (all on controller at `scripts/rebuttal/samples/`)
+### Output CSVs (all on controller at `scripts/neurips/samples/`)
 
 **Basic shuffle:**
 - `{jepa_in21k_e100,byol_e100,mae_e99,salt_s2v1_e79}_frame_shuffle_segmentation.csv`
@@ -152,7 +152,7 @@ Isolates **content misalignment** from **temporal encoding disruption**. Two ver
 - **Version A (original positions):** Extract features at the original ED/ES tubelet positions after shuffling. The content at those positions is wrong (random frame landed there). This is the standard frame shuffling result.
 - **Version B (tracked positions):** After shuffling, compute the inverse permutation to find where the ED/ES content actually landed. Extract features at those new positions. The content is correct, but the positional encoding is wrong and temporal attention context is disrupted.
 
-**Script:** `scripts/rebuttal/frame_shuffle_segmentation_tracked.py`
+**Script:** `scripts/neurips/frame_shuffle_segmentation_tracked.py`
 **Implementation:** `inv_perm = np.argsort(perm); new_ed_t = inv_perm[ed_sampled_idx] // 2`
 
 | Model | Condition | Clean | V-A (orig pos) | V-B (tracked) | A drop | B drop |

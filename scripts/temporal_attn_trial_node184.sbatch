@@ -17,9 +17,9 @@ export LD_LIBRARY_PATH="/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cubl
 REPO_DIR="/opt/vjepa2"
 PYTHON="/opt/vjepa2-312/bin/python3"
 SCRATCH="/opt/dlami/nvme"
-SCRIPT="scripts/rebuttal/temporal_attention_trial.py"
+SCRIPT="scripts/neurips/temporal_attention_trial.py"
 TEST_CSV="${SCRATCH}/echonet_dynamic/test_local.csv"
-SAVE_DIR="scripts/rebuttal/temporal_attention"
+SAVE_DIR="scripts/neurips/temporal_attention"
 HYP="s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/runs"
 
 cd "${REPO_DIR}"

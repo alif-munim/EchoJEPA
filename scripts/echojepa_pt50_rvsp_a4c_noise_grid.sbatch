@@ -123,7 +123,7 @@ COMMON_ARGS="
 "
 
 echo "[INFO] Running clean baseline on GPU 0..."
-python scripts/rebuttal/noised_inference.py $COMMON_ARGS \
+python scripts/neurips/noised_inference.py $COMMON_ARGS \
   --perturbation_types \
   --severity_levels \
   --device cuda:0 \
@@ -136,7 +136,7 @@ GPU=1
 for PTYPE in depth_attenuation gaussian_shadow haze_artifact; do
   for SEV in mild moderate severe; do
     echo "[INFO] Launching $PTYPE/$SEV on cuda:$GPU"
-    python scripts/rebuttal/noised_inference.py $COMMON_ARGS \
+    python scripts/neurips/noised_inference.py $COMMON_ARGS \
       --perturbation_types "$PTYPE" \
       --severity_levels "$SEV" \
       --skip_clean \

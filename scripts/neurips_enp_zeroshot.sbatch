@@ -103,7 +103,7 @@ echo "============================================================"
 echo "[INFO] Computing bootstrap CIs..."
 echo "============================================================"
 
-python3 scripts/rebuttal/enp_zeroshot_bootstrap.py \
+python3 scripts/neurips/enp_zeroshot_bootstrap.py \
     --results_dir ${NVME}/evals/neurips/enp_zeroshot \
     --scaler_path data/scalers/pediatric_ef_scaler.pkl \
     --n_bootstrap 10000 --seed 42

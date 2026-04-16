@@ -1,7 +1,7 @@
 # Frame Shuffling Severity Gradient Results
 
 **Date:** 2026-04-05 / 2026-04-06
-**Script:** `scripts/rebuttal/frame_shuffle_severity.py`
+**Script:** `scripts/neurips/frame_shuffle_severity.py`
 **Dataset:** EchoNet-Dynamic test (1,277 videos)
 **Protocol:** Partial frame shuffling at 0/25/50/75/100% of frames, 3 seeds per fraction (100, 101, 102). Frame-level permutation without RoPE remapping.
 
@@ -144,20 +144,20 @@ JEPA IN21K is init-matched with BYOL/MAE. Slight epoch misalignment (24 vs 25, 7
 
 | Model | CSV Path |
 |-------|----------|
-| JEPA IN21K e25 | `scripts/rebuttal/samples/severity_JEPA_IN21K_e25.csv` |
-| JEPA IN21K e50 | `scripts/rebuttal/samples/severity_JEPA_IN21K_e50.csv` |
-| JEPA IN21K e75 | `scripts/rebuttal/samples/severity_JEPA_IN21K_e75.csv` |
-| JEPA IN21K e100 | `scripts/rebuttal/samples/severity_JEPA_IN21K_e100.csv` |
-| BYOL e24 | `scripts/rebuttal/samples/severity_BYOL_e24.csv` |
-| BYOL e50 | `scripts/rebuttal/samples/severity_BYOL_e50.csv` |
-| BYOL e75 | `scripts/rebuttal/samples/severity_BYOL_e75.csv` |
-| BYOL e100 | `scripts/rebuttal/samples/severity_BYOL_e100.csv` |
-| MAE e24 | `scripts/rebuttal/samples/severity_MAE_e24.csv` |
-| MAE e50 | `scripts/rebuttal/samples/severity_MAE_e50.csv` |
-| MAE e74 | `scripts/rebuttal/samples/severity_MAE_e74.csv` |
-| MAE e99 | `scripts/rebuttal/samples/severity_MAE_e99.csv` |
-| SALT S2 e79 | `scripts/rebuttal/samples/severity_SALT_e79.csv` |
-| SALT S2 e4 | `scripts/rebuttal/samples/severity_SALT_S2_e4.csv` |
-| SALT S2 e29 | `scripts/rebuttal/samples/severity_SALT_S2_e29.csv` |
-| SALT S2 e54 | `scripts/rebuttal/samples/severity_SALT_S2_e54.csv` |
-| SALT S2 e79 (rerun) | `scripts/rebuttal/samples/severity_SALT_S2_e79.csv` |
+| JEPA IN21K e25 | `scripts/neurips/samples/severity_JEPA_IN21K_e25.csv` |
+| JEPA IN21K e50 | `scripts/neurips/samples/severity_JEPA_IN21K_e50.csv` |
+| JEPA IN21K e75 | `scripts/neurips/samples/severity_JEPA_IN21K_e75.csv` |
+| JEPA IN21K e100 | `scripts/neurips/samples/severity_JEPA_IN21K_e100.csv` |
+| BYOL e24 | `scripts/neurips/samples/severity_BYOL_e24.csv` |
+| BYOL e50 | `scripts/neurips/samples/severity_BYOL_e50.csv` |
+| BYOL e75 | `scripts/neurips/samples/severity_BYOL_e75.csv` |
+| BYOL e100 | `scripts/neurips/samples/severity_BYOL_e100.csv` |
+| MAE e24 | `scripts/neurips/samples/severity_MAE_e24.csv` |
+| MAE e50 | `scripts/neurips/samples/severity_MAE_e50.csv` |
+| MAE e74 | `scripts/neurips/samples/severity_MAE_e74.csv` |
+| MAE e99 | `scripts/neurips/samples/severity_MAE_e99.csv` |
+| SALT S2 e79 | `scripts/neurips/samples/severity_SALT_e79.csv` |
+| SALT S2 e4 | `scripts/neurips/samples/severity_SALT_S2_e4.csv` |
+| SALT S2 e29 | `scripts/neurips/samples/severity_SALT_S2_e29.csv` |
+| SALT S2 e54 | `scripts/neurips/samples/severity_SALT_S2_e54.csv` |
+| SALT S2 e79 (rerun) | `scripts/neurips/samples/severity_SALT_S2_e79.csv` |

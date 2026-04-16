@@ -1,7 +1,7 @@
 # Noise Autocorrelation Sweep Results
 
 **Date:** 2026-04-07
-**Script:** `scripts/rebuttal/noise_autocorrelation_sweep.py`
+**Script:** `scripts/neurips/noise_autocorrelation_sweep.py`
 **Dataset:** EchoNet-Dynamic test (1,277 videos)
 **Noise model:** Multiplicative Rayleigh speckle (mean-normalized), moderate severity (σ=0.5)
 **Temporal correlation:** AR(1) process with correlation time τ. τ=∞ (static), τ=0 (iid per-frame).
@@ -105,6 +105,6 @@ The noise is applied POST-acquisition to videos that already contain real speckl
 
 | Model | CSV |
 |-------|-----|
-| JEPA IN21K e100 | `scripts/rebuttal/samples/autocorr_JEPA_IN21K_e100.csv` |
-| BYOL e100 | `scripts/rebuttal/samples/autocorr_BYOL_e100.csv` |
-| MAE e99 | `scripts/rebuttal/samples/autocorr_MAE_e99.csv` |
+| JEPA IN21K e100 | `scripts/neurips/samples/autocorr_JEPA_IN21K_e100.csv` |
+| BYOL e100 | `scripts/neurips/samples/autocorr_BYOL_e100.csv` |
+| MAE e99 | `scripts/neurips/samples/autocorr_MAE_e99.csv` |

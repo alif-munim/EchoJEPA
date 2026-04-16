@@ -31,11 +31,11 @@
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/rebuttal/noised_inference_persample.py` | LVEF per-sample noised inference (10 conditions × 1277 videos) |
-| `scripts/rebuttal/noised_segmentation_persample.py` | CAMUS per-sample noised segmentation (10 conditions × 100 samples) |
-| `scripts/rebuttal/lvef_noised_bootstrap.py` | Bootstrap CIs for LVEF R² from per-sample data |
-| `scripts/rebuttal/camus_noised_bootstrap.py` | Bootstrap CIs for CAMUS Dice from per-sample data |
-| `scripts/rebuttal/echo_perturbations.py` | Physics-based perturbation implementations |
+| `scripts/neurips/noised_inference_persample.py` | LVEF per-sample noised inference (10 conditions × 1277 videos) |
+| `scripts/neurips/noised_segmentation_persample.py` | CAMUS per-sample noised segmentation (10 conditions × 100 samples) |
+| `scripts/neurips/lvef_noised_bootstrap.py` | Bootstrap CIs for LVEF R² from per-sample data |
+| `scripts/neurips/camus_noised_bootstrap.py` | Bootstrap CIs for CAMUS Dice from per-sample data |
+| `scripts/neurips/echo_perturbations.py` | Physics-based perturbation implementations |
 
 **Sbatch scripts:**
 
@@ -215,7 +215,7 @@
 | MAE | `mae_e99_noised_lvef_persample.csv` | `mae_e99_noised_seg_persample.csv` |
 | SALT | `salt_v1_e79_noised_lvef_persample.csv` | `salt_s2v1_e79_noised_seg_persample.csv` |
 
-**Local path:** `scripts/rebuttal/samples/`
+**Local path:** `scripts/neurips/samples/`
 
 **S3 paths:**
 - LVEF: `s3://echodata25/neurips/results/lvef_noised/{filename}`

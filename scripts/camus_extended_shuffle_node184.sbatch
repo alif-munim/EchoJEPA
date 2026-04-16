@@ -18,7 +18,7 @@ export LD_LIBRARY_PATH="/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/usr/local/c
 REPO_DIR="/opt/vjepa2"
 PYTHON="/opt/vjepa2-312/bin/python3"
 SCRATCH="/opt/dlami/nvme"
-SCRIPT="scripts/rebuttal/frame_shuffle_segmentation_extended.py"
+SCRIPT="scripts/neurips/frame_shuffle_segmentation_extended.py"
 
 cd "${REPO_DIR}"
 echo "[$(date)] SALT extended CAMUS frame shuffling on $(hostname)"
@@ -45,7 +45,7 @@ ${PYTHON} ${SCRIPT} --encoder_type vjepa --encoder_checkpoint "${SALT_CKPT}" \
 # Print results
 echo ""
 echo "[$(date)] === Results ==="
-SAMPLES="${REPO_DIR}/scripts/rebuttal/samples"
+SAMPLES="${REPO_DIR}/scripts/neurips/samples"
 for mode in camus_severity camus_6cond; do
     CSV="${SAMPLES}/salt_s2v1_e79_${mode}.csv"
     if [ -f "${CSV}" ]; then

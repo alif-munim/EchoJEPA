@@ -76,5 +76,5 @@ The 0.7pp segmentation spread (<1pp) contrasts with the 12.6pp LVEF R² spread �
 
 **Source:** `claude/rebuttals/10-rebuttal-experiment-results.md` §1a, §1b, §1c, §6a
 **Probe configs:** `configs/eval/vitl/icml/echo{jepa,byol,mae}_l_pt50_{lvef,rvsp}_d4*.yaml`
-**CAMUS scripts:** `scripts/rebuttal/camus_frozen_*.py`
+**CAMUS scripts:** `scripts/neurips/camus_frozen_*.py`
 **BYOL architecture audit:** `claude/rebuttals/09-three-way-comparison-results.md`

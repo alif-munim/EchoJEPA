@@ -31,7 +31,7 @@ echo "[$(date)] Encoder: ${MAE_CKPT}"
 echo "[$(date)] Decoder: ${MAE_DEC}"
 ls -lh "${MAE_CKPT}" "${MAE_DEC}"
 
-${PYTHON} scripts/rebuttal/frame_shuffle_segmentation.py \
+${PYTHON} scripts/neurips/frame_shuffle_segmentation.py \
     --encoder_type videomae \
     --encoder_checkpoint "${MAE_CKPT}" \
     --decoder_checkpoint "${MAE_DEC}" \
@@ -40,10 +40,10 @@ ${PYTHON} scripts/rebuttal/frame_shuffle_segmentation.py \
     --n_seeds 3
 
 echo "[$(date)] Done."
-cat scripts/rebuttal/samples/mae_e99_frame_shuffle_segmentation.csv
+cat scripts/neurips/samples/mae_e99_frame_shuffle_segmentation.csv
 
 # Upload
-aws s3 cp scripts/rebuttal/samples/mae_e99_frame_shuffle_segmentation.csv \
+aws s3 cp scripts/neurips/samples/mae_e99_frame_shuffle_segmentation.csv \
     s3://echodata25/neurips/results/camus_frame_shuffle/mae_e99.csv
 
 echo "[$(date)] All done."

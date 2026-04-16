@@ -18,7 +18,7 @@ export LD_LIBRARY_PATH="/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cubl
 REPO_DIR="/opt/vjepa2"
 PYTHON="/opt/vjepa2-312/bin/python3"
 SCRATCH="/opt/dlami/nvme"
-SCRIPT="scripts/rebuttal/frame_shuffle_segmentation_persample.py"
+SCRIPT="scripts/neurips/frame_shuffle_segmentation_persample.py"
 
 cd "${REPO_DIR}"
 echo "[$(date)] Per-sample CAMUS shuffling on $(hostname)"
@@ -71,7 +71,7 @@ echo "[$(date)] Uploading..."
 S3="s3://echodata25/neurips/results/camus_frame_shuffle"
 for m in jepa_in21k_e100 byol_e100 mae_e99; do
     for mode in camus_severity_persample camus_6cond_persample; do
-        CSV="scripts/rebuttal/samples/${m}_${mode}.csv"
+        CSV="scripts/neurips/samples/${m}_${mode}.csv"
         [ -f "${CSV}" ] && aws s3 cp "${CSV}" "${S3}/${m}_${mode}.csv"
     done
 done

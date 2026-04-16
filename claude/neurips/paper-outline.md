@@ -202,7 +202,7 @@ Each profile is the signature of a specific combination of prediction target and
 
 ### 3.3 Effective dimensionality (appendix candidate)
 
-⚠️ **Prior numbers retracted.** Consistent 4-model comparison with `scripts/rebuttal/rankme.py` (500 EchoNet-Dynamic test videos, same code/GPU, jobs 510/525):
+⚠️ **Prior numbers retracted.** Consistent 4-model comparison with `scripts/neurips/rankme.py` (500 EchoNet-Dynamic test videos, same code/GPU, jobs 510/525):
 
 | Model | Effective Dim (d_eff) | Usage of 1024-dim space |
 |-------|-----------------------|------------------------|

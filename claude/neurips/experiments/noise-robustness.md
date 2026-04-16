@@ -18,7 +18,7 @@ Frozen probes (trained on clean data, not retrained) evaluated under physics-bas
 | **Acoustic shadow** | Signal blocked by structure | Localized sector dropout |
 | **Haze artifact** | Reverberation / contrast reduction | Diffuse quality degradation |
 
-Implementation: `scripts/rebuttal/echo_perturbations.py` via `scripts/rebuttal/noised_inference.py`
+Implementation: `scripts/neurips/echo_perturbations.py` via `scripts/neurips/noised_inference.py`
 
 ## Results
 
@@ -84,6 +84,6 @@ Each objective is most robust on the task it encodes best. BYOL collapses on bot
 ## References
 
 **Source:** `claude/rebuttals/10-rebuttal-experiment-results.md` §5m, §5n, §5o
-**Scripts:** `scripts/rebuttal/noised_inference.py` (LVEF), `scripts/rebuttal/noised_segmentation.py` (CAMUS)
-**CSVs:** `scripts/rebuttal/samples/{jepa,byol,mae}_end_lvef_noised_inference.csv`, `*_noised_segmentation.csv`
-**Perturbation code:** `scripts/rebuttal/echo_perturbations.py`
+**Scripts:** `scripts/neurips/noised_inference.py` (LVEF), `scripts/neurips/noised_segmentation.py` (CAMUS)
+**CSVs:** `scripts/neurips/samples/{jepa,byol,mae}_end_lvef_noised_inference.csv`, `*_noised_segmentation.csv`
+**Perturbation code:** `scripts/neurips/echo_perturbations.py`

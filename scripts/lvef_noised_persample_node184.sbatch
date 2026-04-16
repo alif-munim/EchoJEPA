@@ -15,7 +15,7 @@ set -uo pipefail
 REPO_DIR="/opt/vjepa2"
 PYTHON="/opt/vjepa2-312/bin/python3"
 SCRATCH="/opt/dlami/nvme"
-SCRIPT="scripts/rebuttal/noised_inference_persample.py"
+SCRIPT="scripts/neurips/noised_inference_persample.py"
 TEST_CSV="${SCRATCH}/echonet_dynamic/test_local.csv"
 
 cd "${REPO_DIR}"
@@ -47,6 +47,6 @@ ${PYTHON} ${SCRIPT} --encoder_type vjepa --encoder_checkpoint "${SALT_CKPT}" \
 
 # Upload
 echo "[$(date)] Uploading..."
-CSV="scripts/rebuttal/samples/salt_v1_e79_noised_lvef_persample.csv"
+CSV="scripts/neurips/samples/salt_v1_e79_noised_lvef_persample.csv"
 [ -f "${CSV}" ] && aws s3 cp "${CSV}" "s3://echodata25/neurips/results/lvef_noised/salt_v1_e79_noised_lvef_persample.csv"
 echo "[$(date)] Done."

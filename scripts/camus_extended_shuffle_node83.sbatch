@@ -19,7 +19,7 @@ export LD_LIBRARY_PATH="/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cubl
 REPO_DIR="/opt/vjepa2"
 PYTHON="/opt/vjepa2-312/bin/python3"
 SCRATCH="/opt/dlami/nvme"
-SCRIPT="scripts/rebuttal/frame_shuffle_segmentation_extended.py"
+SCRIPT="scripts/neurips/frame_shuffle_segmentation_extended.py"
 
 cd "${REPO_DIR}"
 echo "[$(date)] Extended CAMUS frame shuffling on $(hostname)"
@@ -93,7 +93,7 @@ wait ${PID6}; echo "[$(date)] MAE 6cond done (exit=$?)"
 # ============================================================
 echo ""
 echo "[$(date)] === All Results ==="
-SAMPLES="${REPO_DIR}/scripts/rebuttal/samples"
+SAMPLES="${REPO_DIR}/scripts/neurips/samples"
 for f in jepa_in21k_e100 byol_e100 mae_e99; do
     for mode in camus_severity camus_6cond; do
         CSV="${SAMPLES}/${f}_${mode}.csv"

@@ -18,7 +18,7 @@ export LD_LIBRARY_PATH="/opt/vjepa2-312/lib/python3.12/site-packages/nvidia/cubl
 REPO_DIR="/opt/vjepa2"
 PYTHON="/opt/vjepa2-312/bin/python3"
 SCRATCH="/opt/dlami/nvme"
-SCRIPT="scripts/rebuttal/noised_inference_persample.py"
+SCRIPT="scripts/neurips/noised_inference_persample.py"
 TEST_CSV="${SCRATCH}/echonet_dynamic/test_local.csv"
 S3_PROBES="s3://echodata25/neurips/probes/end_lvef_e100"
 
@@ -75,7 +75,7 @@ wait ${PID3}; echo "[$(date)] MAE done (exit=$?)"
 echo "[$(date)] Uploading..."
 S3="s3://echodata25/neurips/results/lvef_noised"
 for m in jepa_in21k_e100 byol_e100 mae_e99; do
-    CSV="scripts/rebuttal/samples/${m}_noised_lvef_persample.csv"
+    CSV="scripts/neurips/samples/${m}_noised_lvef_persample.csv"
     [ -f "${CSV}" ] && aws s3 cp "${CSV}" "${S3}/${m}_noised_lvef_persample.csv"
 done
 echo "[$(date)] All done."

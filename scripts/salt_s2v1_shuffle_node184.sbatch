@@ -90,35 +90,35 @@ echo "[INFO] e79 probe: $(ls ${E79_PROBE_ICML_DIR}/best.pt 2>/dev/null || echo M
 # ---------------------------------------------------------------
 echo ""
 echo "[INFO] $(date) === Severity Gradient: SALT-S2-e54 (cuda:0) ==="
-${PYTHON} scripts/rebuttal/frame_shuffle_severity.py \
+${PYTHON} scripts/neurips/frame_shuffle_severity.py \
     --test_csv "${TEST_CSV}" \
     --models SALT-S2-e54 \
     --device cuda:0 \
-    --output scripts/rebuttal/samples/severity_SALT_S2_e54.csv &
+    --output scripts/neurips/samples/severity_SALT_S2_e54.csv &
 PID1=$!
 
 echo "[INFO] $(date) === Severity Gradient: SALT-S2-e79 (cuda:1) ==="
-${PYTHON} scripts/rebuttal/frame_shuffle_severity.py \
+${PYTHON} scripts/neurips/frame_shuffle_severity.py \
     --test_csv "${TEST_CSV}" \
     --models SALT-S2-e79 \
     --device cuda:1 \
-    --output scripts/rebuttal/samples/severity_SALT_S2_e79.csv &
+    --output scripts/neurips/samples/severity_SALT_S2_e79.csv &
 PID2=$!
 
 echo "[INFO] $(date) === 6-Condition: SALT-S2-e54 (cuda:2) ==="
-${PYTHON} scripts/rebuttal/frame_shuffle_6cond.py \
+${PYTHON} scripts/neurips/frame_shuffle_6cond.py \
     --test_csv "${TEST_CSV}" \
     --models SALT-S2-e54 \
     --device cuda:2 \
-    --output scripts/rebuttal/samples/6cond_SALT_S2_e54.csv &
+    --output scripts/neurips/samples/6cond_SALT_S2_e54.csv &
 PID3=$!
 
 echo "[INFO] $(date) === 6-Condition: SALT-S2-e79 (cuda:3) ==="
-${PYTHON} scripts/rebuttal/frame_shuffle_6cond.py \
+${PYTHON} scripts/neurips/frame_shuffle_6cond.py \
     --test_csv "${TEST_CSV}" \
     --models SALT-S2-e79 \
     --device cuda:3 \
-    --output scripts/rebuttal/samples/6cond_SALT_S2_e79.csv &
+    --output scripts/neurips/samples/6cond_SALT_S2_e79.csv &
 PID4=$!
 
 echo "[INFO] Waiting for all 4 parallel runs..."
@@ -129,4 +129,4 @@ wait $PID4 && echo "[INFO] $(date) 6-condition e79 DONE" || echo "[WARN] 6-condi
 
 echo ""
 echo "[INFO] $(date) === All Node 184 jobs complete ==="
-ls -la scripts/rebuttal/samples/*SALT_S2_e54* scripts/rebuttal/samples/*SALT_S2_e79* 2>/dev/null
+ls -la scripts/neurips/samples/*SALT_S2_e54* scripts/neurips/samples/*SALT_S2_e79* 2>/dev/null

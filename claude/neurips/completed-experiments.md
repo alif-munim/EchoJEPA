@@ -228,7 +228,7 @@ Under init-matching, BYOL is the *best* speckle filter, not JEPA. The "JEPA filt
 
 ### Effective dimensionality (REVISED 2026-04-07)
 
-⚠️ **Prior numbers retracted.** Consistent 4-model comparison with `scripts/rebuttal/rankme.py` (500 EchoNet-Dynamic test videos, same code/GPU, HyperPod jobs 510/525):
+⚠️ **Prior numbers retracted.** Consistent 4-model comparison with `scripts/neurips/rankme.py` (500 EchoNet-Dynamic test videos, same code/GPU, HyperPod jobs 510/525):
 
 | Model | Effective Dimensionality | % of embed_dim (1024) |
 |-------|--------------------------|----------------------|
@@ -273,7 +273,7 @@ SALT develops the strongest spatial→temporal hierarchy: layers 0-10 are heavil
 **Surviving mechanisms:** Temporal structure encoding and spatial→temporal layer specialization. Predictive objectives (JEPA, SALT) force early layers to attend within-frame (spatial features) before integrating across time. This hierarchical processing may be the mechanism by which temporal dynamics are encoded more robustly — a model that first builds spatial features, then reasons temporally over them, captures cardiac dynamics more effectively than one that mixes both uniformly (MAE, BYOL).
 
 **Source:** `claude/neurips/experiments/representation-analysis.md` §7 (canonical), `claude/neurips/experiments/speckle-probing.md` (with retraction)
-**Data:** `scripts/rebuttal/temporal_attention/{jepa_e100,byol_e100,mae_e99,salt_s2v1_e79,jepa_pt50,byol_pt50,mae_pt50,salt_s2v1_e29}_temporal_attention.csv`
+**Data:** `scripts/neurips/temporal_attention/{jepa_e100,byol_e100,mae_e99,salt_s2v1_e79,jepa_pt50,byol_pt50,mae_pt50,salt_s2v1_e29}_temporal_attention.csv`
 
 ---
 

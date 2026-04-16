@@ -18,7 +18,7 @@ export LD_LIBRARY_PATH="/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/usr/local/c
 REPO_DIR="/opt/vjepa2"
 PYTHON="/opt/vjepa2-312/bin/python3"
 SCRATCH="/opt/dlami/nvme"
-SCRIPT="scripts/rebuttal/frame_shuffle_segmentation_tracked.py"
+SCRIPT="scripts/neurips/frame_shuffle_segmentation_tracked.py"
 
 cd "${REPO_DIR}"
 echo "[$(date)] Tracked CAMUS extraction (SALT) on $(hostname)"
@@ -33,6 +33,6 @@ ${PYTHON} ${SCRIPT} --encoder_type vjepa --encoder_checkpoint "${SALT_CKPT}" \
 # Upload
 echo "[$(date)] Uploading..."
 S3="s3://echodata25/neurips/results/camus_frame_shuffle"
-CSV="scripts/rebuttal/samples/salt_s2v1_e79_camus_tracked_persample.csv"
+CSV="scripts/neurips/samples/salt_s2v1_e79_camus_tracked_persample.csv"
 [ -f "${CSV}" ] && aws s3 cp "${CSV}" "${S3}/salt_s2v1_e79_camus_tracked_persample.csv"
 echo "[$(date)] All done."

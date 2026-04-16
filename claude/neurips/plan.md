@@ -58,7 +58,7 @@
 - [x] Layer-wise speckle probing: BYOL filters most across depth (−31%), MAE retains most (−4%)
 - [x] Token-level speckle probing: MAE 0.941 > JEPA 0.926 > BYOL 0.891
 - [x] Temporal consistency: BYOL 0.976 > JEPA 0.954 > MAE 0.950 (JEPA filtering hypothesis NOT supported)
-- [x] Effective dimensionality: ⚠️ REVISED — JEPA 245, BYOL 221, MAE 206, SALT 203 (all 200-245 range, no collapse; prior MAE=63 not reproducible; `scripts/rebuttal/rankme.py`)
+- [x] Effective dimensionality: ⚠️ REVISED — JEPA 245, BYOL 221, MAE 206, SALT 203 (all 200-245 range, no collapse; prior MAE=63 not reproducible; `scripts/neurips/rankme.py`)
 - [x] Model registry updated with e100 models (JEPA-IN21K-e100, BYOL-L-e100, MAE-L-e99)
 - [x] VideoMAE token extraction fixed (hook on model.norm for pre-pooled tokens)
 
@@ -95,7 +95,7 @@
 
 - ~~EchoJEPA-G scaling~~ — confounds prediction target with scale, conflicts with Nature Medicine
 - ~~Training dynamics EchoBench~~ — running all 12 models through EchoBench is excessive for appendix material
-- ~~~~6-condition on SALT~~~~ — **DONE 2026-04-08.** Un-dropped and completed. SALT-S2-e79 through all 6 conditions on EchoNet-Dynamic test (1,277 videos). Cliff profile confirmed: clean 0.293, tubelet/matched ≈ clean, reverse −30%, shuffle/matched_frame collapse to −0.41/−0.44 (−250% drop). **SALT is the only method to go negative under any condition**, and SALT clean (0.293) is already below MAE clean (0.445). Result: `scripts/rebuttal/samples/6cond_SALT_e79.csv`. Writeup: `experiments/6-condition-shuffling.md` § SALT-S2-e79 Results. Cross-model table: `paper-outline.md` §4.1 updated to 4-way.
+- ~~~~6-condition on SALT~~~~ — **DONE 2026-04-08.** Un-dropped and completed. SALT-S2-e79 through all 6 conditions on EchoNet-Dynamic test (1,277 videos). Cliff profile confirmed: clean 0.293, tubelet/matched ≈ clean, reverse −30%, shuffle/matched_frame collapse to −0.41/−0.44 (−250% drop). **SALT is the only method to go negative under any condition**, and SALT clean (0.293) is already below MAE clean (0.445). Result: `scripts/neurips/samples/6cond_SALT_e79.csv`. Writeup: `experiments/6-condition-shuffling.md` § SALT-S2-e79 Results. Cross-model table: `paper-outline.md` §4.1 updated to 4-way.
 - ~~Frame-gap MAE intervention (ViT-B pilot)~~ — **cancelled 2026-04-08.** Our VideoMAE ViT-L was already pretrained with tube masking 90% (canonical Tong et al. 2022 recipe), which blocks cross-frame patch copying by construction. Yet MAE e99 is still invariant to frame shuffling (−4%, flat across all six conditions). The temporal shortcut must therefore arise from **within-frame spatial interpolation** (reconstructing a masked patch from its visible spatial neighbors at the same timestep), which neither tube masking nor frame-gap masking can prevent. The frame-gap experiment was testing a hypothesis the existing ViT-L run already refutes. Saves ~2 days HyperPod compute. The finding reframes §4 from "MAE is temporally flat" to "tube masking, the community-standard defense, fails — the prediction target is the bottleneck." See `experiments/tube-masking-failure.md` and `paper-outline.md` §4.6.
 
 ---

@@ -45,7 +45,7 @@ To avoid "ablation paper" perception, the paper must deliver actionable tools, n
 
 ### EchoBench perturbations are spatially static (2026-04-05)
 
-All three EchoBench perturbations (depth attenuation, gaussian shadow, haze) apply the same spatial corruption map to every frame in a clip. Code: `scripts/rebuttal/echo_perturbations.py` — all maps broadcast via `unsqueeze(0).unsqueeze(0)` over time. This means EchoBench tests robustness to **clinical image quality degradation**, not to frame-varying speckle noise.
+All three EchoBench perturbations (depth attenuation, gaussian shadow, haze) apply the same spatial corruption map to every frame in a clip. Code: `scripts/neurips/echo_perturbations.py` — all maps broadcast via `unsqueeze(0).unsqueeze(0)` over time. This means EchoBench tests robustness to **clinical image quality degradation**, not to frame-varying speckle noise.
 
 **Impact on claims:** Results are valid (JEPA really does degrade less). But the mechanistic explanation (EMA filters frame-varying noise) is tested by speckle probing and frame shuffling (§4), not by EchoBench (§5). Keep these sections separate. Do NOT claim EchoBench tests "speckle robustness."
 
@@ -123,7 +123,7 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 | 10 | **Frame shuffling (6 conditions)** | JEPA/BYOL/MAE | JEPA 0.365 post-shuffle; BYOL collapses to 0.099 | §4 Mechanism | `rebuttals/experiments/frame-shuffling.md` |
 | 10b | **Tube masking does not prevent the shortcut** (2026-04-08 reframe) | MAE ViT-L | VideoMAE ViT-L pretrained with `tube mask @ 0.9` (canonical Tong 2022). MAE e99 still invariant (−4%, flat across 6 conditions). Shortcut is within-frame spatial interpolation, not cross-frame copying. No masking fix possible → drops frame-gap MAE ViT-B pilot. | §4.6 Mechanism (new subsection) | `experiments/tube-masking-failure.md`, `paper-outline.md` §4.6 |
 | ~~11~~ | ~~Speckle probing (partial R², pt50)~~ | ~~JEPA/BYOL/MAE~~ | ~~JEPA 0.674, BYOL 0.775, MAE 0.875~~ — **RETRACTED** (init confound). e100 init-matched: BYOL 0.716 < JEPA 0.848 < MAE 0.885 (gap is 4%, not 23%, and ranking changed). Demoted to non-load-bearing. See `experiments/speckle-probing.md` and `experiments/representation-analysis.md`. | §4 (secondary) | `experiments/representation-analysis.md` |
-| 11b | **Effective dimensionality (e100, init-matched)** | JEPA/BYOL/MAE/SALT | ⚠️ **REVISED:** Consistent 4-model RankMe (`scripts/rebuttal/rankme.py`): JEPA 245, BYOL 221, MAE 206, SALT 203. All 200-245 range — **no 3× collapse**. Prior MAE=63 not reproducible. Demoted from primary mechanism. | §4 (appendix) | `experiments/representation-analysis.md` |
+| 11b | **Effective dimensionality (e100, init-matched)** | JEPA/BYOL/MAE/SALT | ⚠️ **REVISED:** Consistent 4-model RankMe (`scripts/neurips/rankme.py`): JEPA 245, BYOL 221, MAE 206, SALT 203. All 200-245 range — **no 3× collapse**. Prior MAE=63 not reproducible. Demoted from primary mechanism. | §4 (appendix) | `experiments/representation-analysis.md` |
 | 12 | **Pathology-stratified LVEF** | JEPA/BYOL/MAE | JEPA advantage 8× larger on reduced EF | §3 Clinical | `rebuttals/10-*` §6d |
 | 13 | **Bootstrap CIs (UHN 53K)** | JEPA/BYOL/MAE | All 6 pairwise CIs exclude zero | §3 Stats | `rebuttals/10-*` §6a |
 | 14 | **Bootstrap CIs (END 1,277)** | JEPA/BYOL/MAE | All 3 pairwise CIs exclude zero | §3 Stats | `rebuttals/10-*` §3a |
@@ -137,7 +137,7 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 |---|-----------|--------|-----------|--------|
 | 18 | **Training dynamics LVEF probes** | BYOL/MAE at e24/e50/e75/e100 | BYOL: 6.37→6.17→5.99→5.94; MAE: 7.54→6.41→6.11→6.05 | `rebuttals/12-checkpoint-reference.md` |
 | 19 | **SALT S2 e79 END LVEF probe** | SALT S2 | Val MAE=6.47 (11.6%) | `evals/vitl/icml/salt_s2_e79_end_lvef_224/.../best.pt` |
-| 20 | **Frame shuffling severity gradient** | BYOL e50/e100, MAE e50/e99, SALT S2 e79 | See results table below | `scripts/rebuttal/samples/severity_*.csv` |
+| 20 | **Frame shuffling severity gradient** | BYOL e50/e100, MAE e50/e99, SALT S2 e79 | See results table below | `scripts/neurips/samples/severity_*.csv` |
 
 #### Severity Gradient Results (R² vs Shuffle Fraction, EchoNet-Dynamic test)
 
@@ -247,11 +247,11 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 
 | Model | CSV | JSON |
 |-------|-----|------|
-| BYOL e50 | `scripts/rebuttal/samples/severity_BYOL_e50.csv` | — |
-| BYOL e100 | `scripts/rebuttal/samples/severity_BYOL_e100.csv` | — |
-| MAE e50 | `scripts/rebuttal/samples/severity_MAE_e50.csv` | — |
-| MAE e99 | `scripts/rebuttal/samples/severity_MAE_e99.csv` | — |
-| SALT S2 e79 | `scripts/rebuttal/samples/severity_SALT_e79.csv` | — |
+| BYOL e50 | `scripts/neurips/samples/severity_BYOL_e50.csv` | — |
+| BYOL e100 | `scripts/neurips/samples/severity_BYOL_e100.csv` | — |
+| MAE e50 | `scripts/neurips/samples/severity_MAE_e50.csv` | — |
+| MAE e99 | `scripts/neurips/samples/severity_MAE_e99.csv` | — |
+| SALT S2 e79 | `scripts/neurips/samples/severity_SALT_e79.csv` | — |
 
 ---
 
@@ -286,9 +286,9 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 | `rebuttals/13-post-rebuttal-outcome.md` | ICML lessons |
 | `claude/papers/vjepa-salt/arxiv.tex` | SALT paper: fair comparison = matched total steps |
 | `claude/architecture/salt-pretraining.md` | SALT implementation guide |
-| `scripts/rebuttal/frame_shuffle_severity.py` | Severity gradient script (all model configs) |
-| `scripts/rebuttal/frame_shuffle_segmentation.py` | P1.5b CAMUS segmentation script |
-| `scripts/rebuttal/echo_perturbations.py` | EchoBench perturbations (static — see framing note) |
+| `scripts/neurips/frame_shuffle_severity.py` | Severity gradient script (all model configs) |
+| `scripts/neurips/frame_shuffle_segmentation.py` | P1.5b CAMUS segmentation script |
+| `scripts/neurips/echo_perturbations.py` | EchoBench perturbations (static — see framing note) |
 
 ## Other Files in This Directory
 

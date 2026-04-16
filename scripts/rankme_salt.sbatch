@@ -19,7 +19,7 @@ REPO_DIR="/opt/vjepa2"
 S3_BASE="s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts"
 CKPT_DIR="$REPO_DIR/checkpoints"
 NVME_TMP="/opt/dlami/nvme/rankme_tmp"
-OUT="$REPO_DIR/scripts/rebuttal/samples/rankme_all.csv"
+OUT="$REPO_DIR/scripts/neurips/samples/rankme_all.csv"
 
 cd "$REPO_DIR"
 export PYTHONUNBUFFERED=1
@@ -63,7 +63,7 @@ run_model() {
     ln -sf "$NVME_PATH" "$LOCAL_PATH"
 
     echo "[$NAME] Running RankMe..."
-    python scripts/rebuttal/rankme.py \
+    python scripts/neurips/rankme.py \
         --models "$NAME" \
         --csv "$CSV" \
         --device cuda:0 \

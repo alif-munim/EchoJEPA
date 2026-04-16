@@ -301,7 +301,7 @@ All in `results/segmentation/<model>/<lr_wd>/best_decoder.pt` with `grid_summary
 - **Fix attempted**: `--fix_orientation` flag (rot270 + flipH). Results: **G worsened** (0.729→0.606), L pt50 marginal improvement (0.815→0.826). The fix is WRONG for G — the G model learned orientation-invariant features from 18M diverse echos. Do not apply for G.
 - **Output dirs**: G → `results/segmentation/echojepa_g_384_fixed_orient/` (test Dice 0.606, DO NOT USE). L pt50 → `results/segmentation/echojepa_l_pt50_fixed_orient/` (test Dice 0.826, marginal improvement).
 - **Conclusion**: G < L gap is primarily resolution mismatch (384px→224px), not orientation.
-- **Visual reference**: `scripts/rebuttal/samples/camus_orientation_fix_comparison.png`.
+- **Visual reference**: `scripts/neurips/samples/camus_orientation_fix_comparison.png`.
 
 **⚠️ Resolution Note (EchoNet-Pediatric):** EchoNet-Pediatric is natively 112px. We tested both 112px and 224px probes — results are nearly identical (JEPA R²=0.157 at 112px vs 0.123 at 224px). Resolution is NOT the issue for the pediatric pt50 results. The fully-trained JEPA (pt210-an25) gets R²=0.568 at 112px on the same test set, confirming the pt50 encoder simply needs more pretraining for pediatric transfer. UHN probes train at 224px; EchoNet-Dynamic probes at 224px (upscaled from native 112px, works fine with 7.5K training data).
 

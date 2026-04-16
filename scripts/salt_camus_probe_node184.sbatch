@@ -134,7 +134,7 @@ cat "${GRID_SUMMARY}"
 echo ""
 echo "[$(date)] Running SALT frame shuffling on CAMUS..."
 
-${PYTHON} scripts/rebuttal/frame_shuffle_segmentation.py \
+${PYTHON} scripts/neurips/frame_shuffle_segmentation.py \
     --encoder_type vjepa \
     --encoder_checkpoint "${SALT_CKPT}" \
     --encoder_model_name vit_large \
@@ -151,7 +151,7 @@ echo "[$(date)] SALT CAMUS frame shuffling complete."
 echo "[$(date)] Uploading results to S3..."
 aws s3 cp "${GRID_SUMMARY}" "${S3_CLEAN}/probes/camus_segmentation/salt_s2v1_e79/grid_summary.json"
 aws s3 cp "${DECODER_CKPT}" "${S3_CLEAN}/probes/camus_segmentation/salt_s2v1_e79/best_decoder.pt"
-aws s3 cp "${REPO_DIR}/scripts/rebuttal/samples/salt_s2v1_e79_frame_shuffle_segmentation.csv" \
+aws s3 cp "${REPO_DIR}/scripts/neurips/samples/salt_s2v1_e79_frame_shuffle_segmentation.csv" \
     "${S3_CLEAN}/results/camus_frame_shuffle/salt_s2v1_e79.csv"
 
 echo "[$(date)] All done."
