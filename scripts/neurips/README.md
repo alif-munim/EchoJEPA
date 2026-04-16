@@ -17,7 +17,8 @@ All four models use the same ViT-L (304M params), ImageNet-21K init, trained on 
 | **JEPA** | e25, e50, e75, e100 | `neurips/encoders/jepa_in21k_vitl_e{25,50,75,100}.pt` |
 | **BYOL** | e24, e50, e75, e100 | `neurips/encoders/byol_vitl_e{24,50,75,100}.pt` |
 | **MAE** | e24, e50, e74, e99 | `neurips/encoders/mae_vitl_e{24,50,74,99}.pth` |
-| **SALT** | e29, e49, e79 | `neurips/encoders/salt_s2_vitl_e{29,49,79}.pt` |
+| **SALT S1** (teacher) | e19 | `neurips/encoders/salt_s1_vitl_e19.pt` |
+| **SALT S2** (student) | e4, e29, e49, e79 | `neurips/encoders/salt_s2_vitl_e{4,29,49,79}.pt` |
 
 **S3 mirror:** `s3://echodata25/neurips/encoders/` (same files)
 
