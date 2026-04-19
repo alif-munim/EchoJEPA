@@ -1,0 +1,100 @@
+# V-JEPA ViT-S pretraining on CMR SAX — ImageNet-21K init
+# Cross-modality validation for NeurIPS temporal shortcut paper.
+# Controlled comparison: JEPA vs MAE on 21.8K CMR SAX cine clips.
+#
+# ViT-S (384-dim, 12 blocks, 6 heads) — sized for ~22K clips.
+# Data: SAX-only from MnM + MnM2 + Sunnybrook + DSB2 + CMR-Multi.
+# ACDC held out for probe evaluation.
+#
+# Dataset calibration (21,840 clips):
+#   batch_size=32 × 8 GPUs = 256 effective BS
+#   ipe=85 ≈ 21840/256 (one data pass per epoch)
+#   800 epochs = 800 data passes, 68,000 gradient steps
+#   warmup=40 epochs = 5% of training
+#
+# Launch (single node, 8 GPUs):
+#   python -m app.main --fname configs/train/vits16/pretrain-jepa-cmr-224px-16f-in21k.yaml \
+#     --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+app: vjepa
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 12
+mem_per_gpu: 80G
+folder: /opt/dlami/nvme/checkpoints/pretrain/cmr/vjepa_vits_224px_16f_in21k
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /opt/dlami/nvme/data/csv/cmr_pretrain.csv
+  datasets_weights: [1.0]
+  batch_size: 32
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  fps: 25
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_small
+  pred_depth: 6
+  pred_embed_dim: 192
+  pred_num_heads: 6
+  uniform_power: true
+  use_activation_checkpointing: false
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true
+  zero_init_mask_tokens: true
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: true
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/vits_in21k.pt
+  ema: [0.996, 0.996]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  ipe: 85
+  ipe_scale: 1.0
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  warmup: 40
+  epochs: 800

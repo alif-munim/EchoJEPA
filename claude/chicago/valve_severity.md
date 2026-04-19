@@ -13,6 +13,7 @@ You will run **3 frozen encoder models** on **4 valve severity tasks**:
 | Model | Architecture | Params | Encoder File | Embed Dim |
 |-------|-------------|--------|-------------|-----------|
 | **EchoJEPA-G** | ViT-Giant | 1,012M | `pt-280-an81.pt` (15.3 GB) | 1408 |
+| **EchoJEPA-L-K** | ViT-Large | 304M | `vitl-kinetics-pt220-an55.pt` (4.8 GB) | 1024 |
 | **EchoPrime** | MViT-v2-S | ~35M | `echo_prime_encoder.pt` (~200 MB) | 512 |
 | **PanEcho** | ConvNeXt-T + Transformer | ~30M | Auto-downloads from hub | 768 |
 
@@ -23,7 +24,7 @@ You will run **3 frozen encoder models** on **4 valve severity tasks**:
 | **AR Severity** | 5 | 0=none, 1=trace, 2=mild, 3=moderate, 4=severe |
 | **AS Severity** | 4 | 0=none/sclerosis, 1=mild, 2=moderate, 3=severe |
 
-That's **12 inference runs** total (3 models x 4 tasks).
+That's **16 inference runs** total (4 models x 4 tasks).
 
 ---
 
@@ -37,18 +38,27 @@ gdrive:echo_foundation/nature_medicine/chicago/
 │   └── echojepa_g_uhn_pt280_an81/
 │       └── pt-280-an81.pt                    # EchoJEPA-G encoder (15.3 GB)
 └── probes/
-    ├── echojepa-g_mr_severity/best.pt        # 3.0 GB
-    ├── echojepa-g_tr_severity/best.pt        # 3.0 GB
-    ├── echojepa-g_as_severity/best.pt        # 3.0 GB
-    ├── echojepa-g_ar_severity/best.pt        # 3.0 GB
-    ├── echoprime_mr_severity/best.pt         # 398 MB
-    ├── echoprime_tr_severity/best.pt         # 398 MB
-    ├── echoprime_as_severity/best.pt         # 398 MB
-    ├── echoprime_ar_severity/best.pt         # 398 MB
-    ├── panecho_mr_severity/best.pt           # 894 MB
-    ├── panecho_tr_severity/best.pt           # 894 MB
-    ├── panecho_as_severity/best.pt           # 893 MB
-    └── panecho_ar_severity/best.pt           # 894 MB
+    └── valve_severity/
+        ├── echojepa-g_mr_severity/best.pt        # 3.0 GB
+        ├── echojepa-g_tr_severity/best.pt        # 3.0 GB
+        ├── echojepa-g_as_severity/best.pt        # 3.0 GB
+        ├── echojepa-g_ar_severity/best.pt        # 3.0 GB
+        ├── echojepa-l-k_mr_severity/best.pt      # 1.6 GB
+        ├── echojepa-l-k_tr_severity/best.pt      # 1.6 GB
+        ├── echojepa-l-k_as_severity/best.pt      # 1.6 GB
+        ├── echojepa-l-k_ar_severity/best.pt      # 1.6 GB
+        ├── echoprime_mr_severity/best.pt         # 398 MB
+        ├── echoprime_tr_severity/best.pt         # 398 MB
+        ├── echoprime_as_severity/best.pt         # 398 MB
+        ├── echoprime_ar_severity/best.pt         # 398 MB
+        ├── panecho_mr_severity/best.pt           # 894 MB
+        ├── panecho_tr_severity/best.pt           # 894 MB
+        ├── panecho_as_severity/best.pt           # 893 MB
+        └── panecho_ar_severity/best.pt           # 894 MB
+
+# EchoJEPA-L-K encoder is in the parent checkpoints directory:
+gdrive:echo_foundation/nature_medicine/checkpoints/
+└── vitl-kinetics-pt220-an55.pt               # EchoJEPA-L-K encoder (4.8 GB)
 ```
 
 ---
@@ -114,24 +124,31 @@ Create a local checkpoint directory and download from GDrive:
 
 ```bash
 mkdir -p checkpoints/encoders
-mkdir -p checkpoints/probes/{mr_severity,tr_severity,as_severity,ar_severity}/{echojepa-g,echoprime,panecho}
+mkdir -p checkpoints/probes/{mr_severity,tr_severity,as_severity,ar_severity}/{echojepa-g,echojepa-l-k,echoprime,panecho}
 
-# EchoJEPA-G encoder
-cp <gdrive>/checkpoints/echojepa_g_uhn_pt280_an81/pt-280-an81.pt checkpoints/encoders/
+# EchoJEPA-G encoder (from chicago/checkpoints/)
+cp <gdrive>/chicago/checkpoints/echojepa_g_uhn_pt280_an81/pt-280-an81.pt checkpoints/encoders/
 
-# Probes (download all 12 from GDrive)
-cp <gdrive>/probes/echojepa-g_mr_severity/best.pt  checkpoints/probes/mr_severity/echojepa-g/
-cp <gdrive>/probes/echojepa-g_tr_severity/best.pt  checkpoints/probes/tr_severity/echojepa-g/
-cp <gdrive>/probes/echojepa-g_as_severity/best.pt  checkpoints/probes/as_severity/echojepa-g/
-cp <gdrive>/probes/echojepa-g_ar_severity/best.pt  checkpoints/probes/ar_severity/echojepa-g/
-cp <gdrive>/probes/echoprime_mr_severity/best.pt   checkpoints/probes/mr_severity/echoprime/
-cp <gdrive>/probes/echoprime_tr_severity/best.pt   checkpoints/probes/tr_severity/echoprime/
-cp <gdrive>/probes/echoprime_as_severity/best.pt   checkpoints/probes/as_severity/echoprime/
-cp <gdrive>/probes/echoprime_ar_severity/best.pt   checkpoints/probes/ar_severity/echoprime/
-cp <gdrive>/probes/panecho_mr_severity/best.pt     checkpoints/probes/mr_severity/panecho/
-cp <gdrive>/probes/panecho_tr_severity/best.pt     checkpoints/probes/tr_severity/panecho/
-cp <gdrive>/probes/panecho_as_severity/best.pt     checkpoints/probes/as_severity/panecho/
-cp <gdrive>/probes/panecho_ar_severity/best.pt     checkpoints/probes/ar_severity/panecho/
+# EchoJEPA-L-K encoder (from parent checkpoints/)
+cp <gdrive>/checkpoints/vitl-kinetics-pt220-an55.pt checkpoints/encoders/
+
+# Probes (download all 16 from GDrive chicago/probes/)
+cp <gdrive>/probes/echojepa-g_mr_severity/best.pt    checkpoints/probes/mr_severity/echojepa-g/
+cp <gdrive>/probes/echojepa-g_tr_severity/best.pt    checkpoints/probes/tr_severity/echojepa-g/
+cp <gdrive>/probes/echojepa-g_as_severity/best.pt    checkpoints/probes/as_severity/echojepa-g/
+cp <gdrive>/probes/echojepa-g_ar_severity/best.pt    checkpoints/probes/ar_severity/echojepa-g/
+cp <gdrive>/probes/echojepa-l-k_mr_severity/best.pt  checkpoints/probes/mr_severity/echojepa-l-k/
+cp <gdrive>/probes/echojepa-l-k_tr_severity/best.pt  checkpoints/probes/tr_severity/echojepa-l-k/
+cp <gdrive>/probes/echojepa-l-k_as_severity/best.pt  checkpoints/probes/as_severity/echojepa-l-k/
+cp <gdrive>/probes/echojepa-l-k_ar_severity/best.pt  checkpoints/probes/ar_severity/echojepa-l-k/
+cp <gdrive>/probes/echoprime_mr_severity/best.pt     checkpoints/probes/mr_severity/echoprime/
+cp <gdrive>/probes/echoprime_tr_severity/best.pt     checkpoints/probes/tr_severity/echoprime/
+cp <gdrive>/probes/echoprime_as_severity/best.pt     checkpoints/probes/as_severity/echoprime/
+cp <gdrive>/probes/echoprime_ar_severity/best.pt     checkpoints/probes/ar_severity/echoprime/
+cp <gdrive>/probes/panecho_mr_severity/best.pt       checkpoints/probes/mr_severity/panecho/
+cp <gdrive>/probes/panecho_tr_severity/best.pt       checkpoints/probes/tr_severity/panecho/
+cp <gdrive>/probes/panecho_as_severity/best.pt       checkpoints/probes/as_severity/panecho/
+cp <gdrive>/probes/panecho_ar_severity/best.pt       checkpoints/probes/ar_severity/panecho/
 ```
 
 ---
@@ -363,7 +380,90 @@ dataset_val: data/csv/ucmc_as_severity_test.csv
 num_classes: 4                 # AS is 4-class (none/sclerosis merged)
 ```
 
-### 6.2 EchoPrime configs
+### 6.2 EchoJEPA-L-K configs
+
+EchoJEPA-L-K is a ViT-Large model initialized from Kinetics-pretrained V-JEPA weights, then continued on MIMIC-IV-Echo. It uses the same config structure as EchoJEPA-G but with a different encoder and model name.
+
+**`configs/inference/chicago/echojepa_lk_mr_severity.yaml`:**
+```yaml
+app: vjepa
+eval_name: video_classification_frozen
+val_only: true
+resume_checkpoint: true
+tag: ucmc-echojepa-lk-mr-severity
+probe_checkpoint: checkpoints/probes/mr_severity/echojepa-l-k/best.pt
+
+experiment:
+  classifier:
+    num_heads: 16
+    num_probe_blocks: 1
+
+  data:
+    dataset_type: VideoDataset
+    dataset_train: data/csv/ucmc_mr_severity_test.csv
+    dataset_val: data/csv/ucmc_mr_severity_test.csv
+    num_classes: 5
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 2
+    num_segments: 2
+    num_views_per_segment: 1
+    study_sampling: true
+
+  optimization:
+    batch_size: 4
+    num_epochs: 1
+    use_bfloat16: true
+    multihead_kwargs:
+    - {lr: 0.0, start_lr: 0.0, final_lr: 0.0, warmup: 0.0, weight_decay: 0.0, final_weight_decay: 0.0}
+
+model_kwargs:
+  checkpoint: checkpoints/encoders/vitl-kinetics-pt220-an55.pt
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: target_encoder
+      model_name: vit_large
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true
+  wrapper_kwargs:
+    max_frames: 128
+    use_pos_embed: false
+```
+
+**`configs/inference/chicago/echojepa_lk_tr_severity.yaml`:**
+Same as MR but change:
+```yaml
+tag: ucmc-echojepa-lk-tr-severity
+probe_checkpoint: checkpoints/probes/tr_severity/echojepa-l-k/best.pt
+dataset_train: data/csv/ucmc_tr_severity_test.csv
+dataset_val: data/csv/ucmc_tr_severity_test.csv
+num_classes: 5
+```
+
+**`configs/inference/chicago/echojepa_lk_ar_severity.yaml`:**
+Same as MR but change:
+```yaml
+tag: ucmc-echojepa-lk-ar-severity
+probe_checkpoint: checkpoints/probes/ar_severity/echojepa-l-k/best.pt
+dataset_train: data/csv/ucmc_ar_severity_test.csv
+dataset_val: data/csv/ucmc_ar_severity_test.csv
+num_classes: 5
+```
+
+**`configs/inference/chicago/echojepa_lk_as_severity.yaml`:**
+Same as MR but change:
+```yaml
+tag: ucmc-echojepa-lk-as-severity
+probe_checkpoint: checkpoints/probes/as_severity/echojepa-l-k/best.pt
+dataset_train: data/csv/ucmc_as_severity_test.csv
+dataset_val: data/csv/ucmc_as_severity_test.csv
+num_classes: 4                 # AS is 4-class (none/sclerosis merged)
+```
+
+### 6.3 EchoPrime configs
 
 **`configs/inference/chicago/echoprime_mr_severity.yaml`:**
 ```yaml
@@ -410,7 +510,7 @@ model_kwargs:
 
 For TR, AR, AS: same pattern — change `tag`, `probe_checkpoint`, data paths, and `num_classes` (4 for AS).
 
-### 6.3 PanEcho configs
+### 6.4 PanEcho configs
 
 **`configs/inference/chicago/panecho_mr_severity.yaml`:**
 ```yaml
@@ -471,6 +571,7 @@ python -m evals.main \
 
 **GPU memory requirements:**
 - EchoJEPA-G: ~25-30 GB (needs A100/H100/A6000 or similar)
+- EchoJEPA-L-K: ~12-16 GB (can run on V100/A100/RTX 3090)
 - EchoPrime: ~8-10 GB (can run on V100/RTX 3090)
 - PanEcho: ~6-8 GB (can run on V100/RTX 3090)
 
@@ -482,13 +583,13 @@ python -m evals.main \
   --val_only
 ```
 
-### 7.2 Run all 12 experiments
+### 7.2 Run all 16 experiments
 
 ```bash
 #!/bin/bash
 # run_all_ucmc.sh
 
-MODELS=("echojepa_g" "echoprime" "panecho")
+MODELS=("echojepa_g" "echojepa_lk" "echoprime" "panecho")
 TASKS=("mr_severity" "tr_severity" "ar_severity" "as_severity")
 
 for model in "${MODELS[@]}"; do
@@ -527,7 +628,7 @@ python -m evals.main \
 
 Submit with:
 ```bash
-for model in echojepa_g echoprime panecho; do
+for model in echojepa_g echojepa_lk echoprime panecho; do
   for task in mr_severity tr_severity ar_severity as_severity; do
     sbatch --export=MODEL=$model,TASK=$task run_ucmc.sbatch
   done
@@ -577,7 +678,7 @@ These are printed to stdout and saved in the log.
 
 ### 8.3 Collecting results
 
-After all 12 runs, you should have:
+After all 16 runs, you should have:
 
 ```
 results/ucmc/
@@ -585,6 +686,10 @@ results/ucmc/
 ├── ucmc-echojepa-g-tr-severity/study_predictions.csv
 ├── ucmc-echojepa-g-ar-severity/study_predictions.csv
 ├── ucmc-echojepa-g-as-severity/study_predictions.csv
+├── ucmc-echojepa-lk-mr-severity/study_predictions.csv
+├── ucmc-echojepa-lk-tr-severity/study_predictions.csv
+├── ucmc-echojepa-lk-ar-severity/study_predictions.csv
+├── ucmc-echojepa-lk-as-severity/study_predictions.csv
 ├── ucmc-echoprime-mr-severity/study_predictions.csv
 ├── ucmc-echoprime-tr-severity/study_predictions.csv
 ├── ucmc-echoprime-ar-severity/study_predictions.csv
@@ -687,13 +792,13 @@ If you include all views, the model will still work but may have slightly lower 
 
 ## 11. Expected Results
 
-For reference, here are the UHN internal validation AUROC scores:
+For reference, here are the **UHN internal validation** AUROC scores (not UCMC — these are from the Toronto training site's held-out test set):
 
-| Task | EchoJEPA-G | EchoPrime | PanEcho |
-|------|-----------|----------|---------|
-| MR Severity | 0.882 | 0.818 | 0.789 |
-| AS Severity | 0.932 | 0.868 | 0.813 |
-| TR Severity | 0.854 | 0.780 | 0.778 |
-| AR Severity | 0.765 | 0.701 | 0.692 |
+| Task | EchoJEPA-G | EchoJEPA-L-K | EchoPrime | PanEcho |
+|------|-----------|-------------|----------|---------|
+| MR Severity | 0.882 | 0.836 | 0.818 | 0.789 |
+| AS Severity | 0.932 | 0.868 | 0.868 | 0.813 |
+| TR Severity | 0.854 | 0.817 | 0.780 | 0.778 |
+| AR Severity | 0.765 | 0.680 | 0.701 | 0.692 |
 
 Cross-institution performance may differ due to population differences, grading conventions, and ultrasound equipment. A 2-5 pp drop is typical for external validation.
