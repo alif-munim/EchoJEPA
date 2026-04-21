@@ -1,0 +1,51 @@
+app: vjepa
+folder: /opt/dlami/nvme/evals/neurips/salt_e29_end_test
+eval_name: video_classification_frozen
+resume_checkpoint: true
+val_only: true
+tag: neurips-salt-s2v1-e29-end-test
+probe_checkpoint: /opt/dlami/nvme/probes/salt_e29_end/best.pt
+predictions_save_path: /opt/dlami/nvme/evals/neurips/salt_e29_end_test/predictions.csv
+experiment:
+  classifier:
+    task_type: regression
+    num_heads: 16
+    num_probe_blocks: 4
+    num_targets: 1
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /opt/dlami/nvme/data/csv/echonet_dynamic_train_s3_raw.csv
+    dataset_val: /opt/dlami/nvme/data/csv/echonet_dynamic_test_s3_raw.csv
+    target_mean: 55.7776
+    target_std: 12.4072
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 2
+    num_segments: 2
+    num_views_per_segment: 1
+  optimization:
+    batch_size: 8
+    num_epochs: 1
+    use_bfloat16: true
+    use_pos_embed: false
+    multihead_kwargs:
+    - {final_lr: 0.0, final_weight_decay: 0.01, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.01}
+    - {final_lr: 0.0, final_weight_decay: 0.1, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.1}
+    - {final_lr: 0.0, final_weight_decay: 0.4, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.4}
+    - {final_lr: 0.0, final_weight_decay: 0.01, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.01}
+    - {final_lr: 0.0, final_weight_decay: 0.1, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.1}
+    - {final_lr: 0.0, final_weight_decay: 0.4, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.4}
+model_kwargs:
+  checkpoint: /opt/dlami/nvme/checkpoints/salt_s2v1_e29.pt
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: encoder
+      model_name: vit_large
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true
+  wrapper_kwargs:
+    max_frames: 128
+    use_pos_embed: false

@@ -1,7 +1,16 @@
+# ⚠️ ARCHIVED — See `experiments/frame-shuffling-results.md` for current results
+
+**Archived:** 2026-04-20. This document describes an older protocol. The current
+consolidated reference is `claude/neurips/experiments/frame-shuffling-results.md`.
+
+---
+
 # Frame Shuffling Temporal Ablation
 
 **Date:** 2026-03-31
-**Status:** Complete for pt50 rebuttal models. **Needs re-run with e100 ImageNet-init checkpoints for NeurIPS** (current results use Meta V-JEPA 2 init JEPA, which is confounded). The interpretation and decomposition analysis are valid but the absolute R² values will change.
+**Status:** Complete for pt50 rebuttal models. E100 init-matched results are in `6-condition-shuffling.md`. Extended training (e124-e194) results are in `frame-shuffling-protocols.md`.
+
+**⚠️ This is Protocol A (ICML pt50 probes, evals.main with RoPE remap, num_segments=2).** See `frame-shuffling-protocols.md` for the definitive cross-reference of all protocols and which numbers appear where in the paper.
 
 **⚠️ Protocol note:** These results use `num_segments=2` prediction averaging (same protocol as the NeurIPS Table 1 bootstrap CIs). The R² values differ from Table 1 because these are from the pt50 rebuttal models (different init, different epoch), not the e100 init-matched models. When frame shuffling is re-run on e100 checkpoints, the clean baseline should match the Table 1 numbers (JEPA R²=0.652, BYOL 0.511, MAE 0.447).
 

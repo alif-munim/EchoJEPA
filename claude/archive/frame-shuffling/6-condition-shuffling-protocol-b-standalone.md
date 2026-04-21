@@ -1,9 +1,18 @@
+# ⚠️ ARCHIVED — See `experiments/frame-shuffling-results.md` for current results
+
+**Archived:** 2026-04-20. This document describes an older protocol. The current
+consolidated reference is `claude/neurips/experiments/frame-shuffling-results.md`.
+
+---
+
 # 6-Condition Frame Shuffling — Training Dynamics
 
 **Date:** 2026-04-06
 **Script:** `scripts/neurips/frame_shuffle_6cond.py`
 **Dataset:** EchoNet-Dynamic test (1,277 videos)
 **Protocol:** 6 temporal disruption conditions with increasing severity. Stochastic conditions use 3 seeds (100, 101, 102). No RoPE remapping for matched/matched_frame (standalone script limitation — see note below).
+
+**⚠️ This is Protocol B (epoch-matched probes, standalone script, no RoPE remap, no prediction averaging).** "matched_frame" here is a fixed-permutation frame shuffle, NOT the paper's "time-aware shuffle" which requires RoPE remapping via evals.main. See `frame-shuffling-protocols.md` for the definitive cross-reference.
 
 ---
 

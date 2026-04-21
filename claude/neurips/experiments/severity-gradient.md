@@ -5,6 +5,8 @@
 **Dataset:** EchoNet-Dynamic test (1,277 videos)
 **Protocol:** Partial frame shuffling at 0/25/50/75/100% of frames, 3 seeds per fraction (100, 101, 102). Frame-level permutation without RoPE remapping.
 
+**⚠️ This is Protocol C (epoch-matched probes, standalone script, no RoPE remap, no prediction averaging).** These are the numbers used in `\cref{fig:dynamics}` (training dynamics figure) in the paper. Temporal Δ = clean R² − fully shuffled R² (3-seed mean). See `frame-shuffling-protocols.md` for the definitive cross-reference.
+
 ---
 
 ## Complete Results Matrix (R², mean of 3 seeds)
@@ -101,6 +103,62 @@ Yet MAE e99 still converges to near-complete temporal invariance (−4%). This r
 Full writeup: `experiments/tube-masking-failure.md`.
 
 ---
+
+### 7. Extended MAE training (e124-e194): temporal shortcut persists (2026-04-20)
+
+**Status:** Severity gradient reproduced for e24 (exact match). Full trajectory (e24-e194) partially run. Switching to matched_frame protocol for paper-ready numbers.
+
+**Severity gradient e24 reproduction (3-seed, job 215 on HyperPod):**
+
+| Fraction | Original R² | Reproduced R² |
+|----------|------------|---------------|
+| 0.00 | 0.221 | 0.221 |
+| 0.25 | 0.214 | 0.214 |
+| 0.50 | 0.205 | 0.206 |
+| 0.75 | 0.182 | 0.183 |
+| 1.00 | 0.176 | 0.176 |
+
+Exact reproduction confirms checkpoint/probe integrity on HyperPod.
+
+**Extended training LVEF probes (NeurIPS, d=4 attentive, EchoNet-Dynamic val):**
+
+Probes trained at e124, e149, e174, e194 on the same IN21K-init MAE lineage. Results from probe training (job 201/202):
+
+| MAE Epoch | Val R² | Val Pearson | Val MAE | Best Epoch |
+|-----------|--------|-------------|---------|------------|
+| e50 (old) | 0.495 | 0.706 | 6.41 | 18 |
+| e99 (old) | 0.545 | 0.742 | 6.05 | 18 |
+| e124 | 0.544 | 0.741 | 6.07 | 19 |
+| e149 | 0.572 | 0.763 | 5.93 | 19 |
+| e174 | 0.571 | 0.757 | 5.93 | 19 |
+| e194 | 0.584 | 0.766 | 5.87 | 17 |
+
+Clean LVEF probe R² improves from 0.545 (e99) to 0.584 (e194) — the model keeps learning better spatial features even after temporal encoding has collapsed.
+
+**evals.main frame shuffle (basic shuffle, num_segments=2, job 214):**
+
+WARNING: These numbers use a different protocol from the severity gradient (prediction averaging, different head selection). Not directly comparable to the severity gradient numbers. Included for reference only.
+
+| MAE Epoch | Clean R² | Shuffled R² | Δ R² |
+|-----------|----------|-------------|------|
+| e25 | 0.225 | 0.256 | +0.032 |
+| e50 | 0.413 | 0.317 | -0.096 |
+| e75 | 0.435 | 0.353 | -0.083 |
+| e99 | 0.467 | 0.439 | -0.028 |
+| e124 | 0.469 | 0.450 | -0.020 |
+| e149 | 0.527 | 0.494 | -0.033 |
+| e174 | 0.500 | 0.476 | -0.024 |
+| e194 | 0.526 | 0.507 | -0.019 |
+
+Pattern is consistent with the severity gradient: temporal Δ peaks at e50, compresses by e99, remains flat through e194. Extended training does not recover temporal encoding.
+
+**TODO:** Run matched_frame (time-aware shuffle) via evals.main for e25-e194 to get paper-ready numbers for the main text table. This is the most rigorous condition (RoPE remapped).
+
+**Lessons learned (2026-04-19/20):**
+1. `evals.main` uses `mp.Process` internally — must use `--ntasks-per-node=1` (no srun) on HyperPod
+2. Inference configs must have 6 `multihead_kwargs` entries matching probe checkpoint (1 entry → only head 0 loaded → wrong R²)
+3. `echomae_l_mimic_ep99.pth` ≠ `videomae_l_mimic_ep99.pth` — different files, encoder/probe mismatch gives garbage
+4. Severity gradient script (standalone, single GPU) reproduces originals exactly. `evals.main` (DDP, num_segments=2) gives higher baselines due to prediction averaging.
 
 ## Init and Epoch Matching
 

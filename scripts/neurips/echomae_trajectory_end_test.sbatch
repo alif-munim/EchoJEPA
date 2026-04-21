@@ -1,24 +1,22 @@
 #!/bin/bash
-#SBATCH -p ml-p5-48xlarge
+#SBATCH -p dev
 #SBATCH -N 1
 #SBATCH --gres=gpu:8
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=96
-#SBATCH -t 1-00:00:00
-#SBATCH -J mae_traj
-#SBATCH -o /tmp/mae_traj_%j.out
-#SBATCH -e /tmp/mae_traj_%j.err
+#SBATCH -t 6:00:00
+#SBATCH -J mae_test
+#SBATCH -o /tmp/mae_test_%j.out
+#SBATCH -e /tmp/mae_test_%j.err
 #SBATCH --signal=B:USR1@300
-#SBATCH --dependency=afterany:201
 
 set -euxo pipefail
 
 # =============================================================================
-# EchoMAE-L training trajectory → EchoNet-Dynamic LVEF probes
+# EchoMAE-L trajectory → EchoNet-Dynamic LVEF test set inference
 # =============================================================================
-# Runs d=4 attentive probes at e124, e149, e174 to track temporal encoding
-# strength across extended MAE training. Combined with e200 (job 190), this
-# gives 4 probe points for the training dynamics figure.
+# Runs test inference for e124, e149, e174, e194 probe checkpoints.
+# Each loads the frozen MAE encoder + trained probe → predicts on END test set.
 # =============================================================================
 
 export AWS_DEFAULT_REGION="us-west-2"
@@ -26,8 +24,6 @@ export AWS_REGION="us-west-2"
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export PYTHONUNBUFFERED=1
-export MASTER_PORT=$((12000 + $RANDOM % 20000))
-export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 
 export AWS_SDK_LOAD_CONFIG=1
 export HOME="/home/ubuntu"
@@ -36,9 +32,6 @@ export AWS_CONFIG_FILE="${HOME}/.aws/config"
 unset AWS_EC2_METADATA_DISABLED 2>/dev/null || true
 export AWS_METADATA_SERVICE_TIMEOUT=5
 export AWS_METADATA_SERVICE_NUM_ATTEMPTS=3
-
-export NCCL_ASYNC_ERROR_HANDLING=1
-export NCCL_BLOCKING_WAIT=1
 
 echo "[PREFLIGHT] Checking AWS credentials..."
 aws sts get-caller-identity || { echo "[FATAL] AWS CLI credentials check failed"; exit 1; }
@@ -50,31 +43,37 @@ echo "[PREFLIGHT] OK"
 ART_BUCKET="sagemaker-hyperpod-lifecycle-495467399120-usw2"
 S3_BASE="s3://${ART_BUCKET}/vjepa2-artifacts"
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
-RUN_S3="${S3_BASE}/runs/mae_traj_lvef_${SLURM_JOB_ID}"
+RUN_S3="${S3_BASE}/runs/mae_traj_test_${SLURM_JOB_ID}"
 
-# Checkpoints from original run (159) and resume run (179)
+# Probe checkpoints
+PROBE_E194_S3="${S3_BASE}/runs/mae200_lvef_201/eval_output/video_classification_frozen/neurips-echomae-l-e200-end-lvef-d4/best.pt"
+PROBE_E124_S3="${S3_BASE}/runs/mae_traj_lvef_202/echomae_e124_end_lvef/video_classification_frozen/neurips-echomae-l-e124-end-lvef-d4/best.pt"
+PROBE_E149_S3="${S3_BASE}/runs/mae_traj_lvef_202/echomae_e149_end_lvef/video_classification_frozen/neurips-echomae-l-e149-end-lvef-d4/best.pt"
+PROBE_E174_S3="${S3_BASE}/runs/mae_traj_lvef_202/echomae_e174_end_lvef/video_classification_frozen/neurips-echomae-l-e174-end-lvef-d4/best.pt"
+
+# MAE encoder checkpoints
 CKPT_RUN_159="${S3_BASE}/runs/videomae_e200_159/training_folder"
 CKPT_RUN_179="${S3_BASE}/runs/videomae_e200b_179/training_folder"
 
-EPOCHS_TO_PROBE="124 149 174"
+EPOCHS_TO_TEST="124 149 174 194"
 
 # =========================
 # LOGGING / SYNC
 # =========================
 upload_logs() {
-  local out="/tmp/mae_traj_${SLURM_JOB_ID}.out"
-  local err="/tmp/mae_traj_${SLURM_JOB_ID}.err"
+  local out="/tmp/mae_test_${SLURM_JOB_ID}.out"
+  local err="/tmp/mae_test_${SLURM_JOB_ID}.err"
   [ -f "${out}" ] && aws s3 cp "${out}" "${RUN_S3}/logs/job.out" --only-show-errors || true
   [ -f "${err}" ] && aws s3 cp "${err}" "${RUN_S3}/logs/job.err" --only-show-errors || true
 }
 
 sync_results() {
-  for ep in ${EPOCHS_TO_PROBE}; do
-    local outdir="/opt/dlami/nvme/evals/neurips/echomae_e${ep}_end_lvef"
+  for ep in ${EPOCHS_TO_TEST}; do
+    local outdir="/opt/dlami/nvme/evals/neurips/echomae_e${ep}_end_test"
     if [ -d "${outdir}" ]; then
-      aws s3 sync "${outdir}" "${RUN_S3}/echomae_e${ep}_end_lvef/" \
+      aws s3 sync "${outdir}" "${RUN_S3}/echomae_e${ep}_end_test/" \
         --exclude "*" \
-        --include "*.pt" --include "*.pth" --include "*.yaml" --include "*.json" --include "*.csv" --include "*.npz" \
+        --include "*.csv" --include "*.json" --include "*.pt" --include "*.npz" \
         --only-show-errors || true
     fi
   done
@@ -91,13 +90,11 @@ trap on_exit EXIT
 trap 'sync_results; upload_logs' USR1
 
 # =========================
-# SETUP (once for all probes)
+# SETUP
 # =========================
 nvidia-smi -L || true
 
-# Kill any stale python processes from previous failed jobs
 pkill -9 -f "evals.main" 2>/dev/null || true
-pkill -9 -f "run_mae_pretraining" 2>/dev/null || true
 sleep 2
 
 SCRATCH="/opt/dlami/nvme"
@@ -120,19 +117,31 @@ pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 # Data CSVs
 mkdir -p "${SCRATCH}/data/csv"
 aws s3 cp "${S3_BASE}/data/csv/echonet_dynamic_train_s3_raw.csv" "${SCRATCH}/data/csv/"
-aws s3 cp "${S3_BASE}/data/csv/echonet_dynamic_val_s3_raw.csv" "${SCRATCH}/data/csv/"
+aws s3 cp "${S3_BASE}/data/csv/echonet_dynamic_test_s3_raw.csv" "${SCRATCH}/data/csv/"
 
-mkdir -p "${SCRATCH}/checkpoints"
+mkdir -p "${SCRATCH}/checkpoints" "${SCRATCH}/probes"
 
 # =========================
-# RUN PROBES SEQUENTIALLY
+# DOWNLOAD ALL PROBE CHECKPOINTS
 # =========================
-for EP in ${EPOCHS_TO_PROBE}; do
+echo "[INFO] Downloading probe checkpoints..."
+for ep in ${EPOCHS_TO_TEST}; do
+  PROBE_VAR="PROBE_E${ep}_S3"
+  PROBE_SRC="${!PROBE_VAR}"
+  mkdir -p "${SCRATCH}/probes/echomae_e${ep}_end"
+  aws s3 cp "${PROBE_SRC}" "${SCRATCH}/probes/echomae_e${ep}_end/best.pt" --quiet
+  echo "[INFO] Downloaded probe e${ep}: $(ls -lh ${SCRATCH}/probes/echomae_e${ep}_end/best.pt)"
+done
+
+# =========================
+# RUN TEST INFERENCE SEQUENTIALLY
+# =========================
+for EP in ${EPOCHS_TO_TEST}; do
   echo "============================================================"
-  echo "[INFO] Probing EchoMAE-L e${EP}"
+  echo "[INFO] Test inference: EchoMAE-L e${EP}"
   echo "============================================================"
 
-  # Download checkpoint (e124-e184 from run 159, e189+ from run 179)
+  # Download encoder checkpoint
   if [ "${EP}" -le 184 ]; then
     CKPT_SRC="${CKPT_RUN_159}/checkpoint-${EP}.pth"
   else
@@ -140,29 +149,25 @@ for EP in ${EPOCHS_TO_PROBE}; do
   fi
 
   CKPT_LOCAL="${SCRATCH}/checkpoints/echomae_l_mimic_ep${EP}.pth"
-  echo "[INFO] Downloading ${CKPT_SRC}..."
-  aws s3 cp "${CKPT_SRC}" "${CKPT_LOCAL}"
-  echo "[INFO] Checkpoint: $(ls -lh ${CKPT_LOCAL})"
+  echo "[INFO] Downloading encoder ${CKPT_SRC}..."
+  aws s3 cp "${CKPT_SRC}" "${CKPT_LOCAL}" --quiet
+  echo "[INFO] Encoder: $(ls -lh ${CKPT_LOCAL})"
 
-  CONFIG="${CODE_DIR}/configs/eval/vitl/neurips/echomae_l_e${EP}_end_lvef_d4.yaml"
+  CONFIG="${CODE_DIR}/configs/inference/vitl/neurips/echonet-dynamic/echomae_e${EP}_end_test.yaml"
 
-  # Need a fresh MASTER_PORT for each run
-  export MASTER_PORT=$((12000 + $RANDOM % 20000))
-
-  # evals.main uses mp.Process internally — run directly, no srun
+  # evals.main uses mp.Process — no srun
   python3 -m evals.main \
     --fname "${CONFIG}" \
     --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
-  PROBE_RC=$?
+  TEST_RC=$?
 
-  echo "[INFO] e${EP} probe finished with rc=${PROBE_RC}"
+  echo "[INFO] e${EP} test inference finished with rc=${TEST_RC}"
 
-  # Sync after each probe
   sync_results
   upload_logs
 
-  # Clean up checkpoint to save disk
+  # Clean up encoder checkpoint
   rm -f "${CKPT_LOCAL}"
 done
 
-echo "[INFO] All trajectory probes complete"
+echo "[INFO] All test inference complete"

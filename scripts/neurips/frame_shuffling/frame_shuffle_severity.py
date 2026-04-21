@@ -199,6 +199,39 @@ ALL_CONFIGS = {
         "probe_checkpoint": "evals/vitl/icml/echomae_e99_end_lvef_224/"
                             "video_classification_frozen/icml-echomae-l-e99-end-lvef-d4/best.pt",
     },
+    # Extended MAE training trajectory (NeurIPS)
+    "MAE-L-e124": {
+        "encoder_type": "videomae",
+        "encoder_checkpoint": "checkpoints/videomae_l_mimic_ep124.pth",
+        "encoder_model_name": None,
+        "encoder_key": None,
+        "probe_checkpoint": "evals/vitl/icml/echomae_e124_end_lvef_224/"
+                            "video_classification_frozen/icml-echomae-l-e124-end-lvef-d4/best.pt",
+    },
+    "MAE-L-e149": {
+        "encoder_type": "videomae",
+        "encoder_checkpoint": "checkpoints/videomae_l_mimic_ep149.pth",
+        "encoder_model_name": None,
+        "encoder_key": None,
+        "probe_checkpoint": "evals/vitl/icml/echomae_e149_end_lvef_224/"
+                            "video_classification_frozen/icml-echomae-l-e149-end-lvef-d4/best.pt",
+    },
+    "MAE-L-e174": {
+        "encoder_type": "videomae",
+        "encoder_checkpoint": "checkpoints/videomae_l_mimic_ep174.pth",
+        "encoder_model_name": None,
+        "encoder_key": None,
+        "probe_checkpoint": "evals/vitl/icml/echomae_e174_end_lvef_224/"
+                            "video_classification_frozen/icml-echomae-l-e174-end-lvef-d4/best.pt",
+    },
+    "MAE-L-e194": {
+        "encoder_type": "videomae",
+        "encoder_checkpoint": "checkpoints/videomae_l_mimic_ep194.pth",
+        "encoder_model_name": None,
+        "encoder_key": None,
+        "probe_checkpoint": "evals/vitl/icml/echomae_e194_end_lvef_224/"
+                            "video_classification_frozen/icml-echomae-l-e194-end-lvef-d4/best.pt",
+    },
 }
 
 SEVERITY_FRACTIONS = [0.0, 0.25, 0.50, 0.75, 1.0]

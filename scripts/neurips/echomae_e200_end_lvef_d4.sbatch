@@ -2,8 +2,8 @@
 #SBATCH -p ml-p5-48xlarge
 #SBATCH -N 1
 #SBATCH --gres=gpu:8
-#SBATCH --ntasks-per-node=8
-#SBATCH --cpus-per-task=12
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=96
 #SBATCH -t 12:00:00
 #SBATCH -J mae200_lvef
 #SBATCH -o /tmp/mae200_lvef_%j.out
@@ -92,6 +92,12 @@ trap 'sync_results; upload_logs' USR1
 # SETUP
 # =========================
 nvidia-smi -L || true
+
+# Kill any stale python processes from previous failed jobs
+pkill -9 -f "evals.main" 2>/dev/null || true
+pkill -9 -f "run_mae_pretraining" 2>/dev/null || true
+sleep 2
+
 SCRATCH="/opt/dlami/nvme"
 
 # Env
@@ -133,10 +139,12 @@ echo "       Output: ${EVAL_OUTPUT}"
 # =========================
 # LAUNCH
 # =========================
-srun --kill-on-bad-exit=1 \
-  python3 -m evals.main \
-    --fname "${CONFIG}" \
-    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+# evals.main uses mp.Process internally — do NOT use srun (which would launch
+# 8 independent copies, each spawning 8 workers = 64 processes on 8 GPUs).
+# Run directly and let evals.main manage its own multi-GPU workers.
+python3 -m evals.main \
+  --fname "${CONFIG}" \
+  --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
 RC=$?
 
 upload_logs
