@@ -315,6 +315,7 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 | `multi-view-ablation.md` | RVSP single-view vs multi-view | Appendix |
 | `mr-cross-dataset-transfer.md` | MR severity: UHN vs MIMIC probes on MIMIC test | §3 Transfer |
 | `vitb-temporal-shortcut-pilot.md` | Standard MAE vs Frame-Gap MAE ViT-B: temporal shortcut hypothesis | §4 Mechanism |
+| `vitb-in21k-paused.md` | ViT-B IN21K MAE capacity-scaling comparison; paused at e34 (job 307), resumable via `RESUME_FROM_JOB=307` | §4 Mechanism (optional) |
 
 ## Datasets
 
