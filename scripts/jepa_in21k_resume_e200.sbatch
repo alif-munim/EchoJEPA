@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p ml-p5-48xlarge
+#SBATCH -p dev
 #SBATCH -N 1
 #SBATCH --gres=gpu:8
 #SBATCH --ntasks-per-node=8
@@ -9,7 +9,7 @@
 #SBATCH -o /tmp/jepa_e200_%j.out
 #SBATCH -e /tmp/jepa_e200_%j.err
 #SBATCH --signal=B:USR1@300
-#SBATCH --dependency=afterany:197
+# No dependency — run immediately
 
 set -euxo pipefail
 
@@ -31,13 +31,14 @@ export PYTHONUNBUFFERED=1
 export MASTER_PORT=$((12000 + $RANDOM % 20000))
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 
-export AWS_SDK_LOAD_CONFIG=1
 export HOME="/home/ubuntu"
-export AWS_SHARED_CREDENTIALS_FILE="${HOME}/.aws/credentials"
-export AWS_CONFIG_FILE="${HOME}/.aws/config"
+# Use instance metadata service directly — do NOT set AWS_SHARED_CREDENTIALS_FILE
+# (a stale credentials file overrides IMDS and causes auth failures)
+unset AWS_SHARED_CREDENTIALS_FILE 2>/dev/null || true
+unset AWS_CONFIG_FILE 2>/dev/null || true
 unset AWS_EC2_METADATA_DISABLED 2>/dev/null || true
-export AWS_METADATA_SERVICE_TIMEOUT=5
-export AWS_METADATA_SERVICE_NUM_ATTEMPTS=3
+export AWS_METADATA_SERVICE_TIMEOUT=10
+export AWS_METADATA_SERVICE_NUM_ATTEMPTS=5
 
 export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_BLOCKING_WAIT=1
@@ -94,6 +95,10 @@ trap 'sync_ckpts; upload_logs' USR1
 # SETUP
 # =========================
 nvidia-smi -L || true
+pkill -9 -f "app.main" 2>/dev/null || true
+pkill -9 -f "evals.main" 2>/dev/null || true
+sleep 2
+
 SCRATCH="/opt/dlami/nvme"
 
 # Env
@@ -101,6 +106,7 @@ aws s3 cp "$ENV_S3" "${SCRATCH}/env.tar"
 mkdir -p "${SCRATCH}/env" && tar -xf "${SCRATCH}/env.tar" -C "${SCRATCH}/env"
 set +u && source "${SCRATCH}/env/bin/activate" && set -u
 "${SCRATCH}/env/bin/conda-unpack" || true
+pip install boto3 --no-cache-dir --quiet
 
 # Code — deploy from S3 tarball to scratch
 CODE_DIR="${SCRATCH}/code"
@@ -142,10 +148,10 @@ echo "       Output: ${CKPT_DIR}"
 # =========================
 # LAUNCH
 # =========================
+# Use app.main_srun (srun-compatible entry point) — NOT app.main which uses mp.Process
 srun --kill-on-bad-exit=1 \
-  python3 -m app.main \
-    --fname "${CONFIG}" \
-    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+  python3 -m app.main_srun \
+    --fname "${CONFIG}"
 RC=$?
 
 kill $SYNC_PID 2>/dev/null || true

@@ -77,9 +77,33 @@ script -q -c "timeout 30 aws ssm start-session --region us-west-2 \
 - `srun` on a fully-occupied node blocks -- use `srun --jobid=<ID> --overlap` to share resources with a running job
 - Output dir must be writable by `ubuntu` -- use `/tmp/...` not `/opt/vjepa2/...` (see Issue 16 in [hyperpod-troubleshooting.md](hyperpod-troubleshooting.md))
 
+**CRITICAL -- rebuild the tarball before every VideoMAE (or other S3-backed pretraining) submission.** Stale tarballs containing the pre-`d91b4d4` `s3_dataset.py` cause silent loss collapse on S3 hiccups. See [Issue 20](hyperpod-troubleshooting.md#20-videomae-loss-silently-collapses-to-0-mid-epoch-1-2026-04-21) and [bug 020](bugs/020-videomae-dummy-zeros-loss-collapse.md). Quick verification after upload:
+```bash
+aws s3 cp ${S3_ARTIFACTS}/setup/vjepa2-src.tar.gz - | tar xzO s3_dataset.py | grep -c max_retries
+# Expect 1 (has fix) or 0 (stale -- DO NOT submit)
+```
+
 **Important**: sbatch runs on the controller, not the compute node. The sbatch script itself is read by Slurm on the controller, so it must be accessible there (extracted to `/tmp/vjepa2-ctrl/`). The actual Python code runs on the compute node at `/opt/vjepa2`.
 
+**CRITICAL — srun vs direct python for eval/probe jobs:**
+- **Pretraining** (`app.main`, `run_mae_pretraining.py`): Use `srun --ntasks-per-node=8` — these expect one process per GPU via DDP.
+- **Eval/probe** (`evals.main`): Use `--ntasks-per-node=1` and run `python3 -m evals.main` directly (NO srun). The eval code uses `mp.Process` internally to spawn one worker per GPU. Using `srun --ntasks-per-node=8` causes each rank to spawn 8 workers (64 total), `init_distributed()` returns `world_size=1`, and `DistributedSampler` doesn't split data — resulting in 8x slowdown (7465 vs 934 iters/epoch on EchoNet-Dynamic).
+
 **Gotcha**: conda activate scripts fail under `set -u` (unbound `CONDA_PREFIX`). Use `set -eo pipefail` before `source activate`, then `set -u` after.
+
+**CRITICAL — AWS credential expiration on compute nodes (2026-04-20):**
+Compute nodes use the IAM instance metadata service for credentials (no static credentials file). `mp.Process` workers (used by `evals.main` and `app.main`) cache the initial STS token and do NOT refresh it. Jobs running >1h will fail with `Unable to locate credentials` when the token expires.
+
+**Fix:** Run `setup_aws_creds.sh` on each compute node (deployed to S3 at `setup/setup_aws_creds.sh`). This:
+1. Fetches current IAM role credentials from the metadata service
+2. Writes them to `/home/ubuntu/.aws/credentials`
+3. Sets up a cron job to refresh every 30 minutes
+
+The sbatch env vars `AWS_SHARED_CREDENTIALS_FILE=/home/ubuntu/.aws/credentials` then point to the refreshed file. Run this once after node provisioning or reboot:
+```bash
+srun -p dev -w ip-10-0-50-39 -N1 --ntasks=1 bash -c \
+  "aws s3 cp s3://.../setup/setup_aws_creds.sh /tmp/ --quiet && bash /tmp/setup_aws_creds.sh"
+```
 
 ## The conda-pack Approach (One-Time Setup)
 
@@ -226,6 +250,31 @@ python -m app.main \
     --fname configs/train/vitl16/pretrain-21-mimic-224px-16f-h100.yaml \
     --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
 ```
+
+### Resuming VideoMAE Pretraining After a Crash
+
+VideoMAE pretraining (`run_mae_pretraining.py`) supports resume via `--auto_resume` (default on; the sbatch does not pass `--no_auto_resume`). Two mechanisms work together:
+
+1. **`checkpoint-latest.pth` every epoch** (added 2026-04-21 in `evals/video_classification_frozen/modelcustom/VideoMAE/run_mae_pretraining.py:313`). Written unconditionally at each epoch boundary, overwriting in place. Negligible cost (~5 s / epoch for ViT-B). `auto_load_model` in `utils.py` prefers this file whenever its `epoch` field is >= the highest-numbered `checkpoint-N.pth`, so the most recent state wins regardless of `save_ckpt_freq`.
+2. **Numbered `checkpoint-N.pth` every `save_ckpt_freq` epochs** (default 5). These persist; `checkpoint-latest` is overwritten.
+
+Because each SLURM job gets a new `WORKDIR=/opt/dlami/nvme/<job>_<SLURM_JOB_ID>/`, checkpoints from the failed run are not visible to the new run's `auto_resume` unless we pull them from S3 first. The sbatch script handles this via `RESUME_FROM_JOB`:
+
+```bash
+# On the controller: resume ViT-B MAE from job 298
+RESUME_FROM_JOB=298 sbatch scripts/videomae_pretrain_mimic_vitb_in21k.sbatch
+
+# Cold start (no resume)
+sbatch scripts/videomae_pretrain_mimic_vitb_in21k.sbatch
+```
+
+When `RESUME_FROM_JOB` is set, the sbatch runs `aws s3 sync s3://<bucket>/runs/mae_vitb_in21k_${RESUME_FROM_JOB}/training_folder/ ${OUTPUT_DIR}/` before launch, so whatever `.pth` files were uploaded by the periodic `sync_ckpts` trap (every 15 min) or the `on_exit` trap are available locally.
+
+**What gets synced:** any `.pth`, `.pt`, `.yaml`, `.json`, `.csv` under the training folder. The `checkpoint-latest.pth` is included.
+
+**Limit:** If the crashed job died mid-epoch-1 (as job 298 did), no checkpoint was ever written, so there is nothing to resume from. Only useful once the run has completed at least one epoch.
+
+**Prerequisite on resubmit:** rebuild and re-upload `vjepa2-src.tar.gz` so the compute node picks up the latest `run_mae_pretraining.py` / `utils.py` with the `checkpoint-latest` logic. See Issue 18 in [hyperpod-troubleshooting.md](hyperpod-troubleshooting.md) for the file-list tar approach.
 
 ### Installing Claude Code on Compute Nodes
 

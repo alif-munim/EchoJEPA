@@ -335,3 +335,34 @@ export TORCH_HOME="/opt/dlami/nvme/torch_cache"
 ```
 
 **Prevention**: Always add cleanup at the end of sbatch scripts (after S3 upload of results) and use `/opt/dlami/nvme/` for large temporary files (model weights, outputs). The root filesystem has only ~30G free after the OS and packages.
+
+### 20. VideoMAE loss silently collapses to ~0 mid-epoch-1 (2026-04-21)
+
+**Symptom**: VideoMAE pretraining (`run_mae_pretraining.py`) runs healthy for ~30 minutes, then per-step `loss:` in the `Epoch: [N] [step/N]` line drops from ~0.42 to ~0.001 within ~20 steps while the running average stays near the healthy value. Step time simultaneously jumps from 0.5s to ~4s. `loss_scale` stays at 65536 and weights don't NaN -- it looks like convergence, but the model is learning nothing.
+
+**Root cause**: Stale `vjepa2-src.tar.gz` deployed to the compute node contains the pre-`d91b4d4` version of `s3_dataset.py`, whose `__getitem__` catches any exception and returns `torch.zeros(3, T, H, W)`. When S3 reads start failing in bursts (decord has no S3 plugin -- the retry loop falls through to `decord.VideoReader(sample)` on an `s3://` path, which emits "Protocol not found"), workers return zero-frame clips. MAE normalizes target patches per-clip, so zero-frame targets become degenerate and reconstruction MSE -> 0. Full writeup in [bug 020](bugs/020-videomae-dummy-zeros-loss-collapse.md).
+
+**Why it's not always caught**: ViT-L MAE pretraining succeeded previously because the tarball built then contained the fix (or S3 didn't hiccup long enough during that run). Three ViT-B IN21K runs (jobs 293, 295, 297) failed in 2026-04-21 because an older tarball was used. Job 298 was launched with a fresh tarball and trained past the collapse point.
+
+**Diagnosis**: On the running job, check the deployed dataset file:
+```bash
+# On controller
+srun --jobid=<JOB_ID> --overlap --ntasks=1 \
+  grep -c max_retries /opt/dlami/nvme/<workdir>/code/s3_dataset.py
+# Expect 1 (has fix) or 0 (old, vulnerable)
+
+# Smoking-gun log lines on the buggy path (in stdout, not stderr):
+grep "RETURNING DUMMY" /opt/dlami/nvme/logs/<job>.out
+# Non-empty = you're on the buggy code path
+```
+
+**Fix**: Rebuild and re-upload the tarball from the current repo before resubmitting:
+```bash
+# On SageMaker, after git pull
+rm -f /tmp/vjepa2-src.tar.gz  # tar will otherwise append to existing
+# ... build file list as in Issue 18 ...
+tar czf /tmp/vjepa2-src.tar.gz -T /tmp/deploy_files.txt
+aws s3 cp /tmp/vjepa2-src.tar.gz s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/setup/vjepa2-src.tar.gz
+```
+
+**Prevention**: Always rebuild + re-upload the tarball after pulling latest before submitting any VideoMAE (or other S3-backed pretraining) job. A quick sanity check is to `grep -c max_retries` on the S3 tarball contents before submission.
