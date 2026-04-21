@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=8
 #SBATCH --cpus-per-task=12
 #SBATCH -t 2-00:00:00
-#SBATCH --dependency=afterany:183
+#SBATCH --dependency=afterany:234
 #SBATCH -J jepa_cmr_s
 #SBATCH -o /tmp/jepa_cmr_s_%j.out
 #SBATCH -e /tmp/jepa_cmr_s_%j.err
@@ -89,6 +89,12 @@ trap 'sync_ckpts; upload_logs' USR1
 # SETUP
 # =========================
 nvidia-smi -L || true
+
+# Kill stale python processes from previous failed jobs
+pkill -9 -f "app.main" 2>/dev/null || true
+pkill -9 -f "app.vjepa" 2>/dev/null || true
+sleep 2
+
 SCRATCH="/opt/dlami/nvme"
 
 # Env
@@ -96,6 +102,7 @@ aws s3 cp "$ENV_S3" "${SCRATCH}/env.tar"
 mkdir -p "${SCRATCH}/env" && tar -xf "${SCRATCH}/env.tar" -C "${SCRATCH}/env"
 set +u && source "${SCRATCH}/env/bin/activate" && set -u
 "${SCRATCH}/env/bin/conda-unpack" || true
+pip install boto3 --no-cache-dir --quiet
 
 # Code
 CODE_DIR="${SCRATCH}/code"
@@ -136,10 +143,10 @@ echo "       Output: ${JEPA_OUTPUT}"
 # =========================
 # LAUNCH
 # =========================
+# Use app.main_srun (srun-compatible entry point) — NOT app.main which uses mp.Process
 srun --kill-on-bad-exit=1 \
-  python3 -m app.main \
-    --fname "${CONFIG}" \
-    --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7
+  python3 -m app.main_srun \
+    --fname "${CONFIG}"
 RC=$?
 
 kill $SYNC_PID 2>/dev/null || true

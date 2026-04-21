@@ -1,0 +1,43 @@
+app: vjepa
+folder: /opt/dlami/nvme/evals/cmr/mae_e400_acdc_dx_test
+eval_name: video_classification_frozen
+resume_checkpoint: true
+val_only: true
+tag: cmr-mae-vits-e400-acdc-dx-test
+probe_checkpoint: /opt/dlami/nvme/probes/cmr_mae_e400_dx/best.pt
+predictions_save_path: /opt/dlami/nvme/evals/cmr/mae_e400_acdc_dx_test/predictions.csv
+experiment:
+  classifier:
+    num_heads: 6
+    num_probe_blocks: 4
+    num_classes: 5
+  data:
+    dataset_type: VideoDataset
+    dataset_train: /opt/dlami/nvme/data/csv/acdc_dx_train_local.csv
+    dataset_val: /opt/dlami/nvme/data/csv/acdc_dx_test_local.csv
+    num_classes: 5
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 1
+    num_segments: 1
+    num_views_per_segment: 1
+  optimization:
+    batch_size: 4
+    num_epochs: 1
+    use_bfloat16: true
+    use_pos_embed: false
+    multihead_kwargs:
+    - {final_lr: 0.0, final_weight_decay: 0.01, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.01}
+    - {final_lr: 0.0, final_weight_decay: 0.1, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.1}
+    - {final_lr: 0.0, final_weight_decay: 0.4, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.4}
+    - {final_lr: 0.0, final_weight_decay: 0.01, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.01}
+    - {final_lr: 0.0, final_weight_decay: 0.1, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.1}
+    - {final_lr: 0.0, final_weight_decay: 0.4, lr: 0.0, start_lr: 0.0, warmup: 0.0, weight_decay: 0.4}
+model_kwargs:
+  checkpoint: /opt/dlami/nvme/checkpoints/mae_cmr_vits_ep399.pth
+  module_name: evals.video_classification_frozen.modelcustom.videomae_encoder
+  pretrain_kwargs:
+    encoder:
+      model_name: vit_small_patch16_224
+      tubelet_size: 2
+  wrapper_kwargs: {}
