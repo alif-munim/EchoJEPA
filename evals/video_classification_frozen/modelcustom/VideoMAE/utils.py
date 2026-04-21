@@ -407,9 +407,9 @@ def cosine_scheduler(base_value, final_value, epochs, niter_per_ep, warmup_epoch
     return schedule
 
 
-def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler, model_ema=None):
+def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler, model_ema=None, latest=False):
     output_dir = Path(args.output_dir)
-    epoch_name = str(epoch)
+    epoch_name = "latest" if latest else str(epoch)
     if loss_scaler is not None:
         checkpoint_paths = [output_dir / ('checkpoint-%s.pth' % epoch_name)]
         for checkpoint_path in checkpoint_paths:
@@ -429,7 +429,8 @@ def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler, mo
         client_state = {'epoch': epoch}
         if model_ema is not None:
             client_state['model_ema'] = get_state_dict(model_ema)
-        model.save_checkpoint(save_dir=args.output_dir, tag="checkpoint-%s" % epoch_name, client_state=client_state)
+        tag = "checkpoint-latest" if latest else "checkpoint-%s" % epoch_name
+        model.save_checkpoint(save_dir=args.output_dir, tag=tag, client_state=client_state)
 
 
 def auto_load_model(args, model, model_without_ddp, optimizer, loss_scaler, model_ema=None):
@@ -444,7 +445,17 @@ def auto_load_model(args, model, model_without_ddp, optimizer, loss_scaler, mode
                 t = ckpt.split('-')[-1].split('.')[0]
                 if t.isdigit():
                     latest_ckpt = max(int(t), latest_ckpt)
-            if latest_ckpt >= 0:
+            latest_path = os.path.join(output_dir, 'checkpoint-latest.pth')
+            if os.path.isfile(latest_path):
+                try:
+                    latest_epoch = torch.load(latest_path, map_location='cpu', weights_only=False).get('epoch', -1)
+                except Exception:
+                    latest_epoch = -1
+                if latest_epoch >= latest_ckpt:
+                    args.resume = latest_path
+                elif latest_ckpt >= 0:
+                    args.resume = os.path.join(output_dir, 'checkpoint-%d.pth' % latest_ckpt)
+            elif latest_ckpt >= 0:
                 args.resume = os.path.join(output_dir, 'checkpoint-%d.pth' % latest_ckpt)
             print("Auto resume checkpoint: %s" % args.resume)
 

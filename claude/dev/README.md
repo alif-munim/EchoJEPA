@@ -25,6 +25,7 @@ Development log for the EchoJEPA project: bug tracker, changelog, operational gu
 | 017 | [Multi-view eval missing z-score normalization for regression](bugs/017-multiview-rvsp-no-zscore.md) | **CRITICAL** | **FIXED** | `evals/video_classification_frozen_multi/eval.py` |
 | 018 | [Port collision causes silent single-GPU fallback](bugs/018-port-collision-single-gpu-fallback.md) | **HIGH** | **FIXED** (workaround) | `src/utils/distributed.py`, launch env |
 | 019 | [Orphan GPU processes survive parent kill, block future runs](bugs/019-orphan-gpu-processes-after-kill.md) | **HIGH** | Documented | Process management (operational) |
+| 020 | [VideoMAE `__getitem__` returns zero tensors on S3 failure, collapsing loss to ~0](bugs/020-videomae-dummy-zeros-loss-collapse.md) | **CRITICAL** | **FIXED** (upstream `d91b4d4`; verify tarball freshness) | `s3_dataset.py` |
 
 ## Planned Fixes
 
