@@ -1,0 +1,30 @@
+app: vjepa
+folder: /opt/dlami/nvme/evals/neurips/diff_probe/jepa_e100_prepool
+eval_name: feature_extraction_pre_pool
+tag: neurips-diff-probe-jepa-e100
+experiment:
+  data:
+    dataset_type: VideoDataset
+    dataset_val: /opt/dlami/nvme/data/csv/echonet_dynamic_test_s3_raw.csv
+    resolution: 224
+    frames_per_clip: 16
+    frame_step: 2
+    num_segments: 2
+    num_views_per_segment: 1
+  optimization:
+    batch_size: 8
+    use_bfloat16: true
+model_kwargs:
+  checkpoint: /opt/dlami/nvme/checkpoints/jepa_in21k_vitl_e100.pt
+  module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip
+  pretrain_kwargs:
+    encoder:
+      checkpoint_key: target_encoder
+      model_name: vit_large
+      patch_size: 16
+      tubelet_size: 2
+      uniform_power: true
+      use_rope: true
+  wrapper_kwargs:
+    max_frames: 128
+    use_pos_embed: false
