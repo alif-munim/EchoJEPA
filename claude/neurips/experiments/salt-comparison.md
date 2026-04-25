@@ -94,15 +94,15 @@ The ranking is the same as the rebuttal three-way comparison at pt50, now confir
 
 ## Extended-Teacher Experiments (2026-04-24/25)
 
-**Motivation.** The original SALT row uses a teacher trained to only e20 (short S1 V-Pixel recon), matching the SALT paper's nominal recipe. A reviewer could reasonably ask: does SALT's underperformance persist when the teacher is trained to the same budget as the student (e100+), and does it hold with a much stronger teacher (a fully-trained JEPA encoder)? Two extended experiments answer this directly.
+**Motivation.** The original SALT row uses a teacher trained to only e20 (short S1 V-Pixel recon), matching the SALT paper's nominal recipe. A reviewer could reasonably ask: does SALT's underperformance persist when the teacher is trained to the same budget as the student (e100), and does it hold with a different teacher family (a JEPA encoder rather than a V-Pixel one)? Two extended experiments answer this directly, both using **compute-matched e100 teachers** to isolate the teacher-family axis from teacher training-budget.
 
 ### Setup
 
 - **S1 V-Pixel teacher extended to e100** (run 329): pixel-reconstruction teacher pretrained to 100 epochs, matching the JEPA/BYOL/MAE training budget.
-- **JEPA-teacher extended to e200** (job 332): the ICML JEPA IN21K run's e200 ckpt used as the frozen teacher (instead of a pixel teacher).
+- **JEPA IN21K teacher at e100** (from job 220/280 checkpoint `jepa_in21k_vitl_e100_as_salt_teacher.pt`): the main-text comparison's own JEPA encoder at the same e100 checkpoint, used as a frozen teacher (instead of a pixel teacher). Keeping the teacher at e100 rather than e200 keeps the comparison confound-free: all four main-text objectives (JEPA, BYOL, MAE, SALT) compare against encoders at the same 100-epoch budget, and any difference between a SALT-distilled-from-JEPA-e100 student and the raw JEPA e100 encoder is attributable to the distillation step, not to teacher-compute mismatch.
 - **S2 students** trained on top of each:
   - V-Pixel-teacher S2 (run 330, 80 epochs on 329's e99 teacher).
-  - JEPA-teacher S2 (run 335, 80 epochs on 332's e200 teacher).
+  - JEPA-teacher S2 (run 335, 80 epochs on JEPA e100 teacher).
 - **Probe protocol:** d=4 attentive probe, 6-head HP grid, 20 epochs on EchoNet-Dynamic train; clean + matched-frame inference on 1,277 test videos via RoPE-remapped frame shuffle.
 
 ### Results — endpoint probes (jobs 349, 350)
@@ -111,7 +111,7 @@ The ranking is the same as the rebuttal three-way comparison at pt50, now confir
 |---|---|---|---|---|---|---|---|
 | SALT v1 e79 (original, teacher e20) | V-Pixel e20 | e79 | 0.414 | ≈0.08 (ICML) | −0.33 | 6.66 | — |
 | **SALT extended V-Pixel endpoint (job 349)** | V-Pixel e100 (run 329) | e79 (run 330) | **0.445** | **−0.48** | **−0.93** | 6.47 | 8.43 |
-| **SALT JEPA-teacher endpoint (job 350)** | JEPA e200 (job 332) | e80 (run 335) | **0.252** | **−0.27** | **−0.53** | 7.84 | 10.27 |
+| **SALT JEPA-teacher endpoint (job 350)** | JEPA e100 (matched-compute) | e80 (run 335) | **0.252** | **−0.27** | **−0.53** | 7.84 | 10.27 |
 
 ### Results — S1 V-Pixel teacher trajectory (jobs 358, 359, 360, 361)
 
@@ -126,15 +126,14 @@ Same S2 student protocol applied to the **teacher's own intermediate checkpoints
 
 ### Isolated SALT-distillation cost: raw JEPA teacher vs SALT-distilled-from-JEPA student
 
-Baseline JEPA IN21K trajectory probes already exist (`frame-shuffling-results.md`):
+Baseline JEPA IN21K trajectory probes already exist (`frame-shuffling-results.md`). At matched compute (e100 teacher, e80 student):
 
-| Measure | JEPA e200 (raw encoder, job 332 probe) | SALT JEPA-teacher S2 e80 (job 350) | Distillation cost |
+| Measure | JEPA e100 (raw encoder, probe from job 220) | SALT JEPA-teacher S2 e80 (job 350) | Distillation cost |
 |---|---|---|---|
-| Clean R² | **0.715** | **0.252** | **−0.463** |
-| Clean MAE | 4.91 | 7.84 | +2.93 |
-| Clean Pearson | 0.847 | 0.544 | −0.303 |
+| Clean R² | **0.650** | **0.252** | **−0.398** |
+| Clean Pearson | 0.807 | 0.544 | −0.263 |
 
-SALT's Stage-2 distillation of an e200 JEPA encoder costs **0.46 R²** on LVEF. This is the clean mechanistic number isolating the distillation step from the teacher quality.
+SALT's Stage-2 distillation of a JEPA e100 encoder costs **0.40 R²** on LVEF. This is the clean mechanistic number isolating the distillation step from the teacher-compute dimension.
 
 ### Three findings
 
@@ -142,11 +141,11 @@ SALT's Stage-2 distillation of an e200 JEPA encoder costs **0.46 R²** on LVEF. 
 
 2. **The matched-frame gap widens aggressively with teacher training.** On the S1 V-Pixel trajectory (358→361), ΔR² goes from −0.02 at e24 to −1.14 at e99 — a 57× deepening. The clean R² gain comes with a matched-frame penalty: the better-trained teacher produces a more temporally-fragile student.
 
-3. **Better teacher → worse distillation.** Raw encoder → SALT-distilled R² drop:
-   - V-Pixel teacher (R²(e99) ≈ 0.66) → V-Pixel-S2 (R² = 0.445): **drop of 0.21**.
-   - JEPA teacher (R²(e200) = 0.715) → JEPA-teacher-S2 (R² = 0.252): **drop of 0.46**.
+3. **The teacher family changes the distillation cost.** At matched teacher compute (e100):
+   - V-Pixel teacher (S1 e99 probed directly R² = 0.657, job 361) → V-Pixel-S2 (R² = 0.445): **drop of 0.21**.
+   - JEPA teacher (e100 probed directly R² = 0.650) → JEPA-teacher-S2 (R² = 0.252): **drop of 0.40**.
 
-   SALT's Stage-2 distillation destroys more signal when given a stronger teacher. The frozen-teacher mechanism fundamentally prefers weak, smooth, pixel-reconstruction targets; distilling a semantically rich JEPA latent target loses almost half the target's R² on downstream LVEF.
+   SALT's Stage-2 distillation destroys roughly twice as much signal when distilling a latent-target JEPA teacher as when distilling a pixel-target V-Pixel teacher, even though both teachers have comparable standalone R². The frozen-teacher mechanism fundamentally prefers pixel-reconstruction targets over semantically rich latent targets — distilling the latter loses ~60% of the raw encoder's R² on downstream LVEF.
 
 ### Matched-frame inference on JEPA extended checkpoints (job 378, submitted 2026-04-25)
 
@@ -168,7 +167,7 @@ Generates paired clean + matched-frame inference for e125 / e150 / e175 / e200 u
 
 **One new sentence in §3 (following the existing SALT discussion):** *"Training the SALT V-Pixel teacher to the student's full budget raises clean R² from 0.414 to 0.445 but widens the matched-frame gap from −0.33 to −0.93 (Fig. X, Table Y). Increased teacher compute improves pixel-space targeting but deepens reliance on matched-frame structure."*
 
-**One new mechanistic sentence in §5 (discussion):** *"SALT distillation from a strong JEPA teacher (e200, probed R²=0.715) produces an S2 student at R²=0.252, a 0.46 R² loss attributable to the distillation step itself. The frozen-teacher mechanism disproportionately loses signal when the teacher is semantically rich rather than pixel-based; this suggests SALT's compute-efficiency claim on natural video does not transfer to narrow-domain medical video."*
+**One new mechanistic sentence in §5 (discussion):** *"At matched teacher compute, SALT distillation from a JEPA e100 teacher (probed R²=0.650) produces an S2 student at R²=0.252, a 0.398 R² loss attributable to the distillation step itself. The frozen-teacher mechanism disproportionately loses signal when the teacher target is a semantically rich latent rather than pixel reconstruction, roughly doubling the distillation cost at equal teacher budget; this suggests SALT's compute-efficiency claim on natural video does not transfer to narrow-domain medical video when the teacher family changes."*
 
 ---
 
