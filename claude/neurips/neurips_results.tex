@@ -1,0 +1,1426 @@
+% neurips_results.tex
+% Objective record of experimental settings, protocols, and results for the
+% NeurIPS 2025 resubmission. No interpretation, no commentary, no claims.
+% Numbers are transcribed from claude/neurips/ and claude/neurips/experiments/.
+
+\documentclass{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{array}
+
+\title{NeurIPS 2025 Resubmission --- Experimental Record}
+\author{Objective results only; no commentary}
+\date{Compiled 2026-04-25}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+%==============================================================================
+\section{Models, Pretraining, and Data}
+%==============================================================================
+
+\subsection{Pretraining configurations (MIMIC-IV-Echo, ViT-L, 224\,px, 16 frames)}
+
+\begin{center}
+\begin{tabular}{lllll}
+\toprule
+Model & Objective & Init & Dataset & Epochs \\
+\midrule
+EchoJEPA-L (pt50) & JEPA (EMA latent) & Fully-trained JEPA 235ep & MIMIC 525K & 50 \\
+EchoJEPA-L IN21K  & JEPA (EMA latent) & ImageNet-21K & MIMIC 525K & 25/50/75/100/125/150/175/200 \\
+EchoBYOL-L        & BYOL (EMA global) & ImageNet-21K & MIMIC 525K & 24/50/75/100 \\
+EchoMAE-L (VideoMAE) & MAE (pixel recon) & ImageNet   & MIMIC 525K & 24/50/74/99/124/149/174/194 \\
+SALT v1 S1 (V-Pixel) & Pixel recon, hierarchical & ImageNet-21K & MIMIC 525K & 20, 24, 49, 74, 99, 100 \\
+SALT v1 S2 (hierarch.) & Frozen V-Pixel teacher & Random student & MIMIC 525K & 4/29/54/79/199 \\
+SALT v3 S2 (single-lvl) & Frozen V-Pixel teacher & Random student & MIMIC 525K & 79 \\
+SALT-JEPA-teacher S2 & Frozen JEPA e100 teacher & Random student & MIMIC 525K & 80 \\
+$\phi$-JEPA Run D & JEPA + $\Delta\phi$ conditioning & ImageNet-21K & MIMIC (cine subset) & 200 (running) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Masking.} VideoMAE uses \texttt{--mask\_type tube --mask\_ratio 0.9} (canonical Tong 2022) in all three VideoMAE MIMIC sbatches. V-JEPA / SALT use the V-JEPA 2 multi-block 3D masking.
+
+\textbf{EMA schedule (JEPA).} Echo ViT-L uses the V-JEPA 2 reference schedule.
+CMR JEPA ViT-S ``fast-EMA'' = \texttt{[0.996, 0.996]};
+``slow-EMA'' = \texttt{[0.99925, 0.99925]} (matches \texttt{refs/vjepa2}).
+
+\subsection{CMR pretraining (ViT-S, 224\,px, 16 frames, 21{,}840 SAX clips)}
+
+\begin{center}
+\begin{tabular}{lllllr}
+\toprule
+Job & Model & Objective & EMA & Epochs & Elapsed \\
+\midrule
+183 & ViT-S & MAE (90\% tube) & ---   & 800 & 9h05m \\
+333 & ViT-S & JEPA            & 0.996 & 800 & 11h42m \\
+344 & ViT-S & JEPA (resume, seed 163) & 0.996 & 250$\to$800 & 7h59m \\
+346 & ViT-S & JEPA            & 0.99925 & 0$\to$295 & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+CMR pretrain loss trajectories:
+\begin{itemize}
+\item MAE (job 183): 1.12 (e0) $\to$ 0.90 (e10) $\to$ 0.34 (e200) $\to$ 0.28 (e500) $\to$ 0.27 (e800).
+\item JEPA fast-EMA (job 333): 0.598 (e1) $\to$ 0.347 (e20, min) $\to$ 0.420 (e100) $\to$ 0.505 (e305 peak) $\to$ 0.431 (e800).
+\item JEPA fast-EMA (job 344, seed 163): tracks job 333 within 0.01 at every epoch.
+\item JEPA slow-EMA (job 346): 0.603 (e1) $\to$ 0.369 (e20, min) $\to$ 0.440 (e302 peak).
+\end{itemize}
+
+\subsection{Evaluation datasets}
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+Dataset & Split (train / test) & Label & Use \\
+\midrule
+UHN        & 10K / 53K  & LVEF (continuous) & §\ref{sec:uhn_lvef} \\
+UHN        & 41K / 5K (multi-view) & RVSP (continuous) & §\ref{sec:rvsp} \\
+EchoNet-Dynamic & 7{,}460 / 1{,}277 & LVEF (continuous) & §\ref{sec:end_lvef}, §\ref{sec:frameshuf_end} \\
+EchoNet-Pediatric & --- / 368 (zero-shot) & LVEF (continuous) & §\ref{sec:pediatric} \\
+CAMUS      & 400 / 50 patients (100 samples) & Segmentation (LV/MYO/LA) & §\ref{sec:camus_seg}, §\ref{sec:camus_shuf} \\
+MIMIC-IV-Echo MR & --- / 1{,}003 studies & MR severity 4-class & §\ref{sec:mr} \\
+ACDC (CMR) & 951 clips / 538 clips & 5-class Dx + LVEF & §\ref{sec:cmr} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Probe protocol (d=4 attentive, 6-head HP grid)}
+
+\begin{itemize}
+\item Architecture: cross-attention pooling + 4 self-attention blocks (\texttt{num\_probe\_blocks: 4}, \texttt{num\_heads: 16}).
+\item Training: 20 epochs on EchoNet-Dynamic train (7{,}460 videos) for LVEF probes; 30 epochs on ACDC train for CMR probes. 6 multihead heads with different (LR, WD) combinations.
+\item Z-score normalization: $(\mu, \sigma) = (55.7776, 12.4072)$ for EchoNet-Dynamic LVEF.
+\item Prediction averaging: \texttt{num\_segments=2} (two temporal clips per video, averaged).
+\item Inference: \texttt{evals.main} with DDP all-reduce across 8 GPUs; best head selected per condition.
+\end{itemize}
+
+%==============================================================================
+\section{Three-Way (Four-Way) Controlled Comparison}
+%==============================================================================
+
+\subsection{UHN LVEF regression (53K test)}\label{sec:uhn_lvef}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Model (pt50, ICML rebuttal) & Test $R^2$ & Test Pearson & Test MAE \\
+\midrule
+EchoJEPA-L & 0.409 & 0.650 & 6.508 \\
+EchoBYOL-L & 0.384 & 0.625 & 6.656 \\
+EchoMAE-L  & 0.283 & 0.572 & 7.031 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Paired bootstrap (n=53K, 10K resamples): JEPA$-$BYOL $\Delta R^2=+0.025$ [+0.018,+0.033]; JEPA$-$MAE $\Delta R^2=+0.126$ [+0.112,+0.140]. All pairwise significant.
+
+\subsection{RVSP regression (UHN, 5K test, multi-view)}\label{sec:rvsp}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Model (pt50) & Test $R^2$ & Test Pearson & Test MAE \\
+\midrule
+EchoJEPA-L & 0.220 & 0.484 & 9.101 \\
+EchoBYOL-L & 0.193 & 0.446 & 9.183 \\
+EchoMAE-L  & 0.179 & 0.438 & 9.275 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+RVSP single-view vs multi-view (JEPA-L pt50):
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+View & Test Pearson & Test $R^2$ \\
+\midrule
+Multi-view (A4C+PSAX) & 0.484 & 0.220 \\
+A4C only              & 0.447 & 0.181 \\
+PSAX only             & 0.449 & 0.188 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{CAMUS segmentation Dice (50 test patients)}\label{sec:camus_seg}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Model (pt50) & Mean Dice & LV & MYO & LA \\
+\midrule
+EchoMAE-L  & 0.822 & 0.887 & 0.760 & 0.818 \\
+EchoBYOL-L & 0.821 & 0.880 & 0.769 & 0.813 \\
+EchoJEPA-L & 0.815 & 0.878 & 0.760 & 0.807 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{EchoNet-Dynamic LVEF transfer (1{,}277 test)}\label{sec:end_lvef}
+
+\subsubsection{pt50 (rebuttal, JEPA init-confounded)}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Model & Test $R^2$ & Test Pearson & Test MAE \\
+\midrule
+EchoJEPA-L (pt50, 235ep init) & 0.552 & 0.753 & 5.938 \\
+EchoBYOL-L (pt50, IN21K)      & 0.440 & 0.669 & 6.666 \\
+EchoMAE-L  (pt50, IN21K)      & 0.351 & 0.609 & 7.283 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{e100 init-matched (4-model, bootstrap 95\% CIs)}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Model & Test $R^2$ [95\% CI] & Test Pearson [95\% CI] & Test MAE \\
+\midrule
+EchoJEPA-IN21K e100 & 0.652 [0.608,0.691] & 0.808 [0.781,0.832] & 5.32 \\
+EchoBYOL e100       & 0.511 [0.452,0.564] & 0.720 [0.680,0.756] & 6.18 \\
+EchoMAE e99         & 0.447 [0.389,0.500] & 0.688 [0.645,0.728] & 6.59 \\
+SALT v1 e79         & 0.416 [0.347,0.478] & 0.659 [0.613,0.702] & 6.66 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Pairwise differences} (paired bootstrap, n=1{,}277, 10K resamples):
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Comparison & $\Delta R^2$ [95\% CI] & $\Delta r$ [95\% CI] & Sig. \\
+\midrule
+JEPA vs BYOL & +0.141 [+0.109,+0.175] & +0.088 [+0.066,+0.111] & $R^2$/r sig \\
+JEPA vs MAE  & +0.205 [+0.164,+0.247] & +0.120 [+0.090,+0.152] & $R^2$/r sig \\
+JEPA vs SALT & +0.237 [+0.188,+0.289] & +0.149 [+0.116,+0.184] & $R^2$/r sig \\
+BYOL vs MAE  & +0.064 [+0.016,+0.110] & +0.032 [$-$0.001,+0.066] & $R^2$ sig, r n.s. \\
+BYOL vs SALT & +0.096 [+0.042,+0.151] & +0.061 [+0.025,+0.098] & $R^2$/r sig \\
+MAE vs SALT  & +0.032 [$-$0.022,+0.086] & +0.029 [$-$0.010,+0.066] & n.s. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Pathology-stratified LVEF (EchoNet-Dynamic, 1{,}277 test, pt50)}
+
+\begin{center}
+\begin{tabular}{lrccc}
+\toprule
+EF category & N & JEPA MAE & BYOL MAE & MAE MAE \\
+\midrule
+Normal ($\geq$55\%) & 876 & 4.3 & 5.0 & 5.1 \\
+Mildly reduced (40--54\%) & 241 & 7.6 & 7.8 & 7.1 \\
+Reduced ($<$40\%) & 160 & 12.4 & 14.4 & 19.3 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Pediatric zero-shot transfer (368 test, pt50)}\label{sec:pediatric}
+
+\subsubsection{UHN-trained probes $\to$ pediatric}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Model & Test Pearson & Test MAE & Test $R^2$ \\
+\midrule
+EchoJEPA-L & 0.705 & 6.957 & 0.405 \\
+EchoMAE-L  & 0.626 & 7.857 & 0.187 \\
+EchoBYOL-L & 0.602 & 8.004 & 0.206 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{EchoNet-Dynamic-trained probes $\to$ pediatric}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Model & Test Pearson & Test MAE & Test $R^2$ \\
+\midrule
+EchoJEPA-L & 0.615 & 7.358 & 0.293 \\
+EchoMAE-L  & 0.531 & 9.203 & 0.041 \\
+EchoBYOL-L & 0.498 & 12.132 & $-$0.847 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{Frame Shuffling --- LVEF (EchoNet-Dynamic test)}\label{sec:frameshuf_end}
+%==============================================================================
+
+All R$^2$ on EchoNet-Dynamic test (1{,}277 videos). Best head per condition; DDP all-reduce.
+
+\subsection{Protocol D --- matched\_frame with RoPE remap (\texttt{num\_segments}=2)}
+
+Script: \texttt{evals.main} with \texttt{FRAME\_SHUFFLE=100 FRAME\_SHUFFLE\_TYPE=matched\_frame}.
+Jobs: 216 (MAE), 220 (JEPA/BYOL/SALT e4), 237 (SALT e29/54/79), 379 (JEPA e125--e200).
+
+\subsubsection{MAE ViT-L trajectory (job 216)}
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Epoch & Clean $R^2$ & MF $R^2$ & $\Delta R^2$ & Clean r & MF r \\
+\midrule
+e25  & 0.225 & 0.257 & +0.033 & 0.541 & 0.529 \\
+e50  & 0.413 & 0.281 & $-$0.132 & 0.653 & 0.617 \\
+e75  & 0.435 & 0.356 & $-$0.080 & 0.684 & 0.632 \\
+e99  & 0.467 & 0.440 & $-$0.027 & 0.703 & 0.674 \\
+e124 & 0.469 & 0.428 & $-$0.041 & 0.698 & 0.663 \\
+e149 & 0.527 & 0.491 & $-$0.035 & 0.735 & 0.702 \\
+e174 & 0.500 & 0.448 & $-$0.052 & 0.713 & 0.685 \\
+e194 & 0.526 & 0.460 & $-$0.065 & 0.730 & 0.692 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{JEPA IN21K ViT-L trajectory (jobs 220, 332, 379)}
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Epoch & Clean $R^2$ & MF $R^2$ & $\Delta R^2$ & Clean r & MF r \\
+\midrule
+e25  & 0.460 & 0.416 & $-$0.045 & 0.685 & 0.663 \\
+e50  & 0.612 & 0.328 & $-$0.284 & 0.784 & 0.732 \\
+e75  & 0.629 & 0.439 & $-$0.190 & 0.796 & 0.772 \\
+e100 & 0.650 & 0.507 & $-$0.143 & 0.807 & 0.779 \\
+e125 & 0.645 & 0.557 & $-$0.088 & --- & --- \\
+e150 & 0.679 & 0.634 & $-$0.045 & --- & --- \\
+e175 & 0.682 & 0.637 & $-$0.045 & --- & --- \\
+e200 & 0.684 & 0.635 & $-$0.050 & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+JEPA probe-training val $R^2$ (job 332, 20 epochs, 16-head HP grid):
+e125 best 0.685; e150 best 0.700; e175 best 0.717; e200 best 0.715.
+
+\subsubsection{BYOL ViT-L trajectory (job 220)}
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Epoch & Clean $R^2$ & MF $R^2$ & $\Delta R^2$ & Clean r & MF r \\
+\midrule
+e24  & 0.437 & $-$0.294 & $-$0.731 & 0.668 & 0.547 \\
+e50  & 0.477 & 0.108  & $-$0.369 & 0.698 & 0.646 \\
+e75  & 0.505 & 0.287  & $-$0.217 & 0.715 & 0.680 \\
+e100 & 0.527 & 0.249  & $-$0.279 & 0.732 & 0.673 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{SALT S2v1 ViT-L trajectory (jobs 220, 237)}
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Epoch & Clean $R^2$ & MF $R^2$ & $\Delta R^2$ & Clean r & MF r \\
+\midrule
+e4   & 0.028 & $-$0.020 & $-$0.049 & 0.277 & 0.287 \\
+e29  & 0.356 & $-$0.443 & $-$0.799 & 0.620 & 0.577 \\
+e54  & 0.431 & $-$0.417 & $-$0.848 & 0.672 & 0.606 \\
+e79  & 0.402 & $-$0.404 & $-$0.805 & 0.650 & 0.626 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Protocol C --- Severity gradient (partial shuffle, 3 seeds)}
+
+Script: \texttt{scripts/neurips/frame\_shuffle\_severity.py}. Standalone, single GPU, single clip per video, no prediction averaging, no RoPE remap. 3 seeds (100, 101, 102).
+
+\begin{center}
+\small
+\begin{tabular}{lcccccccccccccccc}
+\toprule
+Frac & J.25 & J.50 & J.75 & J.100 & B.24 & B.50 & B.75 & B.100 & M.24 & M.50 & M.74 & M.99 & S.4 & S.29 & S.54 & S.79 \\
+\midrule
+0.00 & .383 & .503 & .537 & .591 & .380 & .427 & .435 & .468 & .221 & .141 & .390 & .445 & .007 & .277 & .330 & .296 \\
+0.25 & .362 & .419 & .465 & .542 & .119 & .360 & .388 & .410 & .214 & .091 & .356 & .421 & $-$.007 & $-$.096 & .080 & .048 \\
+0.50 & .340 & .327 & .402 & .507 & $-$.080 & .278 & .329 & .336 & .205 & $-$.103 & .347 & .436 & $-$.015 & $-$.327 & $-$.158 & $-$.161 \\
+0.75 & .332 & .293 & .378 & .485 & $-$.160 & .220 & .309 & .300 & .182 & $-$.271 & .320 & .414 & $-$.019 & $-$.418 & $-$.260 & $-$.256 \\
+1.00 & .331 & .290 & .370 & .488 & $-$.173 & .219 & .304 & .291 & .176 & $-$.301 & .330 & .428 & $-$.019 & $-$.432 & $-$.286 & $-$.270 \\
+\bottomrule
+\end{tabular}
+\end{center}
+(J=JEPA, B=BYOL, M=MAE, S=SALT; number = pretrain epoch)
+
+Relative degradation (clean $\to$ full shuffle):
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Model & e24/25 & e50 & e74/75 & e99/100 \\
+\midrule
+JEPA IN21K & $-$14\% & $-$42\% & $-$31\% & $-$17\% \\
+BYOL       & $-$146\% & $-$49\% & $-$30\% & $-$38\% \\
+MAE        & $-$20\% & $-$313\% & $-$15\% & $-$4\% \\
+SALT S2    & $-$371\%* & $-$256\% & $-$187\% & $-$191\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+\small *SALT e4 clean $R^2=0.007$ is near noise.
+
+\subsection{Protocol B --- 6-condition standalone (no RoPE remap)}
+
+Script: \texttt{scripts/neurips/frame\_shuffle\_6cond.py}, single GPU, no pred-avg.
+
+\subsubsection{JEPA IN21K}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Condition & e25 & e50 & e75 & e100 \\
+\midrule
+clean     & 0.383 & 0.503 & 0.537 & 0.591 \\
+tubelet   & 0.384 & 0.507 & 0.532 & 0.582 \\
+reverse   & 0.384 & 0.487 & 0.489 & 0.539 \\
+matched   & 0.381 & 0.505 & 0.533 & 0.580 \\
+shuffle   & 0.328 & 0.288 & 0.375 & 0.484 \\
+matched\_frame & 0.323 & 0.273 & 0.372 & 0.477 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{BYOL}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Condition & e24 & e50 & e75 & e100 \\
+\midrule
+clean     & 0.380 & 0.427 & 0.435 & 0.468 \\
+tubelet   & 0.342 & 0.372 & 0.413 & 0.402 \\
+reverse   & 0.252 & 0.354 & 0.331 & 0.373 \\
+matched   & 0.350 & 0.380 & 0.413 & 0.415 \\
+shuffle   & $-$0.179 & 0.210 & 0.297 & 0.291 \\
+matched\_frame & $-$0.188 & 0.194 & 0.292 & 0.280 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{MAE}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Condition & e24 & e50 & e74 & e99 \\
+\midrule
+clean     & 0.221 & 0.141 & 0.390 & 0.445 \\
+tubelet   & 0.197 & 0.255 & 0.417 & 0.424 \\
+reverse   & 0.184 & 0.114 & 0.400 & 0.431 \\
+matched   & 0.208 & 0.231 & 0.400 & 0.419 \\
+shuffle   & 0.178 & $-$0.278 & 0.327 & 0.422 \\
+matched\_frame & 0.189 & $-$0.343 & 0.345 & 0.449 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{SALT S2v1}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Condition & e4 & e29 & e54 & e79 \\
+\midrule
+clean     & 0.007 & 0.277 & 0.330 & 0.296 \\
+tubelet   & 0.008 & 0.261 & 0.324 & 0.294 \\
+reverse   & 0.005 & 0.202 & 0.223 & 0.120 \\
+matched   & 0.007 & 0.257 & 0.320 & 0.296 \\
+shuffle   & $-$0.021 & $-$0.439 & $-$0.294 & $-$0.283 \\
+matched\_frame & $-$0.020 & $-$0.462 & $-$0.326 & $-$0.310 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{Frame Shuffling --- CAMUS Segmentation}\label{sec:camus_shuf}
+%==============================================================================
+
+CAMUS test: 50 patients $\times$ 2 views = 100 samples. Frozen encoder $\to$ frozen LinearSegDecoder (1$\times$1 conv, $\sim$4K params). Paired bootstrap, n=100, 10K resamples.
+
+\subsection{Clean baselines (Mean Dice)}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Model & Mean Dice & LV & MYO & LA \\
+\midrule
+MAE e99        & 0.827 [0.814,0.838] & 0.891 & 0.765 & 0.825 \\
+BYOL e100      & 0.823 [0.811,0.835] & 0.883 & 0.781 & 0.806 \\
+JEPA IN21K e100 & 0.815 [0.801,0.829] & 0.884 & 0.758 & 0.805 \\
+SALT S2 e79    & 0.777 [0.759,0.794] & 0.847 & 0.720 & 0.764 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Severity gradient (\% Dice degradation from clean)}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Shuffle \% & JEPA & BYOL & MAE & SALT \\
+\midrule
+25\%  & 1.6 [1.1,2.0] & 1.3 [0.9,1.7] & 2.1 [1.7,2.5] & 0.8 [0.5,1.1] \\
+50\%  & 3.6 [2.9,4.3] & 2.7 [2.2,3.3] & 4.9 [4.1,5.6] & 2.1 [1.5,2.6] \\
+75\%  & 5.0 [4.1,5.8] & 4.1 [3.5,4.8] & 6.8 [6.0,7.7] & 3.2 [2.4,4.0] \\
+100\% & 7.0 [6.0,8.0] & 6.0 [5.2,6.7] & 8.6 [7.6,9.6] & 4.9 [4.0,5.8] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{6-condition (\% Dice degradation from clean)}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Condition & JEPA & BYOL & MAE & SALT \\
+\midrule
+reverse       & 14.5 [13.4,15.7] & 12.2 [11.0,13.4] & 12.7 [11.6,13.8] & 11.9 [10.6,13.3] \\
+tubelet       & 5.8 [5.0,6.7]    & 4.6 [3.9,5.3]    & 5.5 [4.6,6.3]    & 5.0 [4.1,5.9] \\
+matched       & 6.3 [5.7,6.9]    & 5.3 [4.7,5.9]    & 6.1 [5.5,6.7]    & 5.5 [4.8,6.1] \\
+shuffle       & 7.1 [6.0,8.1]    & 6.0 [5.2,6.7]    & 8.5 [7.5,9.5]    & 4.8 [4.0,5.7] \\
+matched\_frame & 7.6 [6.6,8.5]   & 7.1 [6.2,7.9]    & 8.5 [7.6,9.3]    & 5.7 [4.8,6.6] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Per-structure at matched\_frame (\% degradation)}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Structure & JEPA & BYOL & MAE & SALT \\
+\midrule
+LV  & 5.8 [5.1,6.5] & 5.6 [4.9,6.3] & 5.3 [4.6,5.9] & 4.6 [3.8,5.3] \\
+MYO & 8.8 [7.8,9.8] & 9.4 [8.3,10.5] & 12.7 [11.5,14.1] & 5.0 [4.2,5.8] \\
+LA  & 8.4 [6.6,10.2] & 6.4 [5.1,7.8] & 7.9 [6.7,9.3] & 7.5 [5.8,9.3] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{ED vs ES phase (matched\_frame, \% degradation)}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Phase & JEPA & BYOL & MAE & SALT \\
+\midrule
+ED & 7.9 [6.5,9.3] & 9.5 [8.1,10.9] & 6.6 [5.6,7.6] & 8.3 [6.9,9.6] \\
+ES & 7.2 [6.3,8.1] & 4.6 [3.8,5.5] & 10.3 [9.1,11.4] & 3.1 [2.3,3.9] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Tracked extraction --- Version A (orig position) vs Version B (inverse permutation)}
+
+\begin{center}
+\begin{tabular}{llcccccc}
+\toprule
+Model & Condition & Clean & V-A & V-B & A drop & B drop \\
+\midrule
+JEPA & shuffle        & 0.816 & 0.758 & 0.761 & 5.8\% & 5.5\% \\
+JEPA & matched\_frame & 0.816 & 0.754 & 0.774 & 6.2\% & 4.2\% \\
+BYOL & shuffle        & 0.823 & 0.774 & 0.680 & 4.9\% & 14.3\% \\
+BYOL & matched\_frame & 0.823 & 0.765 & 0.632 & 5.8\% & 19.2\% \\
+MAE  & shuffle        & 0.827 & 0.756 & 0.724 & 7.0\% & 10.3\% \\
+MAE  & matched\_frame & 0.827 & 0.757 & 0.737 & 7.0\% & 9.0\% \\
+SALT & shuffle        & 0.777 & 0.740 & 0.749 & 3.7\% & 2.8\% \\
+SALT & matched\_frame & 0.777 & 0.733 & 0.760 & 4.4\% & 1.8\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{Between-Frame-Difference (Linear-Diff) Probe}
+%==============================================================================
+
+Hook: output of \texttt{encoder(clips,clip\_indices)}; mean over spatial axis; adjacent-frame difference $d_t = z_{t+1}-z_t$. Probe: linear-A on flattened $[T'\cdot D]$, AdamW lr=1e-3, wd=1e-4 baseline, 5 seeds, early-stop patience 5. EchoNet-Dynamic train/test.
+
+\subsection{Control runs (gate R$^2<0.05$)}
+
+\begin{center}
+\begin{tabular}{llclcc}
+\toprule
+Job & Model/Ckpt & Kind & n & mean $R^2$ & max $R^2$ \\
+\midrule
+314 & JEPA e100 & shuffle & 5 & $-$0.0086 & $-$0.0040 \\
+314 & MAE e50   & shuffle & 5 & $-$0.0983 & $-$0.0805 \\
+314 & MAE e99   & shuffle & 5 & $-$0.0752 & $-$0.0659 \\
+314 & random s42 & random & 5 & $-$0.0013 & +0.0007 \\
+314 & random s43 & random & 5 & $-$0.0022 & +0.0001 \\
+314 & random s44 & random & 5 & $-$0.0022 & $-$0.0010 \\
+315 & JEPA e50  & shuffle & 5 & $-$0.0058 & $-$0.0020 \\
+315 & MAE e25   & shuffle & 5 & $-$0.0983 & $-$0.0633 \\
+315 & MAE e124  & shuffle & 5 & $-$0.0807 & $-$0.0614 \\
+315 & MAE e194  & shuffle & 5 & $-$0.0585 & $-$0.0484 \\
+\bottomrule
+\end{tabular}
+\end{center}
+All 10 controls pass (R$^2<0.05$).
+
+\subsection{Primary trajectories (linear-A, wd=1e-4, mean over 5 seeds)}
+
+\subsubsection{JEPA IN21K}
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Epoch & diff $R^2$ & raw $R^2$ & diff/raw \\
+\midrule
+e25  & +0.144 & +0.341 & 0.42 \\
+e50  & +0.214 & +0.434 & 0.49 \\
+e75  & +0.352 & +0.489 & 0.72 \\
+e100 & +0.376 & +0.502 & 0.75 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{MAE}
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Epoch & diff & raw & diff/raw & MF clean & MF mf \\
+\midrule
+e25  & +0.518 & +0.552 & 0.94 & +0.225 & +0.257 \\
+e50  & +0.584 & +0.626 & 0.93 & +0.413 & +0.281 \\
+e75  & +0.614 & +0.652 & 0.94 & +0.435 & +0.356 \\
+e99  & +0.626 & +0.670 & 0.94 & +0.467 & +0.440 \\
+e124 & +0.637 & +0.678 & 0.94 & +0.469 & +0.428 \\
+e149 & +0.644 & +0.690 & 0.93 & +0.527 & +0.491 \\
+e174 & +0.642 & +0.696 & 0.92 & +0.500 & +0.448 \\
+e194 & +0.644 & +0.695 & 0.93 & +0.526 & +0.460 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{BYOL}
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Epoch & diff & raw & diff/raw \\
+\midrule
+e24  & +0.330 & +0.271 & 1.22 \\
+e50  & +0.368 & +0.299 & 1.23 \\
+e75  & +0.386 & +0.328 & 1.18 \\
+e100 & +0.386 & +0.349 & 1.10 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{SALT S2v1}
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Epoch & diff & raw & diff/raw \\
+\midrule
+e4  & +0.005 & +0.088 & 0.06 \\
+e29 & +0.070 & +0.269 & 0.26 \\
+e54 & +0.114 & +0.273 & 0.42 \\
+e79 & +0.093 & +0.295 & 0.32 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{WD sweep:} max $|\Delta R^2| = 0.0035$ between wd=1e-4 and wd=1e-2 (40 cells).
+
+\subsection{Per-token diff probe (MAE e99 only, 5 seeds, job 320)}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Arch & clean & temporal shuf & spatial shuf \\
+\midrule
+linear\_spatial & +0.127 $\pm$ 0.152 & $-$1.141 $\pm$ 0.031 & $-$0.901 $\pm$ 0.120 \\
+attn\_a (content-indep) & +0.638 $\pm$ 0.005 & $-$0.004 $\pm$ 0.003 & +0.397 $\pm$ 0.005 (n=3) \\
+attn\_b (content-dep) & +0.663 $\pm$ 0.020 & +0.468 $\pm$ 0.022 & n/a \\
+\bottomrule
+\end{tabular}
+\end{center}
+Per-seed attn\_a clean: 0.632, 0.636, 0.637, 0.647, 0.640. Per-seed attn\_b clean: 0.667, 0.671, 0.673, 0.629, 0.678.
+
+%==============================================================================
+\section{SALT --- Main Comparison, Extended Teacher, Trajectory}
+%==============================================================================
+
+\subsection{Primary SALT variants (EchoNet-Dynamic LVEF)}
+
+\begin{center}
+\begin{tabular}{lllccc}
+\toprule
+Variant & Predictor & HP regime & S2 ep & Test $R^2$ & Test MAE \\
+\midrule
+v1 e79 (primary) & hierarchical 4-layer & LR 1.75e-4 const, weak aug & 80 & 0.414 & 6.66 \\
+v1 e199 (extended) & hierarchical 4-layer & same as v1 & 200 & 0.360 & 7.02 \\
+v3 e79 (paper-spec) & single-level & LR 2.55e-4 cosine, paper aug & 80 & 0.348 & 7.03 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Convergence diagnostics (v1 e79 $\to$ v1 e199):
+training loss $0.429 \to 0.419$; weight cosine sim $>0.999$; val MAE $6.47 \to 6.73$.
+
+\subsection{Extended-teacher experiments (endpoint probes, jobs 349, 350)}
+
+\begin{center}
+\begin{tabular}{llccccc}
+\toprule
+Model & Teacher & S2 ckpt & Clean $R^2$ & MF $R^2$ & $\Delta R^2$ & MF MAE \\
+\midrule
+SALT v1 e79 (short teacher) & V-Pixel e20 & e79 & 0.414 & $\approx$0.08 & $-$0.33 & --- \\
+SALT extended V-Pixel (job 349) & V-Pixel e100 (run 329) & e79 (run 330) & 0.445 & $-$0.48 & $-$0.93 & 8.43 \\
+SALT JEPA-teacher (job 350) & JEPA e100 & e80 (run 335) & 0.252 & $-$0.27 & $-$0.53 & 10.27 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{S1 V-Pixel teacher trajectory (jobs 358, 359, 360, 361)}
+
+Each row = S2 student trained from S1 V-Pixel at the specified epoch, probed on EchoNet-Dynamic LVEF.
+
+\begin{center}
+\begin{tabular}{lccccccc}
+\toprule
+S1 ckpt & Clean $R^2$ & MF $R^2$ & $\Delta R^2$ & Clean MAE & MF MAE & Clean r & MF r \\
+\midrule
+e24 (job 358) & 0.372 & 0.348 & $-$0.02 & 7.68 & 7.70 & 0.613 & 0.605 \\
+e49 (job 359) & 0.531 & 0.422 & $-$0.11 & 6.70 & 6.25 & 0.735 & 0.670 \\
+e74 (job 360) & 0.290 & $-$0.153 & $-$0.44 & 5.94 & 10.76 & 0.588 & 0.638 \\
+e99 (job 361) & 0.657 & $-$0.486 & $-$1.14 & 5.37 & 9.14 & 0.816 & 0.551 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{SALT unified compute trajectory (e\_salt = e\_S1 + e\_S2)}
+
+\begin{center}
+\begin{tabular}{llccccc}
+\toprule
+Arm & Config & e\_S1 & e\_S2 & e\_salt & Clean $R^2$ & $\Delta R^2$ \\
+\midrule
+Prescribed canonical & V-Pixel e20 $\to$ S2 e79 & 20 & 79 & 99  & 0.402 & $-$0.805 \\
+Prescribed extended  & V-Pixel e20 $\to$ S2 e199 & 20 & 199 & 219 & 0.360 & --- \\
+Extended teacher     & V-Pixel e24 $\to$ S2 e79 & 24 & 79 & 103 & 0.372 & $-$0.024 \\
+Extended teacher     & V-Pixel e49 $\to$ S2 e79 & 49 & 79 & 128 & 0.531 & $-$0.110 \\
+Extended teacher     & V-Pixel e74 $\to$ S2 e79 & 74 & 79 & 153 & 0.290 & $-$0.443 \\
+Extended teacher endpt & V-Pixel e99 $\to$ S2 e79 & 99 & 79 & 178 & 0.657 & $-$1.143 \\
+Extended teacher primary & V-Pixel e100 $\to$ S2 e79 & 100 & 79 & 179 & 0.445 & $-$0.927 \\
+Cross-family (latent) & JEPA e100 $\to$ S2 e80 & 100 & 80 & 180 & 0.252 & $-$0.525 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Linear-diff $R^2 < 0.12$ at every point in both arms.
+
+\subsection{Isolated SALT-distillation cost (JEPA e100 teacher)}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Measure & JEPA e100 (raw) & SALT-JEPA-S2 e80 & Distillation cost \\
+\midrule
+Clean $R^2$ & 0.650 & 0.252 & $-$0.398 \\
+Clean Pearson & 0.807 & 0.544 & $-$0.263 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{EchoBench --- Noise Robustness (e100 init-matched)}
+%==============================================================================
+
+Per-sample CSVs, paired bootstrap (10K resamples, seed=42).
+
+\subsection{LVEF --- absolute $R^2$ (EchoNet-Dynamic, 1{,}277)}
+
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+Condition & JEPA & BYOL & MAE & SALT \\
+\midrule
+clean                  & 0.591 [0.538,0.638] & 0.465 [0.401,0.523] & 0.445 [0.377,0.505] & 0.293 [0.215,0.362] \\
+depth\_atten/mild      & 0.540 [0.482,0.593] & 0.436 [0.368,0.496] & 0.354 [0.295,0.408] & 0.258 [0.193,0.319] \\
+depth\_atten/moderate  & 0.460 [0.393,0.521] & 0.395 [0.336,0.450] & 0.211 [0.162,0.258] & 0.178 [0.127,0.227] \\
+depth\_atten/severe    & 0.396 [0.321,0.463] & 0.342 [0.288,0.392] & 0.090 [0.051,0.129] & 0.137 [0.094,0.179] \\
+shadow/mild            & 0.581 [0.526,0.629] & 0.449 [0.384,0.507] & 0.444 [0.379,0.503] & 0.282 [0.203,0.352] \\
+shadow/moderate        & 0.544 [0.485,0.597] & 0.414 [0.345,0.475] & 0.435 [0.372,0.492] & 0.258 [0.181,0.327] \\
+shadow/severe          & 0.457 [0.385,0.518] & 0.320 [0.240,0.390] & 0.400 [0.340,0.455] & 0.208 [0.128,0.278] \\
+haze/mild              & 0.588 [0.536,0.635] & 0.455 [0.391,0.513] & 0.425 [0.361,0.482] & 0.281 [0.210,0.347] \\
+haze/moderate          & 0.576 [0.523,0.624] & 0.443 [0.379,0.500] & 0.343 [0.282,0.401] & 0.248 [0.179,0.313] \\
+haze/severe            & 0.553 [0.498,0.603] & 0.431 [0.368,0.488] & 0.159 [0.099,0.217] & 0.217 [0.145,0.283] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{LVEF --- paired $R^2$ degradation (clean $\to$ severe)}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Perturbation & JEPA & BYOL & MAE & SALT \\
+\midrule
+Depth attenuation & 0.195 [0.154,0.239] & 0.123 [0.073,0.172] & 0.355 [0.292,0.413] & 0.156 [0.091,0.214] \\
+Acoustic shadow   & 0.134 [0.104,0.168] & 0.145 [0.098,0.196] & 0.045 [0.014,0.076] & 0.085 [0.038,0.133] \\
+Haze artifact     & 0.038 [0.016,0.060] & 0.035 [0.013,0.057] & 0.286 [0.233,0.334] & 0.076 [0.035,0.114] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{LVEF MAE (EF points, severe)}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Condition & JEPA & BYOL & MAE & SALT \\
+\midrule
+clean              & 5.77 [5.49,6.07] & 6.41 [6.07,6.75] & 6.58 [6.23,6.92] & 7.35 [6.96,7.74] \\
+depth\_atten/severe & 6.86 [6.50,7.22] & 7.10 [6.72,7.48] & 7.90 [7.43,8.37] & 7.90 [7.45,8.35] \\
+shadow/severe      & 6.59 [6.25,6.93] & 7.17 [6.79,7.56] & 6.85 [6.50,7.21] & 7.97 [7.57,8.38] \\
+haze/severe        & 6.04 [5.74,6.34] & 6.66 [6.31,7.02] & 7.80 [7.36,8.25] & 7.63 [7.22,8.05] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{CAMUS segmentation --- absolute Dice}
+
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+Condition & JEPA & BYOL & MAE & SALT \\
+\midrule
+clean                 & 0.815 [0.801,0.829] & 0.823 [0.811,0.835] & 0.827 [0.814,0.838] & 0.777 [0.759,0.794] \\
+depth\_atten/mild     & 0.792 [0.775,0.808] & 0.721 [0.701,0.740] & 0.805 [0.790,0.819] & 0.739 [0.718,0.758] \\
+depth\_atten/moderate & 0.746 [0.728,0.764] & 0.530 [0.508,0.553] & 0.753 [0.731,0.773] & 0.656 [0.631,0.679] \\
+depth\_atten/severe   & 0.683 [0.663,0.703] & 0.368 [0.345,0.391] & 0.654 [0.625,0.681] & 0.508 [0.486,0.529] \\
+shadow/mild           & 0.804 [0.789,0.819] & 0.805 [0.791,0.818] & 0.815 [0.801,0.827] & 0.763 [0.743,0.781] \\
+shadow/moderate       & 0.778 [0.760,0.794] & 0.751 [0.732,0.769] & 0.789 [0.773,0.804] & 0.734 [0.711,0.754] \\
+shadow/severe         & 0.717 [0.697,0.736] & 0.587 [0.556,0.616] & 0.737 [0.717,0.755] & 0.645 [0.621,0.668] \\
+haze/mild             & 0.814 [0.799,0.827] & 0.824 [0.812,0.836] & 0.825 [0.812,0.836] & 0.777 [0.758,0.794] \\
+haze/moderate         & 0.810 [0.795,0.824] & 0.823 [0.811,0.834] & 0.817 [0.805,0.829] & 0.774 [0.756,0.791] \\
+haze/severe           & 0.794 [0.778,0.808] & 0.815 [0.804,0.826] & 0.778 [0.763,0.792] & 0.767 [0.749,0.785] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{CAMUS --- paired Dice degradation (\% drop)}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Perturbation & JEPA & BYOL & MAE & SALT \\
+\midrule
+Depth attenuation & 16.2 [14.3,18.3] & 55.3 [52.9,57.7] & 20.9 [18.5,23.5] & 34.7 [31.9,37.4] \\
+Acoustic shadow   & 12.1 [10.6,13.6] & 28.8 [25.6,31.9] & 10.9 [9.5,12.2]  & 17.0 [14.9,19.1] \\
+Haze artifact     & 2.7 [2.0,3.4]    & 1.0 [0.5,1.4]    & 5.9 [5.2,6.6]    & 1.3 [0.8,1.8] \\
+Avg severe drop   & 10.3 [9.4,11.3]  & 28.4 [26.8,29.9] & 12.6 [11.4,13.8] & 17.6 [16.4,18.9] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Per-structure CAMUS (severe, absolute Dice)}
+
+\textbf{depth\_attenuation/severe:}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Structure & JEPA & BYOL & MAE & SALT \\
+\midrule
+LV  & 0.763 [0.748,0.777] & 0.353 [0.325,0.381] & 0.825 [0.807,0.842] & 0.720 [0.692,0.747] \\
+MYO & 0.650 [0.623,0.676] & 0.217 [0.186,0.249] & 0.627 [0.595,0.658] & 0.636 [0.615,0.656] \\
+LA  & 0.637 [0.605,0.667] & 0.534 [0.498,0.568] & 0.509 [0.463,0.554] & 0.167 [0.133,0.202] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{gaussian\_shadow/severe:}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Structure & JEPA & BYOL & MAE & SALT \\
+\midrule
+LV  & 0.795 [0.776,0.814] & 0.624 [0.580,0.665] & 0.817 [0.801,0.832] & 0.682 [0.650,0.712] \\
+MYO & 0.621 [0.595,0.646] & 0.542 [0.512,0.571] & 0.634 [0.606,0.661] & 0.622 [0.599,0.644] \\
+LA  & 0.735 [0.705,0.763] & 0.594 [0.560,0.629] & 0.759 [0.730,0.785] & 0.632 [0.593,0.667] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Pediatric zero-shot robustness (Pearson, UHN probes, pt50)}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Perturbation & JEPA & BYOL & MAE \\
+\midrule
+Clean          & 0.695 & 0.589 & 0.613 \\
+Depth severe   & 0.596 & 0.347 & 0.544 \\
+Shadow severe  & 0.654 & 0.574 & 0.598 \\
+Haze severe    & 0.592 & 0.532 & 0.481 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{RVSP multi-view vs single-view under severe noise (pt50)}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+& Multi-view severe & A4C severe & PSAX severe \\
+\midrule
+Avg drop (Pearson \%) & $-$5.4 & $-$9.8 & $-$7.5 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{Noise Autocorrelation Sweep}
+%==============================================================================
+
+Script: \texttt{scripts/neurips/noise\_autocorrelation\_sweep.py}. Multiplicative Rayleigh speckle, $\sigma=0.5$, AR(1) correlation time $\tau$. EchoNet-Dynamic test (1{,}277). 3 seeds per condition (200, 201, 202). Mean $\pm$ std.
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+$\tau$ (frames) & JEPA IN21K e100 & BYOL e100 & MAE e99 \\
+\midrule
+clean       & 0.591 & 0.468 & 0.445 \\
+$\infty$ (static) & 0.422 $\pm$ 0.006 & 0.262 $\pm$ 0.003 & $-$0.122 $\pm$ 0.002 \\
+8.0         & 0.542 $\pm$ 0.002 & 0.309 $\pm$ 0.001 & 0.065 $\pm$ 0.003 \\
+4.0         & 0.574 $\pm$ 0.001 & 0.345 $\pm$ 0.002 & 0.171 $\pm$ 0.003 \\
+2.0         & 0.564 $\pm$ 0.002 & 0.337 $\pm$ 0.002 & 0.205 $\pm$ 0.002 \\
+1.0         & 0.542 $\pm$ 0.001 & 0.313 $\pm$ 0.002 & 0.220 $\pm$ 0.002 \\
+0.5         & 0.522 $\pm$ 0.001 & 0.289 $\pm$ 0.003 & 0.239 $\pm$ 0.002 \\
+0.0 (iid)   & 0.508 $\pm$ 0.002 & 0.270 $\pm$ 0.004 & 0.253 $\pm$ 0.002 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Relative degradation from clean:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+$\tau$ & JEPA & BYOL & MAE \\
+\midrule
+$\infty$ & $-$29\% & $-$44\% & $-$127\% \\
+8.0      & $-$8\%  & $-$34\% & $-$85\% \\
+4.0      & $-$3\%  & $-$26\% & $-$62\% \\
+2.0      & $-$5\%  & $-$28\% & $-$54\% \\
+1.0      & $-$8\%  & $-$33\% & $-$51\% \\
+0.5      & $-$12\% & $-$38\% & $-$46\% \\
+0.0      & $-$14\% & $-$42\% & $-$43\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{Representation-Level Analysis (e100 init-matched)}
+%==============================================================================
+
+\subsection{Effective dimensionality (RankMe, 500 EchoNet-Dynamic test videos)}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Model & Eff Dim & Embed Dim & Usage & Top-10 SV & Top-50 SV \\
+\midrule
+JEPA IN21K e95 & 245.3 & 1024 & 24.0\% & 66.7\% & 89.5\% \\
+BYOL e100      & 220.7 & 1024 & 21.6\% & 65.2\% & 90.7\% \\
+MAE e99        & 206.4 & 1024 & 20.2\% & 73.0\% & 93.2\% \\
+SALT v1 e79    & 202.7 & 1024 & 19.8\% & 71.3\% & 92.0\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Speckle probing (partial $R^2$, mean-pooled, final layer)}
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Model & Speckle Partial $R^2$ \\
+\midrule
+MAE e99        & 0.885 \\
+JEPA IN21K e100 & 0.848 \\
+BYOL e100      & 0.716 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Layer-wise speckle partial $R^2$}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Layer & JEPA & BYOL & MAE \\
+\midrule
+1  & 0.838 & 0.889 & 0.840 \\
+6  & 0.790 & 0.885 & 0.884 \\
+12 & 0.784 & 0.754 & 0.849 \\
+18 & 0.766 & 0.613 & 0.813 \\
+24 & 0.759 & 0.617 & 0.808 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Token-level speckle $R^2$}
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Model & Token speckle $R^2$ \\
+\midrule
+MAE e99        & 0.941 \\
+JEPA IN21K e100 & 0.926 \\
+BYOL e100      & 0.891 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Temporal consistency (frame-to-frame cosine similarity)}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Model & Mean & Std \\
+\midrule
+BYOL e100       & 0.976 & 0.023 \\
+JEPA IN21K e100 & 0.954 & 0.020 \\
+MAE e99         & 0.950 & 0.012 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Cross-temporal attention fraction (random baseline = 0.875)}
+
+\subsubsection{Epoch $\sim$100}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Layer & JEPA e100 & BYOL e100 & MAE e99 & SALT S2 e79 \\
+\midrule
+0  & 0.601 & 0.857 & 0.861 & 0.439 \\
+1  & 0.567 & 0.775 & 0.860 & 0.491 \\
+2  & 0.837 & 0.744 & 0.825 & 0.419 \\
+3  & 0.822 & 0.815 & 0.834 & 0.463 \\
+4  & 0.859 & 0.828 & 0.822 & 0.387 \\
+5  & 0.818 & 0.813 & 0.868 & 0.422 \\
+6  & 0.854 & 0.848 & 0.867 & 0.420 \\
+7  & 0.846 & 0.848 & 0.860 & 0.433 \\
+8  & 0.844 & 0.856 & 0.842 & 0.490 \\
+9  & 0.864 & 0.863 & 0.869 & 0.447 \\
+10 & 0.873 & 0.864 & 0.841 & 0.557 \\
+11 & 0.874 & 0.882 & 0.841 & 0.839 \\
+12--23 & 0.87--0.88 & 0.87--0.88 & 0.87 & 0.83--0.88 \\
+\midrule
+Overall & 0.839 & 0.855 & 0.861 & 0.672 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Epoch $\sim$50 (SALT e29)}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Layer & JEPA pt50 & BYOL pt50 & MAE pt50 & SALT e29 \\
+\midrule
+0     & 0.409 & 0.869 & 0.865 & 0.274 \\
+1     & 0.660 & 0.770 & 0.861 & 0.743 \\
+2     & 0.582 & 0.793 & 0.808 & 0.813 \\
+3--10 & 0.57--0.88 & 0.82--0.88 & 0.81--0.87 & 0.85--0.88 \\
+11--23 & 0.86--0.88 & 0.86--0.89 & 0.86--0.87 & 0.87--0.88 \\
+\midrule
+Overall & 0.795 & 0.862 & 0.861 & 0.838 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{CMR Cross-Modality (ACDC holdout)}\label{sec:cmr}
+%==============================================================================
+
+ACDC: 100 train / 50 test patients (951 / 538 clips). d=4 attentive probe, 6 HP heads, 30 probe epochs.
+
+\subsection{MAE ViT-S trajectory --- LVEF regression (job 209)}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+MAE Epoch & Val $R^2$ & Val Pearson & Val MAE & Best probe epoch \\
+\midrule
+e30  & 0.085 & 0.295 & 17.10 & 17 \\
+e50  & 0.051 & 0.235 & 17.34 & 21 \\
+e100 & 0.069 & 0.267 & 17.34 & 21 \\
+e200 & 0.092 & 0.311 & 17.14 & 21 \\
+e300 & 0.102 & 0.328 & 17.02 & 14 \\
+e400 & 0.109 & 0.334 & 16.89 & 21 \\
+e600 & 0.126 & 0.369 & 16.66 & 25 \\
+e800 & 0.133 & 0.380 & 16.63 & 25 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{MAE --- 5-class Dx (job 281)}
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+MAE Epoch & Val Acc & Val AUROC & Val Bal Acc & Val Kappa & Best probe epoch \\
+\midrule
+e30  & 37.5\% & 0.662 & 0.343 & 0.206 & 27 \\
+e50  & 36.6\% & 0.652 & 0.349 & 0.202 & 30 \\
+e100 & 44.5\% & 0.695 & 0.421 & 0.300 & 27 \\
+e200 & 46.1\% & 0.744 & 0.434 & 0.323 & 30 \\
+e300 & 43.8\% & 0.750 & 0.414 & 0.295 & 30 \\
+e400 & 44.1\% & 0.745 & 0.415 & 0.297 & 30 \\
+e600 & 46.5\% & 0.758 & 0.437 & 0.326 & 30 \\
+e800 & 46.1\% & 0.759 & 0.433 & 0.322 & 30 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{MAE --- matched\_frame inference (jobs 281/282/283)}
+
+Dx AUROC, num\_segments=2 (job 281 Phase 2):
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Epoch & Clean AUROC & MF AUROC & $\Delta$ AUROC \\
+\midrule
+e30  & 0.647 & 0.649 & +0.002 \\
+e50  & 0.673 & 0.675 & +0.001 \\
+e100 & 0.700 & 0.700 & +0.001 \\
+e200 & 0.757 & 0.760 & +0.004 \\
+e300 & 0.755 & 0.753 & $-$0.002 \\
+e400 & 0.750 & 0.746 & $-$0.003 \\
+e600 & 0.755 & 0.756 & +0.001 \\
+e800 & 0.755 & 0.757 & +0.002 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Dx AUROC, num\_segments=1 (job 282):
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Epoch & Clean AUROC & MF AUROC & $\Delta$ AUROC \\
+\midrule
+e30  & 0.648 & 0.649 & +0.002 \\
+e50  & 0.673 & 0.674 & +0.001 \\
+e100 & 0.700 & 0.701 & +0.001 \\
+e200 & 0.758 & 0.762 & +0.005 \\
+e300 & 0.757 & 0.757 & $-$0.000 \\
+e400 & 0.751 & 0.749 & $-$0.002 \\
+e600 & 0.753 & 0.759 & +0.007 \\
+e800 & 0.749 & 0.758 & +0.009 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+LVEF matched\_frame, num\_segments=1 (job 283):
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Epoch & Clean $R^2$ & MF $R^2$ & $\Delta R^2$ & Clean r & MF r \\
+\midrule
+e30  & 0.048 & 0.047 & 0.000 & 0.252 & 0.250 \\
+e50  & 0.026 & 0.027 & +0.001 & 0.233 & 0.232 \\
+e100 & 0.047 & 0.047 & +0.000 & 0.229 & 0.228 \\
+e200 & 0.046 & 0.050 & +0.004 & 0.232 & 0.239 \\
+e300 & 0.057 & 0.059 & +0.002 & 0.250 & 0.258 \\
+e400 & 0.082 & 0.097 & +0.016 & 0.311 & 0.315 \\
+e600 & 0.105 & 0.119 & +0.014 & 0.331 & 0.351 \\
+e800 & 0.112 & 0.120 & +0.009 & 0.341 & 0.357 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{CMR JEPA fast-EMA trajectory --- LVEF (job 345)}
+
+\begin{center}
+\begin{tabular}{lccclc}
+\toprule
+Epoch & Best Val $R^2$ & Best Pearson & Final Val $R^2$ & Source \\
+\midrule
+e30  & 0.120 & 0.383 & 0.070 & run 333 \\
+e55  & 0.120 & 0.391 & 0.071 & run 333 \\
+e100 & 0.162 & 0.438 & 0.134 & run 333 \\
+e200 & 0.079 & 0.314 & 0.073 & run 333 \\
+e300 & 0.090 & 0.333 & 0.080 & run 344 \\
+e400 & 0.109 & 0.360 & 0.096 & run 344 \\
+e605 & 0.077 & 0.296 & 0.077 & run 344 \\
+e800 & 0.069 & 0.288 & 0.060 & run 344 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{CMR JEPA slow-EMA trajectory (jobs 375, 376)}
+
+\textbf{LVEF (job 375):}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Ckpt & Val $R^2$ & Val Pearson & Val MAE & Best probe epoch \\
+\midrule
+e30  & 0.138 & 0.441 & 15.61 & 21 \\
+e55  & 0.111 & 0.396 & 16.28 & 5 \\
+e100 & 0.105 & 0.360 & 16.29 & 8 \\
+e200 & 0.102 & 0.346 & 16.25 & 13 \\
+e295 & 0.089 & 0.304 & 16.07 & 12 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{5-class Dx (job 376):}
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Ckpt & Val AUROC & Val Acc & Val Bal Acc & Val Kappa & Best probe epoch \\
+\midrule
+e30  & 0.799 & 47.79 & 0.454 & 0.344 & 22 \\
+e55  & 0.797 & 48.35 & 0.472 & 0.353 & 17 \\
+e100 & 0.795 & 48.16 & 0.469 & 0.350 & 21 \\
+e200 & 0.782 & 49.08 & 0.467 & 0.359 & 26 \\
+e295 & 0.766 & 44.85 & 0.420 & 0.305 & 15 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Three-way CMR LVEF R$^2$ comparison}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Epoch & MAE $R^2$ & JEPA-fast $R^2$ & JEPA-slow $R^2$ \\
+\midrule
+e30 & 0.085 & 0.120 & 0.138 \\
+$\sim$e50 & 0.051 & 0.120 & 0.111 \\
+e100 & 0.069 & 0.162 & 0.105 \\
+e200 & 0.092 & 0.079 & 0.102 \\
+e295/300 & 0.102 & 0.090 & 0.089 \\
+e400 & 0.109 & 0.109 & --- \\
+$\sim$e600 & 0.126 & 0.077 & --- \\
+e800 & 0.133 & 0.069 & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Three-way CMR Dx AUROC comparison}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Epoch & MAE AUROC & JEPA-slow AUROC \\
+\midrule
+e30  & 0.662 & 0.799 \\
+$\sim$e50 & 0.652 & 0.797 \\
+e100 & 0.695 & 0.795 \\
+e200 & 0.744 & 0.782 \\
+e295/300 & 0.750 & 0.766 \\
+e400 & 0.745 & --- \\
+$\sim$e600 & 0.758 & --- \\
+e800 & 0.759 & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{MR Cross-Dataset Transfer (UHN $\to$ MIMIC)}\label{sec:mr}
+%==============================================================================
+
+Frozen EchoJEPA-G (\texttt{pt-280-an81.pt}, ViT-G), d=1 attentive probe, 4-class ordinal MR severity. Test: MIMIC-IV-Echo MR (1{,}003 studies, pred-avg).
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Probe & Accuracy & Balanced Acc & Quad Kappa & Macro AUROC \\
+\midrule
+MIMIC probe (in-distribution, job 436) & 0.591 & 0.391 & 0.538 & 0.806 \\
+UHN probe (cross-dataset, job 443)     & 0.531 & 0.341 & 0.410 & 0.799 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Per-class (MIMIC probe):
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Class & Prec & Recall & F1 & Support \\
+\midrule
+None-Trivial & 0.69 & 0.88 & 0.77 & 503 \\
+Mild         & 0.39 & 0.34 & 0.36 & 271 \\
+Moderate     & 0.47 & 0.35 & 0.40 & 173 \\
+Severe       & 0.00 & 0.00 & 0.00 & 56 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Per-class (UHN probe):
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Class & Prec & Recall & F1 & Support \\
+\midrule
+None-Trivial & 0.77 & 0.71 & 0.73 & 503 \\
+Mild         & 0.33 & 0.66 & 0.44 & 271 \\
+Moderate     & 0.00 & 0.00 & 0.00 & 173 \\
+Severe       & 0.00 & 0.00 & 0.00 & 56 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{Scaling}
+%==============================================================================
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+Model & Params & Data & LVEF $R^2$ \\
+\midrule
+EchoJEPA-B (V-JEPA 2.1) & 86M & MIMIC 525K & 0.650 \\
+EchoJEPA-L (V-JEPA 2.0, 50ep) & 304M & MIMIC 525K & 0.436 \\
+EchoJEPA-G (V-JEPA 2.0) & 1{,}012M & UHN 18M & 0.778 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{$\phi$-JEPA --- Gate 1 Metadata Pilot (Job 351)}
+%==============================================================================
+
+Source: pydicom batch over MIMIC-IV-Echo raw DICOMs. Tags: \texttt{(0018,1088) HeartRate}, \texttt{(0018,1063) FrameTime}, \texttt{(0028,0008) NumberOfFrames}. 1{,}000 random studies, 74{,}314 clips, 5m46s runtime.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Criterion & Result & Threshold \\
+\midrule
+Valid HR coverage (40--180 bpm) & 99.59\% (74{,}011/74{,}314) & $\geq$95\% \\
+Within-study HR stdev $\leq$15 bpm & 96.68\% (962/995) & $\geq$85\% \\
+Parse errors & 0 (0\%) & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+HR distribution (valid, n=74{,}011): median 70, mean 73, std 16.3; p05=53, p95=103; tails 40--179 bpm.
+Within-study stdev (studies with $\geq$2 valid clips, n=995): median 3.37 bpm, p95 11.65 bpm, max 37.23 bpm; 33/995 (3.3\%) studies stdev $>$15.
+
+FrameTime coverage: 55\% (40{,}873 / 74{,}314). Missing are single-frame DICOMs (stills, M-mode).
+
+Job 374 ($\phi$-JEPA Run D, 200-epoch pretrain) currently running on \texttt{ip-10-0-50-148}: e65/200 synced at 2026-04-25 09:56 UTC.
+
+%==============================================================================
+\section{Tube Masking Observation (no new experiment)}
+%==============================================================================
+
+VideoMAE ViT-L pretrained with \texttt{--mask\_type tube --mask\_ratio 0.9} (canonical Tong 2022).
+Three sbatches confirm: \texttt{scripts/videomae\_pretrain\_mimic.sbatch} line 294, \texttt{...matched.sbatch} line 333, \texttt{...matched\_2node.sbatch} line 402.
+
+MAE e99 Protocol-B 6-condition range: 0.419 (matched) --- 0.449 (matched\_frame). Matched\_frame marginally $>$ clean (0.449 vs 0.445).
+
+%==============================================================================
+\section{Checkpoint Inventory}
+%==============================================================================
+
+\subsection{Encoder checkpoints}
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+Model & Epoch & Init & Path \\
+\midrule
+JEPA & 50 & JEPA 235ep & \texttt{checkpoints/echojepa-l-pt50.pt} \\
+JEPA IN21K & 25/50/75/100 & ImageNet-21K & \texttt{checkpoints/jepa\_in21k\_vitl\_e\{N\}.pt} \\
+JEPA IN21K & 125/150/175/195 & ImageNet-21K & \texttt{runs/jepa\_in21k\_e200\_280/training\_folder/e\{N\}.pt} \\
+JEPA IN21K & 200 & ImageNet-21K & \texttt{runs/jepa\_in21k\_e200\_280/training\_folder/latest.pt} \\
+BYOL & 24/50/75/100 & ImageNet-21K & \texttt{checkpoints/byol\_vitl\_imagenet\_v2\_e\{N\}.pt} \\
+MAE & 24/50/74/99 & ImageNet & \texttt{checkpoints/videomae\_l\_mimic\_ep\{N\}.pth} \\
+MAE & 124/149/174/194 & ImageNet & \texttt{runs/videomae\_e200\{,b\}\_\{159,179\}/training\_folder/checkpoint-\{N\}.pth} \\
+SALT S2 v1 & 29/49/79 & Random student & \texttt{checkpoints/salt\_s2\_vitl\_e\{N\}.pt} \\
+SALT S2 v1 & 199 & Random student & \texttt{runs/salt\_s2\_resume\_e100\_392/checkpoints/e199.pt} \\
+SALT S2 v3 & 79 (S3 only) & Random student & \texttt{runs/salt\_s2v2\_pretrain\_446/checkpoints/e79.pt} \\
+SALT S1 V-Pixel & 20 & IN21K & \texttt{runs/salt\_s1\_pretrain\_379/.../latest.pt} \\
+SALT S1 V-Pixel & 24/49/74/99/100 & IN21K & \texttt{runs/salt\_s1\_vpixel\_e100\_329/...} \\
+SALT JEPA-teacher student & 80 & Random & \texttt{runs/salt\_s2\_jepa\_teacher\_335/checkpoints/e80.pt} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{EchoNet-Dynamic LVEF probes (d=4 attentive, 224\,px)}
+
+\begin{center}
+\begin{tabular}{llr}
+\toprule
+Model & Epoch & Val MAE \\
+\midrule
+JEPA pt50    & 50 & 5.51 \\
+BYOL & 24 & 6.37 \\
+BYOL & 50 & 6.17 \\
+BYOL & 75 & 5.99 \\
+BYOL & 100 & 5.94 \\
+MAE & 24 & 7.54 \\
+MAE & 50 & 6.41 \\
+MAE & 74 & 6.11 \\
+MAE & 99 & 6.05 \\
+MAE & 124 & 6.07 \\
+MAE & 149 & 5.93 \\
+MAE & 174 & 5.93 \\
+MAE & 194 & 5.87 \\
+SALT S2 & 29 & 7.82 \\
+SALT S2 & 79 & 6.47 \\
+SALT S2 & 199 & 6.73 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{HyperPod job log}
+
+\begin{center}
+\small
+\begin{tabular}{llll}
+\toprule
+Job & Role & State & Notes \\
+\midrule
+183 & CMR MAE ViT-S 800ep pretrain & Complete & Loss 1.12 $\to$ 0.27 \\
+209 & CMR MAE ACDC LVEF trajectory & Complete & $R^2$ 0.085 $\to$ 0.133 \\
+216 & MAE MF trajectory (e25--e194) & Complete & --- \\
+220 & JEPA/BYOL/SALT-e4 MF trajectory & Complete & --- \\
+237 & SALT e29/54/79 MF & Complete & --- \\
+281 & CMR MAE Dx trajectory + MF (ns=2) & Complete & AUROC 0.662 $\to$ 0.759 \\
+282 & CMR MAE Dx MF (ns=1) & Complete & $\Delta\approx0$ at every ckpt \\
+283 & CMR MAE LVEF MF (ns=1) & Complete & $\Delta\approx0$ at every ckpt \\
+312--315, 319--320 & Diff-probe pipelines & Complete & All controls pass \\
+329 & SALT S1 V-Pixel e20 $\to$ e100 & Complete & --- \\
+330 & SALT S2 V-Pixel-teacher e80 & Complete & --- \\
+332 & JEPA e125--e200 probe training & Complete & --- \\
+333 & CMR JEPA ViT-S 800ep (seed 234) & Complete & Loss rise 0.35 $\to$ 0.505 \\
+335 & SALT S2 JEPA-teacher e80 & Complete & --- \\
+344 & CMR JEPA resume-e250 (seed 163) & Complete & Tracks 333 within 0.01 \\
+345 & CMR JEPA fast-EMA LVEF trajectory & Complete & Peak $R^2$=0.162 (e100) $\to$ 0.069 (e800) \\
+346 & CMR JEPA slow-EMA 0--295 & Complete at e295 & --- \\
+349 & SALT extended V-Pixel endpoint probe & Complete & $R^2$=0.445, $\Delta R^2$=$-$0.93 \\
+350 & SALT JEPA-teacher endpoint probe & Complete & $R^2$=0.252, $\Delta R^2$=$-$0.53 \\
+351 & $\phi$-JEPA Gate 1 pilot (1K studies) & Complete & 99.59\% HR coverage \\
+352 & $\phi$-JEPA full-corpus metadata & Complete & 27m42s \\
+358/359/360/361 & SALT S1 V-Pixel trajectory probes & Complete & e24/e49/e74/e99 \\
+374 & $\phi$-JEPA Run D 200ep & Running (e65/200) & \texttt{ip-10-0-50-148} \\
+375 & CMR JEPA slow-EMA LVEF trajectory & Complete & Peak $R^2$=0.138 (e30) $\to$ 0.089 (e295) \\
+376 & CMR JEPA slow-EMA Dx trajectory & Complete & AUROC 0.799 (e30) $\to$ 0.766 (e295) \\
+377 & $\phi$-JEPA ACDC LVEF trajectory probes & Pending (afterany:374) & --- \\
+378 & JEPA IN21K extended MF trajectory & FAILED (TMPDIR bug, 46s) & --- \\
+379 & JEPA IN21K extended MF trajectory (retry) & Complete (14m24s) & See §\ref{sec:frameshuf_end} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}
