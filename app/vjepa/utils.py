@@ -102,6 +102,8 @@ def load_checkpoint(
     target_encoder,
     opt,
     scaler,
+    strict_predictor=True,
+    expected_phase_csv_sha256=None,
 ):
     logger.info(f"Loading checkpoint from {r_path}")
     checkpoint = robust_checkpoint_loader(r_path, map_location=torch.device("cpu"))
@@ -109,14 +111,25 @@ def load_checkpoint(
     epoch = checkpoint["epoch"]
     itr   = checkpoint.get("itr", 0)
 
+    # phi-JEPA: warn on phase-metadata CSV hash mismatch (non-fatal).
+    ckpt_hash = checkpoint.get("phase_metadata_sha256")
+    if expected_phase_csv_sha256 and ckpt_hash and ckpt_hash != expected_phase_csv_sha256:
+        logger.warning(
+            f"phase_metadata_sha256 mismatch: ckpt={ckpt_hash[:12]}, "
+            f"current={expected_phase_csv_sha256[:12]}. Training will continue but "
+            f"the loaded model may have been trained on a different CSV revision."
+        )
+
     # -- loading encoder
     pretrained_dict = _strip_ddp_prefix(checkpoint["encoder"])
     msg = encoder.load_state_dict(pretrained_dict)
     logger.info(f"loaded pretrained encoder from epoch {epoch} with msg: {msg}")
 
-    # -- loading predictor
+    # -- loading predictor. When adding phase modules to a baseline checkpoint
+    # (phase_mlp, no_phase_token are missing), pass strict_predictor=False so
+    # the phase modules initialize from scratch while the backbone loads normally.
     pretrained_dict = _strip_ddp_prefix(checkpoint["predictor"])
-    msg = predictor.load_state_dict(pretrained_dict)
+    msg = predictor.load_state_dict(pretrained_dict, strict=strict_predictor)
     logger.info(f"loaded pretrained predictor from epoch {epoch} with msg: {msg}")
 
     # -- loading target_encoder
@@ -165,6 +178,9 @@ def init_video_model(
     use_pred_silu=False,
     wide_silu=False,
     use_activation_checkpointing=False,
+    phase_conditioned=False,
+    n_phase_freqs=16,
+    phase_drop_p=0.15,
 ):
     encoder = video_vit.__dict__[model_name](
         img_size=crop_size,
@@ -197,6 +213,9 @@ def init_video_model(
         use_silu=use_pred_silu,
         wide_silu=wide_silu,
         use_activation_checkpointing=use_activation_checkpointing,
+        phase_conditioned=phase_conditioned,
+        n_phase_freqs=n_phase_freqs,
+        phase_drop_p=phase_drop_p,
     )
     predictor = PredictorMultiSeqWrapper(predictor)
 

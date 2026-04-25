@@ -26,6 +26,9 @@ class MaskCollator(object):
         super(MaskCollator, self).__init__()
 
         self.mask_generators = dict()
+        # Expose (D, H, W) grid dims per fpc so downstream code (phi-JEPA training
+        # step) can unflatten mask indices without re-deriving the grid shape.
+        self.grid_dims_per_fpc: dict = {}
         for fpc in dataset_fpcs:
             self.mask_generators[fpc] = []
             for m in cfgs_mask:
@@ -45,6 +48,9 @@ class MaskCollator(object):
                     inv_block=m.get("inv_block", False),
                 )
                 self.mask_generators[fpc].append(mask_generator)
+            if self.mask_generators[fpc]:
+                gen = self.mask_generators[fpc][0]
+                self.grid_dims_per_fpc[fpc] = (gen.duration, gen.height, gen.width)
 
     def step(self):
         for fpc in self.mask_generators:

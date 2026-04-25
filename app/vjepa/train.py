@@ -132,6 +132,10 @@ def main(args, resume_preempt=False):
     use_silu = cfgs_model.get("use_silu", False)
     use_pred_silu = cfgs_model.get("use_pred_silu", False)
     wide_silu = cfgs_model.get("wide_silu", True)
+    # -- phi-JEPA phase conditioning (opt-in, default off)
+    phase_conditioned = cfgs_model.get("phase_conditioned", False)
+    n_phase_freqs = cfgs_model.get("n_phase_freqs", 16)
+    phase_drop_p = cfgs_model.get("phase_drop_p", 0.15)
 
     # -- DATA
     cfgs_data = args.get("data")
@@ -150,6 +154,21 @@ def main(args, resume_preempt=False):
     pin_mem = cfgs_data.get("pin_mem", False)
     num_workers = cfgs_data.get("num_workers", 1)
     persistent_workers = cfgs_data.get("persistent_workers", True)
+    # -- phi-JEPA per-clip phase metadata CSV
+    phase_metadata_csv = cfgs_data.get("phase_metadata_csv", None)
+    if phase_conditioned and not phase_metadata_csv:
+        raise ValueError(
+            "phase_conditioned=True requires data.phase_metadata_csv to be set"
+        )
+    # Compute phase CSV sha256 once for reproducibility (stashed in checkpoint).
+    phase_metadata_sha256 = None
+    if phase_conditioned and phase_metadata_csv and os.path.exists(phase_metadata_csv):
+        import hashlib as _hl
+        _h = _hl.sha256()
+        with open(phase_metadata_csv, "rb") as _f:
+            for chunk in iter(lambda: _f.read(1 << 20), b""):
+                _h.update(chunk)
+        phase_metadata_sha256 = _h.hexdigest()
 
     # -- DATA AUGS
     cfgs_data_aug = args.get("data_aug")
@@ -213,6 +232,22 @@ def main(args, resume_preempt=False):
         ("%d", "dataload-time(ms)"),
     )
 
+    # phi-JEPA pilot diagnostics (rank-0 only; computed per-epoch).
+    phase_diag_logger = None
+    if phase_conditioned and rank == 0:
+        phase_diag_logger = CSVLogger(
+            os.path.join(folder, "phase_diag.csv"),
+            ("%d", "epoch"),
+            ("%.4f", "dphi_mean"),
+            ("%.4f", "dphi_std"),
+            ("%.4f", "dphi_abs_p95"),
+            ("%.4f", "nan_fraction"),
+            ("%.4f", "drop_fraction"),
+            ("%.4f", "dphi_frame_offset_corr"),
+            ("%.4f", "teacher_student_cos_sim"),
+            ("%.6f", "phase_use_l2_diff"),
+        )
+
     encoder, predictor = init_video_model(
         device=device,
         uniform_power=uniform_power,
@@ -233,6 +268,9 @@ def main(args, resume_preempt=False):
         wide_silu=wide_silu,
         use_rope=use_rope,
         use_activation_checkpointing=use_activation_checkpointing,
+        phase_conditioned=phase_conditioned,
+        n_phase_freqs=n_phase_freqs,
+        phase_drop_p=phase_drop_p,
     )
 
     ## REVERTED: Create the target_encoder directly on the GPU using deepcopy.
@@ -282,6 +320,7 @@ def main(args, resume_preempt=False):
         num_workers=num_workers,
         pin_mem=pin_mem,
         log_dir=None,
+        phase_metadata_csv=phase_metadata_csv,
     )
 
     try:
@@ -404,6 +443,10 @@ def main(args, resume_preempt=False):
                     target_encoder=target_encoder,
                     opt=optimizer,
                     scaler=scaler,
+                    # Allow phase modules to initialize fresh when loading a
+                    # non-phase baseline ckpt into a phase-conditioned predictor.
+                    strict_predictor=not phase_conditioned,
+                    expected_phase_csv_sha256=phase_metadata_sha256,
                 )
                 logger.info(f"SUCCESS: Loaded checkpoint from {load_path}")
                 completed_steps = start_epoch * ipe + start_itr  # (LATEST) compute once
@@ -445,6 +488,8 @@ def main(args, resume_preempt=False):
             "world_size": world_size,
             "lr": lr,
             "itr": itr,
+            "phase_conditioned": phase_conditioned,
+            "phase_metadata_sha256": phase_metadata_sha256,
         }
 
         try:
@@ -508,6 +553,14 @@ def main(args, resume_preempt=False):
             iter_time_meter = AverageMeter()
             gpu_time_meter = AverageMeter()
             data_elapsed_time_meter = AverageMeter()
+
+            # phi-JEPA epoch-level diagnostic accumulators (rank-0 only).
+            # Tracked as Python lists; aggregated at end-of-epoch. Each element
+            # is a scalar float summarized from one training iter.
+            phase_diag_buf = {
+                "dphi_mean": [], "dphi_std": [], "dphi_abs_p95": [],
+                "nan_frac": [], "drop_frac": [], "corr": [], "cos_sim": [],
+            }
     
             itr_start = start_itr if epoch == start_epoch else 0
     
@@ -571,20 +624,87 @@ def main(args, resume_preempt=False):
     
                 def load_clips():
                     all_clips, all_masks_enc, all_masks_pred = [], [], []
+                    all_hr, all_fpcs = [], []
                     for fpc_sample in sample:
                         udata, masks_enc, masks_pred = fpc_sample
                         all_clips += [udata[0][0].to(device, non_blocking=True)]
                         all_masks_enc += [[m.to(device, non_blocking=True) for m in masks_enc]]
                         all_masks_pred += [[m.to(device, non_blocking=True) for m in masks_pred]]
-                    return all_clips, all_masks_enc, all_masks_pred
-    
-                clips, masks_enc, masks_pred = load_clips()
+                        # phi-JEPA: per-clip HR (nan for missing / irregular)
+                        if phase_conditioned and len(udata) >= 5 and isinstance(udata[4], dict) and "hr_bpm" in udata[4]:
+                            hr = udata[4]["hr_bpm"]
+                            if not torch.is_tensor(hr):
+                                hr = torch.as_tensor(hr, dtype=torch.float32)
+                            all_hr += [hr.to(device, non_blocking=True).float()]
+                        else:
+                            all_hr += [None]
+                        all_fpcs += [all_clips[-1].shape[2]]
+                    return all_clips, all_masks_enc, all_masks_pred, all_hr, all_fpcs
+
+                clips, masks_enc, masks_pred, hr_bpm_list, fpc_list = load_clips()
                 data_elapsed_time_ms = (time.time() - itr_start_time) * 1000.0
     
                 if sync_gc and (itr + 1) % GARBAGE_COLLECT_ITR_FREQ == 0:
                     logger.info("Running garbage collection...")
                     gc.collect()
-    
+
+                # phi-JEPA: compute per-target Δφ once per batch. Context reference
+                # is the mean tubelet index across context tokens. Units:
+                #   seconds_per_tubelet = tubelet_size / fps
+                #   Δφ = (target_t - ctx_t) * seconds_per_tubelet * hr_bpm / 60.0
+                # NaN hr_bpm (irregular/missing) propagates to nan Δφ -> predictor
+                # routes those targets to its <no_phase> sentinel token.
+                delta_phi_list = None
+                frame_offset_list = None  # raw (tgt_t - ctx_t), for diagnostics
+                if phase_conditioned:
+                    delta_phi_list = []
+                    frame_offset_list = []
+                    for i, fpc_i in enumerate(fpc_list):
+                        D, H, W = mask_collator.grid_dims_per_fpc[fpc_i]
+                        HW = H * W
+                        hr_i = hr_bpm_list[i]  # [B]
+                        spt = float(tubelet_size) / float(fps)
+                        inner = []
+                        inner_fo = []
+                        for mxi, myi in zip(masks_enc[i], masks_pred[i]):
+                            # mxi: [B, N_ctx]; myi: [B, N_tgt]. Flat idx = t*HW + spatial.
+                            ctx_t = (mxi.float() // HW).mean(dim=1, keepdim=True)  # [B, 1]
+                            tgt_t = (myi.float() // HW)                             # [B, N_tgt]
+                            fo = (tgt_t - ctx_t)                                    # [B, N_tgt]
+                            dphi = fo * spt * hr_i.unsqueeze(-1) / 60.0
+                            inner.append(dphi)
+                            inner_fo.append(fo)
+                        delta_phi_list.append(inner)
+                        frame_offset_list.append(inner_fo)
+
+                # phi-JEPA diagnostics: sample first (fpc, mask-gen) on rank 0.
+                if phase_conditioned and rank == 0 and delta_phi_list:
+                    try:
+                        dphi_sample = delta_phi_list[0][0].detach()
+                        fo_sample = frame_offset_list[0][0].detach()
+                        valid_mask = torch.isfinite(dphi_sample)
+                        n_total = dphi_sample.numel()
+                        n_nan = int((~valid_mask).sum().item())
+                        phase_diag_buf["nan_frac"].append(n_nan / max(1, n_total))
+                        if valid_mask.any():
+                            dphi_valid = dphi_sample[valid_mask]
+                            fo_valid = fo_sample[valid_mask]
+                            phase_diag_buf["dphi_mean"].append(float(dphi_valid.mean().item()))
+                            phase_diag_buf["dphi_std"].append(float(dphi_valid.std().item()) if dphi_valid.numel() > 1 else 0.0)
+                            phase_diag_buf["dphi_abs_p95"].append(
+                                float(torch.quantile(dphi_valid.abs(), 0.95).item())
+                            )
+                            if fo_valid.numel() > 1 and fo_valid.std() > 1e-6:
+                                # Pearson r between Δφ and raw frame offset.
+                                dphi_c = dphi_valid - dphi_valid.mean()
+                                fo_c = fo_valid - fo_valid.mean()
+                                corr = (dphi_c * fo_c).sum() / (
+                                    (dphi_c.pow(2).sum().sqrt() * fo_c.pow(2).sum().sqrt()).clamp(min=1e-8)
+                                )
+                                phase_diag_buf["corr"].append(float(corr.item()))
+                    except Exception:
+                        pass
+
                 def train_step():
                     _new_lr = scheduler.step()
                     _new_wd = wd_scheduler.step()
@@ -598,7 +718,7 @@ def main(args, resume_preempt=False):
     
                     def forward_context(c):
                         z = encoder(c, masks_enc)
-                        z = predictor(z, masks_enc, masks_pred)
+                        z = predictor(z, masks_enc, masks_pred, delta_phi=delta_phi_list)
                         return z
     
                     def loss_fn(z, h):
@@ -715,8 +835,34 @@ def main(args, resume_preempt=False):
                 #         logger.info(f"Saved step checkpoint at epoch {epoch}, iteration {itr}")
     
             logger.info("avg. loss %.3f" % loss_meter.avg)
+
+            # phi-JEPA: epoch-level phase diagnostics (rank-0 only, CPU-only
+            # aggregation of per-iter scalars — no DDP forward passes here).
+            # The heavier phase_use_l2 and teacher/student cos-sim tests were
+            # removed after they desynchronized DDP (rank 0 ran extra forwards
+            # with static_graph=True, hanging epoch 2). Re-add via a dedicated
+            # eval-only harness, not inline in the training loop.
+            if phase_conditioned and rank == 0 and phase_diag_logger is not None:
+                def _mean(xs):
+                    return float(sum(xs) / len(xs)) if xs else float("nan")
+                dphi_mean = _mean(phase_diag_buf["dphi_mean"])
+                dphi_std = _mean(phase_diag_buf["dphi_std"])
+                dphi_p95 = _mean(phase_diag_buf["dphi_abs_p95"])
+                nan_frac = _mean(phase_diag_buf["nan_frac"])
+                corr = _mean(phase_diag_buf["corr"])
+
+                phase_diag_logger.log(
+                    epoch + 1, dphi_mean, dphi_std, dphi_p95,
+                    nan_frac, phase_drop_p, corr, float("nan"), float("nan"),
+                )
+                logger.info(
+                    "[phase_diag] epoch=%d dphi_mean=%.4f dphi_std=%.4f dphi_p95=%.4f "
+                    "nan=%.3f corr=%.3f"
+                    % (epoch + 1, dphi_mean, dphi_std, dphi_p95, nan_frac, corr)
+                )
+
             _barrier()  # everyone reach end-of-epoch together
-    
+
             latest_path = os.path.join(folder, "latest.pt")
             if epoch % CHECKPOINT_FREQ == 0 or epoch == (num_epochs - 1):
                 save_checkpoint(epoch + 1, 0, latest_path, None, is_periodic=False)

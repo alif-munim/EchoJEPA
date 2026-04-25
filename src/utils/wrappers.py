@@ -33,11 +33,20 @@ class PredictorMultiSeqWrapper(nn.Module):
         super().__init__()
         self.backbone = backbone
 
-    def forward(self, x, masks_x, masks_y, has_cls=False):
+    def forward(self, x, masks_x, masks_y, has_cls=False, delta_phi=None):
+        """
+        :param delta_phi: Optional list matching masks_y structure (outer: fpc,
+            inner: mask-generator). Each element is a [B, N_target] tensor of
+            cycle-fraction offsets. When None, the predictor uses its standard
+            (phase-unaware) path.
+        """
         n = 0
         outs = [[] for _ in x]
         for i, (xi, mxi, myi) in enumerate(zip(x, masks_x, masks_y)):
-            for xij, mxij, myij in zip(xi, mxi, myi):
-                outs[i] += [self.backbone(xij, mxij, myij, mask_index=i, has_cls=has_cls)]
+            for j, (xij, mxij, myij) in enumerate(zip(xi, mxi, myi)):
+                dphi_ij = None
+                if delta_phi is not None:
+                    dphi_ij = delta_phi[i][j]
+                outs[i] += [self.backbone(xij, mxij, myij, mask_index=i, has_cls=has_cls, delta_phi=dphi_ij)]
                 n += 1
         return outs

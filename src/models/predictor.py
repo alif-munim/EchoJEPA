@@ -14,6 +14,8 @@ from src.models.utils.modules import Block
 from src.models.utils.pos_embs import get_2d_sincos_pos_embed, get_3d_sincos_pos_embed
 from src.utils.tensors import repeat_interleave_batch, trunc_normal_
 
+_TAU = 2.0 * math.pi
+
 
 class VisionTransformerPredictor(nn.Module):
     """Vision Transformer"""
@@ -46,6 +48,9 @@ class VisionTransformerPredictor(nn.Module):
         return_all_tokens=False,
         chop_last_n_tokens=0,
         use_rope=False,
+        phase_conditioned=False,
+        n_phase_freqs=16,
+        phase_drop_p=0.15,
         **kwargs
     ):
         super().__init__()
@@ -124,6 +129,27 @@ class VisionTransformerPredictor(nn.Module):
         self.predictor_norm = norm_layer(predictor_embed_dim)
         self.predictor_proj = nn.Linear(predictor_embed_dim, embed_dim, bias=True)
 
+        # ------ Phase conditioning (phi-JEPA)
+        # When enabled, the predictor receives per-target Δφ (cycle fraction
+        # offset from context to target) as conditioning. Δφ is embedded via
+        # integer-frequency Fourier features + a 2-layer MLP, then added to
+        # the target (mask) token before context/target concatenation.
+        self.phase_conditioned = bool(phase_conditioned)
+        self.n_phase_freqs = int(n_phase_freqs)
+        self.phase_drop_p = float(phase_drop_p)
+        if self.phase_conditioned:
+            self.register_buffer(
+                "phase_freqs",
+                torch.arange(1, self.n_phase_freqs + 1, dtype=torch.float32),
+                persistent=False,
+            )
+            self.phase_mlp = nn.Sequential(
+                nn.Linear(2 * self.n_phase_freqs, predictor_embed_dim, bias=True),
+                nn.GELU(),
+                nn.Linear(predictor_embed_dim, predictor_embed_dim, bias=True),
+            )
+            self.no_phase_token = nn.Parameter(torch.zeros(1, 1, predictor_embed_dim))
+
         # ------ initialize weights
         if self.predictor_pos_embed is not None:
             self._init_pos_embed(self.predictor_pos_embed.data)  # sincos pos-embed
@@ -163,7 +189,33 @@ class VisionTransformerPredictor(nn.Module):
             rescale(layer.attn.proj.weight.data, layer_id + 1)
             rescale(layer.mlp.fc2.weight.data, layer_id + 1)
 
-    def forward(self, x, masks_x, masks_y, mask_index=1, has_cls=False):
+    def _embed_phase(self, delta_phi, B, N_y):
+        """Return a [B, N_y, predictor_embed_dim] phase-embedding tensor.
+
+        NaN entries in delta_phi route to self.no_phase_token; during training,
+        phase_drop_p fraction of entries are additionally dropped to the sentinel.
+        """
+        no_phase = self.no_phase_token.expand(B, N_y, -1)
+        if delta_phi is None:
+            return no_phase
+        # Shape: [B, N_y]; fill NaN with 0 for the Fourier computation, but
+        # remember where they were so we can route to <no_phase> afterward.
+        valid = torch.isfinite(delta_phi)
+        wrapped = torch.where(valid, delta_phi, torch.zeros_like(delta_phi))
+        wrapped = wrapped - torch.floor(wrapped)  # circular wrap to [0, 1)
+        # Fourier features: sin/cos at integer multiples of the phase.
+        # phase_freqs: [K]; wrapped[..., None]: [B, N_y, 1]  ->  [B, N_y, K]
+        ang = _TAU * self.phase_freqs.to(wrapped.dtype) * wrapped.unsqueeze(-1)
+        sincos = torch.cat([torch.sin(ang), torch.cos(ang)], dim=-1)  # [B, N_y, 2K]
+        phase_emb = self.phase_mlp(sincos)
+        drop = ~valid
+        if self.training and self.phase_drop_p > 0:
+            rand = torch.rand(B, N_y, device=phase_emb.device)
+            drop = drop | (rand < self.phase_drop_p)
+        phase_emb = torch.where(drop.unsqueeze(-1), no_phase, phase_emb)
+        return phase_emb
+
+    def forward(self, x, masks_x, masks_y, mask_index=1, has_cls=False, delta_phi=None):
         """
         :param x: context tokens
         :param masks_x: indices of context tokens in input
@@ -201,6 +253,18 @@ class VisionTransformerPredictor(nn.Module):
             pos_embs = apply_masks(pos_embs, masks_y)
             pos_embs = repeat_interleave_batch(pos_embs, B, repeat=len(masks_x))
             pred_tokens += pos_embs
+        # -- add phase conditioning (phi-JEPA) — no-op when phase_conditioned=False
+        if self.phase_conditioned:
+            N_y_batch, N_y = pred_tokens.shape[0], pred_tokens.shape[1]
+            # delta_phi (if provided) has shape [B, N_y_full]; repeat_interleave
+            # along batch to match pred_tokens' leading dim (which equals B * len(masks_x)).
+            if delta_phi is not None and delta_phi.shape[0] != N_y_batch:
+                delta_phi = delta_phi.repeat(N_y_batch // delta_phi.shape[0], 1)
+            if delta_phi is not None and delta_phi.shape[1] != N_y:
+                # pred_tokens is already masked-out to N_y; delta_phi must align.
+                delta_phi = delta_phi[:, :N_y]
+            phase_emb = self._embed_phase(delta_phi, N_y_batch, N_y)
+            pred_tokens = pred_tokens + phase_emb
 
         # Concatenate context & target tokens
         x = x.repeat(len(masks_x), 1, 1)

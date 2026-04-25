@@ -86,6 +86,7 @@ def make_videodataset(
     log_dir=None,
     study_sampling=False,
     class_balance_ratio=None,
+    phase_metadata_csv=None,
 ):
     # Check for perturbation via environment variables (for noise robustness evaluation).
     # Set PERTURBATION_TYPE and PERTURBATION_SEVERITY to enable.
@@ -135,6 +136,7 @@ def make_videodataset(
         perturbation_fn=perturbation_fn,
         frame_shuffle_seed=frame_shuffle_seed,
         frame_shuffle_type=frame_shuffle_type,
+        phase_metadata_csv=phase_metadata_csv,
     )
 
     log_dir = pathlib.Path(log_dir) if log_dir else None
@@ -214,6 +216,7 @@ class VideoDataset(torch.utils.data.Dataset):
         perturbation_fn=None,  # Optional: callable(clip_tensor, video_path) -> clip_tensor
         frame_shuffle_seed=None,  # Optional: int seed for temporal ablation
         frame_shuffle_type="frame",  # "frame", "tubelet", or "reverse"
+        phase_metadata_csv=None,  # Optional: path to per-clip HR/FrameTime CSV (phi-JEPA)
     ):
         self.data_paths = data_paths
         self.datasets_weights = datasets_weights
@@ -230,6 +233,14 @@ class VideoDataset(torch.utils.data.Dataset):
         self.perturbation_fn = perturbation_fn
         self.frame_shuffle_seed = frame_shuffle_seed
         self.frame_shuffle_type = frame_shuffle_type
+        self.phase_metadata_csv = phase_metadata_csv
+        self.phase_metadata = None
+        if phase_metadata_csv is not None:
+            from src.datasets.phase_utils import load_phase_metadata
+            self.phase_metadata = load_phase_metadata(phase_metadata_csv)
+            logger.info(
+                f"Loaded phase metadata: {len(self.phase_metadata)} clips from {phase_metadata_csv}"
+            )
 
         # Initialize S3 client lazily per worker (avoid pickling/FD sharing)
         self.s3_client = None
@@ -304,26 +315,54 @@ class VideoDataset(torch.utils.data.Dataset):
         """Number of times a failed load was replaced with a random sample."""
         return self._substitution_count
 
+    def _lookup_phase_meta(self, sample_uri):
+        """Return phase metadata dict for this clip. Empty dict if not configured.
+
+        Fields: hr_bpm (float or nan), frame_time_ms (float or nan).
+        Clips flagged as irregular-rhythm or with invalid HR emit nan for hr_bpm.
+        """
+        if self.phase_metadata is None:
+            return {}
+        from src.datasets.phase_utils import parse_clip_id, sanitize_hr
+        clip_id = parse_clip_id(str(sample_uri))
+        row = self.phase_metadata.get(clip_id)
+        if row is None:
+            return {"hr_bpm": float("nan"), "frame_time_ms": float("nan")}
+        hr_raw, ft, irr = row
+        return {"hr_bpm": sanitize_hr(hr_raw, irr), "frame_time_ms": float(ft)}
+
     # ---------- Dataset API ----------
     def __getitem__(self, index):
         original_index = index
-        # Keep trying new indices until a valid sample is loaded (matches default behavior)
-        while True:
+        # Cap retries so a bad-data worker cannot stall the collective indefinitely.
+        # Each miss picks a fresh random index; 32 attempts is ample for realistic
+        # corruption rates (<<1%) while still surfacing systemic failures.
+        MAX_RETRIES = 32
+        for attempt in range(MAX_RETRIES):
             sample_path = self.samples[index]
-            if isinstance(sample_path, str):
-                is_image = sample_path.split(".")[-1].lower() in ("jpg", "jpeg", "png")
-                loaded = self.get_item_image(index) if is_image else self.get_item_video(index)
-                if loaded:
-                    if index != original_index:
-                        self._substitution_count += 1
-                        logger.warning(
-                            f"Load-failure substitution: requested index {original_index} "
-                            f"({self.samples[original_index]}), served index {index} "
-                            f"({self.samples[index]})"
-                        )
-                    return loaded
+            loaded = None
+            try:
+                if isinstance(sample_path, str):
+                    is_image = sample_path.split(".")[-1].lower() in ("jpg", "jpeg", "png")
+                    loaded = self.get_item_image(index) if is_image else self.get_item_video(index)
+            except Exception as e:
+                logger.warning(f"Unhandled load error for {sample_path}: {e}")
+                loaded = None
+            if loaded:
+                if index != original_index:
+                    self._substitution_count += 1
+                    logger.warning(
+                        f"Load-failure substitution (attempt {attempt}): "
+                        f"requested {original_index} ({self.samples[original_index]}), "
+                        f"served {index} ({self.samples[index]})"
+                    )
+                return loaded
             warnings.warn(f"Retrying with new sample, failed to load: {self.samples[index]}")
             index = np.random.randint(len(self))
+        raise RuntimeError(
+            f"Dataset failed to produce a valid sample after {MAX_RETRIES} retries "
+            f"(original_index={original_index}, last_index={index})."
+        )
 
     def get_item_video(self, index):
         sample_uri = self.samples[index]
@@ -419,7 +458,7 @@ class VideoDataset(torch.utils.data.Dataset):
                 shuffled.append([clip] if is_wrapped else clip)
             buffer = shuffled
 
-        return buffer, label, clip_indices, sample_uri
+        return buffer, label, clip_indices, sample_uri, self._lookup_phase_meta(sample_uri)
 
     def get_item_image(self, index):
         sample_uri = self.samples[index]
@@ -456,7 +495,7 @@ class VideoDataset(torch.utils.data.Dataset):
         if self.transform is not None:
             buffer = [self.transform(buffer)]
 
-        return buffer, label, clip_indices, sample_uri
+        return buffer, label, clip_indices, sample_uri, self._lookup_phase_meta(sample_uri)
 
     def debug_sample_loading(self, index):
         sample_uri = self.samples[index]
@@ -499,10 +538,15 @@ class VideoDataset(torch.utils.data.Dataset):
 
             try:
                 vr = VideoReader(fname, num_threads=-1, ctx=cpu(0))
-            except Exception:
+            except Exception as e:
+                logger.warning(f"decord VideoReader failed for {fname}: {e}")
                 return [], None
 
-            return self._sample_from_vr(vr, fpc)
+            try:
+                return self._sample_from_vr(vr, fpc)
+            except Exception as e:
+                logger.warning(f"decord decode failed for {fname}: {e}")
+                return [], None
 
         # --- S3 branch
         try:
@@ -537,11 +581,22 @@ class VideoDataset(torch.utils.data.Dataset):
             logger.warning(f"Failed to load video: {sample_uri}\n{e}")
             return [], None
 
-        return self._sample_from_vr(vr, fpc)
+        try:
+            return self._sample_from_vr(vr, fpc)
+        except Exception as e:
+            logger.warning(f"decord decode failed for {sample_uri}: {e}")
+            return [], None
 
     # ---------- Sampling (shared by local & S3) ----------
     def _sample_from_vr(self, vr, fpc):
-        fstp = self.frame_step            
+        fstp = self.frame_step
+        try:
+            n_frames = len(vr)
+        except Exception as e:
+            logger.warning(f"decord len(vr) failed: {e}")
+            return [], None
+        if n_frames <= 0:
+            return [], None
         if self.duration is not None or self.fps is not None:
             try:
                 video_fps = math.ceil(vr.get_avg_fps())
@@ -613,7 +668,11 @@ class VideoDataset(torch.utils.data.Dataset):
             clip_indices.append(indices)
             all_indices.extend(list(indices))
 
-        buffer = vr.get_batch(all_indices).asnumpy()
+        try:
+            buffer = vr.get_batch(all_indices).asnumpy()
+        except Exception as e:
+            logger.warning(f"decord get_batch failed (n_frames={n_frames}): {e}")
+            return [], None
         return buffer, clip_indices
 
     def __len__(self):
