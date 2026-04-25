@@ -523,3 +523,130 @@ BYOL > MAE ≈ SALT. Other orderings require revisiting characterizations.
 - `/tmp/diff_probe_315/expctrl/` — 4 expanded shuffle control JSONs
 - S3 mirrors under
   `s3://.../vjepa2-artifacts/results/diff_probe/{314,315}/`
+
+---
+
+## Per-token diff-probe spot-check (MAE e99, job 319 extract + 320 probes)
+
+Addresses the "spatial averaging changes the object" caveat (Explanation 3
+above) directly. Drops the spatial mean-pool at cache time so the probe
+sees `[N, S=2, T=8, spatial=196, D=1024]` fp16 (`FEATURE_KEEP_SPATIAL=1`
+branch in `evals/feature_extraction_pre_pool/eval.py`).
+
+### Design (MAE e99 only, 5 seeds)
+
+Three probe architectures, all operate on `d_t = z_{t+1} - z_t` with the
+spatial axis preserved:
+
+| Probe | Description | Params |
+|---|---|---|
+| `linear_spatial` | mean over T', flatten `[196·1024] → Linear(·, 1)` | ≈201K |
+| `attn_a` | content-**independent** softmax over 196 positions, then `Linear(D, 1)` | 196 + 1025 |
+| `attn_b` | content-**dependent** softmax `α = softmax(w·d_t)`, pool, `Linear(D, 1)` | 1024 + 1025 |
+
+Three shuffle conditions:
+
+- `none`: clean — paired with the `[1277, 2, 8, 196, 1024]` fp16 cache.
+- `temporal`: permute `T` per `(clip, segment)` before differencing.
+- `spatial`: permute `spatial` per `(clip, segment, T)` — breaks cross-frame
+  spatial correspondence, intended as a per-location null.
+
+### Results (5 seeds, job 320, stopped after 32/45 configs)
+
+All values are test R² on EchoNet-Dynamic (1277 clips, per-clip averaged
+across the 2 segments), reported as mean ± sd over 5 seeds unless noted.
+
+| arch | clean | temporal shuf | spatial shuf | gate (< 0.05)? |
+|---|---|---|---|---|
+| `linear_spatial` | +0.127 ± 0.152 | **−1.141 ± 0.031** | **−0.901 ± 0.120** | PASS |
+| `attn_a` | **+0.638 ± 0.005** | **−0.004 ± 0.003** | +0.397 ± 0.005 (n=3) | **FAIL on spatial** |
+| `attn_b` | **+0.663 ± 0.020** | +0.468 ± 0.022 | (not reported; job cancelled) | **FAIL on temporal** |
+
+Per-seed clean values that anchor the comparison to the global-mean
+diff-probe (job 314 spatial-avg linear-A-diff on MAE e99: R² = 0.626):
+- `attn_a` clean: 0.632, 0.636, 0.637, 0.647, 0.640 → **0.638**
+- `attn_b` clean: 0.667, 0.671, 0.673, 0.629, 0.678 → **0.663**
+
+### Interpretation
+
+**Outcome 1 (expected).** `attn_a` clean ≈ spatial-avg linear-A-diff from
+job 314 (0.638 vs 0.626). Removing the spatial mean-pool and letting the
+probe learn a fixed position-indexed pooling recovers the same R² as
+hard-coded uniform pooling. The caveat was not hiding a substantively
+different measurement — MAE e99's diff-channel EF signal is ~0.6 R² at
+both resolutions.
+
+**Outcome 2 (unexpected).** `attn_b` is ~0.02–0.04 higher than `attn_a`
+clean (content-dependent attention buys ~3–6 % relative). But `attn_b`
+recovers R² ≈ 0.47 under **temporal shuffle** — it **fails the gate**.
+After T-permutation, the diff `z[π(t+1)] − z[π(t)]` at each spatial
+position still carries anatomical content (each post-shuffle pair is a
+random pair of actual frames). `attn_b`'s input-dependent pooling
+re-weights those positions to recover EF signal the same way a linear
+regression on `raw` features at a single position would — this is not
+temporal structure, it is static per-location content surviving the
+T-permutation because the difference operator alone does not erase it
+unless tokens are also decorrelated across positions. `attn_a`'s
+position-indexed weights cannot exploit that and correctly collapse to
+R² ≈ 0.
+
+**Outcome 3 (design flaw).** Both attention probes fail the **spatial
+shuffle** gate (R² ≈ 0.40 for `attn_a`). Permuting the spatial axis
+independently per T does destroy per-position encoding, but it does **not**
+destroy the signal the attention pool exploits, because mean-over-T of a
+spatially-permuted feature map is approximately a uniform mixture at every
+position (each position has 8 random draws). `attn_a`'s `α[sp]` then
+converges to uniform and the probe reduces to the spatial-avg linear-A-diff
+— which is precisely the ~0.6 R² we observed at job 314. The spatial
+shuffle was designed to break per-location encoding, but the mean-over-T
+step in `attn_a`/`attn_b` averages the shuffle out.
+
+### Gate status: FAIL
+
+Both attention probes fail at least one control:
+
+- `attn_b` fails temporal shuffle → content-dependent attention can
+  re-derive EF from per-position anatomy alone, so `attn_b` clean R² cannot
+  be read as a measurement of cross-frame temporal encoding.
+- `attn_a` fails spatial shuffle → but this is a flaw in the *control*,
+  not the probe. The control, as designed, cannot kill the signal that
+  `attn_a` uses because `attn_a` collapses to a uniform pool.
+
+The per-token experiment therefore cannot, as designed, distinguish
+"MAE encodes temporal information per location" from "MAE encodes
+position-indexed anatomical content that happens to predict EF after
+differencing and attention-based pooling." The design needs to be revised
+before we spend compute on the 7-ckpt scope.
+
+### Concrete take-aways
+
+1. **Outcome 1 alone is paper-grade.** Confirming the caveat does not
+   change the reading: per-token `attn_a` R² ≈ spatial-avg linear-A-diff
+   R² on MAE e99. Section H in the paper can state that the global-mean
+   diff-probe is not hiding a per-location signal at a tighter bound than
+   the mean-pool probe already captures.
+2. **`attn_b` should not appear in the paper's headline.** Its
+   temporal-shuffle failure means its clean R² mixes per-position content
+   recovery with any actual temporal signal. A headline number that needs
+   a footnote saying "under temporal shuffle this probe keeps ~70 % of its
+   R²" is not a cleaner measurement than the global-mean diff-probe.
+3. **The spatial-shuffle control is load-bearing but wrong.** Any future
+   version of this experiment needs a control that attacks the signal the
+   attention pool can actually see — e.g. shuffle the spatial index
+   consistently across T within a clip so mean-over-T is not a uniform
+   mixture; or replace the mean-over-T with a T-local attention.
+4. **Do not run 7-ckpt scope.** Stopped after MAE e99 spot-check; no
+   compute spent on JEPA/BYOL/SALT per-token extraction.
+
+### Files produced
+
+- `scripts/neurips/extract_pre_pool_per_token.sbatch` — extraction launcher
+  (SPOT_CHECK=1 default: MAE e99 only; 8.2 GB test + 47.9 GB train cache)
+- `scripts/neurips/diff_probe_train_pertoken.py` — 3-arch × 3-shuffle
+  trainer; saves 14×14 attention maps per (arch, seed, shuffle) for both A
+  and B formulations
+- `scripts/neurips/diff_probe_pertoken.sbatch` — probe launcher with
+  in-job cache-shape verification and gate-check aggregation
+- S3 cache: `s3://.../vjepa2-artifacts/features/diff_probe_pertoken/mae_e99_{train,test}.pt`
+- Per-seed results captured from job 320 compute-node logs (job cancelled
+  before `all.csv` / S3 sync; raw seed numbers in the table above).

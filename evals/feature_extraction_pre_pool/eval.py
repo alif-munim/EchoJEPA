@@ -245,8 +245,13 @@ def main(args_eval, resume_preempt=False):
 
             # Normalize to [B, num_segments, T, S, D]
             reshaped = _reshape_to_segments(outputs, num_segments, T, S)
-            # Spatial mean -> [B, num_segments, T, D], cast to fp16 for cache
-            pooled = reshaped.float().mean(dim=3).half().cpu()
+            # Spatial mean (default) -> [B, num_segments, T, D], cast to fp16 for cache.
+            # FEATURE_KEEP_SPATIAL=1 keeps the spatial axis -> [B, num_segments, T, S, D]
+            # for the per-token diff-probe variant (caveat in diff-probe-analysis.md).
+            if os.environ.get("FEATURE_KEEP_SPATIAL", "0") == "1":
+                pooled = reshaped.half().cpu()
+            else:
+                pooled = reshaped.float().mean(dim=3).half().cpu()
 
             local_chunks["features"].append(pooled)
             local_chunks["labels"].append(labels.float().cpu())
