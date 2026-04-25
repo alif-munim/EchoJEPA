@@ -1,7 +1,7 @@
 # Frame Shuffling Results — Consolidated Reference
 
 **Last updated:** 2026-04-24
-**Status:** Active. Extended training trajectory complete for MAE (e25-e194) and JEPA (e25-e200, with probes in job 332). JEPA IN21K clean R² plateaus at e175-e200 (0.715-0.717), 17-22pp above MAE at the same epochs (job 332 vs MAE e124-e194). JEPA extended matched-frame inference still pending. BYOL, SALT e25-e100 complete. CMR cross-modality: MAE ViT-S 800ep complete (MF Δ zero at all checkpoints), JEPA ViT-S base run complete (jobs 333/344) with probe trajectory (job 345) showing JEPA >MAE at e30-e100 but JEPA <MAE at e600-e800 due to teacher-chasing loss rise. Slow-EMA variant (job 346) in progress to test EMA speed as the cause. SALT: S1 V-Pixel teacher complete (329), S2 V-Pixel student complete (330), S2 JEPA-teacher student running (335, ~e54/80). Probe runs: S2 V-Pixel probe submitted (349, pending node); S2 JEPA-teacher probe queued (350, afterok:335).
+**Status:** Active. Extended training trajectory complete for MAE (e25-e194) and JEPA (e25-e200). JEPA IN21K clean R² plateaus at e150-e200 (0.679-0.684 test), +0.16 above MAE at matched epochs; matched-frame gap narrows from −0.143 (e100) to −0.045 (e150+), equalizing with MAE's late-training band. Full trajectory now reported (job 379, completed 2026-04-25). BYOL, SALT e25-e100 complete. CMR cross-modality: MAE ViT-S 800ep complete (MF Δ zero at all checkpoints), JEPA ViT-S base + slow-EMA runs complete (jobs 333/344/346) — JEPA >MAE at e30-e100 but JEPA <MAE at e600-e800 on both EMA schedules, EMA ruled out as the cause. SALT 2×2 + S1 V-Pixel trajectory + JEPA-teacher endpoint complete (jobs 349/350/358-361).
 
 ---
 
@@ -104,22 +104,28 @@ Inference configs: `configs/inference/vitl/neurips/echonet-dynamic/jepa_in21k_e{
 | ~e175 | 0.717 | 0.500 (e174) | +0.217 |
 | ~e200 | 0.715 | 0.526 (e194) | +0.189 |
 
-JEPA's improvement through extended training is genuine representation improvement, not spatial compensation. MAE's extended-training clean-R² improvement comes together with a narrowing matched-frame gap (−0.132 → −0.065) — the paper's "temporal shortcut" finding. Whether JEPA's extended matched-frame gap narrows, stays flat at ~−0.14, or widens is the open question (pending MF inference on job 332's 4 ckpts).
+JEPA's improvement through extended training is genuine representation improvement, not spatial compensation. MAE's extended-training clean-R² improvement comes together with a narrowing matched-frame gap (−0.132 → −0.065) — the paper's "temporal shortcut" finding. The open question — whether JEPA's extended matched-frame gap narrows, stays flat at ~−0.14, or widens — is now answered by job 379: **it narrows decisively**, contracting from −0.143 at e100 to a stable −0.045 to −0.050 band across e150–e200. JEPA's attentive-probe frame-order dependence is therefore an e100-specific signature that attenuates with extended training, not a persistent property; the +0.16 clean-R² lead over MAE is what persists.
 
-Matched-frame results (test set, Protocol D):
+Matched-frame results (test set, EchoNet-Dynamic 1,280 clips, d=4 attentive probe, best-head per condition, DDP all-reduce):
 
-| JEPA Epoch | Clean R² | Matched_frame R² | Temporal Δ | Rel. Drop |
-|------------|----------|-------------------|------------|-----------|
-| e25 | 0.460 | 0.416 | -0.045 | -10% |
-| **e50** | **0.612** | **0.328** | **-0.284** | **-46%** |
-| e75 | 0.629 | 0.439 | -0.190 | -30% |
-| e100 | 0.650 | 0.507 | -0.143 | -22% |
-| e125 | — | — | — | — |
-| e150 | — | — | — | — |
-| e175 | — | — | — | — |
-| e200 | — | — | — | — |
+| JEPA Epoch | Clean R² | Matched_frame R² | Temporal Δ | Rel. Drop | Source |
+|------------|----------|-------------------|------------|-----------|--------|
+| e25 | 0.460 | 0.416 | -0.045 | -10% | job 220 |
+| **e50** | **0.612** | **0.328** | **-0.284** | **-46%** | job 220 |
+| e75 | 0.629 | 0.439 | -0.190 | -30% | job 220 |
+| e100 | 0.650 | 0.507 | -0.143 | -22% | job 220 |
+| e125 | 0.645 | 0.557 | **-0.088** | -14% | **job 379** |
+| e150 | 0.679 | 0.634 | **-0.045** | -7% | **job 379** |
+| e175 | 0.682 | 0.637 | **-0.045** | -7% | **job 379** |
+| e200 | 0.684 | 0.635 | **-0.050** | -7% | **job 379** |
 
-e125-e200 matched-frame inference not yet run. Probes are trained and ready.
+**Job 379 output (2026-04-25):** all 8 inferences complete in ~40 min on `ip-10-0-50-35`. Probes from job 332, encoder checkpoints from `runs/jepa_in21k_e200_280/training_folder/`. Numbers are best-head R² across the 6-head HP grid, all-gathered across 8 ranks on EchoNet-Dynamic test (1,280 clips with `num_segments=2`). Note: the rank-0 predictions.csv files on S3 contain only 160 rows per condition (rank-0 shard, not full test set); the full-test metrics reported here are in `runs/jepa_ext_mf_379/logs/job.out` at the `Saved clip-level outputs` log lines.
+
+**Test-vs-val gap:** probe-training val R² peaked at 0.717 (e175); test R² peaks at 0.684 (e200). Test is systematically ~0.03 below val across the extended checkpoints — consistent with best-head selection optimizing slightly on val.
+
+**JEPA-vs-MAE clean-R² gap persists.** At e200, JEPA clean R² = 0.684 vs MAE e194 clean R² = 0.526 — gap +0.158, nearly identical to the e100 gap of +0.183. The +0.16 clean lead holds across the full extended trajectory.
+
+**Matched-frame gap equalizes.** At e100 JEPA ΔR² = −0.143 vs MAE ΔR² = −0.027 (Δ-of-Δ: −0.116). By e150 both objectives contract to ~−0.045. At e175/e200 JEPA's ΔR² is *smaller* than MAE's at the corresponding checkpoint (JEPA e200 = −0.050 vs MAE e194 = −0.065). The "JEPA retains frame-order dependence, MAE abandons it" signature is therefore an e100 phenomenon — under extended training both objectives converge to the same |ΔR²| ≈ 0.05 band, though from opposite directions (JEPA contracting from −0.284 peak at e50, MAE rising from +0.033 at e25).
 
 ### BYOL ViT-L Training Trajectory (job 220, ip-10-0-50-39, 2026-04-20)
 
@@ -209,7 +215,7 @@ BYOL shows intermediate behavior: at e24, R² goes to -0.294 but r stays at 0.54
 
 ### Four Distinct Temporal Encoding Profiles
 
-**JEPA — Consolidation + continued improvement.** Peak temporal Δ at e50 (-0.284, -46%), compresses to -0.143 (-22%) at e100. Temporal features are compressed into a more efficient representation but retained. JEPA's spatial floor (e100 MF R²=0.507) exceeds MAE's clean ceiling (e99 R²=0.467). Extended training to e200 shows continued val R² improvement (0.650 at e100 → 0.716 at e175, plateau at e200=0.715), confirming genuine representation improvement rather than spatial compensation. Matched-frame inference for e125-e200 pending to verify temporal Δ trajectory under extended training.
+**JEPA — Consolidation, continued improvement, then ΔR² equalization with MAE.** Peak temporal Δ at e50 (-0.284, -46%), compresses to -0.143 (-22%) at e100. Extended-training test-set metrics (job 379): clean R² plateaus at 0.68 (e150-e200, +0.03 over e100), and the matched-frame gap **contracts decisively** to -0.045 to -0.050 across e150-e200 — equalizing with MAE's late-training ΔR² band (MAE e149-e194: -0.035 to -0.065). JEPA's clean-R² lead over MAE persists at +0.16 across the full extended trajectory, but the attentive-probe matched-frame gap difference vanishes. The "JEPA retains frame-order dependence, MAE abandons it" diagnostic is therefore specifically an e100 finding; at extended training both objectives converge to the same |ΔR²| ≈ 0.05 band from opposite directions. What persists is clean-R², not matched-frame.
 
 **BYOL — Catastrophic fragility → partial stabilization.** Temporal Δ at e24 is -0.731 (R² goes to -0.294, worse than random). Stabilizes by e75 (-0.217) but then re-widens at e100 (-0.279). BYOL's temporal encoding is fragile and inconsistent — global mean-pooling creates implicit temporal dependence that shatters under disruption.
 

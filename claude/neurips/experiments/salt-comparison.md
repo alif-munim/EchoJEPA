@@ -164,15 +164,35 @@ Linear-diff R² < 0.12 at every point in both arms.
 
    The 2× cost is not a function of teacher-task-difficulty (both teachers ~0.65 R² clean) but of target-type. SALT's Stage-2 distillation preserves fragile pixel-space targets more faithfully than frame-order-robust latent-space targets, which suggests SALT's frozen-teacher mechanism is structurally mismatched to latent-target teachers — the student has to reconstruct frame-order-invariant features without the EMA machinery JEPA uses to stabilize them.
 
-### Matched-frame inference on JEPA extended checkpoints (job 378, submitted 2026-04-25)
+### Matched-frame inference on JEPA extended checkpoints (job 379, completed 2026-04-25)
 
-**Background.** `frame-shuffling-results.md` flagged: e125-e200 matched-frame inference not yet run for JEPA IN21K. Clean R² trajectory exists (0.685 → 0.715), matched-frame trajectory stops at e100 with Δ = −0.143.
+**Background.** Earlier `frame-shuffling-results.md` flagged: e125-e200 matched-frame inference not yet run for JEPA IN21K. Clean R² val trajectory existed (0.685 → 0.715 from job 332 probe logs), matched-frame trajectory stopped at e100 with ΔR² = −0.143.
 
-**Sbatch:** `scripts/neurips/jepa_extended_matched_frame.sbatch` (job 378 failed 46s on a `/tmp`-unavailable issue; retry job 379 running on `ip-10-0-50-35` as of 2026-04-25 08:26 with an NVMe-backed `TMPDIR` fix).
+**Sbatch:** `scripts/neurips/jepa_extended_matched_frame.sbatch` (job 378 failed 46s on a `/tmp`-unavailable issue; retry job 379 completed in ~40 min on `ip-10-0-50-35` with an NVMe-backed `TMPDIR` fix).
 
-Generates paired clean + matched-frame inference for e125 / e150 / e175 / e200 using the existing probes from job 332. Expected runtime ~4h for all 8 inferences. Outputs to `runs/jepa_ext_mf_379/jepa_e{EP}/{clean,matched_frame}/predictions.csv`.
+**Results (test-set, EchoNet-Dynamic 1,280 clips, d=4 attentive probe, best-head, DDP all-reduce):**
 
-**What this completes for the paper:** the full JEPA IN21K matched-frame trajectory through e200, enabling direct comparison with the SALT extended-teacher trajectory at matched-compute epochs and with the CMR JEPA trajectory for the "JEPA on echo vs CMR" direction-flip finding.
+| JEPA Epoch | Clean R² | MF R² | ΔR² |
+|---|---|---|---|
+| e100 (ref) | 0.650 | 0.507 | −0.143 |
+| e125 | 0.645 | 0.557 | **−0.088** |
+| e150 | 0.679 | 0.634 | **−0.045** |
+| e175 | 0.682 | 0.637 | −0.045 |
+| e200 | 0.684 | 0.635 | **−0.050** |
+
+Numbers sourced from the `Saved clip-level outputs to ...: head N, R²=X.YZZZ` log lines at `runs/jepa_ext_mf_379/logs/job.out`. Note: the rank-0 predictions.csv files on S3 contain only 160 rows per condition (rank-0 shard, not full test set); use the log lines for full-test metrics.
+
+**Key findings:**
+
+1. **Clean R² plateaus at 0.68 by e150.** Test peaks at e200 (0.684), not e175 (val peak was 0.717). The val-test gap is ~0.03 across extended checkpoints — best-head selection optimizes slightly on val.
+
+2. **Matched-frame ΔR² contracts decisively under extended training.** From −0.143 at e100 to −0.088 at e125 to a stable −0.045 to −0.050 band across e150-e200.
+
+3. **The JEPA-vs-MAE ΔR² gap disappears by e150.** At e100 JEPA ΔR² = −0.143 vs MAE e99 ΔR² = −0.027 (Δ-of-Δ: −0.116). By e150 JEPA −0.045 vs MAE −0.035 (tied). At e200 JEPA −0.050 vs MAE e194 −0.065 (JEPA's ΔR² is slightly *smaller* than MAE's at the matching epoch).
+
+4. **Clean-R² gap persists.** JEPA stays +0.16 above MAE across the extended trajectory (+0.183 at e100, +0.158 at e200). Clean-R² is the stable signature of the prediction-target difference; matched-frame ΔR² is an e100-specific diagnostic.
+
+**What this completes for the paper:** the "JEPA retains frame-order dependence under extended training" open question is now answered — ΔR² does narrow substantially, equalizing with MAE's late-training band. Main-text framing of §4 should note this explicitly: the four-pattern analysis at e100 is a compute-matched-at-100-epochs finding, and the matched-frame component of JEPA's "integrated utilization" signature attenuates with extended training while the clean-R² lead persists. SALT's ΔR² does not equalize — at the extended-teacher endpoint (e_salt=179, V-Pixel S2), ΔR² = −0.927 remains catastrophic.
 
 ### Implications for the paper (revised)
 
