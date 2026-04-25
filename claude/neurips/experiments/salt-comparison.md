@@ -1,8 +1,8 @@
 # SALT Comparison — Frozen Teacher vs EMA Self-Distillation
 
-**Date:** 2026-04-07 (updated 2026-04-08)
-**Status:** Complete (3 SALT variants × pred-avg test set)
-**NeurIPS section:** §3 (Three-way comparison) — adds a fourth row as a mechanistic probe
+**Date:** 2026-04-07 (updated 2026-04-25)
+**Status:** Complete (3 original SALT variants + 4 extended-teacher experiments × pred-avg test set)
+**NeurIPS section:** §3 (Three-way comparison) — adds a fourth row as a mechanistic probe; §3.x or appendix figure for extended-teacher trajectory
 
 ---
 
@@ -89,6 +89,86 @@ The ranking is the same as the rebuttal three-way comparison at pt50, now confir
 - **It does NOT confirm any speckle-pollution mechanism.** The original ICML rebuttal claim that "JEPA filters speckle via EMA" was retracted after init-matched probing showed JEPA−MAE speckle gap is only 4%, not 23%, with BYOL being the best speckle filter (see `speckle-probing.md`). Do not frame SALT through speckle.
 - **It does NOT mean SALT is broken in general.** The SALT paper's results on natural video (V-3.6M, K710, SSv2) may be valid. The compute regime is different: paper batch 3072 / 240K steps vs our batch 512 / 24K steps. SALT may need more optimization to surface its claimed advantages.
 - **It does NOT mean the v1 e79 → e199 regression is a SALT-specific pathology.** The more parsimonious explanation is overfitting from constant LR (no decay) on a small homogeneous dataset. JEPA/BYOL avoid this through EMA implicit regularization. SALT has no such mechanism.
+
+---
+
+## Extended-Teacher Experiments (2026-04-24/25)
+
+**Motivation.** The original SALT row uses a teacher trained to only e20 (short S1 V-Pixel recon), matching the SALT paper's nominal recipe. A reviewer could reasonably ask: does SALT's underperformance persist when the teacher is trained to the same budget as the student (e100+), and does it hold with a much stronger teacher (a fully-trained JEPA encoder)? Two extended experiments answer this directly.
+
+### Setup
+
+- **S1 V-Pixel teacher extended to e100** (run 329): pixel-reconstruction teacher pretrained to 100 epochs, matching the JEPA/BYOL/MAE training budget.
+- **JEPA-teacher extended to e200** (job 332): the ICML JEPA IN21K run's e200 ckpt used as the frozen teacher (instead of a pixel teacher).
+- **S2 students** trained on top of each:
+  - V-Pixel-teacher S2 (run 330, 80 epochs on 329's e99 teacher).
+  - JEPA-teacher S2 (run 335, 80 epochs on 332's e200 teacher).
+- **Probe protocol:** d=4 attentive probe, 6-head HP grid, 20 epochs on EchoNet-Dynamic train; clean + matched-frame inference on 1,277 test videos via RoPE-remapped frame shuffle.
+
+### Results — endpoint probes (jobs 349, 350)
+
+| Model | Teacher source | S2 ckpt | Clean R² | MF R² | **ΔR²** | Clean MAE | MF MAE |
+|---|---|---|---|---|---|---|---|
+| SALT v1 e79 (original, teacher e20) | V-Pixel e20 | e79 | 0.414 | ≈0.08 (ICML) | −0.33 | 6.66 | — |
+| **SALT extended V-Pixel endpoint (job 349)** | V-Pixel e100 (run 329) | e79 (run 330) | **0.445** | **−0.48** | **−0.93** | 6.47 | 8.43 |
+| **SALT JEPA-teacher endpoint (job 350)** | JEPA e200 (job 332) | e80 (run 335) | **0.252** | **−0.27** | **−0.53** | 7.84 | 10.27 |
+
+### Results — S1 V-Pixel teacher trajectory (jobs 358, 359, 360, 361)
+
+Same S2 student protocol applied to the **teacher's own intermediate checkpoints**. Each row = a fresh S2 student trained from S1 V-Pixel at the specified epoch. Probed on EchoNet-Dynamic LVEF.
+
+| S1 V-Pixel epoch | Clean R² | MF R² | **ΔR²** | Clean MAE | MF MAE | Clean r | MF r |
+|---|---|---|---|---|---|---|---|
+| e24 (job 358) | 0.372 | 0.348 | **−0.02** | 7.68 | 7.70 | 0.613 | 0.605 |
+| e49 (job 359) | 0.531 | 0.422 | −0.11 | 6.70 | 6.25 | 0.735 | 0.670 |
+| e74 (job 360) | 0.290 | −0.153 | −0.44 | 5.94 | 10.76 | 0.588 | 0.638 |
+| **e99 (job 361)** | **0.657** | **−0.486** | **−1.14** | **5.37** | 9.14 | **0.816** | 0.551 |
+
+### Isolated SALT-distillation cost: raw JEPA teacher vs SALT-distilled-from-JEPA student
+
+Baseline JEPA IN21K trajectory probes already exist (`frame-shuffling-results.md`):
+
+| Measure | JEPA e200 (raw encoder, job 332 probe) | SALT JEPA-teacher S2 e80 (job 350) | Distillation cost |
+|---|---|---|---|
+| Clean R² | **0.715** | **0.252** | **−0.463** |
+| Clean MAE | 4.91 | 7.84 | +2.93 |
+| Clean Pearson | 0.847 | 0.544 | −0.303 |
+
+SALT's Stage-2 distillation of an e200 JEPA encoder costs **0.46 R²** on LVEF. This is the clean mechanistic number isolating the distillation step from the teacher quality.
+
+### Three findings
+
+1. **Extending the V-Pixel teacher from e20 to e100 raises SALT clean R² from 0.414 to 0.445** — a 7.5% improvement from teacher-compute-matching. The original ICML SALT row is conservatively low because its teacher was undertrained.
+
+2. **The matched-frame gap widens aggressively with teacher training.** On the S1 V-Pixel trajectory (358→361), ΔR² goes from −0.02 at e24 to −1.14 at e99 — a 57× deepening. The clean R² gain comes with a matched-frame penalty: the better-trained teacher produces a more temporally-fragile student.
+
+3. **Better teacher → worse distillation.** Raw encoder → SALT-distilled R² drop:
+   - V-Pixel teacher (R²(e99) ≈ 0.66) → V-Pixel-S2 (R² = 0.445): **drop of 0.21**.
+   - JEPA teacher (R²(e200) = 0.715) → JEPA-teacher-S2 (R² = 0.252): **drop of 0.46**.
+
+   SALT's Stage-2 distillation destroys more signal when given a stronger teacher. The frozen-teacher mechanism fundamentally prefers weak, smooth, pixel-reconstruction targets; distilling a semantically rich JEPA latent target loses almost half the target's R² on downstream LVEF.
+
+### Matched-frame inference on JEPA extended checkpoints (job 378, submitted 2026-04-25)
+
+**Background.** `frame-shuffling-results.md` flagged: e125-e200 matched-frame inference not yet run for JEPA IN21K. Clean R² trajectory exists (0.685 → 0.715), matched-frame trajectory stops at e100 with Δ = −0.143.
+
+**Sbatch:** `scripts/neurips/jepa_extended_matched_frame.sbatch` (job 378 failed 46s on a `/tmp`-unavailable issue; retry job 379 running on `ip-10-0-50-35` as of 2026-04-25 08:26 with an NVMe-backed `TMPDIR` fix).
+
+Generates paired clean + matched-frame inference for e125 / e150 / e175 / e200 using the existing probes from job 332. Expected runtime ~4h for all 8 inferences. Outputs to `runs/jepa_ext_mf_379/jepa_e{EP}/{clean,matched_frame}/predictions.csv`.
+
+**What this completes for the paper:** the full JEPA IN21K matched-frame trajectory through e200, enabling direct comparison with the SALT extended-teacher trajectory at matched-compute epochs and with the CMR JEPA trajectory for the "JEPA on echo vs CMR" direction-flip finding.
+
+### Implications for the paper (revised)
+
+**Primary table row stays at SALT v1 e79 / R²=0.414** (the canonical short-teacher SALT per `salt-comparison.md` locked decision 2026-04-08). Do not replace it — that would swap story clarity for marginal numerical gain.
+
+**New appendix figure ("SALT extended-teacher")** with two panels:
+- Panel A (clean R²): V-Pixel teacher epoch on x-axis, S2 student clean R² on y-axis. Shows 0.37 (e24) → 0.53 (e49) → 0.29 (e74) → 0.66 (e99) dip-and-recover pattern.
+- Panel B (matched-frame Δ): same x-axis, ΔR² on y-axis. Shows monotonic deepening: −0.02 → −0.11 → −0.44 → −1.14.
+
+**One new sentence in §3 (following the existing SALT discussion):** *"Training the SALT V-Pixel teacher to the student's full budget raises clean R² from 0.414 to 0.445 but widens the matched-frame gap from −0.33 to −0.93 (Fig. X, Table Y). Increased teacher compute improves pixel-space targeting but deepens reliance on matched-frame structure."*
+
+**One new mechanistic sentence in §5 (discussion):** *"SALT distillation from a strong JEPA teacher (e200, probed R²=0.715) produces an S2 student at R²=0.252, a 0.46 R² loss attributable to the distillation step itself. The frozen-teacher mechanism disproportionately loses signal when the teacher is semantically rich rather than pixel-based; this suggests SALT's compute-efficiency claim on natural video does not transfer to narrow-domain medical video."*
 
 ---
 

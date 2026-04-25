@@ -1,0 +1,90 @@
+# SALT Stage 1: V-Pixel (pixel reconstruction) — resume from e20 to e100
+# Extends the existing 20-epoch teacher (job 379) to 100 epochs to test
+# whether SALT's "inherited disuse" pattern persists with a post-shortcut teacher.
+#
+# All hyperparameters match job 379 exactly (from params-pretrain.yaml).
+# Only changes: folder, epochs (20→100), load_checkpoint (true), max_epoch_checkpoints (20),
+# force_load_pretrain (false — resume, not init).
+#
+# LR schedule on resume: warmup completes at e40 (peak 1.75e-4), constant thereafter.
+# At the original e20 checkpoint the LR was ~1.04e-4 (mid-warmup).
+app: salt
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 80G
+folder: /opt/dlami/nvme/checkpoints/pretrain/mimic/salt_s1_vitl_224px_16f_e100
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /opt/dlami/nvme/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
+  batch_size: 64
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  load_checkpoint: true            # Resume from e20 checkpoint (downloaded by sbatch)
+  read_checkpoint: null             # null → uses latest.pt in folder
+  save_every_freq: 5
+  max_epoch_checkpoints: 20         # Keep all periodic saves through e100
+  seed: 234
+  use_sdpa: true
+
+model:
+  stage: 1
+  model_name: vit_large
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_rope: true
+  use_silu: false
+  wide_silu: true
+  decoder_embed_dim: 512
+  decoder_depth: 8
+  decoder_num_heads: 8
+
+optimization:
+  epochs: 100                       # Extended from 20 to 100
+  ipe: 300
+  ipe_scale: 1.25
+  warmup: 40
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  betas: [0.9, 0.95]
+  grad_clip: 0.02
+  force_load_pretrain: false        # Resume, not ImageNet init
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/vitl_in21k.pt  # Unused when force_load_pretrain=false

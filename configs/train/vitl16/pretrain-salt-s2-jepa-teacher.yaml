@@ -1,0 +1,99 @@
+# SALT Stage 2: Student trained against frozen JEPA IN21K e100 teacher
+# Tests whether SALT's "inherited disuse" pattern is specific to pixel-reconstruction
+# teachers or inherent to the frozen-teacher mechanism.
+#
+# All hyperparameters match job 388 exactly (primary SALT v1 arm).
+# Only change: teacher_checkpoint points to JEPA target_encoder at e100
+# (extracted and saved as encoder key for SALT compatibility).
+#
+# If student recovers JEPA-like temporal features → frozen-teacher mechanism
+# can transmit temporal content when the teacher has it.
+# If student shows inherited disuse → the mechanism itself prevents
+# temporal feature transmission regardless of teacher quality.
+app: salt
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 80G
+folder: /opt/dlami/nvme/checkpoints/pretrain/mimic/salt_s2_jepa_teacher_v1
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /opt/dlami/nvme/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
+  batch_size: 64
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  max_epoch_checkpoints: 4
+  seed: 234
+  use_sdpa: true
+
+model:
+  stage: 2
+  model_name: vit_large
+  teacher_model_name: vit_large
+  teacher_checkpoint: /opt/dlami/nvme/checkpoints/jepa_in21k_vitl_e100_as_salt_teacher.pt
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  zero_init_mask_tokens: true
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_rope: true
+  use_silu: false
+  wide_silu: true
+
+optimization:
+  epochs: 80
+  ipe: 300
+  ipe_scale: 1.25
+  warmup: 40
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  betas: [0.9, 0.95]
+  grad_clip: 0.02
+  force_load_pretrain: false
