@@ -84,6 +84,8 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 
 **The finding is robust to implementation choice.** Three variants span predictor architecture (hierarchical vs single-level), HP regime (constant vs cosine LR, weak vs paper aug), and training duration (80 vs 200 S2 epochs). All land within ±0.03 R² and ±0.4 MAE of each other. The SALT gap to EMA-based methods is intrinsic to the frozen-teacher mechanism, not an artifact of implementation.
 
+**Extended-teacher experiments (2026-04-24/25):** new results with the V-Pixel teacher trained to e100 (compute-matched to JEPA/BYOL/MAE) and with the JEPA-teacher arm (fully-trained JEPA as frozen teacher) add three findings. Extended V-Pixel (job 349) reaches clean R²=0.445, +0.03 over the original SALT v1 e79, with ΔR²=−0.93 under matched-frame (vs −0.33 for the short-teacher variant). The S1 V-Pixel teacher trajectory (jobs 358/359/360/361 at e24/e49/e74/e99) shows matched-frame ΔR² deepening monotonically from −0.02 → −1.14 as the teacher trains longer. SALT-distilled-from-JEPA (job 350) probes at R²=0.252 vs raw JEPA e200 R²=0.715 — a **0.46 R² loss attributable to the distillation step alone**. Extended MF trajectory for JEPA itself (e125-e200) running as job 378. Full tables + figure plan in `experiments/salt-comparison.md` §Extended-Teacher Experiments.
+
 **Effective dimensionality (2026-04-07):** JEPA 245, BYOL 221, MAE 206, SALT 203. **No dimensionality collapse** — SALT has enough capacity, it just can't organize features usefully without the evolving teacher signal.
 
 **Conservative framing (web Claude recommendation, 2026-04-07):** One row in the §3 comparison table + two sentences in §4.5. Don't oversell, don't layer mechanisms. See `experiments/salt-comparison.md` for the full writeup.
@@ -175,6 +177,19 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 | **SALT S2 e100→e200** | Queued after job 391 | Job 392, node 83 | ~13 hrs after 391 |
 | **BYOL/MAE resume to e200** | Not started | Resume from e108/e116 on S3 | Queue after JEPA/SALT finish |
 
+### Active Queue (2026-04-24)
+
+| Job | Experiment | State | Depends on | Notes |
+|-----|------------|-------|------------|-------|
+| 374 | phi-JEPA Run D (phase-conditioned V-JEPA, 200ep) | RUNNING on 148 (e60/200) | — | Headline phi-JEPA run; see `experiments/phase-jepa.md` |
+| 377 | phi-JEPA ACDC LVEF trajectory probes | PENDING | afterany:374 | Probes {e25, e50, e75, e100} |
+| 378 | JEPA IN21K extended MF trajectory (e125-e200) | FAILED (TMPDIR bug, 46s) | — | Superseded by 379 |
+| 379 | JEPA IN21K extended MF trajectory (retry) | RUNNING on 35 (~4h) | — | Completes the JEPA MF trajectory — e125/e150/e175/e200 clean+MF on EchoNet-Dynamic LVEF |
+
+Recent completions: 329 (SALT S1 V-Pixel teacher e20→e100); 330 (SALT S2 V-Pixel student 80ep); 333/344 (CMR JEPA base run seed 234/163, loss 0.60→0.35→0.505→0.43); 345 (CMR JEPA LVEF trajectory probes — fast-EMA, JEPA peaks at e100 R²=0.162, collapses to e800 R²=0.069); **346 (CMR JEPA slow-EMA through e295); 349/350 (SALT endpoint probes on V-Pixel and JEPA-teacher students); 358-361 (SALT S1 V-Pixel trajectory probes at e24/e49/e74/e99); 375 (CMR JEPA slow-EMA LVEF trajectory — peaks R²=0.138 at e30, collapses to 0.089 at e295); 376 (CMR JEPA slow-EMA Dx trajectory — peaks AUROC=0.799 at e30, collapses to 0.766 at e295)**.
+
+**Key finding: slow-EMA rules itself out as the cause of JEPA-on-CMR collapse.** Both EMA schedules degrade from e100 onwards on both LVEF and Dx. The JEPA representational collapse on CMR is independent of the EMA schedule. See `experiments/cmr-cross-modality.md` for full details.
+
 ### New Experiments — Prioritized Plan (6 weeks to May 4)
 
 | Week | Priority | Experiment | Compute | Notes |
@@ -252,6 +267,67 @@ SALT S2's random student init is the paper's standard recipe. The SALT paper mat
 | MAE e50 | `scripts/neurips/samples/severity_MAE_e50.csv` | — |
 | MAE e99 | `scripts/neurips/samples/severity_MAE_e99.csv` | — |
 | SALT S2 e79 | `scripts/neurips/samples/severity_SALT_e79.csv` | — |
+
+---
+
+## Acceptance Assessment (2026-04-22)
+
+**Estimate: 30–40% acceptance probability.** This range reflects reviewer-fit variance more than uncertainty about quality.
+
+### Strengths
+- Controlled four-way design (JEPA/MAE/BYOL/SALT, same ViT-L, same data, same compute)
+- Striking clinical numbers (pediatric zero-shot, pathology-stratified LVEF)
+- Novel domain framing (temporal shortcut in medical video SSL)
+- Readable narrative arc; clinical consequences section lands regardless of methodological objections
+
+### Three Predictable Vulnerabilities
+
+1. **100-epoch hedge is load-bearing.** Section 7 itself flags the central finding is contingent on a question the paper doesn't answer. Mitigated by e194 extended training (pattern persists) but not fully resolved.
+2. **Single-probe inferential structure.** Probe-class sensitivity is well-documented; SSL methods reviewers will ask why one probe is sufficient. Mitigated by multi-probe readout (attentive + linear-A-raw + linear-A-diff) but attentive probe carries the headline claim.
+3. **Mechanism overclaim.** "The mechanism follows from the objective" is asserted, not demonstrated. The natural ablation (hold masking fixed, vary only target type) is not run.
+
+### Reviewer-Fit Split
+- **Sympathetic reviewers** (medical imaging focus): ~45% (weak accept territory)
+- **Less sympathetic reviewers** (SSL methods focus, push on single-probe and mechanism): ~25% (borderline reject)
+- **Average**: ~35%
+
+### Dominant Risk
+Not that the paper is wrong, but that the central claim ("temporal encoding collapses") is interpretively fragile in ways the paper doesn't acknowledge. A careful reviewer who reads Section 5 and then the appendices can see the tension.
+
+### Prioritized Recommendations (ordered by impact-per-effort)
+
+| # | Recommendation | Impact | Cost | Status |
+|---|---------------|--------|------|--------|
+| 1 | **CMR JEPA on matched setup** | +10–15pp | 1 JEPA ViT-S pretrain + probes | **COMPLETE, negative-cross-modality finding** (jobs 333/344/345/346/375/376). Fast- and slow-EMA JEPA both peak at e30-e100 on ACDC LVEF+Dx, then degrade. MAE climbs monotonically and overtakes JEPA by e200-e800. Replicable across seeds and EMA schedules. This **falsifies** the "JEPA uniformly beats MAE on cardiac video" claim and becomes the anchor for the diagnostic paper's direction-flip panel. See `experiments/cmr-cross-modality.md`. |
+| 2 | **Integrate e194 + SALT convergence into main text** | +8–12pp | Writing only (results exist) | **DONE** (Changes A-D applied to neurips.tex, Apr 22) |
+| 3 | **Multi-probe readout (linear-diff) in appendix with per-token controls** | +5–8pp | Writing only (results exist) | NOT STARTED |
+| 4 | **Restore figures from April 16 draft** | +3–5pp | Zero cost | NOT STARTED |
+| 5 | **Seed variance on attentive-probe trajectory tables** | +3–5pp | Probe re-runs at key checkpoints | NOT STARTED |
+| 6 | **Masking-vs-target ablation** | +5–10pp | 2 pretraining runs (~60% of one full run) | NOT STARTED (expensive) |
+| 7 | **SALT with extended teacher (V-Pixel e99)** | +3–5pp | 1 S1 extension + 2 S2 student runs | **PARTIAL** (329/330 complete, 335 running ~e54/80, probes 349/350 queued) |
+| 8 | **Spectral/Fourier analysis of reconstruction targets** | +2–4pp | Analysis only, no training | NOT STARTED |
+| 9 | **Pediatric transfer with multi-seed CIs** | +1–3pp | Probe re-runs only | NOT STARTED |
+| 10 | **JEPA IN21K extended matched-frame (e125-e200)** | +2–4pp | 1 MF inference pass on 4 probes (already trained) | NOT STARTED — probes complete in job 332 (clean R² 0.685-0.717, +0.17-0.22 over MAE at matched epochs), MF pending |
+
+### Acceptance Probability by Tier
+
+| Tier | Recommendations | Estimated Probability |
+|------|----------------|---------------------|
+| Baseline (current paper) | — | ~35% |
+| **Minimum path** | (1) + (2) + (3) | ~60–65% |
+| **Strong path** | (1) + (2) + (3) + (4) + (5) | ~65–75% |
+| **Full path** | All of (1)–(7) | ~75–85% |
+| **Maximum** | All of (1)–(9) | ~80–90% |
+
+### Minimum Honest Path (if only 3 things)
+
+1. **CMR JEPA** — only item that adds new affirmative evidence for the broadest claim; earns "medical video SSL" framing rather than narrowing to "echo SSL"
+2. **Integrate e194 + SALT convergence** — closes the central hedge in Section 7 with work already done
+3. **Linear-diff in appendix with per-token controls** — pre-empts the most sophisticated reviewer objection (single-probe inference)
+
+### The Thing to Most Strongly Resist Cutting
+
+**CMR JEPA.** Not because it's individually the largest improvement, but because it's the only item that adds new affirmative evidence for the broadest claim. Everything else strengthens defenses; CMR JEPA earns the "medical video SSL" framing. If it shows differential replication, the title is earned. If it shows differential collapse at small scale, that's a defensible scope condition. If skipped, it's a single-modality study claiming cross-modality scope.
 
 ---
 

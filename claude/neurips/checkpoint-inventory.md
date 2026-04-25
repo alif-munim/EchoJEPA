@@ -24,6 +24,9 @@ Complete inventory of all pretraining checkpoints across objectives and initiali
 |-------|---------|-----|------|------|
 | e0–e85 (every 5ep) | `HYP/runs/jepa_in21k_pretrain_376/checkpoints/e{0,5,...,85}.pt` | 376 (running) | Apr 5 | 234 |
 | e100 (expected) | `HYP/runs/jepa_in21k_pretrain_376/checkpoints/e100.pt` | 376 | ~Apr 6 | 234 |
+| e125,150,175,195 | `HYP/runs/jepa_in21k_e200_280/training_folder/e{125,150,175,195}.pt` | 280 | Apr 21 | 234 |
+| e200 | `HYP/runs/jepa_in21k_e200_280/training_folder/latest.pt` | 280 | Apr 22 | 234 |
+| **Probes e125-e200** | `HYP/runs/jepa_ext_probes_332/jepa_e{125,150,175,200}_lvef/.../best.pt` | 332 | Apr 22 | — |
 | e100 (old run, same init) | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e100.pt` | 125 | Jan 25 | 42 | **DO NOT USE for NeurIPS — different md5 from canonical. Probes trained on run 376.** |
 | e110 | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e110.pt` | 125 | Jan 25 | 42 |
 | e120 | `HYP/runs/vjepa_mimic_pretrain_125/training_folder/e120.pt` | 125 | Jan 25 | 42 |
@@ -33,6 +36,8 @@ Complete inventory of all pretraining checkpoints across objectives and initiali
 | e162-e238 | `HYP/runs/vjepa_mimic_pretrain_150/training_folder/e{162..238}.pt` | 150 | Jan 27-28 | 234 |
 
 **Gaps:** Epochs 0-99 lost (trained on HyperPod NVMe, never synced to S3). Would need to retrain for training dynamics analysis at early epochs.
+
+**Extended trajectory (2026-04-22):** Job 280 continued run 376 to e200 (`runs/jepa_in21k_e200_280/`). Job 332 trained EchoNet-Dynamic LVEF d=4 attentive probes at e125/150/175/200; val R² 0.685/0.700/0.717/0.715 — clean performance plateaus at e175-e200. Matched-frame inference on these 4 checkpoints is NOT YET RUN (extending the `tab:attn_traj` MAE-MF analysis to JEPA at extended training is pending).
 
 **Seed changes:** The run chain used different seeds across continuations (42→83→154→24→234). Run 125 (seed 42) covers e100-e130 as a single consistent segment. Later runs resumed from `latest.pt` so the seed change only affects data ordering, not model weights.
 
@@ -162,6 +167,21 @@ All NeurIPS tables and figures use **`salt_s2_vitl_e79.pt`** (v1, hierarchical p
 |-------|---------|-----|------|
 | e4–e79 (every 5ep) | `HYP/runs/salt_s2v2_pretrain_446/checkpoints/` | Job 446 | Apr 7 |
 
+### Extended-teacher experiments (2026-04-22 → 2026-04-24)
+
+**Stage 1 extension:** Job 329 resumed `salt_s1` from e20 to e100, producing a longer-trained V-Pixel teacher for ablation.
+
+| Epoch | S3 Path | Run | Date | Notes |
+|-------|---------|-----|------|-------|
+| e24, e29, ..., e99, latest | `HYP/runs/salt_s1_e100_resume_329/checkpoints/` | 329 | Apr 22 | Resumed from e20 via `pretrain-salt-s1-mimic-224px-16f-e100-resume.yaml`; loss 0.252 → 0.234 monotonic |
+
+**Stage 2 with extended teachers:**
+
+| Variant | Teacher | S3 Path | Run | State | Notes |
+|---|---|---|---|---|---|
+| V-Pixel teacher | salt_s1 e99 | `HYP/runs/salt_s2_vpixel_e99_teacher_330/checkpoints/` | 330 | **Complete** (80ep) | Loss 0.843→0.529 monotonic, 17 ckpts (e4…e79, latest). Probe job 349 queued. |
+| JEPA teacher | jepa_in21k_e100 | `HYP/runs/salt_s2_jepa_teacher_335/checkpoints/` | 335 | **Running** (~e54/80) | Loss 0.685→0.416 at e54. Probe job 350 queued afterok:335. |
+
 **Compute budget:** S1=20ep (21K steps) + S2=200ep (205K steps) = 226K total steps. Matches SALT paper's ~240K recommended budget. (Still ~10% of paper absolute budget due to batch-size difference — see `salt-comparison.md` for full deviation notes.)
 
 **Implementation note:** S2 DDP fix applied — frozen teacher must not be wrapped in DDP (`app/salt/train.py:377`). Hierarchical `norms_block` layers in teacher were never trained (S1 uses `training_mode=False`); this is a known deviation from the paper but consistent across both v1 and v3. Both variants use `loss_exp: 1.0` (L1, matching paper Eq 2.1) — the earlier "v1 used L2" claim was retracted after config inspection (2026-04-07).
@@ -198,10 +218,35 @@ For the e100 controlled comparison (all ImageNet-21K init):
 | Model | Available Epochs | Gaps |
 |-------|-----------------|------|
 | JEPA IN21K (job 376) | e0-e85 (every 5ep), e100 expected | None (dense) |
+| JEPA IN21K extended (job 280) | e125, 150, 175, 195, 200 | probes trained in job 332 |
 | JEPA (old, same init) | e100, e110, e120, e130, e122-e238 | e0-e99 lost |
 | BYOL | e0-e50 (every 2ep), e85, e90, e95, e100, e105 | e52-e84 |
 | MAE | e4-e124 (every 5ep) | None |
 | SALT S2 | e4-e79 (every 5ep), e100 expected, e200 in progress | None (dense) |
+
+---
+
+## 9. CMR Cross-Modality (ViT-S, 2026-04-18 → 2026-04-24)
+
+**Init:** `vits_in21k.pt` (ImageNet-21K supervised ViT-S, 2D, inflated to 3D)
+**Data:** 21,840 SAX-only CMR clips from MnM + MnM2 + Sunnybrook + DSB2 + CMR-Multi
+**Holdout:** ACDC (951 train / 538 test, 100/50 patients, EF + 5-class diagnosis labels)
+
+| Experiment | S3 Path | Run | Date | Notes |
+|---|---|---|---|---|
+| CMR MAE ViT-S 800ep | `HYP/runs/mae_cmr_vits_183/training_folder/` | 183 | Apr 19 | Loss 1.12→0.27 monotonic; 800 ckpts |
+| CMR MAE ACDC LVEF probe traj | `HYP/runs/cmr_probe_traj_209/` | 209 | Apr 19 | Best R²=0.133 at e800 |
+| CMR MAE ACDC Dx probe + MF (ns=2) | `HYP/runs/cmr_dx_traj_281/` | 281 | Apr 20 | AUROC 0.759 at e800; matched-frame Δ ≈ 0 at all ckpts |
+| CMR MAE ACDC Dx MF (ns=1) | `HYP/runs/cmr_dx_mf_ns1_282/` | 282 | Apr 20 | Confirms Δ ≈ 0 |
+| CMR MAE ACDC LVEF MF (ns=1) | `HYP/runs/cmr_lvef_mf_ns1_283/` | 283 | Apr 20 | Confirms Δ ≈ 0 |
+| CMR JEPA ViT-S 800ep (seed 234) | `HYP/runs/jepa_cmr_vits_333/training_folder/` | 333 | Apr 22-23 | Loss 0.60→0.35→0.505→0.43, non-monotonic rise |
+| CMR JEPA resume e250 (seed 163) | `HYP/runs/jepa_cmr_vits_resume250_s163_344/training_folder/` | 344 | Apr 23-24 | Seed-independent rise — confirms 333 behavior |
+| CMR JEPA ACDC LVEF probe traj | `HYP/runs/cmr_jepa_probe_traj_345/` | 345 | Apr 24 | Best R²=0.162 at e100, collapses to 0.069 at e800 |
+| CMR JEPA slow-EMA (ema=0.99925) | `HYP/runs/jepa_cmr_vits_slowema_346/training_folder/` | 346 | Apr 24 (completed e295) | Loss rise muted (0.37→0.44) but present |
+| CMR JEPA slow-EMA LVEF probes | `HYP/runs/cmr_jepa_probe_traj_slowema_375/` | 375 | Apr 24-25 (2h01m) | R² peaks 0.138 at e30, collapses to 0.089 at e295 |
+| CMR JEPA slow-EMA Dx probes | `HYP/runs/cmr_jepa_dx_traj_slowema_376/` | 376 | Apr 25 (1h24m) | AUROC peaks 0.799 at e30, collapses to 0.766 at e295 — EMA-independent collapse confirmed |
+
+See `experiments/cmr-cross-modality.md` for full results tables and interpretation.
 
 ---
 

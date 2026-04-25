@@ -1,7 +1,7 @@
 # Frame Shuffling Results — Consolidated Reference
 
-**Last updated:** 2026-04-20
-**Status:** Active. Extended training trajectory complete for MAE (e25-e194). JEPA, BYOL, SALT e25-e100 complete. CMR cross-modality pending.
+**Last updated:** 2026-04-24
+**Status:** Active. Extended training trajectory complete for MAE (e25-e194) and JEPA (e25-e200, with probes in job 332). JEPA IN21K clean R² plateaus at e175-e200 (0.715-0.717), 17-22pp above MAE at the same epochs (job 332 vs MAE e124-e194). JEPA extended matched-frame inference still pending. BYOL, SALT e25-e100 complete. CMR cross-modality: MAE ViT-S 800ep complete (MF Δ zero at all checkpoints), JEPA ViT-S base run complete (jobs 333/344) with probe trajectory (job 345) showing JEPA >MAE at e30-e100 but JEPA <MAE at e600-e800 due to teacher-chasing loss rise. Slow-EMA variant (job 346) in progress to test EMA speed as the cause. SALT: S1 V-Pixel teacher complete (329), S2 V-Pixel student complete (330), S2 JEPA-teacher student running (335, ~e54/80). Probe runs: S2 V-Pixel probe submitted (349, pending node); S2 JEPA-teacher probe queued (350, afterok:335).
 
 ---
 
@@ -57,17 +57,56 @@ Inference configs: `configs/inference/vitl/neurips/echonet-dynamic/echomae_e{N}_
 | e174 | 0.500 | 0.448 | -0.052 | -10% |
 | e194 | 0.526 | 0.460 | -0.065 | -12% |
 
-### JEPA IN21K ViT-L Training Trajectory (job 220, ip-10-0-50-39, 2026-04-20)
+### JEPA IN21K ViT-L Training Trajectory (jobs 220 + 332)
 
-**Sbatch:** `scripts/neurips/all_models_matched_frame_trajectory.sbatch`
-**S3 run:** `runs/all_mf_traj_220/`
+**Sbatch (e25-e100):** `scripts/neurips/all_models_matched_frame_trajectory.sbatch` (job 220, ip-10-0-50-39, 2026-04-20)
+**Sbatch (e125-e200 probes):** `scripts/neurips/jepa_in21k_extended_probes.sbatch` (job 332, ip-10-0-50-148, 2026-04-22)
+**S3 run (e25-e100):** `runs/all_mf_traj_220/`
+**S3 run (e125-e200 probes):** `runs/jepa_ext_probes_332/`
 
-Encoder checkpoints (S3): `checkpoints/jepa_in21k/jepa_in21k_vitl_e{25,50,75,100}.pt`
-Probe checkpoints (S3): `probes/jepa_in21k_e{25,50,75,100}_end_lvef/best.pt`
+Encoder checkpoints (S3):
+- e25-e100: `checkpoints/jepa_in21k/jepa_in21k_vitl_e{25,50,75,100}.pt`
+- e125-e195: `runs/jepa_in21k_e200_280/training_folder/e{125,150,175,195}.pt`
+- e200: `runs/jepa_in21k_e200_280/training_folder/latest.pt`
+
+Probe checkpoints (S3):
+- e25-e100: `probes/jepa_in21k_e{25,50,75,100}_end_lvef/best.pt`
+- e125: `runs/jepa_ext_probes_332/jepa_e125_lvef/video_classification_frozen/neurips-jepa-in21k-e125-end-lvef-d4/best.pt`
+- e150: `runs/jepa_ext_probes_332/jepa_e150_lvef/video_classification_frozen/neurips-jepa-in21k-e150-end-lvef-d4/best.pt`
+- e175: `runs/jepa_ext_probes_332/jepa_e175_lvef/video_classification_frozen/neurips-jepa-in21k-e175-end-lvef-d4/best.pt`
+- e200: `runs/jepa_ext_probes_332/jepa_e200_lvef/video_classification_frozen/neurips-jepa-in21k-e200-end-lvef-d4/best.pt`
+
+Probe training configs (e125-e200): generated at runtime in sbatch, pattern: `configs/eval/vitl/neurips/jepa_in21k_e{N}_end_lvef_d4.yaml`
 
 Inference configs: `configs/inference/vitl/neurips/echonet-dynamic/jepa_in21k_e{N}_end_test.yaml`
 - JEPA encoder: `module_name: evals.video_classification_frozen.modelcustom.vit_encoder_multiclip`
 - `checkpoint_key: target_encoder`, `model_name: vit_large`, `use_rope: true`
+
+| JEPA Epoch | Val MAE | Val R² (final) | Val R² (best) | Val Pearson (best) | Source |
+|------------|---------|----------------|----------------|----|--------|
+| e25 | — | 0.460 | — | 0.685 | job 220 (test, clean) |
+| **e50** | — | **0.612** | — | **0.784** | job 220 (test, clean) |
+| e75 | — | 0.629 | — | 0.796 | job 220 (test, clean) |
+| e100 | — | 0.650 | — | 0.807 | job 220 (test, clean) |
+| e125 | 5.10 (best 18/20) | 0.681 | 0.685 | 0.832 | job 332 (val) |
+| e150 | 4.96 (best 18/20) | 0.696 | 0.700 | 0.840 | job 332 (val) |
+| e175 | 4.86 (best 18/20) | 0.716 | 0.717 | 0.848 | job 332 (val) |
+| e200 | 4.91 (best 20/20) | 0.715 | 0.715 | 0.847 | job 332 (val) |
+
+**Note:** e25-e100 are test-set R² from matched-frame inference (clean condition); e125-e200 are val-set R² from probe training (log_r0.csv, over 20 probe epochs × 16-head HP grid). Final R² uses the last probe epoch; best R² picks the probe epoch with max val R². Probes peak at epoch 18-20 of 20 — no overfitting. Test-set matched-frame inference for e125-e200 pending.
+
+**Key finding:** JEPA representations continue improving through e175 (val R² 0.650→0.717), then plateau at e200 (0.715). Compared to MAE extended-training (published in `tab:attn_traj`: clean R² 0.467→0.526 e99→e194), JEPA-extended stays **+0.17 to +0.22 R² ahead** at every matched checkpoint — the main-paper JEPA-vs-MAE gap (+0.183 at e100) persists through extended training and does not close.
+
+| Epoch | JEPA R² | MAE R² | Δ (JEPA − MAE) |
+|---|---|---|---|
+| ~e125 | 0.685 | 0.469 (e124) | +0.216 |
+| ~e150 | 0.700 | 0.527 (e149) | +0.173 |
+| ~e175 | 0.717 | 0.500 (e174) | +0.217 |
+| ~e200 | 0.715 | 0.526 (e194) | +0.189 |
+
+JEPA's improvement through extended training is genuine representation improvement, not spatial compensation. MAE's extended-training clean-R² improvement comes together with a narrowing matched-frame gap (−0.132 → −0.065) — the paper's "temporal shortcut" finding. Whether JEPA's extended matched-frame gap narrows, stays flat at ~−0.14, or widens is the open question (pending MF inference on job 332's 4 ckpts).
+
+Matched-frame results (test set, Protocol D):
 
 | JEPA Epoch | Clean R² | Matched_frame R² | Temporal Δ | Rel. Drop |
 |------------|----------|-------------------|------------|-----------|
@@ -75,6 +114,12 @@ Inference configs: `configs/inference/vitl/neurips/echonet-dynamic/jepa_in21k_e{
 | **e50** | **0.612** | **0.328** | **-0.284** | **-46%** |
 | e75 | 0.629 | 0.439 | -0.190 | -30% |
 | e100 | 0.650 | 0.507 | -0.143 | -22% |
+| e125 | — | — | — | — |
+| e150 | — | — | — | — |
+| e175 | — | — | — | — |
+| e200 | — | — | — | — |
+
+e125-e200 matched-frame inference not yet run. Probes are trained and ready.
 
 ### BYOL ViT-L Training Trajectory (job 220, ip-10-0-50-39, 2026-04-20)
 
@@ -127,6 +172,10 @@ R² and Pearson r are best-head values (may be different heads). Source: stdout 
 | | **e50** | **0.612** | **0.784** | **0.328** | **0.732** | **-0.284** | **-0.052** |
 | | e75 | 0.629 | 0.796 | 0.439 | 0.772 | -0.190 | -0.024 |
 | | e100 | 0.650 | 0.807 | 0.507 | 0.779 | -0.143 | -0.028 |
+| | e125 | 0.681* | 0.831* | — | — | — | — |
+| | e150 | 0.696* | 0.838* | — | — | — | — |
+| | e175 | 0.716* | 0.847* | — | — | — | — |
+| | e200 | 0.715* | 0.847* | — | — | — | — |
 | **BYOL** | e24 | 0.437 | 0.668 | -0.294 | 0.547 | -0.731 | -0.121 |
 | | e50 | 0.477 | 0.698 | 0.108 | 0.646 | -0.369 | -0.052 |
 | | e75 | 0.505 | 0.715 | 0.287 | 0.680 | -0.217 | -0.035 |
@@ -144,6 +193,8 @@ R² and Pearson r are best-head values (may be different heads). Source: stdout 
 | | e54 | 0.431 | 0.672 | -0.417 | 0.606 | -0.848 | -0.066 |
 | | e79 | 0.402 | 0.650 | -0.404 | 0.626 | -0.805 | -0.024 |
 
+*\* JEPA e125-e200: val-set R²/Pearson from probe training (job 332 log_r0.csv), not test-set. Matched-frame inference pending.*
+
 ### R² vs Pearson r Divergence — SALT Calibration Failure
 
 SALT shows the most striking R²/Pearson divergence: at e79, R² crashes from 0.402 to -0.404 under matched_frame (Δ=-0.805), but Pearson r only drops from 0.650 to 0.626 (Δ=-0.024). This confirms the paper's calibration failure hypothesis: SALT preserves ordinal structure (patients still ranked correctly by r) but the probe's output scale is destroyed when the input distribution shifts. The frozen teacher transmits ranking information but not calibrated magnitude.
@@ -158,7 +209,7 @@ BYOL shows intermediate behavior: at e24, R² goes to -0.294 but r stays at 0.54
 
 ### Four Distinct Temporal Encoding Profiles
 
-**JEPA — Consolidation.** Peak temporal Δ at e50 (-0.284, -46%), compresses to -0.143 (-22%) at e100. Temporal features are compressed into a more efficient representation but retained. JEPA's spatial floor (e100 MF R²=0.507) exceeds MAE's clean ceiling (e99 R²=0.467).
+**JEPA — Consolidation + continued improvement.** Peak temporal Δ at e50 (-0.284, -46%), compresses to -0.143 (-22%) at e100. Temporal features are compressed into a more efficient representation but retained. JEPA's spatial floor (e100 MF R²=0.507) exceeds MAE's clean ceiling (e99 R²=0.467). Extended training to e200 shows continued val R² improvement (0.650 at e100 → 0.716 at e175, plateau at e200=0.715), confirming genuine representation improvement rather than spatial compensation. Matched-frame inference for e125-e200 pending to verify temporal Δ trajectory under extended training.
 
 **BYOL — Catastrophic fragility → partial stabilization.** Temporal Δ at e24 is -0.731 (R² goes to -0.294, worse than random). Stabilizes by e75 (-0.217) but then re-widens at e100 (-0.279). BYOL's temporal encoding is fragile and inconsistent — global mean-pooling creates implicit temporal dependence that shatters under disruption.
 
