@@ -4,19 +4,18 @@
 #SBATCH --gres=gpu:8
 #SBATCH --ntasks-per-node=8
 #SBATCH --cpus-per-task=12
-#SBATCH -t 4-00:00:00
-#SBATCH -J jepa_cmr_s
-#SBATCH -o /opt/dlami/nvme/logs/jepa_cmr_s_%j.out
-#SBATCH -e /opt/dlami/nvme/logs/jepa_cmr_s_%j.err
+#SBATCH -t 14:00:00
+#SBATCH -J jepa_cmr_sema
+#SBATCH -o /opt/dlami/nvme/logs/jepa_cmr_sema_%j.out
+#SBATCH -e /opt/dlami/nvme/logs/jepa_cmr_sema_%j.err
 #SBATCH --signal=B:USR1@300
 
 set -euxo pipefail
 
 # =============================================================================
-# V-JEPA ViT-S pretraining on CMR SAX — ImageNet-21K init
-# =============================================================================
-# Cross-modality validation for NeurIPS temporal shortcut paper.
-# Controlled comparison: JEPA vs MAE on 21.8K CMR SAX cine clips.
+# V-JEPA ViT-S CMR SAX — slow-EMA variant (ema=[0.99925, 0.99925]).
+# Tests whether the job 333/344 loss rise at e300-e500 is caused by fast EMA
+# teacher runaway at the 21.8K-clip data scale. All other knobs identical.
 # =============================================================================
 
 export AWS_DEFAULT_REGION="us-west-2"
@@ -50,12 +49,12 @@ S3_BASE="s3://${ART_BUCKET}/vjepa2-artifacts"
 CSV_S3="${S3_BASE}/data/csv/cmr_pretrain.csv"
 ENV_S3="${S3_BASE}/env/vjepa2-312-pack-env.tar"
 CKPT_S3="${S3_BASE}/checkpoints/vits_in21k.pt"
-RUN_S3="${S3_BASE}/runs/jepa_cmr_vits_${SLURM_JOB_ID}"
+RUN_S3="${S3_BASE}/runs/jepa_cmr_vits_slowema_${SLURM_JOB_ID}"
 
 # =========================
 # LOGGING / SYNC
 # =========================
-JEPA_OUTPUT="/opt/dlami/nvme/checkpoints/pretrain/cmr/vjepa_vits_224px_16f_in21k"
+JEPA_OUTPUT="/opt/dlami/nvme/checkpoints/pretrain/cmr/vjepa_vits_224px_16f_in21k_slowema"
 
 sync_ckpts() {
   if [ -d "${JEPA_OUTPUT}" ]; then
@@ -69,8 +68,8 @@ sync_ckpts() {
 mkdir -p /opt/dlami/nvme/logs
 
 upload_logs() {
-  local out="/opt/dlami/nvme/logs/jepa_cmr_s_${SLURM_JOB_ID}.out"
-  local err="/opt/dlami/nvme/logs/jepa_cmr_s_${SLURM_JOB_ID}.err"
+  local out="/opt/dlami/nvme/logs/jepa_cmr_sema_${SLURM_JOB_ID}.out"
+  local err="/opt/dlami/nvme/logs/jepa_cmr_sema_${SLURM_JOB_ID}.err"
   [ -f "${out}" ] && aws s3 cp "${out}" "${RUN_S3}/logs/job.out" --only-show-errors || true
   [ -f "${err}" ] && aws s3 cp "${err}" "${RUN_S3}/logs/job.err" --only-show-errors || true
 }
@@ -90,7 +89,6 @@ trap 'sync_ckpts; upload_logs' USR1
 # =========================
 nvidia-smi -L || true
 
-# Kill stale python processes from previous failed jobs
 pkill -9 -f "app.main" 2>/dev/null || true
 pkill -9 -f "app.vjepa" 2>/dev/null || true
 sleep 2
@@ -102,7 +100,7 @@ aws s3 cp "$ENV_S3" "${SCRATCH}/env.tar"
 mkdir -p "${SCRATCH}/env" && tar -xf "${SCRATCH}/env.tar" -C "${SCRATCH}/env"
 set +u && source "${SCRATCH}/env/bin/activate" && set -u
 "${SCRATCH}/env/bin/conda-unpack" || true
-export TMPDIR="${SCRATCH}/tmp_cmr_jepa" && mkdir -p "$TMPDIR"
+export TMPDIR="${SCRATCH}/tmp_cmr_jepa_slowema" && mkdir -p "$TMPDIR"
 pip install boto3 --no-cache-dir --quiet
 
 # Code
@@ -117,16 +115,15 @@ pip install -e . --no-deps --no-build-isolation 2>/dev/null || true
 mkdir -p "${SCRATCH}/data/csv"
 aws s3 cp "$CSV_S3" "${SCRATCH}/data/csv/cmr_pretrain.csv"
 
-# Checkpoint
+# Checkpoint (fresh ImageNet-21K init)
 mkdir -p "${SCRATCH}/checkpoints"
 echo "[INFO] Downloading ViT-S IN21K checkpoint..."
 aws s3 cp "$CKPT_S3" "${SCRATCH}/checkpoints/vits_in21k.pt"
 echo "[INFO] Checkpoint: $(ls -lh ${SCRATCH}/checkpoints/vits_in21k.pt)"
 
-# Config
-CONFIG="${CODE_DIR}/configs/train/vits16/pretrain-jepa-cmr-224px-16f-in21k.yaml"
+CONFIG="${CODE_DIR}/configs/train/vits16/pretrain-jepa-cmr-224px-16f-in21k-slowema.yaml"
 
-# Start periodic uploads
+# Periodic upload
 (
   while true; do
     sleep 900
@@ -136,15 +133,11 @@ CONFIG="${CODE_DIR}/configs/train/vits16/pretrain-jepa-cmr-224px-16f-in21k.yaml"
 ) &
 SYNC_PID=$!
 
-echo "[INFO] JEPA ViT-S CMR Pretraining"
+echo "[INFO] JEPA ViT-S CMR slow-EMA pretrain (ema=0.99925)"
 echo "       Config: ${CONFIG}"
-echo "       Checkpoint: ${SCRATCH}/checkpoints/vits_in21k.pt"
 echo "       Output: ${JEPA_OUTPUT}"
+echo "       S3:     ${RUN_S3}"
 
-# =========================
-# LAUNCH
-# =========================
-# Use app.main_srun (srun-compatible entry point) — NOT app.main which uses mp.Process
 srun --kill-on-bad-exit=1 \
   python3 -m app.main_srun \
     --fname "${CONFIG}"
