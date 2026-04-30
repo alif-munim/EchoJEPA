@@ -1,0 +1,17 @@
+{
+  "measurement": "tr_mmhg (RVSP)",
+  "test_type": "tte",
+  "views": [
+    "A4C",
+    "PSAX"
+  ],
+  "task_type": "regression",
+  "matching_window_days": 1.0,
+  "physiological_range": [
+    5.0,
+    130.0
+  ],
+  "pairing": "cross-pair first 2 A4C x first 2 PSAX per study",
+  "pair_k": 2,
+  "unit": "mmHg"
+}
