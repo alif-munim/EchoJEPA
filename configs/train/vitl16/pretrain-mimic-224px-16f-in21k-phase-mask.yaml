@@ -1,0 +1,124 @@
+# V-JEPA 2.0 ViT-L pretraining on MIMIC-IV-Echo — Mask-phi only variant
+# Based on pretrain-jepa-mimic-224px-16f-in21k-hp.yaml. Predictor phase
+# conditioning stays OFF so this config isolates target-structure
+# modification. Full Phase-JEPA is obtained by setting phase_conditioned=true
+# on top of this config.
+#
+# Masking uses sampled-sequence phase: phi is computed on the uniformly
+# resampled tubelet grid (not on native DICOM frame indices). See
+# src/masks/phase_mask_utils.py for the unit convention.
+app: vjepa
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 80G
+folder: /opt/dlami/nvme/checkpoints/pretrain/mimic/vjepa2_vitl_224px_16f_in21k_phase_mask
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /opt/dlami/nvme/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
+  batch_size: 128
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: true
+  pin_mem: true
+  # Per-clip HR metadata. Gate 1 full-corpus extraction output.
+  phase_metadata_csv: /opt/dlami/nvme/data/csv/mimic_clip_phase_metadata.csv
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+# NOTE: temporal_scale is reduced from the V-JEPA default of [1.0, 1.0] to
+# [0.25, 0.25] so phase-aware t_start selection has degrees of freedom.
+# With full-duration target blocks every block spans the same phase window
+# and mask-phi collapses to the vanilla sampler.
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [0.25, 0.25]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [0.25, 0.25]
+
+# Phase-aware target sampling. Context sampler is unchanged.
+phase_mask:
+  phase_aware: true
+  phase_buckets:
+    local: [0.05, 0.15]
+    mid_cycle: [0.20, 0.35]
+    opposite_phase: [0.45, 0.55]
+    same_phase_next_beat: true
+  # same_phase_next_beat disabled on 16-frame clips (D=8 tubelets): cycle
+  # length averages ~3.5 tubelets, so targeting one full cycle after the
+  # context is geometrically infeasible ~83% of the time (dry run 2026-04-25).
+  # Keep the bucket defined but zero-weighted for this run; re-enable for
+  # longer-clip pretraining (e.g. 32-frame).
+  phase_bucket_probs:
+    local: 0.30
+    mid_cycle: 0.40
+    opposite_phase: 0.30
+    same_phase_next_beat: 0.0
+  phase_fallback: random
+  require_valid_hr: true
+  shuffled_hr: false
+  phase_max_attempts: 20
+  phase_seed: 0
+
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true
+  zero_init_mask_tokens: true
+  # Predictor phase conditioning OFF by design for Mask-phi only ablation.
+  phase_conditioned: false
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: true
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/vitl_in21k.pt
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  ipe: 300
+  ipe_scale: 1.25
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  warmup: 40
+  epochs: 100

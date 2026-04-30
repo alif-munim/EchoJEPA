@@ -1,0 +1,101 @@
+# Single-view JEPA continuation — finalbudget +25 of 100.
+#
+# Compute-matched control for the multiview finalbudget arms. We match
+# the global batch size (per-GPU bs × 8) and steps/epoch as closely as
+# possible against the multiview runs; the dataset here is single-view
+# MIMIC mp4s (not multi-clip pairs), so clip samples per optimizer step
+# is 256 (bs=32/GPU × 8 GPUs) vs multiview's 32 pairs = 64 clips. At
+# matched bs and ipe we therefore process ~4× more clip-reads per step
+# in single-view; that's a known difference between the two regimes and
+# is documented for the paper.
+#
+# Starts from the same IN21K e100 checkpoint.
+# Scheduler horizon: 100 continuation epochs, stop at 25.
+app: vjepa
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 80G
+folder: /opt/dlami/nvme/checkpoints/finalbudget_pairs24/singleview_25of100
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /opt/dlami/nvme/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
+  batch_size: 128            # match single-view IN21K e100 training
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: false
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 9999
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  save_at_end: true
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true
+  zero_init_mask_tokens: true
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: true
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/jepa_in21k_vitl_e100.pt
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  # Match multiview opt-step count; at bs=128/GPU this is intentionally ~4× more clip reads per step than multiview, consistent with single-view
+  #'s ipe at bs=32 so per-step compute is comparable.
+  ipe: 325
+  ipe_scale: 1.0
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  warmup: 5
+  epochs: 25
+  scheduler_total_epochs: 100
+  stop_after_epochs: 25

@@ -1,0 +1,119 @@
+# 8-GPU H100 short sanity for the phase-matched multiview pilot.
+# Identical to debug-multiview-phase-high-gpu-2gpu.yaml except:
+#   * tasks_per_node 2 -> 8
+#   * folder -> multiview_phase_high_gpu_8gpu_nw8
+#   * ipe: 500, max_steps: 500
+app: vjepa_multiview
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 12
+mem_per_gpu: 100G
+folder: /opt/dlami/nvme/checkpoints/sanity/multiview_phase_high_gpu_8gpu_nw8
+
+data:
+  dataset_type: VideoGroupDataset
+  datasets:
+    - /opt/dlami/nvme/probe/phase_annotations.parquet
+  placeholder_csv: /opt/dlami/nvme/tmp/phase_multiview_placeholder.csv
+  batch_size: 4                 # per-GPU; global bs = 32
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs:
+    - 16
+  fps: 8
+  tubelet_size: 2
+  num_workers: 8              # worker sweep
+  persistent_workers: false
+  pin_mem: true
+
+phase_multiview:
+  enabled: true
+  sampler_type: phase_matched
+  phase_annotations_path: /opt/dlami/nvme/probe/phase_annotations.parquet
+  sampler_dir: /opt/dlami/nvme/src/vjepa2/classifier/phase/sampler
+  quality_tiers: ["high"]
+  rr_filter_mode: strict
+  require_rr_consistent: true
+  frames_per_clip: 16
+  frame_step: 1
+  allow_frame_step_gt1: false
+  sampling_mode: uniform_phase
+  phase_tolerance: 0.15
+  pairs_per_study: 1
+  same_session_only: false
+  use_intraview_loss: true
+  use_crossview_loss: true
+  lambda_crossview: 0.25
+  log_every_steps: 25
+  video_uri_mode: mp4
+  raw_bucket_prefix: s3://echodata25/mimic-raw-staging
+  mp4_bucket_prefix: s3://echodata25/mimic-echo-224px
+  debug_verify_frame_count: true
+  debug_verify_n: 8
+  debug_csv_path: null
+  predictor_phase_token:
+    enabled: false
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 9999
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: -1
+  save_at_end: true
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true
+  zero_init_mask_tokens: true
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: true
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/jepa_in21k_vitl_e100.pt
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  ipe: 100
+  ipe_scale: 1.0
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  warmup: 5
+  epochs: 1
+  max_steps: 100

@@ -1,0 +1,153 @@
+# Phase-matched view-distance curriculum multi-view JEPA +25e continuation.
+#
+# Identical phase matching to the uniform-phase pilot (frame_step=1,
+# tolerance=0.15, strict RR, high tier, same_study pairs, same e100 init,
+# same loss composition). The only difference: clip-pair selection is
+# weighted by view_distance_bucket (easy -> medium -> hard).
+#
+# Schedule (validated via dry-run on 6,388 multi-study pool):
+#   epoch 0-6   (frac 0.00-0.25):  easy 0.70, medium 0.25, hard 0.05
+#   epoch 7-14  (frac 0.25-0.60):  easy 0.40, medium 0.40, hard 0.20
+#   epoch 15-24 (frac 0.60-1.00):  easy 0.20, medium 0.40, hard 0.40
+#
+# View-bucket taxonomy lives in classifier/phase/sampler/phase_matched_sampler.py.
+# UNKNOWN/low-confidence pairs are routed to 'hard'; 50.3% of the pool
+# carries UNKNOWN at min_view_confidence=0.60.
+app: vjepa_multiview
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 12
+mem_per_gpu: 100G
+folder: /opt/dlami/nvme/checkpoints/multiview/phase_curriculum_high_25e
+
+data:
+  dataset_type: VideoGroupDataset
+  datasets:
+    - /opt/dlami/nvme/probe/phase_annotations.parquet
+  placeholder_csv: /opt/dlami/nvme/tmp/phase_multiview_placeholder.csv
+  batch_size: 4
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs:
+    - 16
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: false
+  pin_mem: true
+
+phase_multiview:
+  enabled: true
+  sampler_type: phase_matched
+  phase_annotations_path: /opt/dlami/nvme/probe/phase_annotations.parquet
+  sampler_dir: /opt/dlami/nvme/src/vjepa2/classifier/phase/sampler
+  quality_tiers: ["high"]
+  rr_filter_mode: strict
+  require_rr_consistent: true
+  frames_per_clip: 16
+  frame_step: 1
+  allow_frame_step_gt1: false
+  sampling_mode: phase_curriculum
+  phase_tolerance: 0.15
+  pairs_per_study: 1
+  same_session_only: false
+  use_intraview_loss: true
+  use_crossview_loss: true
+  lambda_crossview: 0.25
+  log_every_steps: 20
+
+  # View labels (produced by the EchoJEPA-L view classifier, 525,328 rows,
+  # 100% coverage of the phase-annotations DICOMs).
+  view_labels_path: /opt/dlami/nvme/data/view_labels/mimic_view_predictions.csv
+  view_label_column: view
+  view_confidence_column: view_confidence
+  min_view_confidence: 0.60
+
+  curriculum:
+    enabled: true
+    type: view_distance
+    schedule:
+      - start_frac: 0.00
+        end_frac: 0.25
+        bucket_probs: {easy: 0.70, medium: 0.25, hard: 0.05}
+      - start_frac: 0.25
+        end_frac: 0.60
+        bucket_probs: {easy: 0.40, medium: 0.40, hard: 0.20}
+      - start_frac: 0.60
+        end_frac: 1.01
+        bucket_probs: {easy: 0.20, medium: 0.40, hard: 0.40}
+
+  # Must match `optimization.epochs` for epoch_frac computation.
+  total_epochs: 25
+
+  video_uri_mode: mp4
+  raw_bucket_prefix: s3://echodata25/mimic-raw-staging
+  mp4_bucket_prefix: s3://echodata25/mimic-echo-224px
+  debug_verify_frame_count: true
+  debug_verify_n: 8
+  debug_csv_path: null
+  predictor_phase_token:
+    enabled: false
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 9999
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  save_at_end: true
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true
+  zero_init_mask_tokens: true
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: true
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/jepa_in21k_vitl_e100.pt
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  ipe: 199
+  ipe_scale: 1.25
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  warmup: 5
+  epochs: 25

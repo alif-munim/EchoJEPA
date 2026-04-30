@@ -1,0 +1,100 @@
+# Localized-block VANILLA control for the mask-phi ablation set.
+#
+# Purpose: phase-aware masking required temporal_scale=[0.25,0.25] to give
+# target t_start any degrees of freedom. This config is the apples-to-apples
+# vanilla baseline under the SAME localized-block regime -- no phase
+# conditioning, no phase-aware target selection, no shuffled-HR. Any gain
+# from Mask-phi should be measured relative to this control, not only
+# against the original V-JEPA [1.0, 1.0] temporal_scale.
+app: vjepa
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 80G
+folder: /opt/dlami/nvme/checkpoints/pretrain/mimic/vjepa2_vitl_224px_16f_in21k_localblock
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /opt/dlami/nvme/data/csv/mimic_annotations_s3.csv
+  datasets_weights: [1.0]
+  batch_size: 128
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs: [16]
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: true
+  pin_mem: true
+  # No phase metadata required for the vanilla localized-block control.
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+# Same localized temporal_scale as the Mask-phi configs, same spatial/num
+# block schedule. This is the only reason this config differs from the
+# original pretrain-jepa-mimic-224px-16f-in21k-hp.yaml.
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [0.25, 0.25]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [0.25, 0.25]
+
+# Phase-aware masking intentionally OFF.
+phase_mask:
+  phase_aware: false
+
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true
+  zero_init_mask_tokens: true
+  phase_conditioned: false
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: true
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/vitl_in21k.pt
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  ipe: 300
+  ipe_scale: 1.25
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  warmup: 40
+  epochs: 100

@@ -1,0 +1,111 @@
+# Sanity/debug override for the phase-matched pilot.
+# Inherits the full schema of pretrain-multiview-phase-high.yaml; keep in
+# sync with any schema changes there.
+#
+# Purpose: verify launcher wiring end-to-end in under 2 min on a single GPU
+# at small ViT + low resolution. NOT for publication runs.
+app: vjepa_multiview
+nodes: 1
+tasks_per_node: 1
+cpus_per_task: 8
+mem_per_gpu: 32G
+folder: /tmp/multiview_debug_phase_high
+
+data:
+  dataset_type: VideoGroupDataset
+  datasets:
+    - /home/sagemaker-user/user-default-efs/vjepa2/classifier/phase/phase_annotations/phase_annotations.parquet
+  placeholder_csv: /tmp/phase_multiview_placeholder.csv
+  batch_size: 2                 # tiny
+  crop_size: 128                # small spatial
+  patch_size: 16
+  dataset_fpcs:
+    - 8                         # half temporal
+  fps: 8
+  tubelet_size: 2
+  num_workers: 0                # single-process for speed + repeatability
+  persistent_workers: false
+  pin_mem: false
+
+phase_multiview:
+  enabled: true
+  sampler_type: phase_matched
+  phase_annotations_path: /home/sagemaker-user/user-default-efs/vjepa2/classifier/phase/phase_annotations/phase_annotations.parquet
+  sampler_dir: /home/sagemaker-user/user-default-efs/vjepa2/classifier/phase/sampler
+  quality_tiers: ["high"]
+  rr_filter_mode: strict
+  require_rr_consistent: true
+  frames_per_clip: 8
+  frame_step: 1
+  allow_frame_step_gt1: false
+  sampling_mode: uniform_phase
+  phase_tolerance: 0.15
+  pairs_per_study: 1
+  same_session_only: false
+  use_intraview_loss: true
+  use_crossview_loss: true
+  lambda_crossview: 0.25
+  log_every_steps: 5
+  # CPU harness reads from local .dcm via a pydicom stub; the harness also
+  # overrides refresh_epoch to rewrite view_0/view_1 to local paths.
+  video_uri_mode: dicom
+  debug_csv_path: null
+  predictor_phase_token:
+    enabled: false
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.8, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 4
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: float32               # CPU-friendly; flip to bfloat16 on GPU
+  eval_freq: 9999
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: -1
+  save_at_end: true
+  seed: 0
+  use_sdpa: false
+
+model:
+  model_name: vit_tiny
+  pred_depth: 2
+  pred_embed_dim: 96
+  pred_num_heads: 4
+  uniform_power: true
+  use_activation_checkpointing: false
+  use_mask_tokens: true
+  num_mask_tokens: 2
+  use_rope: true
+  zero_init_mask_tokens: true
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: false    # no ckpt needed for debug
+  anneal_ckpt: null
+  ema: [0.999, 0.999]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  ipe: 5                        # tiny IPE → real loop runs 5 steps per "epoch"
+  ipe_scale: 1.25
+  start_lr: 1e-4
+  lr: 1e-4
+  final_lr: 1e-4
+  warmup: 0
+  epochs: 2
+  max_steps: 20                 # hard cap — exits after 20 optimizer steps

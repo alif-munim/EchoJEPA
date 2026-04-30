@@ -1,0 +1,149 @@
+# Wrongphase multi-view JEPA — finalbudget +25 of 100 (sampling_mode=wrong_phase).
+#
+# Scheduler horizon is 100 continuation epochs; this run stops at 25.
+# Resume to 50 or 100 later by setting meta.load_checkpoint=true and
+# optimization.stop_after_epochs=50 or 100; the scheduler will continue
+# from completed_steps. Do NOT change scheduler_total_epochs on resume.
+#
+# Enlarged sampling budget:
+#   - quality_tiers: high+medium (strict RR still enforced)
+#   - pairs_per_study: 24 (vs small-budget 1)
+#   - batch_size: 64/GPU (vs small-budget 4)
+# Expected: 6,947 multi-clip studies × 24 pairs/study = 166,728 pair rows
+# per epoch; per-rank (ws=8, drop_last) ≈ 20,841; ipe ≈ 325 at bs=64.
+# +25e ≈ 8,125 optimizer steps; +100e ≈ 32,500 opt steps. Per step
+# 64*8=512 pair samples (1024 clip reads).
+app: vjepa_multiview
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 12
+mem_per_gpu: 100G
+folder: /opt/dlami/nvme/checkpoints/finalbudget_pairs24/wrongphase_highmedium_25of100
+
+data:
+  dataset_type: VideoGroupDataset
+  datasets:
+    - /opt/dlami/nvme/probe/phase_annotations.parquet
+  placeholder_csv: /opt/dlami/nvme/tmp/phase_multiview_placeholder.csv
+  batch_size: 64               # from sweep; override in sbatch if different
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs:
+    - 16
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: false    # pair_df swaps per epoch; must stay false
+  pin_mem: true
+
+phase_multiview:
+  enabled: true
+  sampler_type: phase_matched
+  phase_annotations_path: /opt/dlami/nvme/probe/phase_annotations.parquet
+  sampler_dir: /opt/dlami/nvme/src/vjepa2/classifier/phase/sampler
+  quality_tiers: ["high", "medium"]
+  rr_filter_mode: strict
+  require_rr_consistent: true
+  frames_per_clip: 16
+  frame_step: 1
+  allow_frame_step_gt1: false
+  sampling_mode: wrong_phase
+  phase_tolerance: 0.15
+  pairs_per_study: 24
+  same_session_only: false
+  use_intraview_loss: true
+  use_crossview_loss: true
+  lambda_crossview: 0.25
+  log_every_steps: 20
+  video_uri_mode: mp4
+  raw_bucket_prefix: s3://echodata25/mimic-raw-staging
+  mp4_bucket_prefix: s3://echodata25/mimic-echo-224px
+  # View-pair mixture policy — enforces a target distribution over
+  # (same_view, same_family, cross_family) classes on every drawn pair.
+  # Applies on top of the sampling_mode phase logic. Set the same policy
+  # across uniform_phase, same_study_random, wrong_phase; for curriculum
+  # a floor is imposed.
+  view_pair_policy:
+    enabled: true
+    same_view_prob: 0.25
+    same_family_prob: 0.45
+    cross_family_prob: 0.30
+    require_different_dicom: true
+    allow_same_view: true
+    resample_attempts: 8
+  debug_verify_frame_count: true
+  debug_verify_n: 8
+  debug_csv_path: null
+  predictor_phase_token:
+    enabled: false
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 9999
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  save_at_end: true
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true
+  zero_init_mask_tokens: true
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: true
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/jepa_in21k_vitl_e100.pt
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  # IPE is re-derived at runtime from the sampler; leave the config hint
+  # matching the expected value at bs=32.
+  ipe: 325
+  ipe_scale: 1.0
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  # Warmup measured in epochs; applied against scheduler horizon below.
+  warmup: 5
+  # Deprecated single-knob; kept equal to stop_after_epochs for any
+  # downstream code that still reads it.
+  epochs: 25
+  # === NEW: decouple scheduler horizon from stop-epoch ===
+  scheduler_total_epochs: 100
+  stop_after_epochs: 25

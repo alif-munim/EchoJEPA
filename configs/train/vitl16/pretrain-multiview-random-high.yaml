@@ -1,0 +1,147 @@
+# Phase-matched multi-view JEPA pilot, high-tier only.
+#
+# Turn-3 scaffold: sampler + paired loader + cross-view loss already
+# landed. The training-loop driver (LR schedule, EMA, checkpoint) is
+# Turn 4; this config exposes everything the driver needs to read.
+#
+# Reads MIMIC phase_annotations.parquet via the PhaseMatchedStudySampler
+# dispatched through data_manager.init_data(sampler_type="phase_matched").
+# Output is a pair batch per step: clip_a (context) + clip_b (target),
+# both anchor-centered at a shared target_phi on the sampler's shared
+# cardiac-phase coordinate.
+app: vjepa_multiview
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 220G
+folder: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/pretrain/mimic/vjepa2_vitl_multiview_random_high
+
+data:
+  dataset_type: VideoGroupDataset
+  datasets:
+    - /home/sagemaker-user/user-default-efs/vjepa2/classifier/phase/phase_annotations/phase_annotations.parquet
+  # Phase-matched driver swaps the dataset's DataFrame per epoch, so
+  # VideoGroupDataset is initialized with a placeholder CSV that is
+  # immediately replaced via set_pair_dataframe().
+  placeholder_csv: /tmp/phase_multiview_placeholder.csv
+  batch_size: 64          # per-GPU; global = 64 * tasks_per_node * nodes
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs:
+    - 16
+  fps: 8                  # match the base V-JEPA recipe
+  tubelet_size: 2
+  num_workers: 8
+  persistent_workers: true
+  pin_mem: true
+
+# Phase-matched sampler config (consumed by data_manager's
+# sampler_type="phase_matched" branch).
+phase_multiview:
+  enabled: true
+  sampler_type: phase_matched
+  phase_annotations_path: /home/sagemaker-user/user-default-efs/vjepa2/classifier/phase/phase_annotations/phase_annotations.parquet
+  sampler_dir: /home/sagemaker-user/user-default-efs/vjepa2/classifier/phase/sampler
+
+  # Data filtering
+  quality_tiers: ["high"]
+  rr_filter_mode: strict       # first pilot; permissive_afib deferred
+  require_rr_consistent: true
+
+  # Window geometry (MUST be frame_step=1 for phase-matched; source_span=16 frames)
+  frames_per_clip: 16
+  frame_step: 1
+  allow_frame_step_gt1: false
+
+  # Sampling mode
+  sampling_mode: same_study_random
+  phase_tolerance: 0.15
+  pairs_per_study: 1
+
+  # Session handling (no-op on this parquet; flagged for future)
+  same_session_only: false
+
+  # Loss composition
+  use_intraview_loss: true
+  use_crossview_loss: true
+  lambda_crossview: 0.25
+
+  # Video URI mode: rewrite raw DICOM URIs to the MP4 bucket for production
+  # (decord-compatible). "dicom" is for test/debug with a pydicom shim.
+  video_uri_mode: mp4
+  raw_bucket_prefix: s3://echodata25/mimic-raw-staging
+  mp4_bucket_prefix: s3://echodata25/mimic-echo-224px
+
+  # Diagnostics
+  debug_csv_path: null         # set to a path to dump pair_df once per epoch
+
+  # Reserved for Turn 4 + beyond
+  predictor_phase_token:
+    enabled: false
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true
+  zero_init_mask_tokens: true
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: true
+  # Bootstrap from the e100 single-view JEPA checkpoint.
+  anneal_ckpt: /home/sagemaker-user/user-default-efs/vjepa2/checkpoints/vitl.pt
+
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+
+  ipe: 100        # ~6388 pairs / (8 * 8) ~ 100 steps/epoch at global bs 512
+  ipe_scale: 1.25
+
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+
+  warmup: 5
+  epochs: 25     # short pilot

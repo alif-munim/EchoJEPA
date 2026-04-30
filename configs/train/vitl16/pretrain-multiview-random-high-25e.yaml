@@ -1,0 +1,133 @@
+# Random multi-view JEPA +25e continuation pilot (sampling_mode=same_study_random).
+#
+# Continues from IN21K-init single-view e100 checkpoint. Paths target
+# NVMe-only deployment (the compute node's root FS is full; source tarball
+# is unpacked under /opt/dlami/nvme/src/vjepa2 by the sbatch wrapper).
+#
+# Sampler: PhaseMatchedStudySampler with sampling_mode=uniform_phase.
+# pair_df URIs are rewritten to the mimic-echo-224px MP4 bucket per
+# video_uri_mode=mp4. Frame-count alignment verified via the startup
+# frame-guard (see debug_verify_frame_count below).
+#
+# Worker sweep (job 514) identified num_workers=4, persistent_workers=false
+# as the fastest safe setting: saturates GPUs with 0% data-time, no stale
+# pair_df symptoms because workers re-fork each epoch.
+app: vjepa_multiview
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 12
+mem_per_gpu: 100G
+folder: /opt/dlami/nvme/checkpoints/multiview/random_high_25e
+
+data:
+  dataset_type: VideoGroupDataset
+  datasets:
+    - /opt/dlami/nvme/probe/phase_annotations.parquet
+  placeholder_csv: /opt/dlami/nvme/tmp/phase_multiview_placeholder.csv
+  batch_size: 4                 # per-GPU; global = 32
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs:
+    - 16
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4                # from worker sweep (job 514)
+  persistent_workers: false     # MUST stay false: pair_df swaps per epoch
+  pin_mem: true
+
+phase_multiview:
+  enabled: true
+  sampler_type: phase_matched
+  phase_annotations_path: /opt/dlami/nvme/probe/phase_annotations.parquet
+  sampler_dir: /opt/dlami/nvme/src/vjepa2/classifier/phase/sampler
+  quality_tiers: ["high"]
+  rr_filter_mode: strict
+  require_rr_consistent: true
+  frames_per_clip: 16
+  frame_step: 1
+  allow_frame_step_gt1: false
+  sampling_mode: same_study_random
+  phase_tolerance: 0.15
+  pairs_per_study: 1
+  same_session_only: false
+  use_intraview_loss: true
+  use_crossview_loss: true
+  lambda_crossview: 0.25
+  log_every_steps: 20
+  video_uri_mode: mp4
+  raw_bucket_prefix: s3://echodata25/mimic-raw-staging
+  mp4_bucket_prefix: s3://echodata25/mimic-echo-224px
+  # Guard verifies the first N pair-row URIs open to exactly the DICOM
+  # frame counts recorded in the parquet. Runs once on rank 0 at epoch 0.
+  debug_verify_frame_count: true
+  debug_verify_n: 8
+  debug_csv_path: null
+  predictor_phase_token:
+    enabled: false
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 9999
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  save_at_end: true
+  seed: 234
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true
+  zero_init_mask_tokens: true
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: true
+  # Bootstrap from the IN21K-init e100 single-view JEPA checkpoint
+  # (staged to NVMe by the sbatch wrapper).
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/jepa_in21k_vitl_e100.pt
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  # 6388 pair rows / (8 ranks * 4 bs) ≈ 199 steps/epoch with drop_last=True.
+  # At 25 epochs this is ~4,975 optimizer steps.
+  ipe: 199
+  ipe_scale: 1.25
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  warmup: 5
+  epochs: 25
