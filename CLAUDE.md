@@ -60,7 +60,7 @@ python -m app.main_distributed --fname configs/train/vitl16/pretrain-mimic-224px
 ### HyperPod (H100 clusters)
 ```bash
 # Active cluster: echojepa-h100-neurips (training plan: EchoJEPA-NeurIPS, Apr 12 – May 2)
-# Compute node: ip-10-0-50-7 (ml.p5.48xlarge, 8x H100 80GB)
+# Compute node: ip-10-0-50-35 (ml.p5.48xlarge, 8x H100 80GB)
 # Connect to controller via SSM (see claude/dev/hyperpod-ops.md for connectivity details)
 CLUSTER=echojepa-h100-neurips
 CLUSTER_ID=n9we8xfqjv3p

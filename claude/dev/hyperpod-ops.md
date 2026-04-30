@@ -15,7 +15,7 @@ Distilled from echojepa-h100-march (2026-03-26) and echojepa-h100-neurips (2026-
 
 | Cluster | ID | Instance Type | GPUs | Training Plan | Status |
 |---------|------|--------------|------|---------------|--------|
-| echojepa-h100-neurips | n9we8xfqjv3p | ml.p5.48xlarge | 8x H100 80GB | EchoJEPA-NeurIPS | InService (compute node: ip-10-0-50-7) |
+| echojepa-h100-neurips | n9we8xfqjv3p | ml.p5.48xlarge | 8x H100 80GB | EchoJEPA-NeurIPS | InService (compute node: ip-10-0-50-35, i-065188ac6aa4aaadb; controller: i-0415ce8f417564270) |
 | echojepa-v10 | swcxoboj2tln | ml.p5e.48xlarge | 8x H200 | EchoJEPA | InService |
 | echojepa-h200 | 2paq9e2d06dk | ml.p5e.48xlarge | 8x H200 | EchoJEPA-H200 | InService |
 | echojepa-h100-march | yyepvbne5vzr | ml.p5.48xlarge | 8x H100 80GB | EchoJEPA-NeurIPS | InService (compute scaled to 0) |
@@ -91,8 +91,8 @@ script -q -c "timeout 30 aws ssm start-session --region us-west-2 \
 SSH keys are NOT configured by default on HyperPod. Use Slurm's `srun` instead:
 ```bash
 sudo su - ubuntu
-srun -N1 -w ip-10-0-50-7 --ntasks=1 --pty bash   # interactive shell
-srun -N1 -w ip-10-0-50-7 --ntasks=1 bash -c "hostname && nvidia-smi"  # one-off command
+srun -N1 -w ip-10-0-50-35 --ntasks=1 --pty bash   # interactive shell
+srun -N1 -w ip-10-0-50-35 --ntasks=1 bash -c "hostname && nvidia-smi"  # one-off command
 ```
 
 **Note**: When a job is using the full node (all GPUs/CPUs), `srun` blocks waiting for resources. Use `srun --jobid=<ID> --overlap` to share resources with a running job, or use direct SSM to the compute node (see above).
