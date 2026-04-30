@@ -261,8 +261,14 @@ class VideoDataset(torch.utils.data.Dataset):
         if VideoReader is None:
             raise ImportError('Unable to import "decord" which is required to read videos.')
 
-        # Load video paths and labels from the annotation file(s)
-        samples, labels = [], []
+        # Load video paths and labels from the annotation file(s).
+        # Supports two CSV formats (auto-detected by column count):
+        #   2-col: uri label
+        #   3-col: uri anchor_frame label  (anchor-aware sampling)
+        # When 3-col is used, _sample_from_vr centers a single window on
+        # anchor_frame; num_clips is forced to 1. Caller must ensure
+        # num_segments/num_clips align.
+        samples, labels, anchors = [], [], []
         self.num_samples_per_dataset = []
         for data_path in self.data_paths:
             if data_path.endswith(".csv"):
@@ -270,13 +276,20 @@ class VideoDataset(torch.utils.data.Dataset):
                     data = pd.read_csv(data_path, header=None, delimiter=" ")
                 except pd.errors.ParserError:
                     data = pd.read_csv(data_path, header=None, delimiter="::")
+                n_cols = data.shape[1]
                 samples.extend(list(data.values[:, 0]))
-                labels.extend(list(data.values[:, 1]))
+                if n_cols >= 3:
+                    anchors.extend(list(data.values[:, 1].astype(np.int64)))
+                    labels.extend(list(data.values[:, 2]))
+                else:
+                    anchors.extend([None] * len(data))
+                    labels.extend(list(data.values[:, 1]))
                 self.num_samples_per_dataset.append(len(data))
             elif data_path.endswith(".npy"):
                 data = np.load(data_path, allow_pickle=True)
                 data = [repr(x)[1:-1] for x in data]
                 samples.extend(data)
+                anchors.extend([None] * len(data))
                 labels.extend([0] * len(data))
                 self.num_samples_per_dataset.append(len(data))
 
@@ -290,6 +303,15 @@ class VideoDataset(torch.utils.data.Dataset):
 
         self.samples = samples
         self.labels = labels
+        # Anchor-aware sampling: if any sample has an anchor, anchor-mode is active.
+        self.anchors = anchors if any(a is not None for a in anchors) else None
+        self._current_anchor = None  # Set per-sample before loadvideo_decord
+        if self.anchors is not None and self.num_clips != 1:
+            logger.warning(
+                f"Anchor sampling activated but num_clips={self.num_clips} "
+                f"(!=1). Forcing num_clips=1 for anchor mode."
+            )
+            self.num_clips = 1
 
         # Track load-failure substitutions (per-worker counter; not shared across processes)
         self._substitution_count = 0
@@ -369,6 +391,8 @@ class VideoDataset(torch.utils.data.Dataset):
         dataset_idx, _ = self.per_dataset_indices[index]
         frames_per_clip = self.dataset_fpcs[dataset_idx]
 
+        # Anchor-aware mode: forward the per-sample anchor to _sample_from_vr.
+        self._current_anchor = self.anchors[index] if self.anchors is not None else None
         buffer, clip_indices = self.loadvideo_decord(sample_uri, frames_per_clip)
         if buffer is None or len(buffer) == 0:
             return None
@@ -626,6 +650,37 @@ class VideoDataset(torch.utils.data.Dataset):
             return [], None
 
         vr.seek(0)  # Go to start of video before sampling frames
+
+        # ------------------------------------------------------------------
+        # Anchor-aware sampling: single clip centered on self._current_anchor.
+        # Bypass the partition-based sampler when an anchor is present.
+        # Guarantees the anchor is in the returned indices (clamped to edges
+        # if the anchor is too close to frame 0 or n_frames).
+        # ------------------------------------------------------------------
+        if getattr(self, "_current_anchor", None) is not None:
+            anchor = int(self._current_anchor)
+            # Ideal window: fpc frames spaced by fstp, anchor at the center.
+            half = (fpc // 2) * fstp
+            start = anchor - half
+            # Clamp so the window fits in the video.
+            max_start = max(0, len(vr) - clip_len)
+            start = max(0, min(start, max_start))
+            indices = (start + np.arange(fpc) * fstp).astype(np.int64)
+            indices = np.clip(indices, 0, len(vr) - 1)
+            # Anchor-coverage guard: if anchor is still outside the window
+            # (pathological case where the video is shorter than clip_len),
+            # place anchor as close to the center of the clamped window as
+            # possible (already handled by clipping above; assert for safety).
+            assert indices.min() >= 0 and indices.max() < len(vr), (
+                f"Anchor-mode indices out of range: {indices.min()}..{indices.max()} "
+                f"for video of length {len(vr)}"
+            )
+            try:
+                buffer = vr.get_batch(indices.tolist()).asnumpy()
+            except Exception as e:
+                logger.warning(f"decord get_batch failed (anchor-mode, n_frames={n_frames}): {e}")
+                return [], None
+            return buffer, [indices]
 
         # Partition video into equal sized segments and sample each clip
         partition_len = len(vr) // self.num_clips

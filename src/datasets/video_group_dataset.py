@@ -22,6 +22,103 @@ logger = getLogger()
 MISSING_TOKEN = "MISS"
 
 
+def _compute_clip_indices(
+    num_frames: int,
+    fpc: int,
+    frame_step: int = 1,
+    clip_idx: int = 0,
+    num_clips: int = 1,
+    anchor_frame: int | None = None,
+) -> tuple[np.ndarray, dict]:
+    """Compute source-frame indices for one clip.
+
+    Two modes:
+      * ``anchor_frame is None``: strided window starting at
+        ``clip_idx * source_span`` (matches legacy behavior when
+        ``frame_step == 1`` and ``num_clips == 1``).
+      * ``anchor_frame`` set: the clip is centered on ``anchor_frame``.
+        For ``num_clips == 1`` the window spans
+        ``[start, start + source_span)`` where
+        ``start = round(anchor_frame - ((fpc-1) * frame_step) / 2)``,
+        clamped to ``[0, num_frames - source_span]``.
+        For ``num_clips > 1`` the sampler passes anchor per clip, so
+        ``clip_idx`` selects which window; callers that want anchor-centering
+        should use ``num_clips == 1`` and issue separate calls per clip.
+
+    Returns ``(indices, meta)`` where ``meta`` contains:
+      - ``start_frame``: first raw-frame index before clamping edge-pad
+      - ``anchor_frame``: echoed int or None
+      - ``anchor_pos``: position in ``indices`` closest to ``anchor_frame``
+        (None if anchor_frame is None)
+      - ``frame_step``: stride used
+      - ``source_span_frames``: (fpc-1)*frame_step + 1
+      - ``was_clamped``: True if start clipped against video boundary
+      - ``padded``: True if video was shorter than source_span
+
+    If ``num_frames < source_span``, the window is clipped to
+    ``[0, num_frames-1]`` and the last valid index is repeated to pad to
+    length ``fpc``. ``anchor_pos`` is still computed against ``anchor_frame``
+    when provided.
+    """
+    source_span = (fpc - 1) * frame_step + 1
+    padded = False
+    was_clamped = False
+
+    if anchor_frame is None:
+        start = int(clip_idx) * source_span
+        if num_frames >= source_span:
+            indices = start + np.arange(fpc, dtype=np.int64) * frame_step
+        else:
+            # Degenerate short video: emit what we can, pad with last index.
+            raw = start + np.arange(fpc, dtype=np.int64) * frame_step
+            raw = np.clip(raw, 0, max(0, num_frames - 1))
+            indices = raw
+            padded = True
+    else:
+        anchor = int(round(anchor_frame))
+        if num_frames >= source_span:
+            raw_start = int(round(anchor - ((fpc - 1) * frame_step) / 2.0))
+            start = max(0, min(raw_start, num_frames - source_span))
+            was_clamped = (start == 0 and raw_start < 0) or (
+                start == num_frames - source_span and raw_start > num_frames - source_span
+            )
+            indices = start + np.arange(fpc, dtype=np.int64) * frame_step
+        else:
+            # Video shorter than requested source span: ideal window would
+            # start at anchor - (fpc-1)*step/2; clamp to [0, num_frames-1]
+            # on every sample and pad by repeating the last valid index.
+            raw_start = int(round(anchor - ((fpc - 1) * frame_step) / 2.0))
+            start = max(0, min(raw_start, max(0, num_frames - 1)))
+            raw = start + np.arange(fpc, dtype=np.int64) * frame_step
+            raw = np.clip(raw, 0, max(0, num_frames - 1))
+            indices = raw
+            padded = True
+            was_clamped = True
+
+    if indices.shape[0] < fpc:
+        pad_val = int(indices[-1]) if indices.shape[0] > 0 else 0
+        pad = np.full(fpc - indices.shape[0], pad_val, dtype=np.int64)
+        indices = np.concatenate([indices, pad], axis=0)
+        padded = True
+    if indices.shape[0] > fpc:
+        indices = indices[:fpc]
+
+    anchor_pos = None
+    if anchor_frame is not None:
+        anchor_pos = int(np.argmin(np.abs(indices - int(round(anchor_frame)))))
+
+    meta = {
+        "start_frame": int(indices[0]) if indices.shape[0] > 0 else 0,
+        "anchor_frame": None if anchor_frame is None else int(round(anchor_frame)),
+        "anchor_pos": anchor_pos,
+        "frame_step": int(frame_step),
+        "source_span_frames": int(source_span),
+        "was_clamped": bool(was_clamped),
+        "padded": bool(padded),
+    }
+    return indices, meta
+
+
 def _worker_init_fn(_):
     try:
         import torch as _torch, cv2, os as _os
@@ -251,6 +348,14 @@ class VideoGroupDataset(Dataset):
     
         # One S3 client per worker (lazily created in _ensure_s3_client)
         self.s3_client = None
+
+        # Optional per-row anchor-frame table for phase-matched sampling.
+        # Keys: row indices (same as __getitem__ input). Values: list of
+        # length ``group_size`` where each entry is None (default temporal
+        # sampling) or an int raw-frame index to center the K-clip span on
+        # for that view. Set by PhaseMatchedStudySampler via
+        # ``set_anchors_by_index`` before each epoch.
+        self.anchors_by_index: dict[int, list] | None = None
     
         # Temporal mode validation (match VideoDataset semantics)
         if sum(v is not None for v in (self.fps, self.duration, self.frame_step)) != 1:
@@ -263,6 +368,52 @@ class VideoGroupDataset(Dataset):
 
     def __len__(self):
         return len(self.df)
+
+    def set_anchors_by_index(self, table: dict | None) -> None:
+        """Install or clear the per-row anchor-frame lookup.
+
+        Call this before an epoch starts (e.g. from the training loop after
+        the phase-matched sampler builds its records). Must be called on the
+        dataset instance that was passed to the DataLoader; DataLoader
+        workers see the installed value via pickle/copy semantics.
+
+        ``table``: dict mapping row index -> list of length ``group_size``
+        (each entry None, int anchor frame, or dict with keys
+        ``anchor_frame`` + optionally ``frame_step`` for per-clip stride).
+        Set to None to disable.
+        """
+        self.anchors_by_index = table
+
+    def set_pair_dataframe(
+        self,
+        pair_df: "pd.DataFrame",
+        anchors_by_index: dict | None = None,
+    ) -> None:
+        """Atomically swap in a new pair DataFrame + anchor table.
+
+        The pair DataFrame must have columns ``view_0``, ``view_1``, and
+        ``label`` (any additional metadata columns are ignored by the
+        loader but kept on the DataFrame for downstream use).
+        ``group_size`` must already be 2 on this dataset.
+
+        Anchors are installed last, after ``self.df`` is replaced, so
+        indexing cannot fall out of sync mid-update. Both fields are
+        mutated together; readers inside ``__getitem__`` see a consistent
+        view because dict/DataFrame assignment is atomic in CPython.
+        """
+        if self.group_size != 2:
+            raise ValueError(
+                f"set_pair_dataframe requires group_size=2; got group_size={self.group_size}"
+            )
+        required = {"view_0", "view_1", "label"}
+        missing = required - set(pair_df.columns)
+        if missing:
+            raise KeyError(f"pair DataFrame missing required columns: {missing}")
+        # Keep the index contiguous to match anchor-table keys.
+        pair_df = pair_df.reset_index(drop=True)
+        self.df = pair_df
+        self.view_cols = ["view_0", "view_1"]
+        self.anchors_by_index = anchors_by_index
 
     # ---------- S3 helper ----------
     def _ensure_s3_client(self):
@@ -281,19 +432,90 @@ class VideoGroupDataset(Dataset):
 
 
     # ---------- Dataset API ----------
+    #
+    # Pair-mode return shape: ``(segs, label, clip_indices_out, slot_mask, meta)``
+    # where ``meta`` is a dict of per-sample pair metadata pulled from the
+    # installed pair DataFrame. The meta dict is included iff the dataset
+    # is in pair mode (``self.anchors_by_index`` installed by
+    # ``set_pair_dataframe``). The mask collator's ``_phase_call`` path
+    # already expects ``sample[4]`` to be a dict, so the shape is
+    # compatible; base V-JEPA collate ignores the extra element.
+    _PAIR_META_COLS = (
+        "study_id", "subject_id", "sampling_mode", "target_phi_a",
+        "target_phi_b", "circular_phase_diff", "frame_step",
+        "frames_per_clip", "source_span_frames", "source_span_seconds_a",
+        "source_span_seconds_b", "source_span_cycles_a", "source_span_cycles_b",
+        "clip_a_dicom_id", "clip_b_dicom_id", "clip_a_anchor_frame",
+        "clip_b_anchor_frame", "clip_a_phase_at_anchor",
+        "clip_b_phase_at_anchor", "clip_a_phase_error",
+        "clip_b_phase_error", "clip_a_view", "clip_b_view",
+        "clip_a_hr_metadata", "clip_b_hr_metadata", "clip_a_fps_video",
+        "clip_b_fps_video", "clip_a_quality_tier", "clip_b_quality_tier",
+    )
+
+    def _row_to_meta(self, row) -> dict:
+        """Extract pair metadata, replacing None/NaN with collation-safe
+        sentinels. ``default_collate`` can't stack heterogeneous-None
+        columns, so we force:
+          * str cols (view, dicom_id, subject_id, mode, tier): "" for None
+          * numeric cols: float("nan") for None
+        Call sites in ``app/vjepa_multiview/train.py::summarize_pair_metadata``
+        filter out NaN/empty-string before aggregating.
+        """
+        out: dict = {}
+        str_cols = {
+            "study_id", "subject_id", "sampling_mode",
+            "clip_a_dicom_id", "clip_b_dicom_id",
+            "clip_a_view", "clip_b_view",
+            "clip_a_quality_tier", "clip_b_quality_tier",
+        }
+        for col in self._PAIR_META_COLS:
+            if col not in row.index:
+                continue
+            v = row[col]
+            if v is None or (isinstance(v, float) and v != v):   # NaN check
+                out[col] = "" if col in str_cols else float("nan")
+            else:
+                if col in str_cols and not isinstance(v, str):
+                    out[col] = str(v)
+                else:
+                    out[col] = v
+        return out
+
     def __getitem__(self, index):
         # retry semantics similar to VideoDataset
         while True:
             row = self.df.iloc[index]
+            anchors = None
+            if self.anchors_by_index is not None:
+                anchors = self.anchors_by_index.get(int(index))
             try:
-                loaded = self._get_item_row(row)
+                loaded = self._get_item_row(row, anchors_per_view=anchors)
                 if loaded:
+                    # Pair mode: append per-sample metadata dict. Detected
+                    # by presence of an installed anchor table (which is
+                    # set together with pair DataFrame in
+                    # ``set_pair_dataframe``).
+                    if self.anchors_by_index is not None:
+                        meta = self._row_to_meta(row)
+                        return (*loaded, meta)
                     return loaded
             except Exception as e:
                 warnings.warn(f"Retrying idx={index} due to error: {e}")
+            # On retry, drop the anchor — the new random index has no
+            # associated anchor, and forcing None prevents a stale anchor
+            # from being applied to a different row.
             index = np.random.randint(len(self))
 
-    def _get_item_row(self, row):
+    def _get_item_row(self, row, anchors_per_view: list | None = None):
+        """Load one CSV row into (segs, label, clip_indices, slot_mask).
+
+        ``anchors_per_view`` (optional): a list of length ``group_size`` where
+        each element is either ``None`` (default random/strided sampling) or an
+        int specifying the raw-frame index to center the K-clip span on for
+        that view. Used by ``PhaseMatchedStudySampler`` to request
+        phase-matched temporal windows across views.
+        """
         label = float(row["label"])
     
         # ---- collect URIs and initial presence flags from CSV ----
@@ -338,7 +560,19 @@ class VideoGroupDataset(Dataset):
     
         # ---- load/construct clips per slot ----
         segs, clip_indices_out, slot_mask = [], [], []
-        for uri, p in zip(uris, present):
+        for view_idx, (uri, p) in enumerate(zip(uris, present)):
+            anchor = None
+            if anchors_per_view is not None and view_idx < len(anchors_per_view):
+                a = anchors_per_view[view_idx]
+                if a is None:
+                    anchor = None
+                elif isinstance(a, dict):
+                    # Dict form: passed through to _loadvideo_decord_multi,
+                    # which handles the anchor_frame + optional frame_step
+                    # keys.
+                    anchor = a
+                else:
+                    anchor = int(a)
             if not p:
                 # Missing view → dummy black clips (shape compatible with transforms)
                 T = self.frames_per_clip
@@ -347,8 +581,13 @@ class VideoGroupDataset(Dataset):
                 clips = [dummy for _ in range(self.num_clips_per_video)]
                 idxs  = [np.arange(T, dtype=np.int64) for _ in range(self.num_clips_per_video)]
             else:
-                # Contiguous multi-clip loader (K clips of length fpc, non-overlapping)
-                clips, idxs = self._loadvideo_decord_multi(uri, self.frames_per_clip, self.num_clips_per_video)
+                # Contiguous multi-clip loader (K clips of length fpc, non-overlapping).
+                # If an anchor frame was provided (phase-matched sampling), the
+                # K-window span is centered on it.
+                clips, idxs = self._loadvideo_decord_multi(
+                    uri, self.frames_per_clip, self.num_clips_per_video,
+                    anchor_frame=anchor,
+                )
                 if clips is None or len(clips) == 0:
                     # Fallback to dummy if load failed
                     T = self.frames_per_clip
@@ -441,13 +680,23 @@ class VideoGroupDataset(Dataset):
             return None
 
 
-    def _loadvideo_decord_multi(self, sample_uri: str, fpc: int, k: int):
+    def _loadvideo_decord_multi(self, sample_uri: str, fpc: int, k: int, anchor_frame=None):
         """
-        Return K contiguous clips, each exactly fpc frames sampled at stride `fstp`,
-        i.e., raw windows [i*clip_len, (i+1)*clip_len) without randomness.
-    
-        If the video is short, indices are clipped to [0, V-1] and padded by
-        repeating the last valid frame to keep length fpc.
+        Return K clips, each exactly fpc frames.
+
+        - ``anchor_frame=None``: legacy behavior — K strided windows
+          starting at ``i*clip_len`` at the dataset-configured ``frame_step``.
+        - ``anchor_frame=<int>``: each of K windows is centered on
+          ``anchor_frame`` (same window for all K clips). Use ``k=1`` for
+          phase-matched training; ``k>1`` with a single int anchor is
+          redundant and should be avoided.
+        - ``anchor_frame=<dict>`` with keys ``anchor_frame`` and optionally
+          ``frame_step``: window is anchor-centered at the specified
+          per-clip frame_step, overriding the dataset default. This is the
+          path used by ``PhaseMatchedStudySampler``.
+
+        Uses ``_compute_clip_indices`` for the index math so every path is
+        unit-testable.
         """
         vr = self._open_vr(sample_uri)
         if vr is None:
@@ -474,46 +723,53 @@ class VideoGroupDataset(Dataset):
                 fstp = max(1, int(video_fps // max(1, self.fps)))
     
         assert fstp is not None and fstp > 0
-        clip_len = int(fpc * fstp)          # raw-frame span per clip
         V = len(vr)                         # total raw frames
-    
-        # --- build K contiguous windows: [i*clip_len, (i+1)*clip_len) ---
+
+        # Unpack the anchor argument:
+        #   None -> default strided-from-0
+        #   int  -> anchor-centered with default frame_step
+        #   dict -> per-clip {'anchor_frame': int, 'frame_step': int | None}
+        anchor_val = None
+        per_clip_fstp = fstp
+        if isinstance(anchor_frame, dict):
+            anchor_val = anchor_frame.get("anchor_frame")
+            fs_override = anchor_frame.get("frame_step")
+            if fs_override is not None:
+                per_clip_fstp = int(fs_override)
+        elif anchor_frame is not None:
+            anchor_val = int(anchor_frame)
+
         per_clip_inds = []
+        per_clip_meta = []
         for i in range(k):
-            start = i * clip_len
-            end   = start + clip_len
-    
-            # ideal regular sampling at stride `fstp`
-            inds = np.arange(start, end, fstp, dtype=np.int64)  # length <= fpc
-    
-            # clamp to video range and pad if short
+            inds, meta = _compute_clip_indices(
+                num_frames=V if V > 0 else 1,
+                fpc=fpc,
+                frame_step=per_clip_fstp,
+                clip_idx=i,
+                num_clips=k,
+                anchor_frame=anchor_val,
+            )
+            # If V == 0 we already zeroed indices; keep them inside [0, V-1].
             if V > 0:
                 inds = np.clip(inds, 0, V - 1)
             else:
-                # empty video fallback -> all zeros
-                inds = np.zeros((fpc,), dtype=np.int64)
-    
-            if inds.shape[0] < fpc:
-                # pad by repeating last valid index
-                pad = np.full((fpc - inds.shape[0],), inds[-1] if inds.shape[0] > 0 else 0, dtype=np.int64)
-                inds = np.concatenate([inds, pad], axis=0)
-    
-            # defensively truncate (in case of off-by-one)
-            if inds.shape[0] > fpc:
-                inds = inds[:fpc]
-    
+                inds = np.zeros_like(inds)
             per_clip_inds.append(inds)
-    
-        # --- single batched fetch and split ---
+            per_clip_meta.append(meta)
+
         all_inds = np.concatenate(per_clip_inds, axis=0)
         frames_all = vr.get_batch(all_inds).asnumpy()  # [sum_k fpc, H, W, 3]
-    
+
         clips = []
         offset = 0
         for _ in range(k):
             clips.append(frames_all[offset:offset + fpc])
             offset += fpc
-    
+
+        # Surface per-clip metadata so the dataset can log / return it if
+        # it wants. Stored on the instance for the most recent call.
+        self._last_clip_meta = per_clip_meta
         return clips, per_clip_inds
 
 

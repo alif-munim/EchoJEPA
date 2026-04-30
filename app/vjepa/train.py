@@ -156,6 +156,13 @@ def main(args, resume_preempt=False):
     persistent_workers = cfgs_data.get("persistent_workers", True)
     # -- phi-JEPA per-clip phase metadata CSV
     phase_metadata_csv = cfgs_data.get("phase_metadata_csv", None)
+    # -- phase-aware MASKING config (independent from predictor conditioning).
+    cfgs_phase_mask = args.get("phase_mask", {}) or {}
+    phase_aware_masking = bool(cfgs_phase_mask.get("phase_aware", False))
+    if phase_aware_masking and not phase_metadata_csv:
+        raise ValueError(
+            "phase_mask.phase_aware=True requires data.phase_metadata_csv to be set"
+        )
     if phase_conditioned and not phase_metadata_csv:
         raise ValueError(
             "phase_conditioned=True requires data.phase_metadata_csv to be set"
@@ -191,7 +198,11 @@ def main(args, resume_preempt=False):
     ipe_scale = cfgs_opt.get("ipe_scale", 1.0)
     wd = float(cfgs_opt.get("weight_decay"))
     final_wd = float(cfgs_opt.get("final_weight_decay"))
-    num_epochs = cfgs_opt.get("epochs")
+    # Scheduler horizon decoupled from stop epoch (matches vjepa_multiview).
+    epochs_from_cfg = cfgs_opt.get("epochs")
+    scheduler_total_epochs = int(cfgs_opt.get("scheduler_total_epochs", epochs_from_cfg))
+    stop_after_epochs = int(cfgs_opt.get("stop_after_epochs", epochs_from_cfg))
+    num_epochs = scheduler_total_epochs  # drives init_opt / EMA schedule
     warmup = cfgs_opt.get("warmup")
     start_lr = cfgs_opt.get("start_lr")
     lr = cfgs_opt.get("lr")
@@ -248,6 +259,31 @@ def main(args, resume_preempt=False):
             ("%.6f", "phase_use_l2_diff"),
         )
 
+    # Mask-phi diagnostics (rank-0 only; one row per epoch). The CSV is written
+    # only when phase-aware masking is enabled; all other configs are untouched.
+    mask_diag_logger = None
+    if phase_aware_masking and rank == 0:
+        mask_diag_logger = CSVLogger(
+            os.path.join(folder, "mask_diag.csv"),
+            ("%d", "epoch"),
+            ("%d", "n_clips"),
+            ("%.4f", "valid_meta_frac"),
+            ("%.4f", "fallback_invalid_meta_frac"),
+            ("%.4f", "fallback_bucket_fail_frac"),
+            ("%.4f", "shuffled_hr_applied_frac"),
+            ("%d", "n_same_phase_skipped"),
+            ("%d", "bucket_local"),
+            ("%d", "bucket_mid_cycle"),
+            ("%d", "bucket_opposite_phase"),
+            ("%d", "bucket_same_phase_next_beat"),
+            ("%.4f", "dphi_mean"),
+            ("%.4f", "dphi_std"),
+            ("%.4f", "dphi_p05"),
+            ("%.4f", "dphi_p50"),
+            ("%.4f", "dphi_p95"),
+            ("%.4f", "cycle_tubelets_mean"),
+        )
+
     encoder, predictor = init_video_model(
         device=device,
         uniform_power=uniform_power,
@@ -286,12 +322,23 @@ def main(args, resume_preempt=False):
     else:
         logger.info("Skipping model compilation.")
 
+    # Phase-aware target masking is parsed above. When combined with predictor
+    # phase conditioning, the existing Δφ predictor path receives the
+    # phase-aware-chosen target positions naturally.
+    if phase_aware_masking and phase_conditioned and rank == 0:
+        logger.info(
+            "phi-JEPA: BOTH phase-aware masking and predictor phase-conditioning "
+            "are ENABLED (full Phase-JEPA). Δφ computed from chosen masks as usual."
+        )
+
     mask_collator = MaskCollator(
         cfgs_mask=cfgs_mask,
         dataset_fpcs=dataset_fpcs,
         crop_size=crop_size,
         patch_size=patch_size,
         tubelet_size=tubelet_size,
+        fps_sampled=fps,
+        phase_mask_cfg=cfgs_phase_mask,
     )
 
     transform = make_transforms(
@@ -544,7 +591,7 @@ def main(args, resume_preempt=False):
         gc.collect()
 
     try:
-        for epoch in range(start_epoch, num_epochs):
+        for epoch in range(start_epoch, stop_after_epochs):
             unsupervised_sampler.set_epoch(epoch)
             logger.info("Epoch %d" % (epoch + 1))
     
@@ -860,6 +907,52 @@ def main(args, resume_preempt=False):
                     "nan=%.3f corr=%.3f"
                     % (epoch + 1, dphi_mean, dphi_std, dphi_p95, nan_frac, corr)
                 )
+
+            # Mask-phi epoch-level diagnostics: summarize accumulated stats and
+            # reset so next epoch starts fresh.
+            if phase_aware_masking and rank == 0 and mask_diag_logger is not None:
+                s = mask_collator.stats.summarize()
+                n_clips = int(s.get("n_clips", 0))
+                n_valid = int(s.get("n_valid_meta", 0))
+                n_fb_meta = int(s.get("n_fallback_invalid_meta", 0))
+                n_fb_bkt = int(s.get("n_fallback_bucket_fail", 0))
+                n_shhr = int(s.get("n_shuffled_hr_applied", 0))
+                denom = max(1, n_clips)
+                mask_diag_logger.log(
+                    epoch + 1,
+                    n_clips,
+                    n_valid / denom,
+                    n_fb_meta / denom,
+                    n_fb_bkt / denom,
+                    n_shhr / denom,
+                    int(s.get("n_same_phase_skipped", 0)),
+                    int(s.get("bucket_local", 0)),
+                    int(s.get("bucket_mid_cycle", 0)),
+                    int(s.get("bucket_opposite_phase", 0)),
+                    int(s.get("bucket_same_phase_next_beat", 0)),
+                    s.get("dphi_mean", float("nan")),
+                    s.get("dphi_std", float("nan")),
+                    s.get("dphi_p05", float("nan")),
+                    s.get("dphi_p50", float("nan")),
+                    s.get("dphi_p95", float("nan")),
+                    s.get("cycle_tubelets_mean", float("nan")),
+                )
+                logger.info(
+                    "[mask_diag] epoch=%d clips=%d valid=%.3f fb_meta=%.3f "
+                    "fb_bkt=%.3f shhr=%.3f buckets L/M/O/N=%d/%d/%d/%d "
+                    "dphi_mean=%.3f cycle_T=%.2f"
+                    % (
+                        epoch + 1, n_clips, n_valid / denom, n_fb_meta / denom,
+                        n_fb_bkt / denom, n_shhr / denom,
+                        int(s.get("bucket_local", 0)),
+                        int(s.get("bucket_mid_cycle", 0)),
+                        int(s.get("bucket_opposite_phase", 0)),
+                        int(s.get("bucket_same_phase_next_beat", 0)),
+                        s.get("dphi_mean", float("nan")),
+                        s.get("cycle_tubelets_mean", float("nan")),
+                    )
+                )
+                mask_collator.stats.reset()
 
             _barrier()  # everyone reach end-of-epoch together
 
