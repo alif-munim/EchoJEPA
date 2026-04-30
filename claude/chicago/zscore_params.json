@@ -1,0 +1,17 @@
+{
+  "_note": "UHN training-set Z-score parameters for EchoJEPA regression probes. Raw labels must be in native units — the inference pipeline applies (label - target_mean) / target_std at runtime and un-normalizes predictions back to native units for evaluation metrics. Same values are used across all four encoder models (echojepa-g, echojepa-l-k, echoprime, panecho) for a given task.",
+  "_usage": "See zscore_params.md Sections 3-4. Add these to experiment.data in each regression YAML, or drop a task-specific zscore_params.json next to each CSV.",
+  "tasks": {
+    "lvef":           {"target_mean": 57.9137039185,  "target_std": 10.9787607193, "unit": "%"},
+    "edv":            {"target_mean": 110.5755615234, "target_std": 45.6866912842, "unit": "mL"},
+    "esv":            {"target_mean": 48.9779205322,  "target_std": 33.8625030518, "unit": "mL"},
+    "cardiac_output": {"target_mean": 4.8316020966,   "target_std": 1.6277904510,  "unit": "L/min"},
+    "tapse":          {"target_mean": 1.9553818703,   "target_std": 0.4970227480,  "unit": "cm"},
+    "rvsp":           {"target_mean": 35.0985984802,  "target_std": 13.9064950943, "unit": "mmHg"},
+    "rv_fac":         {"target_mean": 37.0955810547,  "target_std": 10.2812814713, "unit": "%"},
+    "rv_sp":          {"target_mean": 0.1156020537,   "target_std": 0.0314756520,  "unit": "m/s"},
+    "aov_mean_grad":  {"target_mean": 11.3073425293,  "target_std": 12.5528430939, "unit": "mmHg"},
+    "aov_vmax":       {"target_mean": 1.5986993313,   "target_std": 0.7661124468,  "unit": "m/s"},
+    "mv_ee_medial":   {"target_mean": 11.4293422699,  "target_std": 5.2504682541,  "unit": "ratio"}
+  }
+}
