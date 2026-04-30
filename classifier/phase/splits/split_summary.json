@@ -1,0 +1,40 @@
+{
+  "n_rows_unassigned": 0,
+  "per_split": {
+    "train": {
+      "n_subjects": 3685,
+      "n_studies": 5650,
+      "n_clips": 97251,
+      "n_studies_multi_clip": 5420,
+      "median_clips_per_study": 16.0,
+      "p90_clips_per_study": 33.0
+    },
+    "val": {
+      "n_subjects": 217,
+      "n_studies": 332,
+      "n_clips": 6152,
+      "n_studies_multi_clip": 324,
+      "median_clips_per_study": 18.0,
+      "p90_clips_per_study": 35.0
+    },
+    "test": {
+      "n_subjects": 434,
+      "n_studies": 670,
+      "n_clips": 11860,
+      "n_studies_multi_clip": 644,
+      "median_clips_per_study": 16.0,
+      "p90_clips_per_study": 33.0
+    }
+  },
+  "parquet": "phase_annotations/phase_annotations.parquet",
+  "quality_tiers": [
+    "high"
+  ],
+  "rr_filter_mode": "strict",
+  "seed": 0,
+  "val_frac": 0.05,
+  "test_frac": 0.1,
+  "n_rows_in_parquet": 525422,
+  "n_rows_eligible": 115263,
+  "n_subjects_total": 4336
+}

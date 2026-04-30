@@ -1,0 +1,34 @@
+### Run tag=hr025  hr_extrap_cycles=0.25
+clips usable: 59   within_study studies: 14   within_pairs tested: 21   anchor records: 160
+
+sim_phase_within (pooled):  median=+0.781  IQR=[+0.708, +0.864]  frac>0=100%  n=160
+sim_random_within (pooled): median=+0.780  IQR=[+0.707, +0.865]  frac>0=100%  n=160
+sim_phase_cross (pooled):   median=+0.698  IQR=[+0.653, +0.763]  frac>0=100%  n=160
+
+Δ_within (pooled):        median=+0.000  IQR=[-0.006, +0.006]  frac>0=47%  n=160
+Δ_specificity (pooled):   median=+0.054  IQR=[+0.012, +0.130]  frac>0=76%  n=160
+Wilcoxon Δ_within > 0:       p = 3.85e-01
+Wilcoxon Δ_specificity > 0:  p = 1.04e-11
+
+Stratified by regime_within (pair regime = less precise of the two anchors):
+  regime distribution: {'hr_extrap': 113, 'permissive': 39, 'strict': 8}
+  [strict] n=8 anchors, 4 pairs
+     Δ_within:      median=+0.004  IQR=[-0.002, +0.006]  frac>0=62%  n=8
+     Δ_specificity: median=+0.031  IQR=[-0.010, +0.129]  frac>0=62%  n=8
+  [permissive] n=39 anchors, 6 pairs
+     Δ_within:      median=-0.003  IQR=[-0.007, +0.003]  frac>0=41%  n=39
+     Δ_specificity: median=+0.042  IQR=[-0.005, +0.064]  frac>0=72%  n=39
+  [hr_extrap] n=113 anchors, 16 pairs
+     Δ_within:      median=+0.000  IQR=[-0.006, +0.008]  frac>0=48%  n=113
+     Δ_specificity: median=+0.064  IQR=[+0.024, +0.147]  frac>0=79%  n=113
+
+Δ_within by anchor phase bucket (strict-only, highest precision):
+  phase [0.0,0.2):  n=4  median Δ=+0.006  frac>0=75%
+  phase [0.2,0.4):  n=2  median Δ=+0.002  frac>0=50%
+  phase [0.4,0.6):  n=2  median Δ=-0.005  frac>0=50%
+
+Anchor clip R-peak provenance (counts are per anchor clip):
+  in-video R-peaks per anchor: median=1  IQR=[1, 2]  max=3
+  pre-video R-peaks per anchor: median=2  IQR=[1, 3]  max=3
+
+Decision (pooled): WEAK — Δ_within too small. Encoder not phase-sensitive, or substrate not predictive.

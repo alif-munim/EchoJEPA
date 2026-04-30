@@ -1,0 +1,17 @@
+sim_phase_within: n=240  mean=+0.786  median=+0.778  IQR=[+0.725, +0.858]  frac>0=100%
+sim_random_within: n=240  mean=+0.785  median=+0.776  IQR=[+0.725, +0.863]  frac>0=100%
+sim_phase_cross: n=240  mean=+0.698  median=+0.692  IQR=[+0.650, +0.743]  frac>0=100%
+
+delta_within (phase - random): n=240  mean=+0.001  median=+0.000  IQR=[-0.007, +0.009]  frac>0=48%
+delta_specificity (within - cross): n=240  mean=+0.089  median=+0.073  IQR=[+0.017, +0.145]  frac>0=80%
+Wilcoxon delta_within > 0:       p = 2.50e-01
+Wilcoxon delta_specificity > 0:  p = 3.34e-23
+
+Per phase bucket (delta_within):
+  phase [0.0,0.2): n= 65  median delta_within=+0.000  frac>0=51%
+  phase [0.2,0.4): n= 47  median delta_within=+0.001  frac>0=53%
+  phase [0.4,0.6): n= 35  median delta_within=-0.001  frac>0=46%
+  phase [0.6,0.8): n= 46  median delta_within=-0.001  frac>0=39%
+  phase [0.8,1.0): n= 47  median delta_within=+0.001  frac>0=51%
+
+Decision: WEAK — delta_within too small. Encoder not sensitive to phase, or phase alignment not predictive of frame similarity.

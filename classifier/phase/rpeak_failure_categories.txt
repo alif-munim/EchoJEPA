@@ -1,0 +1,11 @@
+R-peak failure categories (processed NPZs, neurokit2-only baseline)
+Clips analysed: 488
+Within ±25% (passing): 185
+Failing: 303
+
+other_under                165
+short_clip                 95
+polarity_flip              26
+baseline_wander            6
+saturation_clipping        6
+t_wave_double              5

@@ -1,0 +1,27 @@
+{
+  "_notes": "Per-scanner default ECG-strip sampling rate (Hz) for the burned-in ECG overlay on 2D cines and stills. Derived from Phase 3 empirical HR-match back-solve across 142 MIMIC clips with 3+ detected R-waves and a displayed HR: SR_true = 288 * displayed_HR / detected_HR(at 288 Hz), taken as the scanner-wise median. NOT the same as spectral-Doppler PhysicalDeltaX — GE Vivids render spectral and ECG strips with different time-per-pixel. A secondary ~107 Hz slow-sweep mode exists (~10% of clips) that can't be distinguished from metadata alone; clips on that mode produce ~2x HR error and get flagged as hr_mismatch.",
+
+  "GE Vingmed Ultrasound|Vivid E95": {
+    "sampling_rate_hz": 213.0,
+    "n_supporting": 94,
+    "notes": "Empirical median from HR back-solve. Strip duration ~4.77 s at 1016 px width."
+  },
+  "GE Healthcare Ultrasound|Vivid S70": {
+    "sampling_rate_hz": 196.0,
+    "n_supporting": 43,
+    "notes": "Empirical median from HR back-solve. Strip duration ~5.18 s at 1016 px width."
+  },
+  "GE Vingmed Ultrasound|Vivid E90": {
+    "sampling_rate_hz": 213.0,
+    "n_supporting": 5,
+    "notes": "Small sample (n=5); using E95 default."
+  },
+  "GE Vingmed Ultrasound|*": {
+    "sampling_rate_hz": 213.0,
+    "notes": "Wildcard fallback for unknown GE Vingmed models."
+  },
+  "GE Healthcare Ultrasound|*": {
+    "sampling_rate_hz": 196.0,
+    "notes": "Wildcard fallback for unknown GE Healthcare models."
+  }
+}
