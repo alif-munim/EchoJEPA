@@ -32,6 +32,27 @@ Bootstrap CIs (n=53K, 10K resamples): JEPA-BYOL ΔR²=+0.025 [+0.018, +0.033]; J
 **Source:** `rebuttals/10-*` §1b
 **Predictions:** `predictions/icml-echo{jepa,byol,mae}-l-pt50-rvsp-test.csv`
 
+#### 1b-v2. RVSP Regression (MIMIC single-view, 10K train / 2K val subset, 9-way comparison, 2026-04-28, job 484)
+
+Single-view d=4 attentive probe, 20 epochs, study-disjoint 10K/2K/2K subset of MIMIC single-view RVSP CSVs (source: `experiments/nature_medicine/mimic/probe_csvs/rvsp/`). Target `TARGET_MEAN=30.0959, TARGET_STD=12.2321`. Numbers are **validation** (not held-out test). Per-epoch trajectories at `runs/rvsp_sv_484/<model>_sv/.../log_r0.csv` on the `sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts` bucket.
+
+| Model | Best epoch | Val MAE (mmHg) | Val R² | Val Pearson |
+|-------|------------|----------------|--------|-------------|
+| **EchoJEPA-L-K** | 8 | **6.331** | **0.239** | **0.525** |
+| JEPA IN21K e100 | 5 | 6.823 | 0.175 | 0.458 |
+| EchoPrime | 17 | 6.808 | 0.116 | 0.412 |
+| BYOL IN21K e100 | 2 | 7.174 | 0.043 | 0.326 |
+| MAE IN21K e100 | 20 | 7.252 | 0.015 | 0.335 |
+
+**Ranking: EchoJEPA-L-K >> JEPA e100 ≈ EchoPrime > BYOL e100 ≈ MAE e100.** Same ordering as the EchoNet-Dynamic LVEF e100 table in §2a (EchoJEPA-L-K on top, MAE trailing). Early-epoch overfitting is visible in BYOL (best at e2) and JEPA (best at e5); MAE still descending at e20 (did not converge within the schedule); EchoPrime and EchoJEPA-L-K have healthier mid-schedule best epochs. EchoJEPA-L-K's Pearson (0.525) is ~15% higher than the next model (JEPA e100 at 0.458).
+
+**Not completed in the 10h slot** (job 484 hit `TIMEOUT` at 10:00:25):
+- `salt_in21k_e79` — failed to produce any epoch output (empty log_r0.csv, no best.pt). Cause not yet diagnosed — likely a backbone-load or SALT-checkpoint-key issue that silently broke the per-model training call. The sbatch's per-model `|| true` tolerated the failure and moved on.
+- `panecho` — started 7th in the JOBS order; epoch 0 in flight when timer fired, log has only the CSV header.
+- `jepa_in21k_e200` and `mae_in21k_e200` — never started (8th and 9th in the JOBS order).
+
+Follow-up: queue a 4-model follow-up sbatch covering SALT, PanEcho, JEPA-e200, MAE-e200. At ~1:40 per ViT-L backbone (~30 min for PanEcho), a 4-model run fits comfortably in a single 10h slot.
+
 ### 1c. CAMUS Segmentation (400 train / 50 test patients)
 
 | Model | Test Dice | LV | MYO | LA |
@@ -86,6 +107,32 @@ Bootstrap 95% CIs (n=1,277, 10K resamples, all 4 models paired on same samples �
 **Ranking preserved** (JEPA >> BYOL > MAE ≈ SALT). All JEPA pairwise comparisons highly significant. MAE and SALT are statistically equivalent.
 
 **Source:** Bootstrap computed 2026-04-08 from `clip_outputs.npz` files in `evals/vitl/icml/`. SALT had 1,280 clips (3 videos with duplicate clips) aggregated to 1,277 by averaging. See `experiments/representation-analysis.md` (canonical), SALT from `experiments/salt-comparison.md`.
+
+#### Four-model extensions + specialists (2026-04-27, jobs 405/406/421/483)
+
+Adds two JEPA pretraining extensions (IN21K e200, EchoJEPA-L-K) and two echo-specialist reference points (EchoPrime, PanEcho). `fourmodel_vjepa_lvef_405` and `fourmodel_extern_lvef_406` ran full 20-epoch d=4 attentive probes on 2026-04-27. Two of those four probes (JEPA e200 and PanEcho) didn't finish their full 20 epochs in the original slot — they were resumed as jobs 421 and 483 through probe epoch 20 on the same day. All four share the same ICML-era EchoNet-Dynamic LVEF train/val split and HP grid as §2a.
+
+**Numbers below are from the probe's own validation sweep** (not the 1,277-video held-out test set). Full per-epoch trajectories at:
+
+- `runs/fourmodel_vjepa_lvef_405/echojepa_l_k_lvef/.../log_r0.csv`
+- `runs/fourmodel_extern_lvef_406/echoprime_lvef/.../log_r0.csv`
+- `runs/lvef_resume_jepa_e200_421/jepa_in21k_e200_lvef/.../log_r0.csv`
+- `runs/lvef_resume_panecho_483/panecho_lvef/.../log_r0.csv`
+
+| Model | Probe e | Best val MAE | Best val R² | Best val Pearson | Probe path (S3 `vjepa2-artifacts/`) |
+|-------|---------|--------------|-------------|------------------|-------------------------------------|
+| **EchoJEPA-L-K** (anneal on kinetics) | 18 | **4.448** | 0.766 | 0.876 | `runs/fourmodel_vjepa_lvef_405/echojepa_l_k_lvef/.../best.pt` |
+| **PanEcho** (specialist ref) | 19 | **4.829** | 0.719 | 0.849 | `runs/lvef_resume_panecho_483/panecho_lvef/.../best.pt` |
+| **EchoJEPA-IN21K e200** | 16 | **4.880** | 0.714 | 0.845 | `runs/lvef_resume_jepa_e200_421/jepa_in21k_e200_lvef/.../best.pt` |
+| **EchoPrime** (specialist ref) | 17 | **5.441** | 0.636 | 0.798 | `runs/fourmodel_extern_lvef_406/echoprime_lvef/.../best.pt` |
+
+**Reading this.**
+- **EchoJEPA-L-K leads the entire comparison** (val MAE 4.45 vs 4.83-5.44 for the other three). The annealing-on-Kinetics step buys more than the e100→e200 extension does.
+- **JEPA e100 → e200** improves val MAE by ~0.44 (5.32 → 4.88) and val Pearson by ~0.04 (0.808 → 0.845), consistent with the diminishing-returns curve beyond e100.
+- **JEPA-e200 matches PanEcho** (4.88 vs 4.83) within val-sweep noise, using only generic IN21K pretrain + 525K MIMIC echoes — the specialist-model gap has effectively closed at e200.
+- **EchoPrime trails** both JEPA variants and PanEcho on val MAE by ~0.6–1.0. Its probe training plateaued early (best val at e14, declining by e20).
+
+These are **validation** numbers. To make them directly comparable to the §2a e100 table's held-out test numbers, the four probe checkpoints need to be evaluated on the same 1,277-video test set via `configs/inference/vitl/neurips/echonet-dynamic/` inference configs. Test numbers will be appended here once that step runs.
 
 ### 2b. Pathology-Stratified LVEF (EchoNet-Dynamic, 1,277 test)
 

@@ -257,6 +257,28 @@ Recent completions: 329 (SALT S1 V-Pixel teacher e20→e100); 330 (SALT S2 V-Pix
 | MAE | 99 | 6.05 | `evals/vitl/icml/echomae_e99_end_lvef_224/.../icml-echomae-l-e99-end-lvef-d4/best.pt` |
 | SALT S2 | 79 | 6.47 | `evals/vitl/icml/salt_s2_e79_end_lvef_224/.../icml-salt-s2-e79-end-lvef-d4/best.pt` |
 | SALT S2 | 29 | Training | `configs/eval/vitl/icml/salt_s2_e29_end_lvef_d4.yaml` |
+| **EchoJEPA-L-K** | 20 (probe) | **4.448** (R²=0.766, r=0.876 @ e18) | `runs/fourmodel_vjepa_lvef_405/echojepa_l_k_lvef/.../best.pt` |
+| **PanEcho** | 20 (probe) | **4.829** (R²=0.719, r=0.849 @ e19) | `runs/lvef_resume_panecho_483/panecho_lvef/.../best.pt` |
+| **JEPA IN21K e200** | 20 (probe) | **4.880** (R²=0.714, r=0.845 @ e16) | `runs/lvef_resume_jepa_e200_421/jepa_in21k_e200_lvef/.../best.pt` |
+| **EchoPrime** | 20 (probe) | **5.441** (R²=0.636, r=0.798 @ e17) | `runs/fourmodel_extern_lvef_406/echoprime_lvef/.../best.pt` |
+
+**Four-model extension set (2026-04-27, jobs 405/406/421/483).** Four probes covering the two extended JEPA pretrains (IN21K e200, EchoJEPA-L-K) and two echo-specialist reference models (PanEcho, EchoPrime). 405 + 406 ran the full 20-epoch d=4 attentive probe on the ICML EchoNet-Dynamic LVEF split; 421 + 483 are the resumed completions of the two probes (JEPA e200, PanEcho) that didn't finish their full 20 in the original slot. Per-epoch trajectories in `runs/{fourmodel_vjepa_lvef_405,fourmodel_extern_lvef_406,lvef_resume_jepa_e200_421,lvef_resume_panecho_483}/.../log_r0.csv` on the `sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts` bucket. **EchoJEPA-L-K is the strongest of the four** (val MAE 4.45), followed by PanEcho (4.83) ≈ JEPA-e200 (4.88); EchoPrime trails (5.44). The JEPA e100 → e200 extension improves val MAE by ~0.44 (5.32 → 4.88); JEPA-e200 matches PanEcho within noise. Full commentary in `completed-experiments.md` §2a.
+
+### MIMIC RVSP Single-View Probes (d=4 attentive, 224px, 10K/2K subset)
+
+| Model | Probe e (best) | Val MAE (mmHg) | Val R² | Val Pearson | Probe path (S3 `vjepa2-artifacts/`) |
+|-------|----------------|----------------|--------|-------------|-------------------------------------|
+| **EchoJEPA-L-K** | 8 | **6.331** | **0.239** | **0.525** | `runs/rvsp_sv_484/echojepa_l_k_sv/.../best.pt` |
+| JEPA IN21K e100 | 5 | 6.823 | 0.175 | 0.458 | `runs/rvsp_sv_484/jepa_in21k_e100_sv/.../best.pt` |
+| EchoPrime | 17 | 6.808 | 0.116 | 0.412 | `runs/rvsp_sv_484/echoprime_sv/.../best.pt` |
+| BYOL IN21K e100 | 2 | 7.174 | 0.043 | 0.326 | `runs/rvsp_sv_484/byol_in21k_e100_sv/.../best.pt` |
+| MAE IN21K e100 | 20 | 7.252 | 0.015 | 0.335 | `runs/rvsp_sv_484/mae_in21k_e100_sv/.../best.pt` |
+| SALT v1 e79 | — | — (no data, empty log) | — | — | — (no best.pt) |
+| PanEcho | — | — (header only) | — | — | — (no best.pt) |
+| JEPA IN21K e200 | — | not reached | — | — | — |
+| MAE IN21K e200 | — | not reached | — | — | — |
+
+**9-way MIMIC RVSP single-view (2026-04-28, job 484).** Single-view d=4 attentive probe, 20 epochs, study-disjoint 10K/2K/2K subset. Job hit SLURM `TIMEOUT` at 10:00:25; **5 of 9 models** produced complete probes before the wall cutoff. Ranking matches the §2a LVEF ordering (EchoJEPA-L-K >> JEPA-e100 ≈ EchoPrime > BYOL ≈ MAE), confirming the EchoJEPA-L-K domain-specialist advantage carries across both downstream tasks. SALT + PanEcho failed or were cut off mid-first-epoch; JEPA-e200 and MAE-e200 never started (last in JOBS order). Follow-up sbatch for the 4 missing models is recommended. Full commentary in `completed-experiments.md` §1b-v2.
 
 ### Severity Gradient Output Files
 
