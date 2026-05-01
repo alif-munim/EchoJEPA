@@ -38,6 +38,10 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 from phase_matched_sampler import MatchRecord, PhaseMatchedStudySampler  # noqa: E402
 
+# Token consumed by ``VideoGroupDataset`` to mark missing views; matches
+# the constant defined in ``src/datasets/video_group_dataset.py``.
+MISSING_TOKEN = "MISS"
+
 
 def _rewrite_s3_uri_dicom_to_mp4(
     uri: str,
@@ -93,19 +97,32 @@ def _records_to_pair_dataframe(
             return uri
         return _rewrite_s3_uri_dicom_to_mp4(uri, raw_bucket_prefix, mp4_bucket_prefix)
 
+    # Detect whether any record carries a hard negative; if so, the emitted
+    # DataFrame gains `view_2` + clip_b_neg_* metadata columns (same length
+    # for every row; None/NaN when a particular record happens to lack one).
+    any_hard_neg = any(r.clip_b_neg_phase is not None for r in records)
+
     rows = []
     for r in records:
         src_a = underlying_df.loc[r.clip_a.row_idx]
         src_b = underlying_df.loc[r.clip_b.row_idx]
         v0 = _wire(src_a.s3_uri)
         v1 = _wire(src_b.s3_uri)
+        v2 = None
+        src_neg = None
+        if r.clip_b_neg_phase is not None:
+            src_neg = underlying_df.loc[r.clip_b_neg_phase.row_idx]
+            v2 = _wire(src_neg.s3_uri)
         if video_uri_mode == "mp4":
             # Fail loudly if the rewrite didn't land on an .mp4 URI.
-            for tag, v in (("view_0", v0), ("view_1", v1)):
+            pairs_to_check = [("view_0", v0, src_a), ("view_1", v1, src_b)]
+            if v2 is not None:
+                pairs_to_check.append(("view_2", v2, src_neg))
+            for tag, v, src in pairs_to_check:
                 if not (isinstance(v, str) and v.endswith(".mp4")):
                     raise ValueError(
                         f"video_uri_mode='mp4' but {tag} did not end in .mp4: {v!r} "
-                        f"(source uri={src_a.s3_uri if tag=='view_0' else src_b.s3_uri!r}, "
+                        f"(source uri={src.s3_uri!r}, "
                         f"raw_prefix={raw_bucket_prefix!r})"
                     )
         row = {
@@ -151,6 +168,56 @@ def _records_to_pair_dataframe(
             "acquisition_datetime_a": r.acquisition_datetime_a,
             "acquisition_datetime_b": r.acquisition_datetime_b,
         }
+        # Optional: hard-negative triple-clip columns. Emitted on every row
+        # (as NaN/empty when the specific record lacks a hard negative) when
+        # ANY record in this batch carries one, so the pair DataFrame has
+        # homogeneous schema for default_collate.
+        if any_hard_neg:
+            row["view_2"] = v2 if v2 is not None else MISSING_TOKEN
+            if r.clip_b_neg_phase is not None:
+                neg = r.clip_b_neg_phase
+                row["clip_b_neg_dicom_id"] = neg.dicom_id
+                row["clip_b_neg_row_idx"] = neg.row_idx
+                row["clip_b_neg_n_frames"] = neg.n_frames
+                row["clip_b_neg_anchor_frame"] = neg.anchor_frame
+                row["clip_b_neg_phase_at_anchor"] = neg.phase_at_anchor
+                row["clip_b_neg_phase_error"] = neg.phase_error
+                row["clip_b_neg_view"] = neg.view if neg.view is not None else ""
+                row["clip_b_neg_hr_metadata"] = neg.hr_metadata
+                row["clip_b_neg_fps_video"] = neg.fps_video
+                row["clip_b_neg_quality_tier"] = (
+                    neg.quality_tier if neg.quality_tier is not None else ""
+                )
+            else:
+                # Placeholder NaN/empty for this row; the record lacks a hard neg
+                # but the DataFrame schema must match.
+                row["clip_b_neg_dicom_id"] = ""
+                row["clip_b_neg_row_idx"] = -1
+                row["clip_b_neg_n_frames"] = 0
+                row["clip_b_neg_anchor_frame"] = 0
+                row["clip_b_neg_phase_at_anchor"] = float("nan")
+                row["clip_b_neg_phase_error"] = float("nan")
+                row["clip_b_neg_view"] = ""
+                row["clip_b_neg_hr_metadata"] = float("nan")
+                row["clip_b_neg_fps_video"] = float("nan")
+                row["clip_b_neg_quality_tier"] = ""
+            row["target_phi_b_neg"] = (
+                float(r.target_phi_b_neg) if r.target_phi_b_neg is not None else float("nan")
+            )
+            row["delta_phase_bucket_pos"] = (
+                int(r.delta_phase_bucket_pos) if r.delta_phase_bucket_pos is not None else -1
+            )
+            row["delta_phase_bucket_neg"] = (
+                int(r.delta_phase_bucket_neg) if r.delta_phase_bucket_neg is not None else -1
+            )
+            row["view_pair_class_pos"] = (
+                r.view_pair_class_pos if r.view_pair_class_pos is not None else ""
+            )
+            row["view_pair_class_neg"] = (
+                r.view_pair_class_neg if r.view_pair_class_neg is not None else ""
+            )
+            row["hard_neg_available"] = int(bool(r.hard_neg_available))
+            row["hard_neg_resample_count"] = int(r.hard_neg_resample_count)
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -158,17 +225,33 @@ def _records_to_pair_dataframe(
 def _records_to_anchor_table(
     records: list[MatchRecord],
 ) -> dict[int, list]:
-    """Return ``{pair_row_idx: [{anchor_frame, frame_step}, {...}]}``.
+    """Return ``{pair_row_idx: [{anchor_frame, frame_step}, ...]}``.
 
-    The two per-row entries correspond to view_0 (clip_a) and view_1
-    (clip_b) respectively, matching ``set_pair_dataframe`` column order.
+    Per-row entries correspond to view_0 (clip_a), view_1 (clip_b_pos),
+    and (if present) view_2 (clip_b_neg_phase), matching the column
+    order emitted by ``_records_to_pair_dataframe``.
     """
     table: dict[int, list] = {}
+    any_hard_neg = any(r.clip_b_neg_phase is not None for r in records)
     for i, r in enumerate(records):
-        table[int(i)] = [
+        entries = [
             {"anchor_frame": int(r.clip_a.anchor_frame), "frame_step": int(r.frame_step)},
             {"anchor_frame": int(r.clip_b.anchor_frame), "frame_step": int(r.frame_step)},
         ]
+        if any_hard_neg:
+            if r.clip_b_neg_phase is not None:
+                entries.append(
+                    {
+                        "anchor_frame": int(r.clip_b_neg_phase.anchor_frame),
+                        "frame_step": int(r.frame_step),
+                    }
+                )
+            else:
+                # Placeholder — the row's view_2 is MISSING_TOKEN, so the
+                # dataset path will substitute a dummy clip; anchor has no
+                # effect but we still supply one for shape consistency.
+                entries.append({"anchor_frame": 0, "frame_step": int(r.frame_step)})
+        table[int(i)] = entries
     return table
 
 

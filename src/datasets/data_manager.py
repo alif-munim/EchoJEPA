@@ -207,6 +207,26 @@ def init_data(
             view_pair_policy=cfg.get("view_pair_policy"),
             require_span_fits=bool(cfg.get("require_span_fits", False)),
             min_frames=cfg.get("min_frames"),
+            # --- phase_relational triple-clip extensions (optional; all
+            #     default to behavior that matches the existing smooth_l1
+            #     pair path when unset). ---
+            delta_phase_mode=cfg.get("delta_phase_mode", "same_phase"),
+            delta_phase_buckets=cfg.get("delta_phase_buckets"),
+            delta_phase_bucket_probs=cfg.get("delta_phase_bucket_probs"),
+            require_same_study_wrong_phase_negative=bool(
+                cfg.get("rel_require_same_study_wrong_phase_negative", False)
+            ),
+            wrong_phase_min_delta=float(cfg.get("rel_wrong_phase_min_delta", 0.25)),
+            wrong_phase_strategy=cfg.get(
+                "rel_wrong_phase_strategy", "same_view_then_same_family"
+            ),
+            allow_missing_hard_negative=bool(
+                cfg.get("rel_allow_missing_hard_negative", False)
+            ),
+            hard_negative_fallback=cfg.get(
+                "rel_hard_negative_fallback", "resample_anchor"
+            ),
+            max_hard_neg_attempts=int(cfg.get("rel_max_hard_neg_attempts", 16)),
         )
         # Guardrail: phase-matched pilot requires frame_step == 1 unless
         # the caller explicitly allows larger strides.

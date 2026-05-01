@@ -5,6 +5,7 @@ results/
 outputs/
 output/
 logs/
+claude/drafts/
 *azcopy*
 
 *.parquet
@@ -85,6 +86,16 @@ classifier/*.png
 classifier/convnext_training_old.py
 classifier/split_summary.txt
 classifier/split_summary.txt
+
+# Phase classifier diagnostic/sample outputs (too large for git)
+classifier/phase/*.gif
+classifier/phase/*.png
+classifier/phase/examples/
+classifier/phase/gif/
+classifier/phase/lastframe/
+
+# Claude session state
+.claude/
 
 refs/
 assets/reza/

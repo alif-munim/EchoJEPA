@@ -60,17 +60,24 @@ class PairBatch:
 
     All tensors are already on-device. ``masks_enc`` and ``masks_pred``
     are lists-of-lists matching V-JEPA conventions (outer = fpc index,
-    inner = mask-generator index), shared between clip_a and clip_b.
+    inner = mask-generator index), shared across all clips in the batch.
     ``phase_metadata`` is a list of per-sample dicts carrying
     ``anchor_frame_a``, ``target_phi_a``, etc., for logging only — not
     consumed by the loss.
+
+    For group_size=3 (phase_relational + intraview_only), ``clip_b`` is the
+    POSITIVE target (= clip_b_pos), and ``clip_b_neg`` is populated with
+    the same-study wrong-phase hard negative. For group_size=2
+    (smooth_l1), ``clip_b_neg`` is ``None`` and the existing code paths
+    are byte-identical.
     """
 
     clip_a: list[torch.Tensor]          # list over fpc, each [B, C, T, H, W]
-    clip_b: list[torch.Tensor]          # same
+    clip_b: list[torch.Tensor]          # clip_b_pos in 3-clip mode; unchanged in smooth_l1
     masks_enc: list[list[torch.Tensor]]  # [fpc][mask_i] -> [B, N_ctx]
     masks_pred: list[list[torch.Tensor]]  # [fpc][mask_i] -> [B, N_tgt]
     phase_metadata: list[dict[str, Any]]
+    clip_b_neg: Optional[list[torch.Tensor]] = None   # list over fpc; None in smooth_l1
 
 
 def build_clip_pair_tensors(
@@ -99,6 +106,55 @@ def build_clip_pair_tensors(
     # downstream code (masks/encoder) can stay unchanged.
     return ([clip_a.to(device, non_blocking=True)],
             [clip_b.to(device, non_blocking=True)])
+
+
+def _extract_multiview_clips(
+    collated_batch: tuple,
+    device: torch.device,
+    objective: str,
+) -> tuple[list[torch.Tensor], list[torch.Tensor], Optional[list[torch.Tensor]]]:
+    """Objective-aware clip extraction.
+
+    Returns ``(clip_a, clip_b, clip_b_neg)`` where each element is a
+    list-over-fpc of ``[B, C, T, H, W]`` tensors on ``device``.
+
+    - ``smooth_l1``:       expects segs of length 2; clip_b_neg is None.
+    - ``intraview_only``:  expects segs of length 3; clip_b and
+                           clip_b_neg are loaded/validated but the
+                           training loop ignores them in the loss.
+    - ``phase_relational``: expects segs of length 3; all three clips
+                           reach the loss.
+
+    Fails loudly on shape mismatch so sampler/dataset misconfig surfaces
+    immediately rather than producing a silently-wrong loss.
+    """
+    segs = collated_batch[0]
+    if not isinstance(segs, (list, tuple)):
+        raise ValueError(
+            f"multi-view collator expected segs list/tuple, got {type(segs).__name__}"
+        )
+    if objective == "smooth_l1":
+        if len(segs) < 2:
+            raise ValueError(
+                f"multiview_objective='smooth_l1' expects segs len >= 2; got {len(segs)}"
+            )
+        clip_a = [segs[0].to(device, non_blocking=True)]
+        clip_b = [segs[1].to(device, non_blocking=True)]
+        return clip_a, clip_b, None
+    if objective in ("intraview_only", "phase_relational"):
+        if len(segs) != 3:
+            raise ValueError(
+                f"multiview_objective={objective!r} expects segs of length 3 "
+                f"(clip_a, clip_b_pos, clip_b_neg); got {len(segs)}"
+            )
+        clip_a = [segs[0].to(device, non_blocking=True)]
+        clip_b = [segs[1].to(device, non_blocking=True)]
+        clip_b_neg = [segs[2].to(device, non_blocking=True)]
+        return clip_a, clip_b, clip_b_neg
+    raise ValueError(
+        f"unknown multiview_objective={objective!r}; "
+        f"want one of smooth_l1 | intraview_only | phase_relational"
+    )
 
 
 def extract_pair_metadata(collated_batch: tuple) -> list[dict]:
@@ -405,6 +461,327 @@ def forward_intraview_and_crossview(
 
 
 # --------------------------------------------------------------------------- #
+# Intraview-only + phase-relational forward paths (group_size=3)
+# --------------------------------------------------------------------------- #
+
+def forward_intraview_only(
+    pair: PairBatch,
+    encoder: torch.nn.Module,
+    target_encoder: torch.nn.Module,
+    predictor: torch.nn.Module,
+    *,
+    loss_exp: float = 1.0,
+) -> dict:
+    """Standard V-JEPA intraview loss on clip_a only.
+
+    ``pair.clip_b`` and ``pair.clip_b_neg`` are loaded for sampler
+    eligibility parity with the phase_relational run but do not enter
+    the loss. Byte-identical gradient path to single-view V-JEPA on
+    clip_a.
+    """
+    with torch.no_grad():
+        h_a = target_encoder(pair.clip_a)
+        h_a = [F.layer_norm(hi, (hi.size(-1),)) for hi in h_a]
+
+    z = encoder(pair.clip_a, pair.masks_enc)
+    z = predictor(z, pair.masks_enc, pair.masks_pred, delta_phi=None)
+    intraview = _jepa_loss_fn(z, h_a, pair.masks_pred, loss_exp=loss_exp)
+    total = intraview + torch.zeros((), device=intraview.device)
+    return {
+        "intraview_loss": intraview,
+        "crossview_loss": torch.zeros((), device=intraview.device),
+        "total_loss": total,
+        "multiview_objective": "intraview_only",
+    }
+
+
+def _build_predictor_inputs(
+    meta_list: list[dict],
+    device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Build the *exact* four tensors the relational branch consumes.
+
+    Returns ``(view_a_ids, view_b_pos_ids, delta_phase_pos, study_hashes)``.
+    Nothing else. The head's ``.query`` signature accepts only the first
+    three; ``study_hashes`` goes to the InfoNCE same-study masker, not
+    the predictor.
+
+    Hard-capped arity — a smoke test asserts the return tuple has
+    exactly four elements, so future callers can't sneak HR / quality /
+    phase_error / view_b_neg / absolute phase / study_id strings into
+    the head.
+    """
+    from app.vjepa_multiview.phase_relational_head import view_to_id
+
+    B = len(meta_list)
+
+    def _phase_val(m, k):
+        v = m.get(k)
+        if v is None or (isinstance(v, float) and v != v):
+            return 0.0
+        return float(v)
+
+    view_a_ids = torch.tensor(
+        [view_to_id(m.get("clip_a_view")) for m in meta_list],
+        device=device, dtype=torch.long,
+    )
+    view_b_pos_ids = torch.tensor(
+        [view_to_id(m.get("clip_b_view")) for m in meta_list],
+        device=device, dtype=torch.long,
+    )
+    # Δφ_pos = (target_phi_b - target_phi_a) mod 1. Already computed in
+    # the sampler as ``circular_phase_diff`` (wrapped magnitude) but
+    # here we want signed delta, so recompute.
+    delta_phase_pos = torch.tensor(
+        [(_phase_val(m, "target_phi_b") - _phase_val(m, "target_phi_a")) % 1.0
+         for m in meta_list],
+        device=device, dtype=torch.float32,
+    )
+    # Deterministic study-id hashes for same-study masking in InfoNCE.
+    # Any collision is benign — masking is a safety net, not a hard
+    # dependency. Use Python's ``hash`` (deterministic within a process
+    # but not across processes) to map string study_ids to int64.
+    study_hashes = torch.tensor(
+        [hash(str(m.get("study_id", ""))) for m in meta_list],
+        device=device, dtype=torch.long,
+    )
+    assert view_a_ids.shape == (B,)
+    assert view_b_pos_ids.shape == (B,)
+    assert delta_phase_pos.shape == (B,)
+    assert study_hashes.shape == (B,)
+    return view_a_ids, view_b_pos_ids, delta_phase_pos, study_hashes
+
+
+def _relational_infonce_with_hard_neg(
+    q: torch.Tensor,
+    y_pos: torch.Tensor,
+    y_hard: torch.Tensor,
+    study_hashes: torch.Tensor,
+    tau: float,
+    mask_same_study_batch_negatives: bool = True,
+) -> dict:
+    """Candidate-set InfoNCE with a mandatory same-study wrong-phase hard negative.
+
+    Ordering is non-negotiable:
+
+        candidates_i = [
+            y_pos_i,       # column 0, label = 0
+            y_hard_i,      # column 1, same-study wrong-phase hard negative
+            y_pos_{j!=i},  # columns 2..B+1, batch positives used as negatives
+        ]
+
+    Labels are all zero. Column 0 **must** be the positive.
+
+    Self-diagonal of the batch-negative block is set to ``-inf`` so the
+    diagonal y_pos doesn't appear twice. If ``mask_same_study_batch_negatives``
+    is True, off-diagonal same-study pairs are also set to ``-inf``. The
+    explicit hard negative in column 1 is **never** masked.
+
+    All vectors must already be L2-normed and in fp32.
+    """
+    if q.dim() != 2 or y_pos.dim() != 2 or y_hard.dim() != 2:
+        raise ValueError(
+            f"q/y_pos/y_hard must be [B, D]; got "
+            f"{tuple(q.shape)} / {tuple(y_pos.shape)} / {tuple(y_hard.shape)}"
+        )
+    B, D = q.shape
+    if y_pos.shape != (B, D) or y_hard.shape != (B, D):
+        raise ValueError(
+            f"y_pos/y_hard shape mismatch with q: {tuple(y_pos.shape)}, {tuple(y_hard.shape)}"
+        )
+
+    # Column 0: positive (diagonal pair-wise)
+    pos_logit = (q * y_pos).sum(dim=-1, keepdim=True) / tau            # [B, 1]
+    # Column 1: same-study wrong-phase hard negative
+    hard_logit = (q * y_hard).sum(dim=-1, keepdim=True) / tau          # [B, 1]
+    # Columns 2..B+1: batch-negative block
+    batch_logits = (q @ y_pos.t()) / tau                                # [B, B]
+
+    device = q.device
+    eye = torch.eye(B, dtype=torch.bool, device=device)
+    neg_inf = torch.finfo(batch_logits.dtype).min
+    # Remove self-positive from the batch-negative block (its signal
+    # already lives in column 0).
+    batch_logits = batch_logits.masked_fill(eye, neg_inf)
+    same_study_count = 0
+    if mask_same_study_batch_negatives:
+        same_study = study_hashes.unsqueeze(0).eq(study_hashes.unsqueeze(1))
+        off_diag_same_study = same_study & ~eye
+        batch_logits = batch_logits.masked_fill(off_diag_same_study, neg_inf)
+        same_study_count = int(off_diag_same_study.sum().item())
+
+    # Concatenate: [pos, hard, batch]. Column 0 is positive; labels=0.
+    logits = torch.cat([pos_logit, hard_logit, batch_logits], dim=1)   # [B, B+2]
+    labels = torch.zeros(B, dtype=torch.long, device=device)
+    assert logits.shape == (B, B + 2), (
+        f"candidate-set logits shape is [B, B+2], got {tuple(logits.shape)}"
+    )
+    assert (labels == 0).all().item(), "candidate-set labels must all be 0"
+
+    loss = F.cross_entropy(logits, labels)
+
+    with torch.no_grad():
+        top1 = (logits.argmax(dim=1) == labels).float().mean()
+        pos_sim_mean = (pos_logit * tau).mean()
+        hard_neg_sim_mean = (hard_logit * tau).mean()
+        # Batch-neg mean over unmasked entries only.
+        bn_mask = (batch_logits > neg_inf / 2.0)
+        if bn_mask.any():
+            batch_neg_sim_mean = ((batch_logits * tau)[bn_mask]).mean()
+        else:
+            batch_neg_sim_mean = torch.zeros((), device=device)
+        pos_minus_hard_gap = pos_sim_mean - hard_neg_sim_mean
+        pos_minus_batch_gap = pos_sim_mean - batch_neg_sim_mean
+        logits_std = logits[logits > neg_inf / 2.0].std() if (logits > neg_inf / 2.0).any() else torch.zeros((), device=device)
+
+    return {
+        "rel_loss": loss,
+        "rel_top1_with_hard": top1,
+        "rel_pos_sim_mean": pos_sim_mean,
+        "rel_hard_neg_sim_mean": hard_neg_sim_mean,
+        "rel_batch_neg_sim_mean": batch_neg_sim_mean,
+        "rel_pos_minus_hard_gap": pos_minus_hard_gap,
+        "rel_pos_minus_batch_gap": pos_minus_batch_gap,
+        "logits_std": logits_std,
+        "same_study_masked_count": torch.tensor(float(same_study_count), device=device),
+    }
+
+
+def forward_phase_relational(
+    pair: PairBatch,
+    encoder: torch.nn.Module,
+    target_encoder: torch.nn.Module,
+    predictor: torch.nn.Module,
+    relational_head: torch.nn.Module,
+    *,
+    meta_list: list[dict],
+    tau: float = 0.10,
+    loss_exp: float = 1.0,
+    mask_same_study_batch_negatives: bool = True,
+) -> dict:
+    """Intraview V-JEPA on clip_a + candidate-set InfoNCE on pooled latents.
+
+    Teacher forwards are concat-batched (clip_a + clip_b_pos + clip_b_neg)
+    into a single ``target_encoder`` call under ``torch.no_grad``, then
+    split. This amortizes kernel launches and keeps all three teacher
+    activations under one no_grad context.
+
+    Loss:
+        L_total = L_intraview + caller's λ_rel(t) · L_rel
+    (caller is responsible for the λ warmup scalar; see main()).
+    """
+    from app.vjepa_multiview.phase_relational_head import pool_tokens
+
+    if pair.clip_b_neg is None:
+        raise ValueError(
+            "forward_phase_relational requires pair.clip_b_neg; got None. "
+            "Make sure the sampler is running with "
+            "require_same_study_wrong_phase_negative=True and group_size=3."
+        )
+
+    # --- Teacher: one concat forward on [clip_a, clip_b_pos, clip_b_neg] --- #
+    # Each pair.clip_* is list-over-fpc of [B, C, T, H, W]. We only use
+    # fpc index 0 here (consistent with the existing smooth_l1 path
+    # which also drives ``target_encoder`` with a list of length
+    # len(fpc)). Teacher input is a list-over-fpc of stacked clips.
+    B = pair.clip_a[0].size(0)
+    concat_fpc = [
+        torch.cat([pair.clip_a[0], pair.clip_b[0], pair.clip_b_neg[0]], dim=0),
+    ]
+    with torch.no_grad():
+        h_concat = target_encoder(concat_fpc)
+        h_concat = [F.layer_norm(hi, (hi.size(-1),)) for hi in h_concat]
+    h_a = [hi[:B] for hi in h_concat]
+    h_b_pos = [hi[B:2 * B] for hi in h_concat]
+    h_b_neg = [hi[2 * B:] for hi in h_concat]
+
+    # --- Student forward + intraview JEPA loss (unchanged semantics) --- #
+    z_ctx = encoder(pair.clip_a, pair.masks_enc)
+    # ``MultiSeqWrapper`` returns nested ``list[list[Tensor]]`` when masks
+    # are supplied. Fail loud if that shape breaks, so we never silently
+    # hand a list to ``pool_tokens``.
+    assert isinstance(z_ctx, list) and len(z_ctx) >= 1, (
+        f"encoder(..., masks) expected list[list[Tensor]]; got {type(z_ctx)}"
+    )
+    assert isinstance(z_ctx[0], list) and len(z_ctx[0]) >= 1, (
+        f"encoder output inner shape changed: {type(z_ctx[0])}"
+    )
+    z_pred = predictor(z_ctx, pair.masks_enc, pair.masks_pred, delta_phi=None)
+    intraview = _jepa_loss_fn(z_pred, h_a, pair.masks_pred, loss_exp=loss_exp)
+
+    # --- Relational branch --- #
+    # Pool clip_a student context tokens. The encoder, wrapped in
+    # ``MultiSeqWrapper``, returns a nested list ``[[T_fpc0_mask0,
+    # T_fpc0_mask1]]`` when called with masks: outer is fpc, inner is
+    # mask-generator. We want the first fpc's first (context) mask output.
+    # Teacher ``h_b_pos`` / ``h_b_neg`` are un-masked (teacher forward is
+    # called without masks), so they are the flat ``[tensor_fpc0]`` form.
+    c_a_pool = pool_tokens(z_ctx[0][0])
+    y_pos_pool = pool_tokens(h_b_pos[0]).detach()
+    y_neg_pool = pool_tokens(h_b_neg[0]).detach()
+
+    view_a_ids, view_b_pos_ids, delta_phase_pos, study_hashes = _build_predictor_inputs(
+        meta_list, device=c_a_pool.device,
+    )
+
+    # One DDP forward per step touches every parameter of the head so
+    # the reducer sees a uniform param set each iteration. Three
+    # separate forwards for ``query``/``target``/``target`` would touch
+    # disjoint subsets, which either needs ``find_unused_parameters=True``
+    # (slower) or breaks the reducer invariant under static_graph.
+    q_pre, y_pos_pre, y_hard_pre = relational_head(
+        c_a_pool,
+        view_a_ids,
+        view_b_pos_ids,
+        delta_phase_pos,
+        y_pos_pool,
+        y_neg_pool,
+    )
+
+    # Pre-norm diagnostic stats (before F.normalize zeros-out magnitude).
+    with torch.no_grad():
+        q_prenorm_mean = q_pre.norm(dim=-1).mean()
+        y_prenorm_mean = 0.5 * (
+            y_pos_pre.norm(dim=-1).mean() + y_hard_pre.norm(dim=-1).mean()
+        )
+        q_var = q_pre.var(dim=0).mean()
+        y_var = y_pos_pre.var(dim=0).mean()
+
+    # Cast to fp32 for the contrastive matmul (standard practice under bf16).
+    q = F.normalize(q_pre.float(), dim=-1)
+    y_pos = F.normalize(y_pos_pre.float(), dim=-1)
+    y_hard = F.normalize(y_hard_pre.float(), dim=-1)
+
+    rel_out = _relational_infonce_with_hard_neg(
+        q=q, y_pos=y_pos, y_hard=y_hard,
+        study_hashes=study_hashes,
+        tau=tau,
+        mask_same_study_batch_negatives=mask_same_study_batch_negatives,
+    )
+
+    # Total loss: caller multiplies rel_loss by λ_rel(t) and adds.
+    out = {
+        "intraview_loss": intraview,
+        "crossview_loss": torch.zeros((), device=intraview.device),
+        "rel_loss": rel_out["rel_loss"],
+        "rel_top1_with_hard": rel_out["rel_top1_with_hard"],
+        "rel_pos_sim_mean": rel_out["rel_pos_sim_mean"],
+        "rel_hard_neg_sim_mean": rel_out["rel_hard_neg_sim_mean"],
+        "rel_batch_neg_sim_mean": rel_out["rel_batch_neg_sim_mean"],
+        "rel_pos_minus_hard_gap": rel_out["rel_pos_minus_hard_gap"],
+        "rel_pos_minus_batch_gap": rel_out["rel_pos_minus_batch_gap"],
+        "logits_std": rel_out["logits_std"],
+        "same_study_masked_count": rel_out["same_study_masked_count"],
+        "q_var": q_var,
+        "y_var": y_var,
+        "q_prenorm_mean": q_prenorm_mean,
+        "y_prenorm_mean": y_prenorm_mean,
+        "multiview_objective": "phase_relational",
+    }
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Epoch-refresh guard
 # --------------------------------------------------------------------------- #
 
@@ -562,6 +939,28 @@ def main(args: dict, resume_preempt: bool = False) -> None:
     debug_verify_frame_count = bool(cfg_pmv.get("debug_verify_frame_count", False))
     debug_verify_n = int(cfg_pmv.get("debug_verify_n", 8))
 
+    # --- New: multiview_objective dispatch + relational config --- #
+    multiview_objective = str(cfg_pmv.get("multiview_objective", "smooth_l1"))
+    if multiview_objective not in ("smooth_l1", "intraview_only", "phase_relational"):
+        raise ValueError(
+            f"multiview_objective={multiview_objective!r}; want "
+            f"'smooth_l1' | 'intraview_only' | 'phase_relational'"
+        )
+    # In intraview_only mode the crossview loss is disabled regardless of
+    # what the YAML says; force-disable to avoid a confusing config.
+    if multiview_objective == "intraview_only":
+        use_crossview_loss = False
+    rel_cfg = cfg_pmv.get("relational", {}) or {}
+    lambda_rel = float(rel_cfg.get("lambda_rel", 0.05))
+    rel_warmup_epochs = float(rel_cfg.get("rel_warmup_epochs", 5))
+    rel_temperature = float(rel_cfg.get("rel_temperature", 0.10))
+    rel_mask_same_study_batch_negatives = bool(
+        rel_cfg.get("rel_mask_same_study_batch_negatives", True)
+    )
+    target_projector_trainable = bool(
+        rel_cfg.get("target_projector_trainable", True)
+    )
+
     cfgs_data_aug = args.get("data_aug", {}) or {}
     ar_range = cfgs_data_aug.get("random_resize_aspect_ratio", [3 / 4, 4 / 3])
     rr_scale = cfgs_data_aug.get("random_resize_scale", [0.3, 1.0])
@@ -618,12 +1017,39 @@ def main(args: dict, resume_preempt: bool = False) -> None:
     if folder:
         os.makedirs(folder, exist_ok=True)
         log_file = os.path.join(folder, f"log_r{rank}.csv")
-        csv_logger = CSVLogger(
-            log_file,
-            ("%d", "epoch"), ("%d", "itr"),
-            ("%.6f", "loss"), ("%.6f", "intraview"), ("%.6f", "crossview"),
-            ("%d", "iter-time(ms)"), ("%d", "data-time(ms)"),
-        )
+        if multiview_objective == "phase_relational":
+            # Extended 24-column header: first 7 columns are byte-identical
+            # to the legacy header so old log_r*.csv parsers still work.
+            csv_logger = CSVLogger(
+                log_file,
+                ("%d", "epoch"), ("%d", "itr"),
+                ("%.6f", "loss"), ("%.6f", "intraview"), ("%.6f", "crossview"),
+                ("%d", "iter-time(ms)"), ("%d", "data-time(ms)"),
+                ("%.6f", "rel_loss"),
+                ("%.6f", "rel_top1_with_hard"),
+                ("%.6f", "rel_pos_sim_mean"),
+                ("%.6f", "rel_hard_neg_sim_mean"),
+                ("%.6f", "rel_batch_neg_sim_mean"),
+                ("%.6f", "rel_pos_minus_hard_gap"),
+                ("%.6f", "rel_pos_minus_batch_gap"),
+                ("%.6f", "effective_lambda_rel"),
+                ("%.6f", "q_var"),
+                ("%.6f", "y_var"),
+                ("%.6f", "q_prenorm_mean"),
+                ("%.6f", "y_prenorm_mean"),
+                ("%.6f", "logits_std"),
+                ("%.6f", "target_enc_grad_l2"),
+                ("%.6f", "target_proj_grad_l2"),
+                ("%d",   "rel_target_projector_trainable"),
+                ("%d",   "same_study_masked_count"),
+            )
+        else:
+            csv_logger = CSVLogger(
+                log_file,
+                ("%d", "epoch"), ("%d", "itr"),
+                ("%.6f", "loss"), ("%.6f", "intraview"), ("%.6f", "crossview"),
+                ("%d", "iter-time(ms)"), ("%d", "data-time(ms)"),
+            )
     else:
         csv_logger = None
 
@@ -712,7 +1138,10 @@ def main(args: dict, resume_preempt: bool = False) -> None:
         log_dir=None,
         clip_len=max_num_frames,
         frame_sample_rate=pmv_dispatch_cfg["frame_step"],
-        num_clips=2,
+        # group_size=3 is required for intraview_only + phase_relational so
+        # the sampler emits (clip_a, clip_b_pos, clip_b_neg). smooth_l1 keeps
+        # the legacy group_size=2 pair.
+        num_clips=(3 if multiview_objective in ("intraview_only", "phase_relational") else 2),
         num_clips_per_video=1,
         img_size=crop_size,
         sampler_type=sampler_type,
@@ -744,6 +1173,54 @@ def main(args: dict, resume_preempt: bool = False) -> None:
         warmup=warmup, num_epochs=num_epochs, ipe_scale=ipe_scale,
         mixed_precision=mixed_precision, betas=betas, eps=eps,
     )
+
+    # --- Relational head construction (phase_relational only) ---------- #
+    # Built AFTER init_opt and BEFORE load_checkpoint so that:
+    #   (1) the head's params are added to the optimizer state before any
+    #       checkpoint-state restore; if we resume a run that already had
+    #       a head, the optimizer group layout matches.
+    #   (2) the head is available for save_checkpoint's state-dict.
+    relational_head = None
+    if multiview_objective == "phase_relational":
+        from app.vjepa_multiview.phase_relational_head import PhaseRelationalHead
+        relational_head = PhaseRelationalHead(
+            embed_dim=int(rel_cfg.get("embed_dim", 1024)),
+            rel_dim=int(rel_cfg.get("rel_projector_dim", 256)),
+            hidden_dim=int(rel_cfg.get("rel_predictor_hidden_dim", 1024)),
+            num_views=14,
+            view_embedding_dim=int(rel_cfg.get("rel_view_embedding_dim", 64)),
+            n_phase_freqs=int(rel_cfg.get("rel_num_phase_frequencies", 4)),
+        ).to(device)
+        # If the target projector is configured non-trainable, freeze its
+        # params (first pass keeps it trainable — simplest, matches plan).
+        if not target_projector_trainable:
+            for p in relational_head.target_proj.parameters():
+                p.requires_grad = False
+        # Append head params to the optimizer in two groups (WD-included +
+        # WD-excluded) mirroring the encoder convention.
+        head_wd_params = [
+            p for n, p in relational_head.named_parameters()
+            if p.requires_grad and ("bias" not in n) and (len(p.shape) != 1)
+        ]
+        head_nowd_params = [
+            p for n, p in relational_head.named_parameters()
+            if p.requires_grad and (("bias" in n) or (len(p.shape) == 1))
+        ]
+        if head_wd_params:
+            optimizer.add_param_group({
+                "params": head_wd_params,
+                "lr": lr, "weight_decay": wd,
+            })
+        if head_nowd_params:
+            optimizer.add_param_group({
+                "params": head_nowd_params,
+                "lr": lr, "weight_decay": 0.0, "WD_exclude": True,
+            })
+        log.info(
+            f"phase_relational: relational_head has "
+            f"{sum(p.numel() for p in relational_head.parameters()):,} params "
+            f"(trainable_wd={len(head_wd_params)} trainable_nowd={len(head_nowd_params)})"
+        )
 
     def _momentum_scheduler(start_step=0):
         total = int(ipe * num_epochs * ipe_scale)
@@ -788,6 +1265,33 @@ def main(args: dict, resume_preempt: bool = False) -> None:
                 r_path=latest, encoder=encoder, predictor=predictor,
                 target_encoder=target_encoder, opt=optimizer, scaler=scaler,
             )
+            # If this is a phase_relational resume, also restore the head.
+            # If the checkpoint predates phase_relational (e.g. a vanilla
+            # e100 / e125 / a prior smooth_l1 run), no relational_head key
+            # is present — head starts fresh and opt state may be stale.
+            if relational_head is not None:
+                try:
+                    _ckpt_peek = torch.load(latest, map_location="cpu", weights_only=False)
+                except TypeError:
+                    _ckpt_peek = torch.load(latest, map_location="cpu")
+                if "relational_head" in _ckpt_peek:
+                    rh_state = {
+                        k.replace("module.", ""): v
+                        for k, v in _ckpt_peek["relational_head"].items()
+                    }
+                    msg = relational_head.load_state_dict(rh_state, strict=False)
+                    log.info(f"Loaded relational_head: {msg}")
+                else:
+                    log.warning(
+                        "Resuming a phase_relational run from a checkpoint "
+                        "with no 'relational_head' key — head starts from init. "
+                        "Optimizer state may not align; resetting start_epoch=0 "
+                        "to avoid a stale LR-schedule replay against a newly-sized "
+                        "param-group list."
+                    )
+                    start_epoch = 0
+                    completed_steps = 0
+                del _ckpt_peek
             completed_steps = start_epoch * ipe + start_itr
             for _ in range(completed_steps):
                 scheduler.step(); wd_scheduler.step()
@@ -799,6 +1303,16 @@ def main(args: dict, resume_preempt: bool = False) -> None:
         encoder = DistributedDataParallel(encoder, static_graph=True)
         predictor = DistributedDataParallel(predictor, static_graph=False, find_unused_parameters=True)
         target_encoder = DistributedDataParallel(target_encoder)
+        if relational_head is not None:
+            # Single unified forward per step touches every head
+            # parameter (source_proj + relation_mlp + view embeds +
+            # phase_mlp + target_proj), so the reducer sees a uniform
+            # param set each iteration — no find_unused_parameters
+            # needed. static_graph=False is a safe default; revisit if
+            # the forward graph is guaranteed identical on every step.
+            relational_head = DistributedDataParallel(
+                relational_head, static_graph=False,
+            )
     for p in target_encoder.parameters():
         p.requires_grad = False
     momentum_scheduler = _momentum_scheduler(start_step=completed_steps)
@@ -817,7 +1331,18 @@ def main(args: dict, resume_preempt: bool = False) -> None:
             "batch_size": batch_size, "world_size": world_size, "lr": lr,
             "sampling_mode": cfg_pmv.get("sampling_mode"),
             "lambda_crossview": lambda_crossview,
+            "multiview_objective": multiview_objective,
         }
+        if relational_head is not None:
+            save_dict["relational_head"] = relational_head.state_dict()
+            save_dict["rel_config"] = {
+                "lambda_rel": lambda_rel,
+                "rel_warmup_epochs": rel_warmup_epochs,
+                "rel_temperature": rel_temperature,
+                "target_projector_trainable": target_projector_trainable,
+                "rel_mask_same_study_batch_negatives":
+                    rel_mask_same_study_batch_negatives,
+            }
         os.makedirs(os.path.dirname(path), exist_ok=True)
         tmp = path + ".tmp"
         torch.save(save_dict, tmp)
@@ -871,7 +1396,9 @@ def main(args: dict, resume_preempt: bool = False) -> None:
                 fpc_collation = sample[0]
                 collated_batch, masks_enc, masks_pred = fpc_collation
 
-                clip_a, clip_b = build_clip_pair_tensors(collated_batch, device=device)
+                clip_a, clip_b, clip_b_neg = _extract_multiview_clips(
+                    collated_batch, device=device, objective=multiview_objective,
+                )
                 masks_enc_d = [[m.to(device) for m in masks_enc]]
                 masks_pred_d = [[m.to(device) for m in masks_pred]]
                 meta_list = extract_pair_metadata(collated_batch)
@@ -880,21 +1407,52 @@ def main(args: dict, resume_preempt: bool = False) -> None:
                     clip_a=clip_a, clip_b=clip_b,
                     masks_enc=masks_enc_d, masks_pred=masks_pred_d,
                     phase_metadata=meta_list,
+                    clip_b_neg=clip_b_neg,
                 )
 
                 def _step():
                     new_lr = scheduler.step()
                     new_wd = wd_scheduler.step()
                     with torch.amp.autocast("cuda", dtype=dtype, enabled=mixed_precision):
-                        out = forward_intraview_and_crossview(
-                            pair, encoder, target_encoder, predictor,
-                            lambda_crossview=lambda_crossview,
-                            use_intraview_loss=use_intraview_loss,
-                            use_crossview_loss=use_crossview_loss,
-                            loss_exp=loss_exp,
-                            log_mask_diagnostics=(global_step < 3),
-                        )
-                        total_loss = out["total_loss"]
+                        if multiview_objective == "phase_relational":
+                            out = forward_phase_relational(
+                                pair, encoder, target_encoder, predictor,
+                                relational_head, meta_list=meta_list,
+                                tau=rel_temperature,
+                                loss_exp=loss_exp,
+                                mask_same_study_batch_negatives=rel_mask_same_study_batch_negatives,
+                            )
+                            # λ_rel warmup scalar (linear, capped at 1.0).
+                            progress = float(epoch) + (float(itr) / max(1, ipe))
+                            warmup_frac = min(
+                                1.0,
+                                progress / max(1e-6, rel_warmup_epochs),
+                            )
+                            effective_lambda_rel = lambda_rel * warmup_frac
+                            total_loss = (
+                                out["intraview_loss"]
+                                + effective_lambda_rel * out["rel_loss"]
+                            )
+                            out["effective_lambda_rel"] = torch.tensor(
+                                effective_lambda_rel, device=device,
+                            )
+                            out["total_loss"] = total_loss
+                        elif multiview_objective == "intraview_only":
+                            out = forward_intraview_only(
+                                pair, encoder, target_encoder, predictor,
+                                loss_exp=loss_exp,
+                            )
+                            total_loss = out["total_loss"]
+                        else:  # "smooth_l1" — unchanged path
+                            out = forward_intraview_and_crossview(
+                                pair, encoder, target_encoder, predictor,
+                                lambda_crossview=lambda_crossview,
+                                use_intraview_loss=use_intraview_loss,
+                                use_crossview_loss=use_crossview_loss,
+                                loss_exp=loss_exp,
+                                log_mask_diagnostics=(global_step < 3),
+                            )
+                            total_loss = out["total_loss"]
                     if mixed_precision:
                         scaler.scale(total_loss).backward()
                         scaler.unscale_(optimizer)
@@ -947,8 +1505,59 @@ def main(args: dict, resume_preempt: bool = False) -> None:
                         )
 
                 if csv_logger is not None:
-                    csv_logger.log(epoch + 1, itr, total_val, intra_val, cross_val,
-                                   int(itr_ms), int(data_ms))
+                    if multiview_objective == "phase_relational":
+                        # Compute target stability contract grad-norms
+                        # AFTER optimizer.step()/zero_grad() — these are
+                        # always 0 here because zero_grad just ran. The
+                        # *invariant* we care about (no teacher grads) is
+                        # enforced structurally by no_grad in
+                        # forward_phase_relational; we log a simple 0
+                        # marker here for schema consistency, and bump
+                        # this to a live probe in a future diagnostic
+                        # pass if needed.
+                        def _param_l2(m):
+                            if m is None:
+                                return 0.0
+                            total = 0.0
+                            for p in m.parameters():
+                                if p.grad is not None:
+                                    total += float(p.grad.detach().float().pow(2).sum().item())
+                            return total ** 0.5
+                        te_grad_l2 = _param_l2(target_encoder)
+                        rh = relational_head
+                        if rh is not None and hasattr(rh, "module"):
+                            # DDP wrapper
+                            tp = getattr(rh.module, "target_proj", None)
+                        else:
+                            tp = getattr(rh, "target_proj", None) if rh is not None else None
+                        tp_grad_l2 = _param_l2(tp)
+                        csv_logger.log(
+                            epoch + 1, itr,
+                            total_val, intra_val, cross_val,
+                            int(itr_ms), int(data_ms),
+                            float(out.get("rel_loss", 0.0)),
+                            float(out.get("rel_top1_with_hard", 0.0)),
+                            float(out.get("rel_pos_sim_mean", 0.0)),
+                            float(out.get("rel_hard_neg_sim_mean", 0.0)),
+                            float(out.get("rel_batch_neg_sim_mean", 0.0)),
+                            float(out.get("rel_pos_minus_hard_gap", 0.0)),
+                            float(out.get("rel_pos_minus_batch_gap", 0.0)),
+                            float(out.get("effective_lambda_rel", 0.0)),
+                            float(out.get("q_var", 0.0)),
+                            float(out.get("y_var", 0.0)),
+                            float(out.get("q_prenorm_mean", 0.0)),
+                            float(out.get("y_prenorm_mean", 0.0)),
+                            float(out.get("logits_std", 0.0)),
+                            te_grad_l2,
+                            tp_grad_l2,
+                            int(target_projector_trainable),
+                            int(out.get("same_study_masked_count", 0)),
+                        )
+                    else:
+                        csv_logger.log(
+                            epoch + 1, itr, total_val, intra_val, cross_val,
+                            int(itr_ms), int(data_ms),
+                        )
 
                 assert np.isfinite(total_val), (
                     f"total_loss non-finite at step {global_step}: {total_val}"

@@ -401,18 +401,27 @@ class VideoGroupDataset(Dataset):
         mutated together; readers inside ``__getitem__`` see a consistent
         view because dict/DataFrame assignment is atomic in CPython.
         """
-        if self.group_size != 2:
+        if self.group_size not in (2, 3):
             raise ValueError(
-                f"set_pair_dataframe requires group_size=2; got group_size={self.group_size}"
+                f"set_pair_dataframe requires group_size in {{2, 3}}; "
+                f"got group_size={self.group_size}"
             )
-        required = {"view_0", "view_1", "label"}
+        # Required columns scale with group_size: 2 → view_0/view_1;
+        # 3 → view_0/view_1/view_2.
+        if self.group_size == 3:
+            required = {"view_0", "view_1", "view_2", "label"}
+        else:
+            required = {"view_0", "view_1", "label"}
         missing = required - set(pair_df.columns)
         if missing:
             raise KeyError(f"pair DataFrame missing required columns: {missing}")
         # Keep the index contiguous to match anchor-table keys.
         pair_df = pair_df.reset_index(drop=True)
         self.df = pair_df
-        self.view_cols = ["view_0", "view_1"]
+        if self.group_size == 3:
+            self.view_cols = ["view_0", "view_1", "view_2"]
+        else:
+            self.view_cols = ["view_0", "view_1"]
         self.anchors_by_index = anchors_by_index
 
     # ---------- S3 helper ----------
@@ -451,6 +460,17 @@ class VideoGroupDataset(Dataset):
         "clip_b_phase_error", "clip_a_view", "clip_b_view",
         "clip_a_hr_metadata", "clip_b_hr_metadata", "clip_a_fps_video",
         "clip_b_fps_video", "clip_a_quality_tier", "clip_b_quality_tier",
+        # --- phase_relational triple-clip extensions (present when
+        #     group_size=3 and sampler emits a same-study wrong-phase
+        #     hard negative; NaN/empty placeholders otherwise) ---
+        "clip_b_neg_dicom_id", "clip_b_neg_anchor_frame",
+        "clip_b_neg_phase_at_anchor", "clip_b_neg_phase_error",
+        "clip_b_neg_view", "clip_b_neg_hr_metadata",
+        "clip_b_neg_fps_video", "clip_b_neg_quality_tier",
+        "target_phi_b_neg", "delta_phase_bucket_pos",
+        "delta_phase_bucket_neg", "view_pair_class_pos",
+        "view_pair_class_neg", "hard_neg_available",
+        "hard_neg_resample_count",
     )
 
     def _row_to_meta(self, row) -> dict:
@@ -465,9 +485,10 @@ class VideoGroupDataset(Dataset):
         out: dict = {}
         str_cols = {
             "study_id", "subject_id", "sampling_mode",
-            "clip_a_dicom_id", "clip_b_dicom_id",
-            "clip_a_view", "clip_b_view",
-            "clip_a_quality_tier", "clip_b_quality_tier",
+            "clip_a_dicom_id", "clip_b_dicom_id", "clip_b_neg_dicom_id",
+            "clip_a_view", "clip_b_view", "clip_b_neg_view",
+            "clip_a_quality_tier", "clip_b_quality_tier", "clip_b_neg_quality_tier",
+            "view_pair_class_pos", "view_pair_class_neg",
         }
         for col in self._PAIR_META_COLS:
             if col not in row.index:

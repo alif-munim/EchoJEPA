@@ -232,6 +232,20 @@ class MatchRecord:
     view_family_b: Optional[str] = None
     curriculum_epoch_frac: Optional[float] = None
     curriculum_bucket_probs: Optional[str] = None  # "easy=0.70,medium=0.25,hard=0.05"
+    # --- phase_relational triple-clip extensions ---
+    # When `rel_require_same_study_wrong_phase_negative=True`, the sampler
+    # emits a third clip drawn from the same study at a phase that differs
+    # from (target_phi_b - target_phi_a) by at least rel_wrong_phase_min_delta.
+    # `clip_b` above is the POSITIVE target (== clip_b_pos).
+    # These fields are None in all modes that don't require the hard negative.
+    clip_b_neg_phase: Optional[ClipAnchor] = None
+    target_phi_b_neg: Optional[float] = None
+    delta_phase_bucket_pos: Optional[int] = None
+    delta_phase_bucket_neg: Optional[int] = None
+    view_pair_class_pos: Optional[str] = None
+    view_pair_class_neg: Optional[str] = None
+    hard_neg_available: bool = False
+    hard_neg_resample_count: int = 0
 
 
 # --------------------------------------------------------------------------- #
@@ -390,6 +404,25 @@ class PhaseMatchedStudySampler:
         #    curriculum_same_view_floor: {early,middle,late: float},  # opt
         #    resample_attempts: int (default 8)}
         view_pair_policy: Optional[dict] = None,
+        # --- phase_relational triple-clip extensions ---
+        # Orthogonal to ``sampling_mode``: when enabled, overrides phi_b so
+        # that Δφ = (phi_b - phi_a) mod 1 is drawn from the configured bucket
+        # list (centers). Half-width is half the spacing between consecutive
+        # centers (default 0.0625 when centers are [0.0, 0.125, 0.25, 0.5]).
+        delta_phase_mode: str = "same_phase",       # "same_phase" | "controlled_buckets"
+        delta_phase_buckets: Optional[Sequence[float]] = None,      # centers
+        delta_phase_bucket_probs: Optional[Sequence[float]] = None,
+        # When True, every drawn record also includes a same-study
+        # wrong-phase hard negative (clip_b_neg_phase) at Δφ_neg that
+        # differs from Δφ_pos by at least ``wrong_phase_min_delta``.
+        require_same_study_wrong_phase_negative: bool = False,
+        wrong_phase_min_delta: float = 0.25,
+        wrong_phase_strategy: str = "same_view_then_same_family",
+        # ^ one of: "same_view_only" | "same_view_then_same_family" | "any_same_study"
+        allow_missing_hard_negative: bool = False,
+        hard_negative_fallback: str = "resample_anchor",
+        # ^ one of: "resample_anchor" | "skip_sample" | "batch_negatives_only"
+        max_hard_neg_attempts: int = 16,
     ) -> None:
         if sampling_mode not in SAMPLING_MODES:
             raise ValueError(f"unknown sampling_mode={sampling_mode}; want one of {SAMPLING_MODES}")
@@ -467,6 +500,78 @@ class PhaseMatchedStudySampler:
                 "curriculum_same_view_floor": dict(p.get("curriculum_same_view_floor", {})),
             }
         self._last_view_pair_skipped: dict[str, int] = {"same_view": 0, "same_family": 0, "cross_family": 0}
+
+        # --- Orthogonal Δφ bucket mode ---
+        if delta_phase_mode not in ("same_phase", "controlled_buckets"):
+            raise ValueError(
+                f"delta_phase_mode must be 'same_phase' or 'controlled_buckets'; "
+                f"got {delta_phase_mode!r}"
+            )
+        self.delta_phase_mode = str(delta_phase_mode)
+        # Bucket centers; translated to (lo, hi) ranges at sample time with a
+        # half-width equal to half the min spacing between consecutive
+        # centers. Default centers [0.0, 0.125, 0.25, 0.5] → half-width 0.0625.
+        if delta_phase_buckets is None:
+            delta_phase_buckets = (0.0, 0.125, 0.25, 0.5)
+        centers = tuple(float(x) for x in delta_phase_buckets)
+        if len(centers) == 0:
+            raise ValueError("delta_phase_buckets must be non-empty")
+        if delta_phase_bucket_probs is None:
+            delta_phase_bucket_probs = (1.0 / len(centers),) * len(centers)
+        probs = tuple(float(p) for p in delta_phase_bucket_probs)
+        if len(probs) != len(centers):
+            raise ValueError(
+                f"delta_phase_bucket_probs length ({len(probs)}) must match "
+                f"delta_phase_buckets length ({len(centers)})"
+            )
+        tot = sum(probs)
+        probs = tuple(p / tot for p in probs)
+        self.delta_phase_bucket_centers = centers
+        self.delta_phase_bucket_probs = probs
+        # Compute per-bucket half-widths = half the min spacing between
+        # consecutive sorted centers (clamped to 1e-3 if only one bucket).
+        sorted_centers = sorted(centers)
+        if len(sorted_centers) > 1:
+            min_gap = min(
+                sorted_centers[i + 1] - sorted_centers[i]
+                for i in range(len(sorted_centers) - 1)
+            )
+            self._delta_phase_half_width = max(1e-3, 0.5 * float(min_gap))
+        else:
+            self._delta_phase_half_width = 0.0625
+        # Scratch: last-drawn bucket indices for record population.
+        self._last_bucket_idx_pos: Optional[int] = None
+        self._last_bucket_idx_neg: Optional[int] = None
+
+        # --- Hard-negative flags ---
+        if wrong_phase_strategy not in (
+            "same_view_only", "same_view_then_same_family", "any_same_study"
+        ):
+            raise ValueError(
+                f"wrong_phase_strategy must be one of "
+                f"'same_view_only' | 'same_view_then_same_family' | 'any_same_study'; "
+                f"got {wrong_phase_strategy!r}"
+            )
+        if hard_negative_fallback not in (
+            "resample_anchor", "skip_sample", "batch_negatives_only"
+        ):
+            raise ValueError(
+                f"hard_negative_fallback must be one of "
+                f"'resample_anchor' | 'skip_sample' | 'batch_negatives_only'; "
+                f"got {hard_negative_fallback!r}"
+            )
+        self.require_same_study_wrong_phase_negative = bool(
+            require_same_study_wrong_phase_negative
+        )
+        self.wrong_phase_min_delta = float(wrong_phase_min_delta)
+        self.wrong_phase_strategy = str(wrong_phase_strategy)
+        self.allow_missing_hard_negative = bool(allow_missing_hard_negative)
+        self.hard_negative_fallback = str(hard_negative_fallback)
+        self.max_hard_neg_attempts = int(max_hard_neg_attempts)
+        # Diagnostics counters (reset at each build_records() call).
+        self._hard_neg_resample_count_total: int = 0
+        self._hard_neg_skip_count: int = 0
+        self._hard_neg_found_by_strategy: Counter = Counter()
 
         # DDP auto-detect.
         if num_replicas is None or rank is None:
@@ -632,6 +737,80 @@ class PhaseMatchedStudySampler:
             "%d studies in %.1fs",
             self.n_studies, time.time() - t_cache0,
         )
+
+        # ----------------------------------------------------------------
+        # Hard-negative hot-path caches.
+        #
+        # ``_draw_hard_negative_clip`` previously called ``self._df.loc[ri]``
+        # once per candidate row — that's ~333k pandas .loc calls per rank
+        # per epoch, which benchmarks ~100x slower than numpy indexing and
+        # was the dominant cost of the 12-min per-epoch pair-build. We
+        # cache (a) the columns read in the inner loop as numpy arrays
+        # indexed by row_idx_, and (b) per-study candidate pools bucketed
+        # by view and family, so the inner loop does O(1) array lookups
+        # instead of pandas operations.
+        #
+        # These caches are *structural* (derived from the parquet alone).
+        # They do NOT cache fixed triples — the sampler still re-rolls
+        # Δφ buckets, anchor choice, and hard-neg choice under a new seed
+        # each epoch. Per-epoch stochasticity is preserved.
+        # ----------------------------------------------------------------
+        t_fast0 = time.time()
+        n_rows = len(df)
+        self._view_by_row = df["view"].to_numpy(dtype=object)
+        self._dicom_by_row = df["dicom_id"].to_numpy(dtype=object)
+        self._n_frames_by_row = df["n_video_frames"].to_numpy(dtype=np.int64)
+        self._fps_by_row = df["fps_video"].to_numpy(dtype=np.float64)
+        self._hr_by_row = df["hr_metadata"].to_numpy(dtype=np.float64)
+        self._quality_tier_by_row = df["quality_tier"].to_numpy(dtype=object)
+
+        # Family-by-row: precompute the family label once per row so
+        # ``_draw_hard_negative_clip`` doesn't dispatch through the _fam
+        # helper inside the hot loop.
+        _CARDIAC = {"apical", "parasternal_long", "parasternal_short"}
+
+        def _fam_of(v):
+            if v is None or (isinstance(v, float) and np.isnan(v)):
+                return "other"
+            s = str(v)
+            vu = s.upper()
+            if vu == "SUBCOSTAL":
+                key = "Subcostal"
+            else:
+                key = s if s in VIEW_FAMILIES else s
+            return VIEW_FAMILIES.get(key, "other")
+
+        self._family_by_row = np.array(
+            [_fam_of(self._view_by_row[i]) for i in range(n_rows)],
+            dtype=object,
+        )
+
+        # Per-study candidate bucket caches:
+        #   study_to_rows_by_view[key][view_str]   -> list[int]
+        #   study_to_rows_by_family[key][family]   -> list[int]  (cardiac only)
+        # The "cardiac only" restriction mirrors the runtime filter inside
+        # _draw_hard_negative_clip — we don't want family-match to include
+        # "other" or "Exclude" views.
+        self._study_to_rows_by_view: dict[str, dict[str, list[int]]] = {}
+        self._study_to_rows_by_family: dict[str, dict[str, list[int]]] = {}
+        for key, rows in study_to_rows.items():
+            by_view: dict[str, list[int]] = {}
+            by_fam: dict[str, list[int]] = {}
+            for ri in rows:
+                v = self._view_by_row[ri]
+                if isinstance(v, str):
+                    by_view.setdefault(v, []).append(int(ri))
+                fam = self._family_by_row[ri]
+                if fam in _CARDIAC:
+                    by_fam.setdefault(fam, []).append(int(ri))
+            self._study_to_rows_by_view[key] = by_view
+            self._study_to_rows_by_family[key] = by_fam
+
+        logger.info(
+            "PhaseMatchedStudySampler: built hot-path caches "
+            "(view/family/cols) over %d rows in %.1fs",
+            n_rows, time.time() - t_fast0,
+        )
         self._filter_stats = {
             "n_all": int(n_all),
             "n_after_tier": int(n_tier),
@@ -702,7 +881,9 @@ class PhaseMatchedStudySampler:
     def _pick_pair_rows(self, group_key: str, rng: np.random.Generator) -> tuple[int, int]:
         row_idxs = self.study_to_rows[group_key]
         if self.prefer_different_views and self.view_labels:
-            views = [self._df.loc[r, "view"] for r in row_idxs]
+            # Use cached numpy view column (same rationale as the
+            # hard-neg hot path).
+            views = [self._view_by_row[r] for r in row_idxs]
             unique = set(v for v in views if v is not None)
             if len(unique) >= 2:
                 # Pair across distinct view labels.
@@ -767,8 +948,11 @@ class PhaseMatchedStudySampler:
             ra, rb = rb, ra
         return ra, rb, target_class
 
-    def _sample_phi_pair(self, rng: np.random.Generator) -> tuple[float, float]:
-        """Return (target_phi_a, target_phi_b) depending on sampling mode."""
+    def _sample_phi_pair_inner(self, rng: np.random.Generator) -> tuple[float, float]:
+        """Return (target_phi_a, target_phi_b) depending on sampling mode.
+
+        Existing behavior — unchanged when delta_phase_mode='same_phase'.
+        """
         if self.sampling_mode in ("uniform_phase", "phase_curriculum"):
             # phase_curriculum uses identical phase matching to uniform_phase;
             # only the row-pair selection differs.
@@ -786,6 +970,226 @@ class PhaseMatchedStudySampler:
             # anchor selection.
             return float(rng.random()), float(rng.random())
         raise ValueError(f"unknown sampling_mode {self.sampling_mode}")
+
+    def _sample_phi_pair(self, rng: np.random.Generator) -> tuple[float, float]:
+        """Wrapper around the legacy per-mode phi draw that optionally
+        overrides phi_b when ``delta_phase_mode='controlled_buckets'``.
+        Stashes the chosen bucket index on ``self._last_bucket_idx_pos``.
+        """
+        phi_a, phi_b = self._sample_phi_pair_inner(rng)
+        self._last_bucket_idx_pos = None
+        if self.delta_phase_mode == "controlled_buckets":
+            bucket_idx = int(
+                rng.choice(len(self.delta_phase_bucket_centers),
+                           p=np.asarray(self.delta_phase_bucket_probs))
+            )
+            center = self.delta_phase_bucket_centers[bucket_idx]
+            half = self._delta_phase_half_width
+            delta = float(rng.uniform(max(0.0, center - half), center + half))
+            # Random sign so Δφ spans [-center-half, +center+half] on the unit
+            # circle (wraps modularly). Center 0.0 stays at 0 magnitude.
+            if center > 0.0 and rng.random() < 0.5:
+                delta = -delta
+            phi_b = float((phi_a + delta) % 1.0)
+            self._last_bucket_idx_pos = bucket_idx
+        return phi_a, phi_b
+
+    def _draw_hard_negative_clip(
+        self,
+        group_key: str,
+        clip_a: "ClipAnchor",
+        clip_b_pos: "ClipAnchor",
+        target_phi_a: float,
+        target_phi_b_pos: float,
+        rng: np.random.Generator,
+    ) -> tuple[Optional["ClipAnchor"], Optional[float], Optional[int], int]:
+        """Draw a same-study wrong-phase hard-negative clip.
+
+        The target phase for the negative is chosen so that Δφ_neg differs
+        from Δφ_pos by at least ``self.wrong_phase_min_delta`` on the unit
+        circle. Preference over candidate clips follows
+        ``self.wrong_phase_strategy``:
+
+          - ``same_view_only``:           only clips with ``view == clip_b_pos_view``.
+          - ``same_view_then_same_family``: same-view candidates first; if none,
+                                           fall back to same-family candidates; else fail.
+          - ``any_same_study``:           any same-study candidate (no view filter).
+
+        Returns ``(clip_b_neg_anchor, target_phi_b_neg, bucket_idx_neg,
+        resample_count)``. ``clip_b_neg_anchor`` is None on failure.
+        ``resample_count`` is the number of bucket-draw retries used.
+        """
+        delta_pos = (target_phi_b_pos - target_phi_a) % 1.0
+        rows = self.study_to_rows.get(group_key, [])
+        if not rows:
+            return None, None, None, 0
+
+        # Build candidate list according to strategy (same study, distinct
+        # dicom from BOTH clip_a and clip_b_pos — the hard negative must
+        # not be either anchor itself).
+        clip_a_dicom = clip_a.dicom_id
+        a_row_idx = clip_a.row_idx
+        pos_dicom = clip_b_pos.dicom_id
+        pos_row_idx = clip_b_pos.row_idx
+        clip_b_pos_view = clip_b_pos.view
+
+        def _fam(v: Optional[str]) -> str:
+            if v is None:
+                return "other"
+            vu = v.upper()
+            if vu == "SUBCOSTAL":
+                vu = "Subcostal"
+            return VIEW_FAMILIES.get(vu if vu in VIEW_FAMILIES else v, "other")
+
+        pos_fam = _fam(clip_b_pos_view)
+        # Only count a view as "family-matched" when the family is one of
+        # the canonical cardiac-imaging families (apical / parasternal_long
+        # / parasternal_short). Everything else — "other", UNKNOWN, or the
+        # view-classifier's "Exclude" label — is considered NOT a family
+        # match, so cand_same_family stays empty and the strategy falls
+        # back appropriately. This keeps the same_view_then_same_family
+        # strategy from silently pulling in non-cardiac clips.
+        _CARDIAC_FAMILIES = {"apical", "parasternal_long", "parasternal_short"}
+        # Fast path: use the per-study caches built in ``_load`` so the
+        # inner loop is numpy-array indexing instead of pandas ``.loc``.
+        # This replaces ~O(n_clips_per_study) pandas lookups per anchor
+        # per hard-neg retry with O(1) dict lookups.
+        by_view_map = self._study_to_rows_by_view.get(group_key, {})
+        by_fam_map = self._study_to_rows_by_family.get(group_key, {})
+        cand_same_view_raw = (
+            by_view_map.get(clip_b_pos_view, []) if clip_b_pos_view is not None else []
+        )
+        cand_same_family_raw = (
+            by_fam_map.get(pos_fam, []) if pos_fam in _CARDIAC_FAMILIES else []
+        )
+        # cand_any is the fallback tier for ``any_same_study`` — build it
+        # lazily only if that strategy is active, since it's the
+        # largest list and rarely used in production.
+        cand_any_raw = rows if self.wrong_phase_strategy == "any_same_study" else []
+
+        # Exclude clip_a and clip_b_pos anchors (by row_idx AND by
+        # dicom_id — they can match on different rows if the parquet
+        # has duplicate dicom_ids, which happens after view-label joins).
+        excluded_rows = {a_row_idx, pos_row_idx}
+
+        def _filter_tier(src: list[int]) -> list[int]:
+            out = []
+            for ri in src:
+                if ri in excluded_rows:
+                    continue
+                d = self._dicom_by_row[ri]
+                d_str = str(d) if d is not None and not (isinstance(d, float) and np.isnan(d)) else ""
+                if d_str == clip_a_dicom or d_str == pos_dicom:
+                    continue
+                out.append(int(ri))
+            return out
+
+        cand_same_view = _filter_tier(cand_same_view_raw)
+        cand_same_family = _filter_tier(cand_same_family_raw)
+        cand_any = _filter_tier(cand_any_raw) if cand_any_raw else []
+
+        if self.wrong_phase_strategy == "same_view_only":
+            cand_ordered = [cand_same_view]
+        elif self.wrong_phase_strategy == "same_view_then_same_family":
+            # De-dup: same_family includes same_view.
+            same_fam_minus_view = [ri for ri in cand_same_family if ri not in set(cand_same_view)]
+            cand_ordered = [cand_same_view, same_fam_minus_view]
+        else:  # "any_same_study"
+            same_fam_minus_view = [ri for ri in cand_same_family if ri not in set(cand_same_view)]
+            any_minus_fam = [ri for ri in cand_any if ri not in set(cand_same_family)]
+            cand_ordered = [cand_same_view, same_fam_minus_view, any_minus_fam]
+
+        # Sample a wrong-phase Δφ_neg via bucket resampling.
+        n_buckets = len(self.delta_phase_bucket_centers)
+        for attempt in range(self.max_hard_neg_attempts):
+            if self.delta_phase_mode == "controlled_buckets" and n_buckets > 1:
+                # Re-draw a bucket whose center differs from Δφ_pos by ≥ min_delta.
+                eligible = [
+                    bi for bi in range(n_buckets)
+                    if circular_phase_distance(
+                        self.delta_phase_bucket_centers[bi], delta_pos
+                    ) >= self.wrong_phase_min_delta
+                ]
+                if not eligible:
+                    eligible = list(range(n_buckets))
+                bucket_idx_neg = int(
+                    rng.choice(
+                        eligible,
+                        p=np.asarray(
+                            [self.delta_phase_bucket_probs[bi] for bi in eligible]
+                        ) / sum(self.delta_phase_bucket_probs[bi] for bi in eligible),
+                    )
+                )
+                center = self.delta_phase_bucket_centers[bucket_idx_neg]
+                half = self._delta_phase_half_width
+                delta_neg = float(rng.uniform(max(0.0, center - half), center + half))
+                if center > 0.0 and rng.random() < 0.5:
+                    delta_neg = -delta_neg
+            else:
+                # Uniform Δφ_neg with wrap, far from Δφ_pos.
+                delta_neg = float(rng.uniform(0.0, 1.0))
+                bucket_idx_neg = None
+
+            # Reject if Δφ_neg isn't far enough from Δφ_pos.
+            if circular_phase_distance(delta_neg, delta_pos) < self.wrong_phase_min_delta:
+                continue
+
+            target_phi_b_neg = float((target_phi_a + delta_neg) % 1.0)
+
+            # Walk candidate preference tiers, pick the closest confident frame.
+            for tier_candidates in cand_ordered:
+                if not tier_candidates:
+                    continue
+                # Shuffle tier to avoid always picking the same clip.
+                tier_shuf = list(tier_candidates)
+                rng.shuffle(tier_shuf)
+                for ri in tier_shuf:
+                    # _decode_phase still reads the pandas row because the
+                    # per-frame phase + confident mask are stored as JSON
+                    # columns; caching parsed arrays for all 198k rows
+                    # would cost ~50 MB × n_frames and is a separate
+                    # opt. Call .loc only once per surviving candidate
+                    # (rejected candidates are filtered out upstream via
+                    # the view/family cache so we don't pay .loc for
+                    # wrong-view rows).
+                    r = self._df.loc[ri]
+                    ph_r, c_r = _decode_phase(r)
+                    hit = nearest_confident_frame(
+                        ph_r, c_r, target_phi_b_neg, tolerance=self.phase_tolerance
+                    )
+                    if hit is None:
+                        continue
+                    fb, pb, err_b = hit
+                    # Final-check: the actual landed phase must still be far
+                    # enough from Δφ_pos (anchor shifts can move it).
+                    got_delta = ((float(pb) if np.isfinite(pb) else target_phi_b_neg)
+                                 - target_phi_a) % 1.0
+                    if circular_phase_distance(got_delta, delta_pos) < self.wrong_phase_min_delta:
+                        continue
+                    # Use cached numpy columns for metadata (fps, hr,
+                    # quality, n_frames, view, dicom_id) — these are
+                    # O(1) array indexes vs the pandas row lookup.
+                    fps_c = self._fps_by_row[ri]
+                    hr_c = self._hr_by_row[ri]
+                    fps_r = float(fps_c) if (fps_c and fps_c > 0) else float("nan")
+                    hr_r = float(hr_c) if (hr_c and hr_c > 0) else float("nan")
+                    view_c = self._view_by_row[ri]
+                    anchor = ClipAnchor(
+                        row_idx=int(ri),
+                        dicom_id=str(self._dicom_by_row[ri]),
+                        n_frames=int(self._n_frames_by_row[ri]),
+                        anchor_frame=int(fb),
+                        phase_at_anchor=float(pb) if np.isfinite(pb) else float("nan"),
+                        phase_error=float(err_b),
+                        view=(view_c if isinstance(view_c, str) else None),
+                        hr_metadata=hr_r if np.isfinite(hr_r) else None,
+                        fps_video=fps_r if np.isfinite(fps_r) else None,
+                        quality_tier=str(self._quality_tier_by_row[ri]),
+                        rr_consistent=(None if not self.require_rr_consistent else True),
+                    )
+                    return anchor, target_phi_b_neg, bucket_idx_neg, attempt
+
+        return None, None, None, self.max_hard_neg_attempts
 
     def _draw_anchor(
         self,
@@ -887,6 +1291,44 @@ class PhaseMatchedStudySampler:
                 fam_b = None
                 probs_str = None
                 cur_frac = None
+            # --- Hard-negative draw (optional; only for phase_relational / paired intraview_only) ---
+            clip_b_neg = None
+            target_phi_b_neg_out = None
+            bucket_idx_neg = None
+            vp_class_pos = view_pair_class(clip_a.view, clip_b.view)
+            vp_class_neg = None
+            hn_available = False
+            hn_resample_count = 0
+            if self.require_same_study_wrong_phase_negative:
+                clip_b_neg, target_phi_b_neg_out, bucket_idx_neg, hn_resample_count = (
+                    self._draw_hard_negative_clip(
+                        group_key=group_key,
+                        clip_a=clip_a,
+                        clip_b_pos=clip_b,
+                        target_phi_a=float(phi_a),
+                        target_phi_b_pos=float(phi_b),
+                        rng=rng,
+                    )
+                )
+                self._hard_neg_resample_count_total += hn_resample_count
+                if clip_b_neg is None:
+                    if self.hard_negative_fallback == "skip_sample":
+                        self._hard_neg_skip_count += 1
+                        continue  # next resample_attempts iteration
+                    if self.hard_negative_fallback == "batch_negatives_only":
+                        if not self.allow_missing_hard_negative:
+                            # Explicitly disallowed unless flagged.
+                            self._hard_neg_skip_count += 1
+                            continue
+                        hn_available = False
+                    else:
+                        # "resample_anchor" (default): try a different anchor.
+                        self._hard_neg_skip_count += 1
+                        continue
+                else:
+                    hn_available = True
+                    vp_class_neg = view_pair_class(clip_a.view, clip_b_neg.view)
+
             return MatchRecord(
                 study_id=study_id_val,
                 subject_id=(None if subj is None or (isinstance(subj, float) and math.isnan(subj)) else str(subj)),
@@ -911,6 +1353,21 @@ class PhaseMatchedStudySampler:
                 view_family_b=fam_b,
                 curriculum_epoch_frac=cur_frac,
                 curriculum_bucket_probs=probs_str,
+                clip_b_neg_phase=clip_b_neg,
+                target_phi_b_neg=(
+                    float(target_phi_b_neg_out) if target_phi_b_neg_out is not None else None
+                ),
+                delta_phase_bucket_pos=(
+                    int(self._last_bucket_idx_pos)
+                    if self._last_bucket_idx_pos is not None else None
+                ),
+                delta_phase_bucket_neg=(
+                    int(bucket_idx_neg) if bucket_idx_neg is not None else None
+                ),
+                view_pair_class_pos=vp_class_pos,
+                view_pair_class_neg=vp_class_neg,
+                hard_neg_available=bool(hn_available),
+                hard_neg_resample_count=int(hn_resample_count),
             )
         return None
 
