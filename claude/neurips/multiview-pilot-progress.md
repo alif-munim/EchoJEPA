@@ -1,8 +1,18 @@
 # Multi-view JEPA pilots — progress doc
 
-Live status for the phase-matched multiview pilot series. Updated 2026-04-29.
+Live status for the phase-matched multiview pilot series. Updated 2026-04-30.
 
-## One-line status
+## One-line status (2026-04-30)
+
+**Finalbudget pairs=24 +25e sweep complete — NEUTRAL verdict across three downstream probes.** Phase-matched multiview does not measurably improve phase decodability, LVEF regression, or RVSP regression over sv/JEPA continuation. See `experiments/finalbudget-phase-probes.md` for full numbers including implementation diff vs single-view. RVSP utility check: 557 (phase+25) complete and **below noise floor vs JEPA-IN21K-e100**; 558 (sv+25) running. Curriculum (550) kept held; no +50/+100 extensions planned.
+
+## Implementation of phase-matched vs single-view (one-paragraph summary)
+
+Both arms start from identical IN21K-JEPA e100 weights, run for 25 continuation epochs, and share encoder/predictor/teacher/masks/optimizer/LR. The only deltas are (1) single-view samples one random 16-frame clip per video from `mimic_annotations_s3.csv` via `VideoDataset`, while phase-matched draws 24 pairs-per-study from `PhaseMatchedStudySampler` anchored on target phase φ with `phase_tolerance=0.15` under `view_pair_policy=25/45/30` (same_view/same_family/cross_family); and (2) the multiview loss adds a crossview term `L_total = L_intraview + 0.25·L_crossview`, where crossview asks the predictor's output on clip_a to match the teacher's encoding of clip_b (a paired clip at matched phase+view from the same study). Empirically the crossview term is nearly redundant with intraview at this pair-matching tightness — h_a and h_b are close enough that L_crossview doesn't drive representation change, so the effective objective collapses toward single-view. Full implementation details and loss-curve evidence in `experiments/finalbudget-phase-probes.md` §Implementation.
+
+---
+
+## Earlier status (2026-04-29)
 
 Job **516 (mv_phase_25e)** is running; jobs 517/518/519 queued behind it with SLURM dependencies. A background poll loop refreshes `/tmp/mv_poll_loop.log` every 2 h.
 

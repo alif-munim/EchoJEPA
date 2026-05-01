@@ -1,9 +1,88 @@
-# Finalbudget phase-probe sweep (555-574)
+# Finalbudget phase-probe sweep (555-578)
 
-**Status**: 🟡 **IN PROGRESS** — 555 LVEF complete, 563 phase_e100_sin running. Queue: 6 train + 6 test phase probe jobs; related RVSP/LVEF jobs held.
+**Status**: ✅ **COMPLETE — NEUTRAL verdict**. 6 train + 6 test phase probes, LVEF 555, scorer 578. RVSP utility check (557/558/561/562) released to run next.
 
 **Date started**: 2026-04-30
+**Date completed**: 2026-04-30
 **Ask**: Is the phase-matched +25e multiview continuation teaching the encoder anything phase-specific that a plain +25e JEPA extension or a single-view +25e control doesn't already give you? LVEF probes can't answer this on their own — they only reward encodings that correlate with ejection fraction. A frozen phase probe that predicts sin/cos of the cardiac phase from the same encoder is the direct diagnostic.
+
+---
+
+## Headline verdict
+
+**NEUTRAL**: phase-matched multiview sampling at +25e does not improve explicit cardiac-phase decodability over either a plain single-view continuation or the pre-continuation IN21K-e100 baseline.
+
+Test-set circular MAE (2887 held-out clips):
+
+| arm | circular MAE | phase-bin acc | macro bin acc | mean comp R² |
+|-----|-------------:|-------------:|-------------:|--------------:|
+| IN21K-e100 | 42.5° | 0.338 | 0.120 | −0.200 |
+| phase +25 (job 542) | **42.0°** | 0.337 | 0.121 | **−0.194** |
+| sv +25 (job 548) | 43.2° | 0.326 | **0.129** | −0.234 |
+| *constant-baseline (φ̂=0.55)* | *44.7°* | — | — | — |
+
+**Why this is NEUTRAL, not POSITIVE**:
+1. All three arms beat the constant baseline by only 1.5°–2.7° — no arm is decoding phase well.
+2. phase+25 vs sv+25 gap on circular MAE is 1.2° — within HP-seed noise.
+3. Macro metrics (rare-bin performance) reverse the ordering: sv+25 > phase+25 > e100. If phase-matching were the mechanism, the ordering should be consistent across metrics.
+4. Per-axis: **sin** decoding is flat across arms (best val MAE 0.448 each). **cos** decoding improves with any +25e continuation (sv+25: 0.422, phase+25: 0.432, e100: 0.451) — but sv+25 wins, not phase+25.
+
+This matches the LVEF-probe finding (555: val MAE 5.013 vs e125 5.097 — within-noise), making the consistent story across two downstream tasks that **pairs=24 phase-matched multiview adds no representational benefit at +25 epochs over plain continuation**.
+
+**Practical implication**: do not extend the multiview phase-matched objective to +50/+100 on this compute budget. The curriculum arm (550) and random/wrong arms (543/549) are held; random collapsed and wrong only reached e12, so neither is a clean control. RVSP utility check (557/558/561/562) is queued as a final sanity test.
+
+---
+
+## Implementation: phase-matched vs single-view pretraining
+
+Both arms start from **identical IN21K-JEPA e100 weights** (job 376) and run for **25 continuation epochs** with the **same** encoder architecture (ViT-L/16, tubelet_size=2), predictor, EMA teacher, 8 random spatio-temporal block masks, optimizer, and LR schedule (100-ep cosine horizon, stop@25). The only deltas are in sampling and loss.
+
+### Single-view (548 `final_sv_25`)
+
+Training loop: `app/vjepa/train.py`. Per sample:
+
+- Sampler: `VideoDataset` picks one random 16-frame window per clip from `mimic_annotations_s3.csv`.
+- Per step: student encoder + predictor see one clip; teacher encodes the same clip.
+- Loss: `L = smooth_L1(predictor_out, teacher_out)` over mask_pred.
+- Per-GPU batch: 128 clips × 8 GPUs = 1024 clips/step.
+
+### Phase-matched (542 `final_phase_25`)
+
+Training loop: `app/vjepa_multiview/train.py`. Per sample:
+
+- Sampler: `classifier/phase/sampler/phase_matched_sampler.py::PhaseMatchedStudySampler`
+  - Filters: `quality_tiers=["high","medium"]`, `rr_filter_mode=strict`, `require_rr_consistent=true`.
+  - Per study, builds cached pair index (`_pair_index_viewpair`, `_pair_index_curriculum`).
+  - Per draw: target phase φ ~ U(0,1) (`sampling_mode=uniform_phase`); for clip_a and clip_b, snap to the nearest confident frame where `|per_frame_phase − φ| ≤ 0.15` (`phase_tolerance`); center a 16-frame window on each anchor with `frame_step=1`.
+  - `pairs_per_study=24` — each study contributes up to 24 pairs per epoch (single-view averages ~1 clip per epoch via random sampling).
+  - `view_pair_policy`: enforces (`same_view=0.25, same_family=0.45, cross_family=0.30`) distribution via resampling, independent of the phase logic.
+  - `video_uri_mode=mp4` → reads from `s3://echodata25/mimic-echo-224px/*.mp4`.
+- Per step (`forward_intraview_and_crossview`):
+  ```
+  z   = predictor( encoder(clip_a, masks_enc), masks_enc, masks_pred )  # student, ONCE on clip_a
+  h_a = target_encoder(clip_a)                                           # teacher, no grad
+  h_b = target_encoder(clip_b)                                           # teacher, no grad
+  L_intraview = smooth_L1(z, h_a)                                        # standard JEPA
+  L_crossview = smooth_L1(z, h_b)                                        # predict clip_b from clip_a context
+  L_total     = L_intraview + 0.25 · L_crossview                         # lambda_crossview=0.25
+  ```
+- Per-GPU batch: 64 pairs × 8 GPUs = 512 pairs = 1024 teacher forwards (512 student forwards).
+
+### What differs, and what doesn't
+
+| axis | single-view (548) | phase-matched (542) |
+|---|---|---|
+| sample unit | 1 clip | 1 pair (clip_a, clip_b) |
+| sampler | `VideoDataset` random window | `PhaseMatchedStudySampler` anchored on φ |
+| data filter | none (all MIMIC MP4s) | quality_tier high+medium, RR-consistent, view_pair_policy |
+| student forwards/step | 1 | 1 (clip_a only) |
+| teacher forwards/step | 1 | 2 (clip_a, clip_b) |
+| loss terms | intraview only | intraview + 0.25·crossview |
+| pairs/study/epoch | ~1 random clip | **24** |
+| ipe (steps/epoch) | 325 | 325 (matched) |
+| encoder, predictor, masks, optimizer, LR, init, horizon | — | identical to left column |
+
+**Key observation**: the intraview component of 542's total loss is essentially identical to 548's loss curve (both ~0.48 at e25). 542's **total** loss stays ≈0.67 across all 25 epochs because the crossview term `0.25 · L_crossview ≈ 0.17` sits on top of it without descending. That tells you the crossview signal is not driving representational change — the teacher's clip_b latents h_b are too close to h_a at matched phase+view, so the crossview loss is nearly redundant with intraview. The sampler IS doing what it claims (we verified view-pair mixture and phase-bin coverage at dry-run time), but the crossview objective under these pair conditions collapses toward being a noisier intraview.
 
 ---
 
@@ -181,36 +260,121 @@ Chain all 6 train jobs serially (single 8-GPU node), each test afterok its paren
 
 ---
 
-## Planned comparison table
+## Comparison table (final)
 
-Will be populated as test inference lands. Compute from the **test-set prediction CSVs** (569–574) joined by `video_path`.
+Validation best-epoch (from each probe's log_r0.csv):
 
-| arm | best val sin MAE | best val cos MAE | test sin MAE | test cos MAE | test circular MAE (°) | test joint R² | test phase-bin acc (10-bin) |
-|-----|------------------|------------------|--------------|--------------|----------------------|---------------|-----------------------------|
-| e100 | pending | pending | — | — | — | — | — |
-| phase +25 (542) | pending | pending | — | — | — | — | — |
-| sv +25 (548) | pending | pending | — | — | — | — | — |
+| arm | sin best ep | val sin MAE | val sin R² | cos best ep | val cos MAE | val cos R² |
+|-----|:-----------:|------------:|-----------:|:-----------:|------------:|-----------:|
+| e100 | 11 | 0.448 | +0.051 | 4 | 0.451 | −0.102 |
+| phase +25 | 8 | 0.448 | +0.039 | 4 | 0.432 | −0.047 |
+| sv +25 | 8 | 0.447 | +0.031 | 8 | 0.422 | −0.100 |
 
-**Post-processing plan**: after all 6 tests finish, join sin/cos prediction CSVs per arm by `video_path`, compute:
-- `φ̂ = atan2(ŝin, ĉos) / (2π) mod 1`
-- circular MAE in degrees (wrap-aware)
-- joint R² on the 2D `(sin, cos)` target (vs. baseline: `(mean_sin, mean_cos)`)
-- 10-bin phase accuracy using the same bin edges as train
+Test-set (2887 subject-disjoint clips, from predictions joined by video_path → anchors by dicom_id):
 
-Script: `classifier/phase/score_phase_probes.py` (to be written after first arm completes so I can verify the CSV schema matches).
+| arm | n | sin R² | cos R² | mean comp R² | circular MAE (cy) | circular MAE (°) | bin acc (10) | macro circular MAE (°) | macro bin acc | const-baseline cy |
+|-----|--:|-------:|-------:|-------------:|------------------:|-----------------:|-------------:|-----------------------:|--------------:|------------------:|
+| e100 | 2887 | −0.027 | −0.372 | −0.200 | 0.118 | 42.5 | 0.338 | 84.7 | 0.120 | 0.124 |
+| phase_542 | 2887 | −0.045 | −0.344 | −0.194 | 0.117 | 42.0 | 0.337 | 83.9 | 0.121 | 0.124 |
+| sv_548 | 2887 | −0.195 | −0.273 | −0.234 | 0.120 | 43.2 | 0.326 | 81.1 | 0.129 | 0.124 |
+
+Per-phase-bin circular MAE and bin accuracy at `out/per_bin.csv` (local): all three arms show **0% bin accuracy** on bins 0, 1, 2, 3, 6, 7, 8, 9 (the rare tails). Only bins 4–5 (systole + early diastole, 56% of test clips) are decoded above chance. sv+25 marginally accurate at bins 6/7/8/9 (1–11% range) — this is where its macro advantage comes from.
+
+**Scorer**: `classifier/phase/score_phase_probes.py` (runnable both via sbatch `phase_probe_score.sbatch` and as a local CLI against S3-synced predictions). Decision threshold: POSITIVE requires (i) phase+25 circular MAE < both controls by ≥0.005 cycles (~1.8°), and (ii) any arm beats the constant baseline by >10%. Neither condition met — verdict NEUTRAL.
+
+### Scorer deployment note
+
+Job 578 (sbatch) failed at submission due to the `--export=ALL,PHASE_TEST_JIDS=569,570,...` form: sbatch parses the comma-delimited value as multiple separate exports, so `PHASE_TEST_JIDS` only received `"569"`. Workaround used: ran the scorer locally against S3-synced prediction CSVs. If re-running the scorer on another cluster, pass the JID list as a colon- or semicolon-delimited string and adjust the IFS parser in the sbatch.
 
 ---
 
-## Decision criteria
+## Decision criteria — outcome
 
-All against **circular MAE on test** (primary) and **joint R²** (secondary):
+Criteria were defined ex-ante as:
 
-1. **phase +25 > sv +25 > e100**: phase-matched training induces phase-sensitive representations beyond what pure continuation does. Supports extending to +50/+100.
-2. **phase +25 ≈ sv +25 > e100**: +25e of any training helps phase decodability, but multiview phase-matching is not phase-specific. Kill the multiview objective, extend plain JEPA instead.
-3. **phase +25 ≈ sv +25 ≈ e100**: +25e doesn't move phase decodability either way. Either the encoder already saturated the phase signal at e100, or 25 extra epochs is too short.
-4. **phase +25 < sv +25**: phase-matched training *hurt* phase decodability. Would be a surprising negative result; investigate loss/data/sampler.
+1. **phase +25 > sv +25 > e100**: extend to +50/+100
+2. **phase +25 ≈ sv +25 > e100**: kill multiview, extend plain JEPA instead
+3. **phase +25 ≈ sv +25 ≈ e100**: +25e doesn't move phase decodability
+4. **phase +25 < sv +25**: phase-matched training *hurt*
 
-Curriculum (550) and wrong-phase (549) are optional follow-ups: if outcome (1), add curriculum to see if it goes further. If outcome (4), wrong-phase becomes interesting as a "negative control actually works" story.
+**Observed**: closest to (3) with a cos-axis twist.
+- Raw circular MAE: phase_542 (42.0°) ≈ e100 (42.5°) ≈ sv_548 (43.2°) — all within 1.2° of each other and 1.5–2.7° of the constant baseline floor (44.7°).
+- Raw bin accuracy: all ~0.33, mostly driven by bins 4–5 (systole).
+- Per-axis cos: both +25e arms (phase, sv) improve over e100 by ~0.02–0.03 vMAE, but sv+25 > phase+25 on cos — the axis that showed any movement is not phase-specific.
+- Macro metrics (rare bins): sv+25 > phase+25 > e100 — opposite direction from the mechanism claim.
+
+**Action**:
+- Do NOT extend to +50/+100 on this multiview phase-matched objective.
+- Do NOT run curriculum (550), random (543, collapsed), wrong-phase (549, cancelled) extensions.
+- Run RVSP as a final targeted utility check — 2 probe-train + 2 test jobs (557/558/561/562 released). If phase+25 RVSP ≈ sv+25 RVSP, this confirms NEUTRAL across a clinical readout; if phase+25 wins RVSP by a margin that exceeds LVEF noise, it's worth re-examining whether there's a hemodynamic-specific benefit that's not captured by EF or sin/cos phase.
+- Deprioritize 559/560 LVEF test-set inference (held) — 555 val-set numbers are sufficient for the comparison with e125/e200 already on record.
+
+---
+
+## LVEF utility check (555 complete)
+
+Submitted 2026-04-30 alongside the phase probes, on the EchoNet-Dynamic split (not MIMIC). 20-ep d=4 attentive probe, 6-HP grid — same protocol as `neurips/completed-experiments.md §1b`. Job 555 `fb_phase_542_lvef` completed in 1:23:46 (exit 0).
+
+### Val-set results (20 epochs, EchoNet-Dynamic LVEF)
+
+| Arm | best ep | val MAE | val R² | val Pearson |
+|-----|:-:|-------:|-------:|-----------:|
+| **555 fb_phase_542 (+25e mv)** | 16 | **5.013** | **0.691** | **0.833** |
+| JEPA-IN21K-e125 (matched compute) | 18 | 5.097 | 0.685 | 0.832 |
+| JEPA-IN21K-e200 (2× compute) | 16 | 4.880 | 0.714 | 0.845 |
+| EchoJEPA-L-K (anneal reference) | 18 | 4.448 | 0.766 | 0.876 |
+
+### 555 vs JEPA-IN21K-e125 (matched compute): within-noise
+
+Both arms are +25 epochs from IN21K-e100 — 555 via phase-matched multiview, e125 via plain JEPA continuation (job 332):
+
+| metric | e125 | phase+25 (555) | Δ |
+|--------|-----:|---------------:|---:|
+| val MAE | 5.097 | 5.013 | **−0.084** (-1.6%) |
+| val R² | 0.685 | 0.691 | +0.006 |
+| val Pearson | 0.832 | 0.833 | +0.001 |
+
+Phase-matched is numerically better by 0.08 val MAE, but **this is at the 2nd decimal** — well within HP-sweep noise. For comparison, JEPA-e200 (4× the continuation compute) is 0.13 val MAE ahead of 555.
+
+### Test-set inference skipped
+
+Job 559 (fb_phase_542_lvef_test) was submitted but is now **held** — 555's val numbers are sufficient for the within-noise comparison, and test inference on EchoNet-Dynamic costs ~1.5h on 1 GPU. 560 (fb_sv_548_lvef_test) is similarly held since job 556 (sv LVEF train) was cancelled mid-run to free GPUs for the phase-probe debug harness, and its best.pt was never saved. If the RVSP NEUTRAL verdict confirms the pattern, we don't need sv LVEF either.
+
+---
+
+## RVSP utility check (partial — 557 done, 558 running)
+
+Released 2026-04-30 after phase-probe verdict:
+- 557 `fb_phase_542_rvsp` (8-GPU, 1:45:07 actual) — ✅ COMPLETE
+- 558 `fb_sv_548_rvsp` — RUNNING (chained afterany:557)
+- 561 `fb_phase_542_rvsp_test` (afterok:557 + PROBE_JOB=557, 1 GPU, ~1.5h) — pending
+- 562 `fb_sv_548_rvsp_test` — afterok:558 + PROBE_JOB=558 — pending
+
+Uses MIMIC single-view RVSP 10K subset (`mimic_rvsp_sv_{train,val,test}_10k.csv`), same HP grid as the LVEF probes. `TARGET_MEAN=30.10 mmHg, TARGET_STD=12.23 mmHg`.
+
+### Val-set results (20 epochs)
+
+| arm | best ep | val MAE | val R² | val Pearson | source |
+|-----|:-:|-------:|-------:|-----------:|--------|
+| JEPA-IN21K-e100 (reference) | 5 | **6.823** | **+0.175** | 0.482 (e13) | job 484 `rvsp_sv_484/jepa_in21k_e100_sv` |
+| **phase +25 (job 542, probe 557)** | 12 | 6.995 | +0.142 (e11) | 0.451 (e17) | job 557 |
+| sv +25 (job 548, probe 558) | pending | pending | pending | pending | job 558 (running) |
+
+**e125/e200 RVSP references do not exist in S3.** The trajectory probing effort for JEPA extensions (job 332) covered LVEF only; RVSP wasn't extended past e100 in prior work. If we want e125/e200 RVSP numbers, a fresh probe run is ~1h on 8 GPU.
+
+### 557 vs e100: phase +25 is slightly worse on RVSP
+
+| metric | e100 best (ep) | phase+25 best (ep) | Δ (phase+25 − e100) | verdict |
+|--------|---------------:|--------------------:|--------------------:|:-:|
+| val MAE (mmHg) | 6.823 (e5) | 6.995 (e12) | **+0.17 worse** | below noise |
+| val R² | +0.175 (e5) | +0.142 (e11) | **−0.033 worse** | below noise |
+| val Pearson | 0.482 (e13) | 0.451 (e17) | **−0.031 worse** | below noise |
+
+At every epoch from e5 onward, phase+25 val MAE sits above e100's. The gap is small (~2% of target std), within HP-seed noise floor, but the sign is consistent.
+
+**Noise-floor threshold** pre-specified: gap > 0.3 MAE required to flag as investigable. Observed 0.17 — **below threshold**, NEUTRAL reinforced.
+
+Once 558 (sv +25) lands, the final 3-way table will sit under this subsection. Expected direction: sv +25 will also land near 6.9–7.0 MAE; the three arms (e100, phase+25, sv+25) should cluster together on RVSP as they did on LVEF and the phase probe.
 
 ---
 

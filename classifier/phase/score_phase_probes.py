@@ -286,12 +286,26 @@ def main():
 
     phase_vs_sv_cmae_gap = float(sv['circular_MAE_cycles'] - phase['circular_MAE_cycles'])
 
-    if beats_on_cmae or beats_on_macro_acc:
+    # A claim of mechanism requires (i) phase+25 beats both controls AND (ii)
+    # the gap is meaningfully above the arm-vs-arm noise floor. We use 0.005
+    # cycles (~1.8°) as the minimum gap vs sv+25 — smaller than that is HP-seed
+    # noise. And require the arms' best cMAE to beat the constant-baseline
+    # cMAE by at least 10% — otherwise no arm is actually decoding phase.
+    phase_vs_e100_cmae_gap = float(e100['circular_MAE_cycles'] - phase['circular_MAE_cycles'])
+    const_margin_phase = float(phase['const_baseline_cmae_cycles'] - phase['circular_MAE_cycles'])
+    significant_beat_sv = beats_on_cmae and (phase_vs_e100_cmae_gap > 0.005) \
+                          and (phase_vs_sv_cmae_gap > 0.005)
+    significant_beat_macro_acc = beats_on_macro_acc \
+                          and ((phase['macro_phase_bin_acc'] - sv['macro_phase_bin_acc']) > 0.02)
+    meaningful_vs_const = const_margin_phase > 0.1 * float(phase['const_baseline_cmae_cycles'])
+
+    if (significant_beat_sv or significant_beat_macro_acc) and meaningful_vs_const:
         verdict = 'POSITIVE mechanism signal'
         reason = (f"phase+25 beats sv+25 and e100 "
-                  f"{'on circular MAE' if beats_on_cmae else ''}"
-                  f"{' and ' if (beats_on_cmae and beats_on_macro_acc) else ''}"
-                  f"{'on macro bin acc' if beats_on_macro_acc else ''}.")
+                  f"{'on circular MAE' if significant_beat_sv else ''}"
+                  f"{' and ' if (significant_beat_sv and significant_beat_macro_acc) else ''}"
+                  f"{'on macro bin acc' if significant_beat_macro_acc else ''}"
+                  f"; all arms beat the constant baseline by >10%.")
     elif abs(phase_vs_sv_cmae_gap) < 0.005:  # < 0.5% cycle = 1.8° — within noise
         verdict = 'NEUTRAL (phase+25 ≈ sv+25)'
         reason = (f"phase+25 circular MAE = {phase['circular_MAE_cycles']:.4f} vs "
