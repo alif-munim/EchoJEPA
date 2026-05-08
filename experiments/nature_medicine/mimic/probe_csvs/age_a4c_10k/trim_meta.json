@@ -1,0 +1,94 @@
+{
+  "strategy": "regression_quantile_stratified",
+  "target": 10000,
+  "clip_cap": 6,
+  "n_bins_requested": 10,
+  "n_bins_effective": 10,
+  "per_bin": {
+    "bin_0": {
+      "label_range": [
+        22.0,
+        54.0
+      ],
+      "studies_available": 442,
+      "clips_kept": 1000
+    },
+    "bin_1": {
+      "label_range": [
+        54.0,
+        60.0
+      ],
+      "studies_available": 506,
+      "clips_kept": 1000
+    },
+    "bin_2": {
+      "label_range": [
+        60.0,
+        64.0
+      ],
+      "studies_available": 416,
+      "clips_kept": 1000
+    },
+    "bin_3": {
+      "label_range": [
+        64.0,
+        68.0
+      ],
+      "studies_available": 548,
+      "clips_kept": 1000
+    },
+    "bin_4": {
+      "label_range": [
+        68.0,
+        71.0
+      ],
+      "studies_available": 435,
+      "clips_kept": 1000
+    },
+    "bin_5": {
+      "label_range": [
+        71.0,
+        75.0
+      ],
+      "studies_available": 575,
+      "clips_kept": 1000
+    },
+    "bin_6": {
+      "label_range": [
+        75.0,
+        78.0
+      ],
+      "studies_available": 423,
+      "clips_kept": 1000
+    },
+    "bin_7": {
+      "label_range": [
+        78.0,
+        82.0
+      ],
+      "studies_available": 489,
+      "clips_kept": 1000
+    },
+    "bin_8": {
+      "label_range": [
+        82.0,
+        87.0
+      ],
+      "studies_available": 525,
+      "clips_kept": 1000
+    },
+    "bin_9": {
+      "label_range": [
+        87.0,
+        91.000002
+      ],
+      "studies_available": 551,
+      "clips_kept": 1000
+    }
+  },
+  "total_clips": 10000,
+  "source_csv": "probe_csvs/age_a4c/train.csv",
+  "output_csv": "probe_csvs/age_a4c_10k/train.csv",
+  "input_clips": 52964,
+  "seed": 42
+}

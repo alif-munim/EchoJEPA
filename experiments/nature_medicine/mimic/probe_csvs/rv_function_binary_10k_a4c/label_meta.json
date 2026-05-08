@@ -1,0 +1,161 @@
+{
+  "built_at": "2026-05-04T03:22:20+00:00",
+  "task_type": "classification",
+  "num_classes": 2,
+  "class_labels": [
+    "no_dysfunction",
+    "any_dysfunction"
+  ],
+  "label_source": "echo_structured_measurement.rv_function (TTE, non-stress)",
+  "source_db": "uhn_echo/nature_medicine/data_exploration/mimic/mimic.db",
+  "class_map": {
+    "Nl RV function": 0,
+    "Low normal function": 1,
+    "Mild global RV hypo": 2,
+    "Moderate global RV hypo": 3,
+    "Severe global hypo": 4,
+    "RV function depressed": 4
+  },
+  "excluded_strings": [
+    "Apical free wall hypo",
+    "Basal RV hypo (McConnell's sign)",
+    "Cannot assess RV function",
+    "Hyperdynamic",
+    "RV not well seen"
+  ],
+  "match_window_days": 1,
+  "cohort_skeleton": "experiments/nature_medicine/mimic/probe_csvs/disease_hf_v4.1",
+  "view_manifest": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/mimic_view_predictions.csv",
+  "view_filter": [
+    "A4C"
+  ],
+  "view_status_filter": "OK",
+  "raw_result_counts": {
+    "Nl RV function": 5391,
+    "Mild global RV hypo": 523,
+    "Low normal function": 325,
+    "Moderate global RV hypo": 287,
+    "Severe global hypo": 122,
+    "RV function depressed": 110,
+    "Cannot assess RV function": 47,
+    "Apical free wall hypo": 47,
+    "RV not well seen": 41,
+    "Basal RV hypo (McConnell's sign)": 10,
+    "Hyperdynamic": 8
+  },
+  "splits": {
+    "train": {
+      "clips_in": 366156,
+      "clips_view_filtered": 52964,
+      "clips_out": 50461,
+      "studies_in": 5040,
+      "studies_out": 4621,
+      "studies_unlabelled": 289,
+      "class_distribution_clips": {
+        "0": 40131,
+        "1": 2672,
+        "3": 2285,
+        "2": 3812,
+        "4": 1561
+      },
+      "class_distribution_studies": {
+        "0": 3688,
+        "1": 239,
+        "3": 197,
+        "2": 342,
+        "4": 155
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 11,
+        "max": 30,
+        "mean": 10.92
+      }
+    },
+    "val": {
+      "clips_in": 80096,
+      "clips_view_filtered": 11751,
+      "clips_out": 11040,
+      "studies_in": 1116,
+      "studies_out": 998,
+      "studies_unlabelled": 80,
+      "class_distribution_clips": {
+        "0": 8714,
+        "2": 1188,
+        "4": 346,
+        "1": 402,
+        "3": 390
+      },
+      "class_distribution_studies": {
+        "0": 791,
+        "2": 104,
+        "4": 34,
+        "1": 37,
+        "3": 32
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 11.0,
+        "max": 27,
+        "mean": 11.06
+      }
+    },
+    "test": {
+      "clips_in": 79060,
+      "clips_view_filtered": 11170,
+      "clips_out": 10706,
+      "studies_in": 1087,
+      "studies_out": 994,
+      "studies_unlabelled": 59,
+      "class_distribution_clips": {
+        "0": 8627,
+        "3": 552,
+        "2": 743,
+        "1": 529,
+        "4": 255
+      },
+      "class_distribution_studies": {
+        "0": 808,
+        "3": 46,
+        "2": 65,
+        "1": 47,
+        "4": 28
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 11.0,
+        "max": 25,
+        "mean": 10.77
+      }
+    }
+  },
+  "binary_map_from_5class": {
+    "0": 0,
+    "1": 0,
+    "2": 1,
+    "3": 1,
+    "4": 1
+  },
+  "subset_of": "experiments/nature_medicine/mimic/probe_csvs/rv_function_a4c",
+  "subset_train_size_target": 10000,
+  "subset_train_size_actual": 10000,
+  "subset_val_size_actual": 2188,
+  "subset_test_size_actual": 2122,
+  "subset_scale_factor": 0.1981728463565922,
+  "subset_seed": 42,
+  "subset_method": "stratified random sample by binary class, proportional allocation; val/test scaled by train subset factor",
+  "subset_class_distribution_clips": {
+    "train": {
+      "0": 8482,
+      "1": 1518
+    },
+    "val": {
+      "0": 1807,
+      "1": 381
+    },
+    "test": {
+      "0": 1815,
+      "1": 307
+    }
+  }
+}

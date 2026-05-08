@@ -1,0 +1,16 @@
+{
+  "measurement": "rvsp",
+  "test_type": "tte",
+  "view_filter": [
+    "A4C",
+    "Subcostal"
+  ],
+  "color_filter": "No",
+  "task_type": "regression",
+  "matching_window_days": 1,
+  "value_range": [
+    5.0,
+    130.0
+  ],
+  "unit": "mmHg"
+}

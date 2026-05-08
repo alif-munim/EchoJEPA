@@ -1,0 +1,88 @@
+{
+  "built_at": "2026-05-07T10:18:48+00:00",
+  "task_type": "regression",
+  "target": "mv_ee_medial_ratio",
+  "source_splits": "experiments/nature_medicine/mimic/probe_csvs/mv_ee_medial",
+  "view_manifest": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/mimic_view_predictions.csv",
+  "view_filter": [
+    "A4C"
+  ],
+  "view_status_filter": "OK",
+  "color_filter": "none (tissue Doppler permitted)",
+  "splits": {
+    "train": {
+      "clips_in": 167472,
+      "clips_out": 24159,
+      "studies_in": 2208,
+      "studies_out": 2169,
+      "studies_dropped_no_a4c": 39,
+      "mv_ee_medial_stats": {
+        "n": 24159,
+        "min": 2.0,
+        "p25": 8.0,
+        "median": 10.0,
+        "p75": 14.0,
+        "max": 40.0,
+        "mean": 11.7882,
+        "std": 5.7804
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 11,
+        "max": 30,
+        "mean": 11.14
+      }
+    },
+    "val": {
+      "clips_in": 35398,
+      "clips_out": 5198,
+      "studies_in": 467,
+      "studies_out": 458,
+      "studies_dropped_no_a4c": 9,
+      "mv_ee_medial_stats": {
+        "n": 5198,
+        "min": 4.0,
+        "p25": 8.0,
+        "median": 10.0,
+        "p75": 14.0,
+        "max": 40.0,
+        "mean": 11.5716,
+        "std": 5.2378
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 11.0,
+        "max": 24,
+        "mean": 11.35
+      }
+    },
+    "test": {
+      "clips_in": 36865,
+      "clips_out": 5078,
+      "studies_in": 493,
+      "studies_out": 481,
+      "studies_dropped_no_a4c": 12,
+      "mv_ee_medial_stats": {
+        "n": 5078,
+        "min": 4.0,
+        "p25": 8.0,
+        "median": 11.0,
+        "p75": 13.0,
+        "max": 40.0,
+        "mean": 11.5149,
+        "std": 4.7536
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 11,
+        "max": 23,
+        "mean": 10.56
+      }
+    }
+  },
+  "zscore_params": {
+    "target_mean": 11.788174179519022,
+    "target_std": 5.780426641435297,
+    "computed_from": "train clips (A4C-filtered)"
+  }
+}

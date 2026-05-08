@@ -1,0 +1,105 @@
+{
+  "built_at": "2026-05-04T19:29:29+00:00",
+  "task_type": "regression",
+  "target": "inf_lat_thickness",
+  "display_name": "LVPW / inferolateral wall thickness (diastolic)",
+  "label_source": "echo_structured_measurement",
+  "test_type": "tte",
+  "matching_window_days": 1,
+  "value_range": [
+    0.4,
+    3.0
+  ],
+  "unit": "cm",
+  "view_manifest": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/mimic_view_predictions.csv",
+  "view_filter": [
+    "PLAX"
+  ],
+  "view_status_filter": "OK",
+  "cohort_skeleton": "experiments/nature_medicine/mimic/probe_csvs/disease_hf_v4.1",
+  "splits": {
+    "train": {
+      "clips_in": 366156,
+      "clips_plax": 55689,
+      "clips_out": 54079,
+      "studies_in": 5040,
+      "studies_out": 4635,
+      "studies_unlabelled": 292,
+      "label_stats": {
+        "n": 54079,
+        "min": 0.4,
+        "p5": 0.8,
+        "p25": 0.9,
+        "median": 1.1,
+        "p75": 1.2,
+        "p95": 1.4,
+        "max": 2.6,
+        "mean": 1.0787,
+        "std": 0.215
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 12,
+        "max": 47,
+        "mean": 11.67
+      }
+    },
+    "val": {
+      "clips_in": 80096,
+      "clips_plax": 12027,
+      "clips_out": 11633,
+      "studies_in": 1116,
+      "studies_out": 1010,
+      "studies_unlabelled": 69,
+      "label_stats": {
+        "n": 11633,
+        "min": 0.6,
+        "p5": 0.8,
+        "p25": 1.0,
+        "median": 1.1,
+        "p75": 1.2,
+        "p95": 1.4,
+        "max": 2.3,
+        "mean": 1.097,
+        "std": 0.2159
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 12.0,
+        "max": 28,
+        "mean": 11.52
+      }
+    },
+    "test": {
+      "clips_in": 79060,
+      "clips_plax": 12026,
+      "clips_out": 11723,
+      "studies_in": 1087,
+      "studies_out": 1012,
+      "studies_unlabelled": 50,
+      "label_stats": {
+        "n": 11723,
+        "min": 0.6,
+        "p5": 0.8,
+        "p25": 0.9,
+        "median": 1.1,
+        "p75": 1.2,
+        "p95": 1.4,
+        "max": 2.2,
+        "mean": 1.0992,
+        "std": 0.2118
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 11.0,
+        "max": 27,
+        "mean": 11.58
+      }
+    }
+  },
+  "zscore_params": {
+    "target_mean": 1.078660845913016,
+    "target_std": 0.2150452718090219,
+    "computed_from": "PLAX-filtered train clips"
+  }
+}

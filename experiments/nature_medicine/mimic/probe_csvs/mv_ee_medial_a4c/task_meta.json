@@ -1,0 +1,17 @@
+{
+  "measurement": "mv_ee_medial",
+  "test_type": "tte",
+  "view_filter": [
+    "A4C"
+  ],
+  "color_filter": null,
+  "task_type": "regression",
+  "matching_window_days": 1,
+  "value_range": [
+    1.0,
+    40.0
+  ],
+  "unit": "ratio",
+  "source_measurement": "e_e_prime",
+  "note": "MIMIC e_e_prime is the structured-report E/e' ratio. UHN mv_ee_medial is medial (septal) E/e'. MIMIC entry is ambiguous (medial, lateral, or average) but distribution matches UHN medial (UHN mean 11.43, MIMIC 11.83)."
+}

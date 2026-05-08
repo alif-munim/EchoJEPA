@@ -1,0 +1,12 @@
+{
+  "strategy": "valtest_per_study_cap",
+  "cap": 3,
+  "studies_total": 746,
+  "studies_capped": 724,
+  "studies_under_cap": 22,
+  "input_clips": 8582,
+  "output_clips": 2216,
+  "source_csv": "probe_csvs/disease_hcm_plax/test.csv",
+  "output_csv": "probe_csvs/disease_hcm_plax_10k/test.csv",
+  "seed": 42
+}

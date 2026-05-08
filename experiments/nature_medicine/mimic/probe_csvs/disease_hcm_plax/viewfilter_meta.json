@@ -1,0 +1,66 @@
+{
+  "built_at": "2026-05-04T14:59:55+00:00",
+  "source_splits": "experiments/nature_medicine/mimic/probe_csvs/disease_hcm_v4.1",
+  "view_manifest": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/mimic_view_predictions.csv",
+  "view_filter": [
+    "PLAX"
+  ],
+  "view_status_filter": "OK",
+  "allowed_ok_clips_in_manifest": 79742,
+  "splits": {
+    "train": {
+      "clips_in": 237071,
+      "clips_out": 35884,
+      "studies_in": 3226,
+      "studies_out": 3148,
+      "studies_dropped_no_view": 78,
+      "pos_clips_in": 9443,
+      "pos_clips_out": 1338,
+      "pos_studies_in": 116,
+      "pos_studies_out": 114,
+      "pos_studies_dropped": 2,
+      "clips_per_study": {
+        "min": 1,
+        "median": 11.0,
+        "max": 31,
+        "mean": 11.4
+      }
+    },
+    "val": {
+      "clips_in": 52593,
+      "clips_out": 7933,
+      "studies_in": 728,
+      "studies_out": 701,
+      "studies_dropped_no_view": 27,
+      "pos_clips_in": 2961,
+      "pos_clips_out": 410,
+      "pos_studies_in": 40,
+      "pos_studies_out": 37,
+      "pos_studies_dropped": 3,
+      "clips_per_study": {
+        "min": 1,
+        "median": 12,
+        "max": 28,
+        "mean": 11.32
+      }
+    },
+    "test": {
+      "clips_in": 56200,
+      "clips_out": 8582,
+      "studies_in": 760,
+      "studies_out": 746,
+      "studies_dropped_no_view": 14,
+      "pos_clips_in": 1905,
+      "pos_clips_out": 239,
+      "pos_studies_in": 23,
+      "pos_studies_out": 22,
+      "pos_studies_dropped": 1,
+      "clips_per_study": {
+        "min": 1,
+        "median": 11.0,
+        "max": 25,
+        "mean": 11.5
+      }
+    }
+  }
+}
