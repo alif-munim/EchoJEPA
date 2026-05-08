@@ -48,7 +48,7 @@ UHN training-set statistics for each regression task. These are the ground truth
 | `aov_mean_grad` | 11.3073425293 | 12.5528430939 | mmHg |
 | `aov_vmax` | 1.5986993313 | 0.7661124468 | m/s |
 | **Diastolic (regression)** | | | |
-| `mv_ee_medial` | 11.4293422699 | 5.2504682541 | dimensionless ratio |
+| `mv_ee_medial` | 11.4293422699 | 5.2504682541 | cm/s (tissue-Doppler velocity, **not** the E/e' ratio) |
 
 Classification tasks (valve severity, disease detection, diastolic function grading, trajectory onset) do **not** use Z-score params — ignore this file for those.
 
@@ -220,7 +220,7 @@ The same values in a single JSON blob, in case you want to consume them programm
   "rv_sp":          {"target_mean": 0.1156020537,   "target_std": 0.0314756520,  "unit": "m/s"},
   "aov_mean_grad":  {"target_mean": 11.3073425293,  "target_std": 12.5528430939, "unit": "mmHg"},
   "aov_vmax":       {"target_mean": 1.5986993313,   "target_std": 0.7661124468,  "unit": "m/s"},
-  "mv_ee_medial":   {"target_mean": 11.4293422699,  "target_std": 5.2504682541,  "unit": "ratio"}
+  "mv_ee_medial":   {"target_mean": 11.4293422699,  "target_std": 5.2504682541,  "unit": "cm/s"}
 }
 ```
 
