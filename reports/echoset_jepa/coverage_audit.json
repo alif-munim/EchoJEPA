@@ -1,0 +1,148 @@
+{
+  "clip_manifest": "/tmp/echoset_pr_n2/study_clip_manifest_dedup.parquet",
+  "element_manifest": "/tmp/echoset_pr_n2/study_element_manifest.parquet",
+  "k_sample_manifest": "/tmp/echoset_pr_n2/study_clip_sample_K8_seed0_train.parquet",
+  "overall": {
+    "n_clips": 214100,
+    "n_studies": 7127,
+    "n_patients": 4546,
+    "clips_per_study_median": 30.0,
+    "clips_per_study_p75": 37.0,
+    "clips_per_study_p95": 49.0,
+    "clips_per_study_max": 86.0
+  },
+  "view_modality_crosstab": {
+    "apical": {
+      "b_mode": 49423,
+      "color_doppler": 38097
+    },
+    "parasternal_long": {
+      "b_mode": 27876,
+      "color_doppler": 11034
+    },
+    "parasternal_short": {
+      "b_mode": 32615,
+      "color_doppler": 18027
+    },
+    "subcostal": {
+      "b_mode": 7181,
+      "color_doppler": 5419
+    },
+    "suprasternal": {
+      "b_mode": 378,
+      "color_doppler": 322
+    },
+    "unknown": {
+      "b_mode": 15640,
+      "color_doppler": 8088
+    }
+  },
+  "clipcount_only_baseline": {
+    "clip_count_mean": 30.040690332538237,
+    "clip_count_std": 11.291423253813813,
+    "frac_studies_with_color": 0.9726392591553248,
+    "frac_studies_bmode_only": 0.02736074084467518
+  },
+  "elements": {
+    "n_elements": 57506,
+    "elements_per_study_median": 8.0,
+    "elements_per_study_p75": 9.0,
+    "elements_per_study_p95": 11.0,
+    "elements_per_study_max": 18.0,
+    "frac_studies_with_ge2_elements": 0.9932650484074645,
+    "n_distinct_element_keys": 24
+  },
+  "k_sample": {
+    "n_studies_in_sample": 6089,
+    "n_clips_in_sample": 47955,
+    "view_families_per_study": {
+      "mean": 4.328625390047627,
+      "p10": 3.0,
+      "median": 4.0,
+      "frac_ge2": 0.9888323205780917
+    },
+    "modalities_per_study": {
+      "mean": 1.9710954179668254,
+      "frac_both": 0.9710954179668254
+    },
+    "color_slots_per_study": {
+      "mean": 1.9420266053539168,
+      "median": 2.0,
+      "frac_ge1": 0.9720808014452291
+    },
+    "bmode_slots_per_study": {
+      "mean": 5.9336508457874855,
+      "median": 6.0
+    }
+  },
+  "color_retention_in_K8": 0.853866128101558,
+  "modality_presence_leakage": {
+    "per_study_color_doppler_count": {
+      "mean": 11.363406763013892,
+      "std": 5.571351992152304
+    },
+    "per_study_bmode_count": {
+      "mean": 18.677283569524345,
+      "std": 7.274245243935448
+    },
+    "per_study_view_families": {
+      "mean": 4.425143819278799,
+      "std": 0.8556997346421106
+    }
+  },
+  "quality_bucket_by_split": {
+    "test": {
+      "high": 4562,
+      "low": 5141,
+      "med": 4955
+    },
+    "train": {
+      "high": 60999,
+      "low": 60946,
+      "med": 60974
+    },
+    "val": {
+      "high": 5588,
+      "low": 5461,
+      "med": 5474
+    }
+  },
+  "per_split": {
+    "train": {
+      "n_clips": 182919,
+      "n_studies": 6089,
+      "n_patients": 3891,
+      "clips_per_study_median": 30.0,
+      "clips_per_study_p75": 37.0,
+      "clips_per_study_p95": 49.0,
+      "clips_per_study_max": 86.0
+    },
+    "val": {
+      "n_clips": 16523,
+      "n_studies": 548,
+      "n_patients": 342,
+      "clips_per_study_median": 30.0,
+      "clips_per_study_p75": 37.0,
+      "clips_per_study_p95": 49.0,
+      "clips_per_study_max": 74.0
+    },
+    "test": {
+      "n_clips": 14658,
+      "n_studies": 490,
+      "n_patients": 313,
+      "clips_per_study_median": 30.0,
+      "clips_per_study_p75": 36.0,
+      "clips_per_study_p95": 48.0,
+      "clips_per_study_max": 67.0
+    }
+  },
+  "gates": {
+    "frac_studies_ge2_view_families_in_K8": 0.9888323205780917,
+    "color_retention_in_K8": 0.853866128101558
+  },
+  "gate_thresholds": {
+    "min_frac_studies_ge2_view_families": 0.9,
+    "min_frac_color_retention": 0.8
+  },
+  "gate_passed": true
+}

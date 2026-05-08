@@ -1,0 +1,44 @@
+====================================================================================================
+EchoNet-Dynamic LVEF — per-stratum paired bootstrap (B=10000)
+Total N = 1277
+====================================================================================================
+
+### Reduced ≤40 (N=160)
+  V-JEPA†-e125:  MAE 9.234 [8.047, 10.478]   Pearson 0.609 [0.503, 0.700]   R² -1.909 [-2.954, -1.147]
+  V4 MV-PhaseRel: MAE 8.706 [7.550, 9.919]   Pearson 0.640 [0.555, 0.717]   R² -1.664 [-2.641, -0.968]
+  Paired Δ:
+    ΔMAE (base−V4, pos=V4 better):    +0.530 [-0.283, +1.349] P(V4>base)=0.897
+    ΔPearson (V4−base, pos=V4 better): +0.032 [-0.026, +0.092] P(V4>base)=0.856
+    ΔR² (V4−base, pos=V4 better):      +0.248 [-0.185, +0.698] P(V4>base)=0.872
+
+### Mild reduced 41–49 (N=125)
+  V-JEPA†-e125:  MAE 8.228 [7.424, 9.049]   Pearson 0.366 [0.210, 0.508]   R² -10.900 [-14.619, -8.331]
+  V4 MV-PhaseRel: MAE 7.826 [7.047, 8.617]   Pearson 0.390 [0.230, 0.528]   R² -9.785 [-13.107, -7.376]
+  Paired Δ:
+    ΔMAE (base−V4, pos=V4 better):    +0.398 [-0.247, +1.074] P(V4>base)=0.881
+    ΔPearson (V4−base, pos=V4 better): +0.023 [-0.073, +0.120] P(V4>base)=0.681
+    ΔR² (V4−base, pos=V4 better):      +1.133 [-0.288, +2.689] P(V4>base)=0.941
+
+### Normal 50–70 (N=954)
+  V-JEPA†-e125:  MAE 4.176 [3.951, 4.402]   Pearson 0.430 [0.376, 0.482]   R² -0.320 [-0.518, -0.148]
+  V4 MV-PhaseRel: MAE 3.695 [3.502, 3.891]   Pearson 0.493 [0.443, 0.542]   R² -0.008 [-0.144, 0.114]
+  Paired Δ:
+    ΔMAE (base−V4, pos=V4 better):    +0.480 [+0.301, +0.659] P(V4>base)=1.000
+    ΔPearson (V4−base, pos=V4 better): +0.064 [+0.024, +0.103] P(V4>base)=1.000
+    ΔR² (V4−base, pos=V4 better):      +0.313 [+0.174, +0.460] P(V4>base)=1.000
+
+### Hyperdynamic >70 (N=38)
+  V-JEPA†-e125:  MAE 9.458 [8.204, 10.763]   Pearson 0.283 [0.020, 0.469]   R² -8.643 [-22.456, -5.026]
+  V4 MV-PhaseRel: MAE 9.002 [7.715, 10.481]   Pearson 0.205 [-0.019, 0.387]   R² -8.182 [-20.979, -4.666]
+  Paired Δ:
+    ΔMAE (base−V4, pos=V4 better):    +0.453 [-0.159, +1.034] P(V4>base)=0.929
+    ΔPearson (V4−base, pos=V4 better): -0.064 [-0.193, +0.078] P(V4>base)=0.164
+    ΔR² (V4−base, pos=V4 better):      +0.596 [-1.517, +3.095] P(V4>base)=0.733
+
+### Full cohort (N=1277)
+  V-JEPA†-e125:  MAE 5.363 [5.099, 5.636]   Pearson 0.806 [0.778, 0.831]   R² 0.646 [0.599, 0.688]
+  V4 MV-PhaseRel: MAE 4.885 [4.631, 5.135]   Pearson 0.839 [0.815, 0.860]   R² 0.699 [0.657, 0.735]
+  Paired Δ:
+    ΔMAE (base−V4, pos=V4 better):    +0.479 [+0.298, +0.662] P(V4>base)=1.000
+    ΔPearson (V4−base, pos=V4 better): +0.033 [+0.018, +0.049] P(V4>base)=1.000
+    ΔR² (V4−base, pos=V4 better):      +0.053 [+0.026, +0.079] P(V4>base)=1.000

@@ -396,6 +396,8 @@ Not that the paper is wrong, but that the central claim ("temporal encoding coll
 | `new-experiments.md` | What needs to be run with compute estimates |
 | `paper-outline.md` | Section-by-section structure with framing notes |
 | `competitive-landscape.md` | US-JEPA, SALT paper, concurrent work |
+| `phase-relational-design.md` | **Design reference for EchoJEPA-Rel** — method vs vanilla V-JEPA-2, why the 3 earlier phase variants (Predictor-φ, Mask-φ, positive-only cross-view) came up null, and how the current InfoNCE + mandatory hard-negative design fixes the mechanism gap. Pins against train.py:555, phase_relational_head.py, and the three arm YAMLs. |
+| `phase-relational-launch-debug.md` | Debug log of the 3 failed launch attempts (579/590/591) that preceded the successful 593 pretrain |
 
 ## Experiment Writeups (`experiments/`)
 
@@ -414,6 +416,7 @@ Not that the paper is wrong, but that the central claim ("temporal encoding coll
 | `mr-cross-dataset-transfer.md` | MR severity: UHN vs MIMIC probes on MIMIC test | §3 Transfer |
 | `vitb-temporal-shortcut-pilot.md` | Standard MAE vs Frame-Gap MAE ViT-B: temporal shortcut hypothesis | §4 Mechanism |
 | `vitb-in21k-paused.md` | ViT-B IN21K MAE capacity-scaling comparison; paused at e34 (job 307), resumable via `RESUME_FROM_JOB=307` | §4 Mechanism (optional) |
+| `phase-relational-hardneg.md` | **Phase-Relational with Mandatory Hard Negative (current)** — 3-arm: method 593 ✅ / paired intraview-only control 608 🟡 / no-hardneg ablation 613 ⏳ + 18 probes. Canonical matched-compute baseline is JEPA e125 (val MAE 5.097). 595 at ep9 val MAE 4.867. | §8 Phase (paper `tab:phase-rel-test`) |
 
 ## Datasets
 
