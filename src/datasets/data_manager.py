@@ -41,8 +41,8 @@ def init_data(
     deterministic=True,
     log_dir=None,
     img_size=336,
-    miss_augment_prob=0.0,          # <<< NEW
-    min_present=1,                  # <<< NEW
+    miss_augment_prob=0.0,  # <<< NEW
+    min_present=1,  # <<< NEW
     split_name="train",
     study_sampling=False,
     class_balance_ratio=None,
@@ -102,9 +102,9 @@ def init_data(
             phase_metadata_csv=phase_metadata_csv,
         )
 
-    elif data.lower() == "videogroupdataset":  
-        from src.datasets.video_group_dataset import make_videogroupdataset  
-          
+    elif data.lower() == "videogroupdataset":
+        from src.datasets.video_group_dataset import make_videogroupdataset
+
         dataset, data_loader, dist_sampler = make_videogroupdataset(
             data_paths=root_path,
             batch_size=batch_size,
@@ -129,7 +129,7 @@ def init_data(
             training=training,
             miss_augment_prob=miss_augment_prob,
             min_present=min_present,
-            split_name=split_name
+            split_name=split_name,
         )
 
     # sampler_type="phase_matched" post-processes the VideoGroupDataset
@@ -138,9 +138,7 @@ def init_data(
     # before ``iter(data_loader)`` each epoch.
     if sampler_type == "phase_matched":
         if data.lower() != "videogroupdataset":
-            raise ValueError(
-                f"sampler_type=phase_matched requires data=videogroupdataset; got {data}"
-            )
+            raise ValueError(f"sampler_type=phase_matched requires data=videogroupdataset; got {data}")
         cfg = dict(phase_matched_config or {})
         cfg.setdefault("parquet_path", None)
         if cfg["parquet_path"] is None:
@@ -149,6 +147,7 @@ def init_data(
         # dir is optional at repo level.
         from pathlib import Path as _Path
         import sys as _sys
+
         sampler_dir = _Path(cfg.get("sampler_dir", "classifier/phase/sampler")).resolve()
         if str(sampler_dir) not in _sys.path:
             _sys.path.insert(0, str(sampler_dir))
@@ -163,24 +162,23 @@ def init_data(
         view_path = cfg.get("view_labels_path")
         if view_path and not view_labels_map:
             import pandas as _pd
+
             view_label_column = cfg.get("view_label_column", "view")
             view_conf_column = cfg.get("view_confidence_column", "view_confidence")
             vdf = _pd.read_csv(view_path)
             # Derive dicom_id if the CSV only stores s3_uri.
             if "dicom_id" not in vdf.columns and "s3_uri" in vdf.columns:
-                vdf["dicom_id"] = vdf.s3_uri.astype(str).str.extract(
-                    r"/([^/]+)\.(?:mp4|dcm)$", expand=False
-                )
+                vdf["dicom_id"] = vdf.s3_uri.astype(str).str.extract(r"/([^/]+)\.(?:mp4|dcm)$", expand=False)
             vdf = vdf.dropna(subset=["dicom_id"]).copy()
             vdf["dicom_id"] = vdf["dicom_id"].astype(str)
             view_labels_map = dict(zip(vdf.dicom_id, vdf[view_label_column].astype(str)))
             if view_conf_column in vdf.columns:
-                view_confidences_map = dict(
-                    zip(vdf.dicom_id, vdf[view_conf_column].astype(float))
-                )
+                view_confidences_map = dict(zip(vdf.dicom_id, vdf[view_conf_column].astype(float)))
             logger.info(
                 "data_manager: loaded %d view labels from %s (conf col %s present=%s)",
-                len(view_labels_map), view_path, view_conf_column,
+                len(view_labels_map),
+                view_path,
+                view_conf_column,
                 view_confidences_map is not None,
             )
 
@@ -217,16 +215,14 @@ def init_data(
                 cfg.get("rel_require_same_study_wrong_phase_negative", False)
             ),
             wrong_phase_min_delta=float(cfg.get("rel_wrong_phase_min_delta", 0.25)),
-            wrong_phase_strategy=cfg.get(
-                "rel_wrong_phase_strategy", "same_view_then_same_family"
-            ),
-            allow_missing_hard_negative=bool(
-                cfg.get("rel_allow_missing_hard_negative", False)
-            ),
-            hard_negative_fallback=cfg.get(
-                "rel_hard_negative_fallback", "resample_anchor"
-            ),
+            wrong_phase_strategy=cfg.get("rel_wrong_phase_strategy", "same_view_then_same_family"),
+            allow_missing_hard_negative=bool(cfg.get("rel_allow_missing_hard_negative", False)),
+            hard_negative_fallback=cfg.get("rel_hard_negative_fallback", "resample_anchor"),
             max_hard_neg_attempts=int(cfg.get("rel_max_hard_neg_attempts", 16)),
+            # --- MV2SV extensions (Fix 1): target_clip + fused_clips
+            #     sampling. Passed through when the training entrypoint
+            #     sets mv2sv_config on the phase_matched_config block. ---
+            mv2sv_config=cfg.get("mv2sv_config"),
         )
         # Guardrail: phase-matched pilot requires frame_step == 1 unless
         # the caller explicitly allows larger strides.
@@ -240,15 +236,12 @@ def init_data(
         # VideoGroupDataset (unwrap MonitoredDataset if present).
         inner = dataset.dataset if hasattr(dataset, "dataset") else dataset
         builder = PhaseMatchedEpochBuilder(
-            pm_sampler, inner,
+            pm_sampler,
+            inner,
             debug_csv_path=(cfg["debug_csv_path"] if cfg.get("debug_csv_path") else None),
             video_uri_mode=str(cfg.get("video_uri_mode", "mp4")),
-            raw_bucket_prefix=str(
-                cfg.get("raw_bucket_prefix", "s3://echodata25/mimic-raw-staging")
-            ),
-            mp4_bucket_prefix=str(
-                cfg.get("mp4_bucket_prefix", "s3://echodata25/mimic-echo-224px")
-            ),
+            raw_bucket_prefix=str(cfg.get("raw_bucket_prefix", "s3://echodata25/mimic-raw-staging")),
+            mp4_bucket_prefix=str(cfg.get("mp4_bucket_prefix", "s3://echodata25/mimic-echo-224px")),
         )
         # Attach for the training-loop caller.
         pm_sampler.builder = builder
@@ -261,6 +254,7 @@ def init_data(
         # via its own DistributedSampler length, hitting an assertion in
         # torch.utils.data.distributed.DistributedSampler.__iter__.
         import torch as _torch
+
         dl_kwargs = dict(
             dataset=inner,
             collate_fn=data_loader.collate_fn,
@@ -280,9 +274,10 @@ def init_data(
         data_loader = _torch.utils.data.DataLoader(**dl_kwargs)
         dist_sampler = pm_sampler
         logger.info(
-            "data_manager: phase_matched sampler attached + DataLoader rebuilt; "
-            "pair_rows/epoch=%d (rank=%d/%d)",
-            pm_sampler.num_samples, rank, world_size,
+            "data_manager: phase_matched sampler attached + DataLoader rebuilt; " "pair_rows/epoch=%d (rank=%d/%d)",
+            pm_sampler.num_samples,
+            rank,
+            world_size,
         )
 
     return (data_loader, dist_sampler)

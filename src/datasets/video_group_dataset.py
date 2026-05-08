@@ -122,6 +122,7 @@ def _compute_clip_indices(
 def _worker_init_fn(_):
     try:
         import torch as _torch, cv2, os as _os
+
         _torch.set_num_threads(1)
         try:
             cv2.setNumThreads(1)
@@ -135,14 +136,14 @@ def _worker_init_fn(_):
 
 def make_videogroupdataset(
     *,
-    data_paths,                  # str | list[str]  (CSV path(s))
+    data_paths,  # str | list[str]  (CSV path(s))
     batch_size,
-    group_size,                  # maps to num_segments from config
+    group_size,  # maps to num_segments from config
     frames_per_clip,
     frame_step=None,
     duration=None,
     fps=None,
-    num_clips_per_video=1,       # NEW in your pipeline: per-video temporal clips
+    num_clips_per_video=1,  # NEW in your pipeline: per-video temporal clips
     random_clip_sampling=True,
     allow_clip_overlap=False,
     filter_short_videos=False,
@@ -159,22 +160,21 @@ def make_videogroupdataset(
     persistent_workers=True,
     deterministic=True,
     log_dir=None,
-    img_size=336,                      # <<< NEW (pass resolution)
-    training=False,                 # <<< NEW
-    miss_augment_prob=0.0,          # <<< NEW
-    min_present=1,                  # <<< NEW
-    split_name="train"
+    img_size=336,  # <<< NEW (pass resolution)
+    training=False,  # <<< NEW
+    miss_augment_prob=0.0,  # <<< NEW
+    min_present=1,  # <<< NEW
+    split_name="train",
 ):
     # Check for perturbation via environment variables (for noise robustness evaluation).
     # Mirrors VideoDataset's perturbation hook.
     from src.datasets.video_dataset import _PerturbationFn
+
     perturbation_fn = None
     ptype = os.environ.get("PERTURBATION_TYPE")
     psev = os.environ.get("PERTURBATION_SEVERITY")
     if ptype and psev:
-        transducer_pos = tuple(
-            float(x) for x in os.environ.get("TRANSDUCER_POS", "0.5,0.0").split(",")
-        )
+        transducer_pos = tuple(float(x) for x in os.environ.get("TRANSDUCER_POS", "0.5,0.0").split(","))
         perturbation_fn = _PerturbationFn(ptype, psev, transducer_pos)
         logger.info(f"VideoGroupDataset perturbation enabled: {ptype}/{psev} (transducer_pos={transducer_pos})")
 
@@ -192,14 +192,14 @@ def make_videogroupdataset(
         filter_long_videos=filter_long_videos,
         shared_transform=shared_transform,
         transform=transform,
-        img_size=img_size,             # <<< NEW
-        training=training,                # <<< pass through
+        img_size=img_size,  # <<< NEW
+        training=training,  # <<< pass through
         miss_augment_prob=miss_augment_prob,
         min_present=min_present,
         split_name=split_name,
         perturbation_fn=perturbation_fn,
     )
-    
+
     # Mark the split (used by MISS augmentation)
     # ds._is_training = bool(training)
 
@@ -282,7 +282,7 @@ class VideoGroupDataset(Dataset):
         perturbation_fn=None,
     ):
         super().__init__()
-    
+
         # --- load & normalize CSVs (supports headerless or headered formats) ---
         def _read_group_csv(path: str) -> pd.DataFrame:
             # Try headerless, whitespace-delimited first
@@ -306,21 +306,21 @@ class VideoGroupDataset(Dataset):
                 if "label" not in df.columns:
                     raise ValueError(f"CSV '{path}' must contain a 'label' column or be headerless.")
                 return df
-    
+
         if isinstance(data_paths, str):
             data_paths = [data_paths]
         dfs = [_read_group_csv(p) for p in data_paths]
         self.df = pd.concat(dfs, ignore_index=True)
-    
+
         # Auto-detect video columns: everything except 'label'
         self.view_cols = [c for c in self.df.columns if c != "label"]
         if len(self.view_cols) == 0:
             raise ValueError("CSV must have at least one video column besides 'label'")
-    
+
         # Enforce fixed group size deterministically
         self.view_cols = self.view_cols[:group_size]
         self.group_size = group_size
-    
+
         # Core temporal / sampling configuration
         self.frames_per_clip = frames_per_clip
         self.frame_step = frame_step
@@ -333,7 +333,7 @@ class VideoGroupDataset(Dataset):
         self.filter_long_videos = filter_long_videos
         self.shared_transform = shared_transform
         self.transform = transform
-        
+
         self.img_size = int(img_size)
         self.miss_augment_prob = float(miss_augment_prob)
         self.min_present = int(min(min_present, self.group_size))
@@ -345,7 +345,7 @@ class VideoGroupDataset(Dataset):
             f"[{self.split_name}] MISS augmentation: p={self.miss_augment_prob} "
             f"min_present={self.min_present} (train={self._is_training})"
         )
-    
+
         # One S3 client per worker (lazily created in _ensure_s3_client)
         self.s3_client = None
 
@@ -356,15 +356,14 @@ class VideoGroupDataset(Dataset):
         # for that view. Set by PhaseMatchedStudySampler via
         # ``set_anchors_by_index`` before each epoch.
         self.anchors_by_index: dict[int, list] | None = None
-    
+
         # Temporal mode validation (match VideoDataset semantics)
         if sum(v is not None for v in (self.fps, self.duration, self.frame_step)) != 1:
             raise ValueError(
                 f"Must specify exactly one of fps={self.fps}, duration={self.duration}, or frame_step={self.frame_step}."
             )
-    
-        logger.info(f"Loaded {len(self.df)} groups; using columns: {self.view_cols}")
 
+        logger.info(f"Loaded {len(self.df)} groups; using columns: {self.view_cols}")
 
     def __len__(self):
         return len(self.df)
@@ -401,27 +400,19 @@ class VideoGroupDataset(Dataset):
         mutated together; readers inside ``__getitem__`` see a consistent
         view because dict/DataFrame assignment is atomic in CPython.
         """
-        if self.group_size not in (2, 3):
-            raise ValueError(
-                f"set_pair_dataframe requires group_size in {{2, 3}}; "
-                f"got group_size={self.group_size}"
-            )
-        # Required columns scale with group_size: 2 → view_0/view_1;
-        # 3 → view_0/view_1/view_2.
-        if self.group_size == 3:
-            required = {"view_0", "view_1", "view_2", "label"}
-        else:
-            required = {"view_0", "view_1", "label"}
+        if self.group_size < 2:
+            raise ValueError(f"set_pair_dataframe requires group_size >= 2; " f"got group_size={self.group_size}")
+        # Required columns scale with group_size: view_0, view_1, ...,
+        # view_{group_size-1}, plus ``label``. This supports MV2SV's
+        # target_clip (view_3) + fused_clips (view_4+).
+        required = {f"view_{i}" for i in range(self.group_size)} | {"label"}
         missing = required - set(pair_df.columns)
         if missing:
             raise KeyError(f"pair DataFrame missing required columns: {missing}")
         # Keep the index contiguous to match anchor-table keys.
         pair_df = pair_df.reset_index(drop=True)
         self.df = pair_df
-        if self.group_size == 3:
-            self.view_cols = ["view_0", "view_1", "view_2"]
-        else:
-            self.view_cols = ["view_0", "view_1"]
+        self.view_cols = [f"view_{i}" for i in range(self.group_size)]
         self.anchors_by_index = anchors_by_index
 
     # ---------- S3 helper ----------
@@ -439,7 +430,6 @@ class VideoGroupDataset(Dataset):
         """
         return np.zeros((fpc, h, w, 3), dtype=np.uint8)
 
-
     # ---------- Dataset API ----------
     #
     # Pair-mode return shape: ``(segs, label, clip_indices_out, slot_mask, meta)``
@@ -450,27 +440,79 @@ class VideoGroupDataset(Dataset):
     # already expects ``sample[4]`` to be a dict, so the shape is
     # compatible; base V-JEPA collate ignores the extra element.
     _PAIR_META_COLS = (
-        "study_id", "subject_id", "sampling_mode", "target_phi_a",
-        "target_phi_b", "circular_phase_diff", "frame_step",
-        "frames_per_clip", "source_span_frames", "source_span_seconds_a",
-        "source_span_seconds_b", "source_span_cycles_a", "source_span_cycles_b",
-        "clip_a_dicom_id", "clip_b_dicom_id", "clip_a_anchor_frame",
-        "clip_b_anchor_frame", "clip_a_phase_at_anchor",
-        "clip_b_phase_at_anchor", "clip_a_phase_error",
-        "clip_b_phase_error", "clip_a_view", "clip_b_view",
-        "clip_a_hr_metadata", "clip_b_hr_metadata", "clip_a_fps_video",
-        "clip_b_fps_video", "clip_a_quality_tier", "clip_b_quality_tier",
+        "study_id",
+        "subject_id",
+        "sampling_mode",
+        "target_phi_a",
+        "target_phi_b",
+        "circular_phase_diff",
+        "frame_step",
+        "frames_per_clip",
+        "source_span_frames",
+        "source_span_seconds_a",
+        "source_span_seconds_b",
+        "source_span_cycles_a",
+        "source_span_cycles_b",
+        "clip_a_dicom_id",
+        "clip_b_dicom_id",
+        "clip_a_anchor_frame",
+        "clip_b_anchor_frame",
+        "clip_a_phase_at_anchor",
+        "clip_b_phase_at_anchor",
+        "clip_a_phase_error",
+        "clip_b_phase_error",
+        "clip_a_view",
+        "clip_b_view",
+        "clip_a_hr_metadata",
+        "clip_b_hr_metadata",
+        "clip_a_fps_video",
+        "clip_b_fps_video",
+        "clip_a_quality_tier",
+        "clip_b_quality_tier",
         # --- phase_relational triple-clip extensions (present when
         #     group_size=3 and sampler emits a same-study wrong-phase
         #     hard negative; NaN/empty placeholders otherwise) ---
-        "clip_b_neg_dicom_id", "clip_b_neg_anchor_frame",
-        "clip_b_neg_phase_at_anchor", "clip_b_neg_phase_error",
-        "clip_b_neg_view", "clip_b_neg_hr_metadata",
-        "clip_b_neg_fps_video", "clip_b_neg_quality_tier",
-        "target_phi_b_neg", "delta_phase_bucket_pos",
-        "delta_phase_bucket_neg", "view_pair_class_pos",
-        "view_pair_class_neg", "hard_neg_available",
+        "clip_b_neg_dicom_id",
+        "clip_b_neg_anchor_frame",
+        "clip_b_neg_phase_at_anchor",
+        "clip_b_neg_phase_error",
+        "clip_b_neg_view",
+        "clip_b_neg_hr_metadata",
+        "clip_b_neg_fps_video",
+        "clip_b_neg_quality_tier",
+        "target_phi_b_neg",
+        "delta_phase_bucket_pos",
+        "delta_phase_bucket_neg",
+        "view_pair_class_pos",
+        "view_pair_class_neg",
+        "hard_neg_available",
         "hard_neg_resample_count",
+        # --- MV2SV target_clip + fused_clips columns (Fix 1e). Present
+        #     when the sampler was built with mv2sv_config.enabled=True.
+        #     target_clip_present is the per-sample 0/1 flag the forward
+        #     uses to gate its fallback / fail-loud logic.
+        "target_clip_dicom_id",
+        "target_clip_view",
+        "target_clip_anchor_frame",
+        "target_clip_phase_at_anchor",
+        "target_clip_phase_error",
+        "target_delta_phase",
+        "target_clip_present",
+        # Fused pool: up to 4 extra clips (beyond target). Ones that the
+        # sampler couldn't fill have fused_clip_K_valid=0. We enumerate
+        # through K=4 statically so the meta collate schema is stable.
+        "fused_clip_1_view",
+        "fused_clip_1_delta_phase",
+        "fused_clip_1_valid",
+        "fused_clip_2_view",
+        "fused_clip_2_delta_phase",
+        "fused_clip_2_valid",
+        "fused_clip_3_view",
+        "fused_clip_3_delta_phase",
+        "fused_clip_3_valid",
+        "fused_clip_4_view",
+        "fused_clip_4_delta_phase",
+        "fused_clip_4_valid",
     )
 
     def _row_to_meta(self, row) -> dict:
@@ -484,17 +526,33 @@ class VideoGroupDataset(Dataset):
         """
         out: dict = {}
         str_cols = {
-            "study_id", "subject_id", "sampling_mode",
-            "clip_a_dicom_id", "clip_b_dicom_id", "clip_b_neg_dicom_id",
-            "clip_a_view", "clip_b_view", "clip_b_neg_view",
-            "clip_a_quality_tier", "clip_b_quality_tier", "clip_b_neg_quality_tier",
-            "view_pair_class_pos", "view_pair_class_neg",
+            "study_id",
+            "subject_id",
+            "sampling_mode",
+            "clip_a_dicom_id",
+            "clip_b_dicom_id",
+            "clip_b_neg_dicom_id",
+            "clip_a_view",
+            "clip_b_view",
+            "clip_b_neg_view",
+            "clip_a_quality_tier",
+            "clip_b_quality_tier",
+            "clip_b_neg_quality_tier",
+            "view_pair_class_pos",
+            "view_pair_class_neg",
+            # MV2SV string metadata.
+            "target_clip_dicom_id",
+            "target_clip_view",
+            "fused_clip_1_view",
+            "fused_clip_2_view",
+            "fused_clip_3_view",
+            "fused_clip_4_view",
         }
         for col in self._PAIR_META_COLS:
             if col not in row.index:
                 continue
             v = row[col]
-            if v is None or (isinstance(v, float) and v != v):   # NaN check
+            if v is None or (isinstance(v, float) and v != v):  # NaN check
                 out[col] = "" if col in str_cols else float("nan")
             else:
                 if col in str_cols and not isinstance(v, str):
@@ -538,7 +596,7 @@ class VideoGroupDataset(Dataset):
         phase-matched temporal windows across views.
         """
         label = float(row["label"])
-    
+
         # ---- collect URIs and initial presence flags from CSV ----
         uris, present = [], []
         for c in self.view_cols:
@@ -552,7 +610,7 @@ class VideoGroupDataset(Dataset):
             else:
                 uris.append(v)
                 present.append(1)
-    
+
         # ---- stochastic view-level MISS augmentation (training only) ----
         # Flip some PRESENT views to missing with prob self.miss_augment_prob,
         # while enforcing at least self.min_present survivors.
@@ -561,7 +619,7 @@ class VideoGroupDataset(Dataset):
             pres_idx = [i for i, p in enumerate(present) if p]
             if len(pres_idx) > 0:
                 drops = rng.random(len(pres_idx)) < float(self.miss_augment_prob)
-    
+
                 # survivors if we applied the drops
                 survivors = [i for i, d in zip(pres_idx, drops) if not d]
                 need_min = max(1, int(getattr(self, "min_present", 1)))
@@ -572,13 +630,13 @@ class VideoGroupDataset(Dataset):
                     if len(dropped) > 0:
                         restore_sel = rng.choice(dropped, size=min(need, len(dropped)), replace=False)
                         restore = set(int(x) for x in np.atleast_1d(restore_sel))
-    
+
                 # apply the (possibly corrected) drops
                 for i, d in zip(pres_idx, drops):
                     if d and (i not in restore):
                         uris[i] = None
                         present[i] = 0
-    
+
         # ---- load/construct clips per slot ----
         segs, clip_indices_out, slot_mask = [], [], []
         for view_idx, (uri, p) in enumerate(zip(uris, present)):
@@ -600,13 +658,15 @@ class VideoGroupDataset(Dataset):
                 H = W = self.img_size
                 dummy = np.zeros((T, H, W, 3), dtype=np.uint8)
                 clips = [dummy for _ in range(self.num_clips_per_video)]
-                idxs  = [np.arange(T, dtype=np.int64) for _ in range(self.num_clips_per_video)]
+                idxs = [np.arange(T, dtype=np.int64) for _ in range(self.num_clips_per_video)]
             else:
                 # Contiguous multi-clip loader (K clips of length fpc, non-overlapping).
                 # If an anchor frame was provided (phase-matched sampling), the
                 # K-window span is centered on it.
                 clips, idxs = self._loadvideo_decord_multi(
-                    uri, self.frames_per_clip, self.num_clips_per_video,
+                    uri,
+                    self.frames_per_clip,
+                    self.num_clips_per_video,
                     anchor_frame=anchor,
                 )
                 if clips is None or len(clips) == 0:
@@ -615,8 +675,8 @@ class VideoGroupDataset(Dataset):
                     H = W = self.img_size
                     dummy = np.zeros((T, H, W, 3), dtype=np.uint8)
                     clips = [dummy for _ in range(self.num_clips_per_video)]
-                    idxs  = [np.arange(T, dtype=np.int64) for _ in range(self.num_clips_per_video)]
-    
+                    idxs = [np.arange(T, dtype=np.int64) for _ in range(self.num_clips_per_video)]
+
             if self.transform is not None:
                 clips = [self.transform(c) for c in clips]
 
@@ -646,9 +706,6 @@ class VideoGroupDataset(Dataset):
 
         return segs, label, clip_indices_out, torch.tensor(slot_mask, dtype=torch.bool)
 
-
-
-
     def _open_vr(self, sample_uri: str):
         # Local path
         if not (isinstance(sample_uri, str) and sample_uri.startswith("s3://")):
@@ -668,12 +725,12 @@ class VideoGroupDataset(Dataset):
             except Exception as e:
                 logger.warning(f"VideoReader local fail: {e}")
                 return None
-    
+
         # S3 path
         try:
             bucket, key = sample_uri.replace("s3://", "").split("/", 1)
             self._ensure_s3_client()
-    
+
             try:
                 head = self.s3_client.head_object(Bucket=bucket, Key=key)
             except self.s3_client.exceptions.NoSuchKey:
@@ -682,24 +739,23 @@ class VideoGroupDataset(Dataset):
             except self.s3_client.exceptions.ClientError as e:
                 logger.warning(f"S3 access error for {sample_uri}: {e}")
                 return None
-    
+
             fsize = head.get("ContentLength", 0)
             if self.filter_long_videos and fsize > self.filter_long_videos:
                 warnings.warn(f"skipping long video of size _fsize={fsize} (bytes)")
                 return None
-    
+
             obj = self.s3_client.get_object(Bucket=bucket, Key=key)
             data = obj["Body"].read()
             if not data:
                 logger.warning(f"Empty S3 object: {sample_uri}")
                 return None
-    
+
             bio = io.BytesIO(data)
             return VideoReader(bio, num_threads=-1, ctx=cpu(0))
         except Exception as e:
             logger.warning(f"Failed to open video: {sample_uri}\n{e}")
             return None
-
 
     def _loadvideo_decord_multi(self, sample_uri: str, fpc: int, k: int, anchor_frame=None):
         """
@@ -722,7 +778,7 @@ class VideoGroupDataset(Dataset):
         vr = self._open_vr(sample_uri)
         if vr is None:
             return [], None
-    
+
         # --- derive stride and window size ---
         fstp = self.frame_step
         if (self.duration is not None) or (self.fps is not None):
@@ -731,7 +787,7 @@ class VideoGroupDataset(Dataset):
             except Exception as e:
                 logger.warning(f"fps read failed: {e}")
                 video_fps = None
-    
+
             if self.duration is not None:
                 assert self.fps is None
                 if video_fps is None:
@@ -742,9 +798,9 @@ class VideoGroupDataset(Dataset):
                 if video_fps is None:
                     return [], None
                 fstp = max(1, int(video_fps // max(1, self.fps)))
-    
+
         assert fstp is not None and fstp > 0
-        V = len(vr)                         # total raw frames
+        V = len(vr)  # total raw frames
 
         # Unpack the anchor argument:
         #   None -> default strided-from-0
@@ -785,15 +841,13 @@ class VideoGroupDataset(Dataset):
         clips = []
         offset = 0
         for _ in range(k):
-            clips.append(frames_all[offset:offset + fpc])
+            clips.append(frames_all[offset : offset + fpc])
             offset += fpc
 
         # Surface per-clip metadata so the dataset can log / return it if
         # it wants. Stored on the instance for the most recent call.
         self._last_clip_meta = per_clip_meta
         return clips, per_clip_inds
-
-
 
     # ---------- Sampling (shared with single-video dataset) ----------
     def _sample_from_vr(self, vr, fpc):
@@ -809,7 +863,7 @@ class VideoGroupDataset(Dataset):
             except Exception as e:
                 logger.warning(f"fps read failed: {e}")
                 video_fps = None
-    
+
             if self.duration is not None:
                 assert self.fps is None
                 if video_fps is None:
@@ -820,11 +874,11 @@ class VideoGroupDataset(Dataset):
                 if video_fps is None:
                     raise RuntimeError("fps mode requires readable FPS")
                 fstp = max(1, int(video_fps // max(1, self.fps)))
-    
+
         assert fstp is not None and fstp > 0
         clip_len = int(fpc * fstp)
         V = len(vr)
-    
+
         if V < clip_len:
             # Too short → spread indices and pad to fpc if needed
             base = max(1, V // max(1, fstp))
@@ -843,10 +897,9 @@ class VideoGroupDataset(Dataset):
             inds = np.linspace(start_indx, end_indx, num=fpc)
             # Ensure [start, end) with integer frame indices
             inds = np.clip(inds, start_indx, max(start_indx, end_indx - 1)).astype(np.int64)
-    
+
         buffer = vr.get_batch(inds).asnumpy()  # [T,H,W,3], uint8
         return buffer, inds
-
 
     def _split_into_clips(self, buffer, base_indices, fpc, num_clips):
         """
@@ -862,10 +915,10 @@ class VideoGroupDataset(Dataset):
                 pad = np.ones(fpc - len(inds), dtype=np.int64) * max(0, len(inds) - 1)
                 inds = np.concatenate((inds, pad))
             return [buffer[inds]], [inds]
-    
+
         partition_len = T // num_clips
         clips, idx_slices = [], []
-    
+
         for i in range(num_clips):
             if partition_len > fpc:
                 # Random window inside this partition only if there is slack
@@ -900,8 +953,8 @@ class VideoGroupDataset(Dataset):
                     if T > fpc and num_clips > 1:
                         clip_step = (T - fpc) // (num_clips - 1)
                     inds = inds + i * clip_step
-    
+
             clips.append(buffer[inds])
             idx_slices.append(inds)
-    
+
         return clips, idx_slices

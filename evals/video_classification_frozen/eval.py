@@ -1063,12 +1063,20 @@ def run_one_epoch(
         else:  # classification
             pred_classes = [np.argmax(pred) for pred in all_predictions]
             pred_probs = [pred.max() for pred in all_predictions]
-            df = pd.DataFrame({
+            df_dict = {
                 'video_path': all_video_paths,
                 'true_label': all_labels,
                 'predicted_class': pred_classes,
-                'prediction_confidence': pred_probs
-            })
+                'prediction_confidence': pred_probs,
+            }
+            # Save full per-class probability vector. Lets us recompute multi-class
+            # OVR AUROC + bootstrap CIs post-hoc without re-running the probe.
+            if len(all_predictions) > 0:
+                pred_arr = np.asarray(all_predictions)
+                if pred_arr.ndim == 2:
+                    for c in range(pred_arr.shape[1]):
+                        df_dict[f'prob_class_{c}'] = pred_arr[:, c].tolist()
+            df = pd.DataFrame(df_dict)
             
         df.to_csv(predictions_save_path, index=False)
         logger.info(f"Saved {len(all_predictions)} predictions to {predictions_save_path}")
