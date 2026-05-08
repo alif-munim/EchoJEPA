@@ -86,6 +86,13 @@ python scripts/neurips/phase/verify_init_checkpoint.py \
   --expected-tag mimic_standard_jepa_e100 \
   --strict
 
+# Fresh output directory per user's launch-invariant contract (avoid
+# inheriting stale log_r*.csv / params-pretrain.yaml from any prior
+# aborted run that landed in this CKPT_DIR).
+if [ -d "$CKPT_DIR" ]; then
+  echo "[INFO] Clearing stale CKPT_DIR=$CKPT_DIR before launch"
+  rm -rf "$CKPT_DIR"/*
+fi
 mkdir -p "$CKPT_DIR"
 
 (

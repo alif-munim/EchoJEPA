@@ -88,9 +88,7 @@ def _records_to_pair_dataframe(
         and the MP4-bucket prefix to rewrite to, when video_uri_mode="mp4".
     """
     if video_uri_mode not in ("mp4", "dicom"):
-        raise ValueError(
-            f"video_uri_mode must be 'mp4' or 'dicom'; got {video_uri_mode!r}"
-        )
+        raise ValueError(f"video_uri_mode must be 'mp4' or 'dicom'; got {video_uri_mode!r}")
 
     def _wire(uri: str) -> str:
         if video_uri_mode == "dicom":
@@ -101,6 +99,12 @@ def _records_to_pair_dataframe(
     # DataFrame gains `view_2` + clip_b_neg_* metadata columns (same length
     # for every row; None/NaN when a particular record happens to lack one).
     any_hard_neg = any(r.clip_b_neg_phase is not None for r in records)
+    # MV2SV target_clip / fused_clips schema detection.
+    any_target_clip = any(r.target_clip is not None for r in records)
+    actual_max_n_fused = 0
+    for r in records:
+        if r.fused_clips:
+            actual_max_n_fused = max(actual_max_n_fused, max(0, len(r.fused_clips) - 1))
 
     rows = []
     for r in records:
@@ -129,7 +133,7 @@ def _records_to_pair_dataframe(
             # VideoGroupDataset-mandatory columns:
             "view_0": v0,
             "view_1": v1,
-            "label": 0.0,                  # phase-matched pretraining has no label
+            "label": 0.0,  # phase-matched pretraining has no label
             # Pair-level metadata:
             "study_id": r.study_id,
             "subject_id": r.subject_id,
@@ -185,9 +189,7 @@ def _records_to_pair_dataframe(
                 row["clip_b_neg_view"] = neg.view if neg.view is not None else ""
                 row["clip_b_neg_hr_metadata"] = neg.hr_metadata
                 row["clip_b_neg_fps_video"] = neg.fps_video
-                row["clip_b_neg_quality_tier"] = (
-                    neg.quality_tier if neg.quality_tier is not None else ""
-                )
+                row["clip_b_neg_quality_tier"] = neg.quality_tier if neg.quality_tier is not None else ""
             else:
                 # Placeholder NaN/empty for this row; the record lacks a hard neg
                 # but the DataFrame schema must match.
@@ -201,38 +203,118 @@ def _records_to_pair_dataframe(
                 row["clip_b_neg_hr_metadata"] = float("nan")
                 row["clip_b_neg_fps_video"] = float("nan")
                 row["clip_b_neg_quality_tier"] = ""
-            row["target_phi_b_neg"] = (
-                float(r.target_phi_b_neg) if r.target_phi_b_neg is not None else float("nan")
-            )
+            row["target_phi_b_neg"] = float(r.target_phi_b_neg) if r.target_phi_b_neg is not None else float("nan")
             row["delta_phase_bucket_pos"] = (
                 int(r.delta_phase_bucket_pos) if r.delta_phase_bucket_pos is not None else -1
             )
             row["delta_phase_bucket_neg"] = (
                 int(r.delta_phase_bucket_neg) if r.delta_phase_bucket_neg is not None else -1
             )
-            row["view_pair_class_pos"] = (
-                r.view_pair_class_pos if r.view_pair_class_pos is not None else ""
-            )
-            row["view_pair_class_neg"] = (
-                r.view_pair_class_neg if r.view_pair_class_neg is not None else ""
-            )
+            row["view_pair_class_pos"] = r.view_pair_class_pos if r.view_pair_class_pos is not None else ""
+            row["view_pair_class_neg"] = r.view_pair_class_neg if r.view_pair_class_neg is not None else ""
             row["hard_neg_available"] = int(bool(r.hard_neg_available))
             row["hard_neg_resample_count"] = int(r.hard_neg_resample_count)
+
+        # ---- MV2SV target_clip view + metadata ----
+        if any_target_clip:
+            if r.target_clip is not None:
+                src_tgt = underlying_df.loc[r.target_clip.row_idx]
+                v_tgt = _wire(src_tgt.s3_uri)
+                if video_uri_mode == "mp4":
+                    if not (isinstance(v_tgt, str) and v_tgt.endswith(".mp4")):
+                        raise ValueError(
+                            f"video_uri_mode='mp4' but view_3 (target_clip) did not end in .mp4: "
+                            f"{v_tgt!r} (source uri={src_tgt.s3_uri!r})"
+                        )
+                row["view_3"] = v_tgt
+                row["target_clip_dicom_id"] = r.target_clip.dicom_id
+                row["target_clip_row_idx"] = int(r.target_clip.row_idx)
+                row["target_clip_n_frames"] = int(r.target_clip.n_frames)
+                row["target_clip_anchor_frame"] = int(r.target_clip.anchor_frame)
+                row["target_clip_phase_at_anchor"] = float(r.target_clip.phase_at_anchor)
+                row["target_clip_phase_error"] = float(r.target_clip.phase_error)
+                row["target_clip_view"] = r.target_view if r.target_view is not None else ""
+                row["target_delta_phase"] = (
+                    float(r.target_delta_phase) if r.target_delta_phase is not None else float("nan")
+                )
+                row["target_clip_present"] = 1
+            else:
+                row["view_3"] = MISSING_TOKEN
+                row["target_clip_dicom_id"] = ""
+                row["target_clip_row_idx"] = -1
+                row["target_clip_n_frames"] = 0
+                row["target_clip_anchor_frame"] = 0
+                row["target_clip_phase_at_anchor"] = float("nan")
+                row["target_clip_phase_error"] = float("nan")
+                row["target_clip_view"] = ""
+                row["target_delta_phase"] = float("nan")
+                row["target_clip_present"] = 0
+
+        # ---- MV2SV fused_clips views + metadata ----
+        # fused_clips[0] IS the target_clip (already loaded as view_3).
+        # Additional fused views are view_4..view_{3+actual_max_n_fused-1}.
+        if actual_max_n_fused > 0:
+            fused_extra = list(r.fused_clips[1 : 1 + actual_max_n_fused]) if r.fused_clips else []
+            fused_extra_views = list(r.fused_views[1 : 1 + actual_max_n_fused]) if r.fused_views else []
+            fused_extra_phases = list(r.fused_phases[1 : 1 + actual_max_n_fused]) if r.fused_phases else []
+            for k in range(actual_max_n_fused):
+                col_idx = 4 + k  # view_4, view_5, ...
+                if k < len(fused_extra):
+                    fc = fused_extra[k]
+                    src_fc = underlying_df.loc[fc.row_idx]
+                    v_fc = _wire(src_fc.s3_uri)
+                    if video_uri_mode == "mp4":
+                        if not (isinstance(v_fc, str) and v_fc.endswith(".mp4")):
+                            raise ValueError(
+                                f"video_uri_mode='mp4' but view_{col_idx} "
+                                f"(fused_clips[{k+1}]) did not end in .mp4: {v_fc!r}"
+                            )
+                    row[f"view_{col_idx}"] = v_fc
+                    row[f"fused_clip_{k+1}_view"] = fused_extra_views[k] if k < len(fused_extra_views) else ""
+                    row[f"fused_clip_{k+1}_delta_phase"] = (
+                        float(fused_extra_phases[k]) if k < len(fused_extra_phases) else float("nan")
+                    )
+                    row[f"fused_clip_{k+1}_valid"] = 1
+                else:
+                    row[f"view_{col_idx}"] = MISSING_TOKEN
+                    row[f"fused_clip_{k+1}_view"] = ""
+                    row[f"fused_clip_{k+1}_delta_phase"] = float("nan")
+                    row[f"fused_clip_{k+1}_valid"] = 0
+
         rows.append(row)
     return pd.DataFrame(rows)
 
 
 def _records_to_anchor_table(
     records: list[MatchRecord],
+    max_n_fused: int = 0,
 ) -> dict[int, list]:
     """Return ``{pair_row_idx: [{anchor_frame, frame_step}, ...]}``.
 
-    Per-row entries correspond to view_0 (clip_a), view_1 (clip_b_pos),
-    and (if present) view_2 (clip_b_neg_phase), matching the column
-    order emitted by ``_records_to_pair_dataframe``.
+    Per-row entries match the column order emitted by
+    ``_records_to_pair_dataframe``:
+
+        view_0: clip_a
+        view_1: clip_b_pos
+        view_2: clip_b_neg_phase (if any record has a hard-neg)
+        view_3: target_clip    (MV2SV — if any record has a target_clip)
+        view_4..view_(3+max_n_fused-1): fused_clips[1..]
+            (MV2SV — fused_clips[0] is the target_clip; we start at 1 to
+            avoid double-loading the target. If fewer than max_n_fused
+            fused clips exist for a record, trailing slots are placeholder.)
     """
     table: dict[int, list] = {}
     any_hard_neg = any(r.clip_b_neg_phase is not None for r in records)
+    any_target_clip = any(r.target_clip is not None for r in records)
+    # max fused pool actually produced across records (not including the
+    # target itself, which is position 0 of MatchRecord.fused_clips).
+    actual_max_n_fused = 0
+    if max_n_fused > 0:
+        for r in records:
+            if r.fused_clips:
+                actual_max_n_fused = max(actual_max_n_fused, max(0, len(r.fused_clips) - 1))
+        actual_max_n_fused = min(actual_max_n_fused, max_n_fused)
+
     for i, r in enumerate(records):
         entries = [
             {"anchor_frame": int(r.clip_a.anchor_frame), "frame_step": int(r.frame_step)},
@@ -247,10 +329,30 @@ def _records_to_anchor_table(
                     }
                 )
             else:
-                # Placeholder — the row's view_2 is MISSING_TOKEN, so the
-                # dataset path will substitute a dummy clip; anchor has no
-                # effect but we still supply one for shape consistency.
                 entries.append({"anchor_frame": 0, "frame_step": int(r.frame_step)})
+        if any_target_clip:
+            if r.target_clip is not None:
+                entries.append(
+                    {
+                        "anchor_frame": int(r.target_clip.anchor_frame),
+                        "frame_step": int(r.frame_step),
+                    }
+                )
+            else:
+                entries.append({"anchor_frame": 0, "frame_step": int(r.frame_step)})
+        # Fused pool (skipping index 0 which IS the target_clip).
+        if actual_max_n_fused > 0:
+            fused_extra = list(r.fused_clips[1 : 1 + actual_max_n_fused]) if r.fused_clips else []
+            for k in range(actual_max_n_fused):
+                if k < len(fused_extra):
+                    entries.append(
+                        {
+                            "anchor_frame": int(fused_extra[k].anchor_frame),
+                            "frame_step": int(r.frame_step),
+                        }
+                    )
+                else:
+                    entries.append({"anchor_frame": 0, "frame_step": int(r.frame_step)})
         table[int(i)] = entries
     return table
 
@@ -307,7 +409,12 @@ class PhaseMatchedEpochBuilder:
             raw_bucket_prefix=self.raw_bucket_prefix,
             mp4_bucket_prefix=self.mp4_bucket_prefix,
         )
-        anchors = _records_to_anchor_table(records)
+        # MV2SV: pass max fused-pool size so the anchor table reserves
+        # enough view slots for the fused clips (fused[0] is the target,
+        # so the extra slots are fused[1..]).
+        mv2sv_max_n_fused = int(getattr(self.sampler, "mv2sv_fused_n_max", 0) or 0)
+        extra_fused_slots = max(0, mv2sv_max_n_fused - 1)
+        anchors = _records_to_anchor_table(records, max_n_fused=extra_fused_slots)
         # Atomic swap:
         self.dataset.set_pair_dataframe(pair_df, anchors_by_index=anchors)
         self._last_pair_df = pair_df

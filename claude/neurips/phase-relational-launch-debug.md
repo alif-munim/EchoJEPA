@@ -528,3 +528,261 @@ its probes.
    `rm -f /tmp/vjepa2-src.tar.gz` (as root, in the bash wrapper)
    before the ubuntu-user download. Ideally the deploy script should
    encapsulate this.
+
+---
+
+## Update 2026-05-01 10:30 UTC — dry-run passed, full chain submitted
+
+### Sampler hot-path optimization (commit 55741ca already shipped)
+
+The 12-min-per-epoch cost in 590/591 was dominated by `pandas .loc[ri]`
+inside the hard-neg filter loop (~333k calls/rank/epoch). Benchmark
+showed numpy-array indexing is ~103× faster.
+
+Fix landed in `classifier/phase/sampler/phase_matched_sampler.py`:
+- Added numpy column caches in `_load()` indexed by `row_idx_`:
+  `_view_by_row`, `_dicom_by_row`, `_n_frames_by_row`, `_fps_by_row`,
+  `_hr_by_row`, `_quality_tier_by_row`, `_family_by_row`.
+- Added per-study candidate bucket caches: `_study_to_rows_by_view`,
+  `_study_to_rows_by_family`. Built once at sampler init.
+- Rewrote `_draw_hard_negative_clip` upstream filter to use O(1) dict
+  lookups instead of linear `.loc` scans over same-study rows.
+- Tier-walk loop still calls `.loc` on the small set of surviving
+  candidates to `_decode_phase` (JSON-backed phase/confident mask).
+  Caching those JSON-parsed arrays would cost ~50 MB × n_frames; not
+  done — separate optimization.
+
+Observed: `refresh_epoch` cost dropped from **~12 min → ~3 min per
+epoch**. Over 25 epochs that's ~3.75 h saved.
+
+Key property preserved: **cache is structural-only** (derived from
+parquet, not from any per-epoch sampling). `build_records()` still
+re-rolls under `seed + self.epoch` each epoch, so anchor choice, Δφ
+buckets, and hard-neg choice all remain stochastic per epoch.
+
+### Dry-run (job 592, `max_steps=2`)
+
+- config: `configs/train/vitl16/pretrain-multiview-phase-relational-hardneg-DRYRUN.yaml`
+  (uncommitted, disposable; folder `phase_rel_dryrun`)
+- sbatch: `scripts/neurips/phase/phase_rel_dryrun.sbatch`
+- Timeline: job start → preflight 1:40 → encoder/predictor loaded 1:45
+  → 8 ranks finished refresh_epoch by ~5:00 (vs ~14:00 in 591) →
+  frame-guard OK ~5:05 → **first CSV data row lands at ~8:00** (step 0,
+  data-time 10.6 s, iter-time 23.5 s — cold CUDA cache warmup) →
+  step 1 iter-time 2.7 s (steady state) → clean exit on `max_steps=2`
+  at ~10:00 elapsed.
+- Diagnostic validation: loss/intraview/rel_loss/q_var/y_var all
+  finite; `target_enc_grad_l2=0.0` (teacher stopgrad); same-study
+  batch-neg masking active (`same_study_masked_count=60-62`); no NaN;
+  no reducer warnings.
+
+### `refresh_epoch_seconds` instrumentation added
+
+`app/vjepa_multiview/train.py:1357-1365` now wraps `refresh_epoch(epoch)`
+with a timer and logs `refresh_epoch_seconds=<float>` to stdout each
+epoch. Lets us track if per-epoch refresh cost regresses.
+
+### Final paper launch chain (submitted 2026-05-01 09:55 UTC)
+
+Clean chain, `afterok` everywhere (no `afterany`), per user directive:
+
+| Job | Role | afterok | Status at 10:30 UTC |
+|:-:|---|---|---|
+| **593** | method pretrain | — | RUNNING, ~30 min elapsed, step ~450/16250 |
+| 595 | method LVEF train | 593 | PENDING |
+| 596 | method LVEF test | 595 | PENDING |
+| 597 | method RVSP train | 596 | PENDING |
+| 598 | method RVSP test | 597 | PENDING |
+| **594** | control pretrain | 598 | PENDING (method probes first per user request) |
+| 599 | control LVEF train | 594 | PENDING |
+| 600 | control LVEF test | 599 | PENDING |
+| 601 | control RVSP train | 600 | PENDING |
+| 602 | control RVSP test | 601 | PENDING |
+
+Single p5.48xlarge node → everything serial. Method probes run on method
+checkpoint **before** control pretrain starts (user request to get
+method verdict early — caveat: the paper A/B comparison is only
+scientifically meaningful once the matched control checkpoint exists).
+
+Expected end-to-end: 24 h method pretrain + 5 h method probes + 20 h
+control pretrain + 5 h control probes ≈ **54 h**.
+
+### Sbatch changes vs 591 submit
+
+- `#SBATCH -t 1-12:00:00` (36 h walltime) on both pretrain sbatches.
+- Added pre-launch `rm -rf "$CKPT_DIR"/*` in both pretrain sbatches so
+  the run starts with a clean output directory (avoids stale
+  `log_r*.csv` headers from prior aborted runs).
+- `--dependency=afterok:<X>` on every probe and control. No `afterany`.
+
+### Current run telemetry (job 593 at 10:22 UTC, elapsed 27:08)
+
+| Field | Value |
+|---|---|
+| log_r0.csv rows | 445 (444 data) |
+| baseline loss (step 0) | 0.5591 |
+| latest loss (step 443) | 0.4933 (−11.8%) |
+| intraview 0.5591 → 0.4832 | −0.076 |
+| rel_loss 3.43 → 1.48 | converging from random init (~ln(B+2)=3.53) |
+| rel_top1_with_hard 0.031 → 0.281 | head learning to pick positive |
+| q_var 9.7e-5 → 2.2e-3 | 22× growth (representations diversifying) |
+| target_enc_grad_l2 | 0.000 (stopgrad holds structurally) |
+| same_study_masked_count | 62 (masking active) |
+| GPU util | 73-100% |
+| Checkpoints saved | none yet (first save at end of epoch 5) |
+
+No collapse. Training trajectory nominal.
+
+---
+
+## Audit 2026-05-01 10:20 UTC — reviewer-style code audit
+
+Full audit performed on commits `a3b9719` + `55741ca` plus uncommitted
+`DRYRUN.yaml` + updated sbatch scripts. Secret scan clean. All 14 cheap
+tests pass. Verdict: **LAUNCH-READY WITH KNOWN CAVEATS**. No blockers.
+
+### Audit checklist (pass/fail)
+
+All load-bearing invariants pass:
+
+- 3 objective modes dispatch correctly (smooth_l1 preserves legacy
+  group_size=2; intraview_only + phase_relational use group_size=3).
+- Candidate-set InfoNCE: column 0 = positive, column 1 = hard, labels
+  all 0, loss finite when all batch-neg masked.
+- Metadata shortcut barrier: head accepts exactly 6 inputs
+  (c_a_pool, view_a_id, view_b_pos_id, delta_phase_pos, y_pos_pool,
+  y_neg_pool). No absolute phase, no Δφ_neg, no view_b_neg_id, no HR,
+  no quality, no study/patient/dicom IDs reach the head.
+- DDP unified forward. Production path never calls `.query` /
+  `.target` / `.module.*`. 2-rank DDP smoke test confirms cross-rank
+  gradient all-reduce max-diff = 0.000e+00.
+- Teacher stopgrad structural: `torch.no_grad()` around teacher
+  forward + `.detach()` on teacher outputs + `requires_grad=False`
+  on `target_encoder.parameters()`.
+- Sampler: production configs use `same_view_then_same_family`,
+  `rel_allow_missing_hard_negative: false`, `resample_anchor`
+  fallback. `any_same_study` appears only in test/debug files.
+- Hot-path cache is structural-only. Per-epoch RNG rotates on
+  `seed + self.epoch`. Within-tier shuffle uses the epoch RNG.
+- Method ↔ control YAML diff: bit-identical on every training
+  hyperparam. Only difference is the loss term.
+- `max_steps` absent from paper configs. No `afterany` in live chain.
+
+### Known caveats from audit (not blockers)
+
+**H-1. Dead `target_enc_grad_l2` / `target_proj_grad_l2` columns.**
+Computed in `train.py:1529-1536` after `optimizer.zero_grad()`, so
+always 0.0. The invariant they advertise (no teacher grads) is enforced
+structurally, so this is misleading-UI, not a correctness bug. The
+in-code comment at lines 1512-1520 acknowledges this. Fix next
+iteration: delete the columns.
+
+**M-1. Unread config keys.** `rel_negative_mode`,
+`rel_use_distributed_negatives`, `rel_use_confidence_weight` appear in
+the YAML but are never parsed by any code. Default values in train.py
+match the YAML so no correctness issue as configured — but toggling
+`rel_use_distributed_negatives: true` would have zero effect. Fix:
+remove from YAML or wire them.
+
+**M-2. `study_hashes` uses randomized Python `hash()`.** At
+`train.py:544-546`. OK today because same-study masking is rank-local
+(batch negatives are rank-local). **Must be fixed before enabling
+distributed negatives** — ranks would see different hash for the same
+study_id and fail to mask cross-rank same-study negatives. Fix:
+`hashlib.sha1`-based stable hash.
+
+**M-3. No checkpoint in first 5 epochs.** `save_every_freq: 5` →
+first save at end of epoch 5. If collapse happens in epochs 0-4, the
+only fallback is the IN21K init. The hourly "restart from last safe
+ckpt" monitor has no target during this window. Fix next run: set
+`save_every_freq: 1` for the first 5 epochs or add explicit early
+saves.
+
+**M-4. Conditional `clip_b_neg_*` columns.**
+`phase_matched_pair_dataset.py:175`: these columns emit only when
+`any_hard_neg=True`. OK today because `rel_require_same_study_wrong_phase_negative=true`
++ `rel_allow_missing_hard_negative=false` guarantees every record has a
+hard-neg. Footgun if `rel_allow_missing_hard_negative: true` is ever
+set — mixed-schema rows would break `default_collate`. Fix: always
+emit NaN-filled columns.
+
+**M-5. Legacy `afterany` sbatch scripts in repo** (localblock,
+phase_probe_score, phi_jepa, pretrain_localblock) with hard-coded
+legacy job IDs. Not in current chain. If re-submitted by habit,
+`afterany` on a failed pretrain could release probes. Fix: delete or
+mark deprecated.
+
+**L-1. No per-epoch diversity diagnostics.** `unique_triple_frac`,
+Δφ-bucket histogram, view-pair-class histogram per epoch would tell us
+if the sampler degenerates (e.g. RNG bug producing identical triples
+across epochs). Not logged today. Add to `refresh_epoch` next iteration.
+
+**L-2. No group_size=2 backward-compat integration test.** The
+smooth_l1 path was unchanged by this PR but has no unit test guarding
+it against a future refactor.
+
+**L-3. No end-to-end CPU integration test for
+`forward_phase_relational`.** This is the test gap that cost us jobs
+590 and 591 (z_ctx nested-list bug + DDP custom-method bug). A tiny
+CPU-only fixture with a wrapped dummy encoder + DDP-wrapped head would
+have caught both in CI.
+
+### Patches deferred (to apply post-run)
+
+None of the above require changes mid-flight. The current run (593)
+and its chain are scientifically valid. Patch plan after 593/594
+complete, in priority order:
+
+1. Delete H-1 dead diagnostics.
+2. Wire or remove M-1 unused config keys.
+3. Replace M-2 hash with stable hashlib-based hash.
+4. Add M-3 early checkpoints (epoch 0, 1, 3 saves).
+5. Fix M-4 schema to always emit NaN-filled columns.
+6. Add L-1 diversity diagnostics.
+7. Add L-3 end-to-end integration test.
+
+### Secret scan
+
+Clean. No `github_pat_*`, `ghp_*`, `AWS_SECRET_*`, `PRIVATE KEY`, or
+`sk-*` literals in the repo or `/tmp`. All matches of
+`AWS_ACCESS_KEY`/`AWS_SECRET` strings are defensive env-var unsets in
+sbatch scripts, not literal secrets.
+
+### Scientific validity
+
+- **Method matches intended recipe**: candidate-set InfoNCE + mandatory
+  same-study wrong-phase hard negative + pooled latents + metadata
+  barrier. ✓
+- **Control is actually matched**: every training hyperparameter is
+  bit-identical between method and control YAMLs. Only the loss term
+  differs. ✓
+- **Supports a paper claim if method wins on downstream clinical
+  tasks**: yes. Eligibility parity + init parity + schedule parity
+  means any downstream LVEF/RVSP gap is attributable to L_rel. ✓
+
+---
+
+## Git state
+
+Two commits on `neurips`:
+
+- `a3b9719` — Tighten phase-probe verdict + sync NeurIPS progress docs
+- `55741ca` — Phase-relational JEPA: candidate-set InfoNCE + mandatory hard negatives
+
+Both pushed to `origin/neurips` via one-off HTTPS (PAT never persisted
+to disk or git config).
+
+One uncommitted file intentionally left out of git:
+`configs/train/vitl16/pretrain-multiview-phase-relational-hardneg-DRYRUN.yaml`
+(disposable `max_steps=2` config).
+
+Working-tree modifications (not yet committed) applied after the two
+commits:
+
+- `app/vjepa_multiview/train.py` — added `refresh_epoch_seconds` log
+- `scripts/neurips/phase/final_phase_rel_hardneg25_paper.sbatch` — CKPT_DIR clear + preflight in situ
+- `scripts/neurips/phase/final_paired_intraview25_paper.sbatch` — same
+
+These are shipped via the S3 tarball workflow (file-list mode, ~580 KB)
+so the running jobs pick them up, but they are not yet committed to git.
+Commit after the run lands or when convenient.

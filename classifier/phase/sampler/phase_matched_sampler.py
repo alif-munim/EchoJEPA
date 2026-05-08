@@ -54,7 +54,10 @@ logger = getLogger(__name__)
 
 
 SAMPLING_MODES = (
-    "uniform_phase", "ed_es_biased", "wrong_phase", "same_study_random",
+    "uniform_phase",
+    "ed_es_biased",
+    "wrong_phase",
+    "same_study_random",
     "phase_curriculum",
 )
 RR_FILTER_MODES = ("strict", "permissive_afib")
@@ -86,30 +89,34 @@ VIEW_FAMILIES = {
 
 # Pairs that count as "easy" despite not being identical views. Order-
 # agnostic; normalized to a frozenset at lookup.
-_VIEW_EASY_PAIRS = frozenset({
-    frozenset(("A4C", "A5C")),
-    frozenset(("A4C", "A3C")),
-    frozenset(("A2C", "A3C")),
-    frozenset(("PSAX-MV", "PSAX-PM")),
-    frozenset(("PSAX-MV", "PSAX-AP")),
-    frozenset(("PSAX-AV", "PSAX-MV")),
-})
+_VIEW_EASY_PAIRS = frozenset(
+    {
+        frozenset(("A4C", "A5C")),
+        frozenset(("A4C", "A3C")),
+        frozenset(("A2C", "A3C")),
+        frozenset(("PSAX-MV", "PSAX-PM")),
+        frozenset(("PSAX-MV", "PSAX-AP")),
+        frozenset(("PSAX-AV", "PSAX-MV")),
+    }
+)
 
 # "medium" = within-family but not nearest-neighbor, OR parasternal-long ↔
 # parasternal-short. Anything else within a family is easy; anything else
 # across families is hard.
-_VIEW_MEDIUM_PAIRS = frozenset({
-    frozenset(("A4C", "A2C")),
-    frozenset(("A5C", "A2C")),
-    frozenset(("PSAX-AV", "PSAX-PM")),
-    frozenset(("PSAX-AV", "PSAX-AP")),
-    frozenset(("PSAX-PM", "PSAX-AP")),
-    # Cross-parasternal (long <-> short) is medium
-    frozenset(("PLAX", "PSAX-AV")),
-    frozenset(("PLAX", "PSAX-MV")),
-    frozenset(("PLAX", "PSAX-PM")),
-    frozenset(("PLAX", "PSAX-AP")),
-})
+_VIEW_MEDIUM_PAIRS = frozenset(
+    {
+        frozenset(("A4C", "A2C")),
+        frozenset(("A5C", "A2C")),
+        frozenset(("PSAX-AV", "PSAX-PM")),
+        frozenset(("PSAX-AV", "PSAX-AP")),
+        frozenset(("PSAX-PM", "PSAX-AP")),
+        # Cross-parasternal (long <-> short) is medium
+        frozenset(("PLAX", "PSAX-AV")),
+        frozenset(("PLAX", "PSAX-MV")),
+        frozenset(("PLAX", "PSAX-PM")),
+        frozenset(("PLAX", "PSAX-AP")),
+    }
+)
 
 
 def view_pair_class(view_a: Optional[str], view_b: Optional[str]) -> str:
@@ -160,10 +167,12 @@ def view_distance_bucket(view_a: Optional[str], view_b: Optional[str]) -> str:
     """
     a = (view_a or "UNKNOWN").upper()
     b = (view_b or "UNKNOWN").upper()
+
     def _canon(v: str) -> str:
         if v == "SUBCOSTAL":
             return "Subcostal"
         return v
+
     a = _canon(a)
     b = _canon(b)
     # Any UNKNOWN / unmapped side → hard (even if both UNKNOWN).
@@ -191,6 +200,7 @@ def view_distance_bucket(view_a: Optional[str], view_b: Optional[str]) -> str:
 # Records
 # --------------------------------------------------------------------------- #
 
+
 @dataclass(frozen=True)
 class ClipAnchor:
     row_idx: int
@@ -198,7 +208,7 @@ class ClipAnchor:
     n_frames: int
     anchor_frame: int
     phase_at_anchor: float
-    phase_error: float          # circular distance to requested target_phi
+    phase_error: float  # circular distance to requested target_phi
     view: Optional[str] = None
     hr_metadata: Optional[float] = None
     fps_video: Optional[float] = None
@@ -247,10 +257,29 @@ class MatchRecord:
     hard_neg_available: bool = False
     hard_neg_resample_count: int = 0
 
+    # --- privileged_multiview (EchoJEPA-MV2SV) extensions ---
+    # When `multiview_objective == 'privileged_multiview'`, the sampler
+    # optionally emits:
+    #   - `target_clip`:  a same-study clip from a sampled target view
+    #                     (may differ from `clip_b`; default pairwise path)
+    #   - `fused_clips`:  a list of up to `n_fused_max` same-study clips
+    #                     used only on Bernoulli(p_fused) steps for the
+    #                     sparse fused-teacher auxiliary
+    # Both default to None/empty so existing samplers and every other
+    # consumer of MatchRecord (phase_relational, phase_curriculum, etc.)
+    # are bit-identical to the pre-change behaviour.
+    target_clip: Optional[ClipAnchor] = None
+    target_view: Optional[str] = None
+    target_delta_phase: Optional[float] = None
+    fused_clips: tuple[ClipAnchor, ...] = ()
+    fused_views: tuple[str, ...] = ()
+    fused_phases: tuple[float, ...] = ()
+
 
 # --------------------------------------------------------------------------- #
 # Small helpers
 # --------------------------------------------------------------------------- #
+
 
 def circular_phase_distance(a: float, b: float) -> float:
     d = abs(float(a) - float(b))
@@ -314,6 +343,7 @@ def _sample_from_windows(
 # --------------------------------------------------------------------------- #
 # Sampler
 # --------------------------------------------------------------------------- #
+
 
 class PhaseMatchedStudySampler:
     """Draw phase-matched within-study clip pairs.
@@ -409,8 +439,8 @@ class PhaseMatchedStudySampler:
         # that Δφ = (phi_b - phi_a) mod 1 is drawn from the configured bucket
         # list (centers). Half-width is half the spacing between consecutive
         # centers (default 0.0625 when centers are [0.0, 0.125, 0.25, 0.5]).
-        delta_phase_mode: str = "same_phase",       # "same_phase" | "controlled_buckets"
-        delta_phase_buckets: Optional[Sequence[float]] = None,      # centers
+        delta_phase_mode: str = "same_phase",  # "same_phase" | "controlled_buckets"
+        delta_phase_buckets: Optional[Sequence[float]] = None,  # centers
         delta_phase_bucket_probs: Optional[Sequence[float]] = None,
         # When True, every drawn record also includes a same-study
         # wrong-phase hard negative (clip_b_neg_phase) at Δφ_neg that
@@ -423,6 +453,37 @@ class PhaseMatchedStudySampler:
         hard_negative_fallback: str = "resample_anchor",
         # ^ one of: "resample_anchor" | "skip_sample" | "batch_negatives_only"
         max_hard_neg_attempts: int = 16,
+        # --- MV2SV target/fused sampling (Fix 1) ---
+        # When ``mv2sv.enabled=True``, every drawn record also includes:
+        #   * a ``target_clip`` from a sampled target view (distinct from clip_a's
+        #     view when the sampler config restricts it that way),
+        #   * up to ``n_fused_max`` ``fused_clips`` from same-study distinct views
+        #     for the sparse fused-teacher auxiliary.
+        # None of this is used by the phase_relational / intraview_only paths —
+        # they ignore the new MatchRecord fields. Only forward_privileged_multiview
+        # reads them.
+        #
+        # Schema (all optional; defaults preserve pre-MV2SV behaviour):
+        #   {
+        #     "enabled": bool,
+        #     "target_view_sampling": {
+        #         "stage": "stage1" | "stage2" | "stage3" | "stage4",
+        #         "a4c_source_targets": [...],          # stage 1
+        #         "allowed_targets": [...],             # stage 2+
+        #         "target_dropout": float,               # stage 3+
+        #         "require_different_view": bool,
+        #     },
+        #     "source_view_sampling": {
+        #         "A4C": 0.60, "PLAX": 0.10, ...,        # stage 3+ weights
+        #     },
+        #     "fused_pool": {
+        #         "enabled": bool,
+        #         "n_fused_min": 2,
+        #         "n_fused_max": 4,
+        #         "require_distinct_views": bool,
+        #     },
+        #   }
+        mv2sv_config: Optional[dict] = None,
     ) -> None:
         if sampling_mode not in SAMPLING_MODES:
             raise ValueError(f"unknown sampling_mode={sampling_mode}; want one of {SAMPLING_MODES}")
@@ -437,8 +498,7 @@ class PhaseMatchedStudySampler:
                 )
             if not curriculum or not curriculum.get("enabled", False):
                 raise ValueError(
-                    "sampling_mode='phase_curriculum' requires "
-                    "curriculum.enabled=True with a schedule."
+                    "sampling_mode='phase_curriculum' requires " "curriculum.enabled=True with a schedule."
                 )
             if curriculum.get("type", "view_distance") != "view_distance":
                 raise ValueError(
@@ -504,8 +564,7 @@ class PhaseMatchedStudySampler:
         # --- Orthogonal Δφ bucket mode ---
         if delta_phase_mode not in ("same_phase", "controlled_buckets"):
             raise ValueError(
-                f"delta_phase_mode must be 'same_phase' or 'controlled_buckets'; "
-                f"got {delta_phase_mode!r}"
+                f"delta_phase_mode must be 'same_phase' or 'controlled_buckets'; " f"got {delta_phase_mode!r}"
             )
         self.delta_phase_mode = str(delta_phase_mode)
         # Bucket centers; translated to (lo, hi) ranges at sample time with a
@@ -532,10 +591,7 @@ class PhaseMatchedStudySampler:
         # consecutive sorted centers (clamped to 1e-3 if only one bucket).
         sorted_centers = sorted(centers)
         if len(sorted_centers) > 1:
-            min_gap = min(
-                sorted_centers[i + 1] - sorted_centers[i]
-                for i in range(len(sorted_centers) - 1)
-            )
+            min_gap = min(sorted_centers[i + 1] - sorted_centers[i] for i in range(len(sorted_centers) - 1))
             self._delta_phase_half_width = max(1e-3, 0.5 * float(min_gap))
         else:
             self._delta_phase_half_width = 0.0625
@@ -544,25 +600,19 @@ class PhaseMatchedStudySampler:
         self._last_bucket_idx_neg: Optional[int] = None
 
         # --- Hard-negative flags ---
-        if wrong_phase_strategy not in (
-            "same_view_only", "same_view_then_same_family", "any_same_study"
-        ):
+        if wrong_phase_strategy not in ("same_view_only", "same_view_then_same_family", "any_same_study"):
             raise ValueError(
                 f"wrong_phase_strategy must be one of "
                 f"'same_view_only' | 'same_view_then_same_family' | 'any_same_study'; "
                 f"got {wrong_phase_strategy!r}"
             )
-        if hard_negative_fallback not in (
-            "resample_anchor", "skip_sample", "batch_negatives_only"
-        ):
+        if hard_negative_fallback not in ("resample_anchor", "skip_sample", "batch_negatives_only"):
             raise ValueError(
                 f"hard_negative_fallback must be one of "
                 f"'resample_anchor' | 'skip_sample' | 'batch_negatives_only'; "
                 f"got {hard_negative_fallback!r}"
             )
-        self.require_same_study_wrong_phase_negative = bool(
-            require_same_study_wrong_phase_negative
-        )
+        self.require_same_study_wrong_phase_negative = bool(require_same_study_wrong_phase_negative)
         self.wrong_phase_min_delta = float(wrong_phase_min_delta)
         self.wrong_phase_strategy = str(wrong_phase_strategy)
         self.allow_missing_hard_negative = bool(allow_missing_hard_negative)
@@ -572,6 +622,53 @@ class PhaseMatchedStudySampler:
         self._hard_neg_resample_count_total: int = 0
         self._hard_neg_skip_count: int = 0
         self._hard_neg_found_by_strategy: Counter = Counter()
+
+        # --- MV2SV target / fused config normalization (Fix 1) ----------
+        self.mv2sv_enabled = False
+        self.mv2sv_target_allowed: tuple[str, ...] = ()
+        self.mv2sv_target_a4c_sources: tuple[str, ...] = ()
+        self.mv2sv_target_dropout: float = 0.0
+        self.mv2sv_target_require_diff_view: bool = True
+        self.mv2sv_target_stage: str = "stage2"
+        self.mv2sv_fused_enabled: bool = False
+        self.mv2sv_fused_n_min: int = 2
+        self.mv2sv_fused_n_max: int = 2
+        self.mv2sv_fused_require_distinct_views: bool = True
+        self.mv2sv_diag_target_miss: int = 0
+        self.mv2sv_diag_fused_pool_sizes: list[int] = []
+        if mv2sv_config and mv2sv_config.get("enabled", False):
+            if not self.view_labels:
+                raise ValueError(
+                    "mv2sv_config.enabled=True requires view_labels "
+                    "(dict dicom_id->view). Pass via view_labels_path in "
+                    "the data-manager config."
+                )
+            self.mv2sv_enabled = True
+            tv = mv2sv_config.get("target_view_sampling", {}) or {}
+            stage = str(tv.get("stage", "stage2"))
+            if stage not in ("stage1", "stage2", "stage3", "stage4"):
+                raise ValueError(f"mv2sv target_view_sampling.stage={stage!r}; " f"want stage1..stage4")
+            self.mv2sv_target_stage = stage
+            # Default allowed targets per stage (used only if the config
+            # did not override).
+            if stage == "stage1":
+                default_allowed = ("A2C", "A5C")
+            else:
+                default_allowed = ("A2C", "A5C", "PLAX", "PSAX-MV", "A3C")
+            self.mv2sv_target_allowed = tuple(tv.get("allowed_targets", default_allowed))
+            self.mv2sv_target_a4c_sources = tuple(tv.get("a4c_source_targets", ("A2C", "A5C")))
+            self.mv2sv_target_dropout = float(tv.get("target_dropout", 0.0))
+            self.mv2sv_target_require_diff_view = bool(tv.get("require_different_view", True))
+            fp = mv2sv_config.get("fused_pool", {}) or {}
+            self.mv2sv_fused_enabled = bool(fp.get("enabled", False))
+            self.mv2sv_fused_n_min = int(fp.get("n_fused_min", 2))
+            self.mv2sv_fused_n_max = int(fp.get("n_fused_max", 2))
+            if self.mv2sv_fused_n_max < self.mv2sv_fused_n_min:
+                raise ValueError(
+                    f"mv2sv fused_pool.n_fused_max ({self.mv2sv_fused_n_max}) "
+                    f"< n_fused_min ({self.mv2sv_fused_n_min})"
+                )
+            self.mv2sv_fused_require_distinct_views = bool(fp.get("require_distinct_views", True))
 
         # DDP auto-detect.
         if num_replicas is None or rank is None:
@@ -596,10 +693,19 @@ class PhaseMatchedStudySampler:
 
     def _load(self) -> None:
         need = [
-            "dicom_id", "study_id", "s3_uri", "n_video_frames", "fps_video",
-            "hr_metadata", "quality_tier", "n_rpeaks_in_video",
-            "rpeak_ratio_dist", "coverage_frac", "r_peaks_video_json",
-            "per_frame_phase_json", "confident_mask_json",
+            "dicom_id",
+            "study_id",
+            "s3_uri",
+            "n_video_frames",
+            "fps_video",
+            "hr_metadata",
+            "quality_tier",
+            "n_rpeaks_in_video",
+            "rpeak_ratio_dist",
+            "coverage_frac",
+            "r_peaks_video_json",
+            "per_frame_phase_json",
+            "confident_mask_json",
         ]
         extras = []
         # Optional columns: subject_id, acquisition_datetime, dicom_filepath.
@@ -624,9 +730,7 @@ class PhaseMatchedStudySampler:
         # dry-run summary regardless of which mode is active.
         if self.require_rr_consistent:
             permissive_mask = df.apply(
-                lambda r: rr_consistent(
-                    r, median_tol=self.rr_meta_ratio_range, max_min_rr_ratio=None
-                ),
+                lambda r: rr_consistent(r, median_tol=self.rr_meta_ratio_range, max_min_rr_ratio=None),
                 axis=1,
             ).values
             strict_mask = df.apply(
@@ -673,10 +777,9 @@ class PhaseMatchedStudySampler:
                 if c is None or c < self.min_view_confidence:
                     return "UNKNOWN"
             return v
+
         df["view"] = df.dicom_id.map(_view_lookup)
-        df["view_confidence"] = df.dicom_id.map(
-            lambda d: self.view_confidences.get(str(d), float("nan"))
-        )
+        df["view_confidence"] = df.dicom_id.map(lambda d: self.view_confidences.get(str(d), float("nan")))
 
         # Group by study (or by study + acquisition_datetime if session-only).
         if self.same_session_only and df.acquisition_datetime.notna().any():
@@ -733,9 +836,9 @@ class PhaseMatchedStudySampler:
             self._pair_index_viewpair[key] = vp
             self._pair_index_curriculum[key] = cb
         logger.info(
-            "PhaseMatchedStudySampler: built per-study pair-index cache over "
-            "%d studies in %.1fs",
-            self.n_studies, time.time() - t_cache0,
+            "PhaseMatchedStudySampler: built per-study pair-index cache over " "%d studies in %.1fs",
+            self.n_studies,
+            time.time() - t_cache0,
         )
 
         # ----------------------------------------------------------------
@@ -807,9 +910,9 @@ class PhaseMatchedStudySampler:
             self._study_to_rows_by_family[key] = by_fam
 
         logger.info(
-            "PhaseMatchedStudySampler: built hot-path caches "
-            "(view/family/cols) over %d rows in %.1fs",
-            n_rows, time.time() - t_fast0,
+            "PhaseMatchedStudySampler: built hot-path caches " "(view/family/cols) over %d rows in %.1fs",
+            n_rows,
+            time.time() - t_fast0,
         )
         self._filter_stats = {
             "n_all": int(n_all),
@@ -819,8 +922,7 @@ class PhaseMatchedStudySampler:
             "n_after_rr_strict": int(n_after_strict) if self.require_rr_consistent else None,
             "n_after_rr_permissive": int(n_after_permissive) if self.require_rr_consistent else None,
             "rr_strict_drop_vs_permissive": (
-                None if not self.require_rr_consistent
-                else int(n_after_permissive - n_after_strict)
+                None if not self.require_rr_consistent else int(n_after_permissive - n_after_strict)
             ),
             "dropped_short_frames": dropped_short,
             "dropped_span_fits": dropped_span,
@@ -836,8 +938,15 @@ class PhaseMatchedStudySampler:
         logger.info(
             "PhaseMatchedStudySampler: %d -> %d (tier) -> %d (rr) -> %d (span/min) clips; "
             "%d multi-clip groups; mode=%s fpc=%d fs=%d source_span=%d",
-            n_all, n_tier, n_rr, n_pool, self.n_studies,
-            self.sampling_mode, self.frames_per_clip, self.frame_step, self.source_span_frames,
+            n_all,
+            n_tier,
+            n_rr,
+            n_pool,
+            self.n_studies,
+            self.sampling_mode,
+            self.frames_per_clip,
+            self.frame_step,
+            self.source_span_frames,
         )
 
         # Per-rank sizing (DistributedSampler style).
@@ -871,9 +980,7 @@ class PhaseMatchedStudySampler:
         total = sum(probs.values()) or 1.0
         return {k: probs.get(k, 0.0) / total for k in ("easy", "medium", "hard")}
 
-    def _bucket_pairs_for_study(
-        self, group_key: str
-    ) -> dict[str, list[tuple[int, int]]]:
+    def _bucket_pairs_for_study(self, group_key: str) -> dict[str, list[tuple[int, int]]]:
         """Return the precomputed {easy,medium,hard} pair lists for a study.
         Uses ``self._pair_index_curriculum`` built in ``_load``."""
         return self._pair_index_curriculum[group_key]
@@ -922,9 +1029,7 @@ class PhaseMatchedStudySampler:
             ra, rb = rb, ra
         return ra, rb, target_bucket
 
-    def _viewpair_pairs_for_study(
-        self, group_key: str
-    ) -> dict[str, list[tuple[int, int]]]:
+    def _viewpair_pairs_for_study(self, group_key: str) -> dict[str, list[tuple[int, int]]]:
         """Return the precomputed {same_view,same_family,cross_family} pair
         lists for a study. Uses ``self._pair_index_viewpair`` from ``_load``."""
         return self._pair_index_viewpair[group_key]
@@ -980,8 +1085,7 @@ class PhaseMatchedStudySampler:
         self._last_bucket_idx_pos = None
         if self.delta_phase_mode == "controlled_buckets":
             bucket_idx = int(
-                rng.choice(len(self.delta_phase_bucket_centers),
-                           p=np.asarray(self.delta_phase_bucket_probs))
+                rng.choice(len(self.delta_phase_bucket_centers), p=np.asarray(self.delta_phase_bucket_probs))
             )
             center = self.delta_phase_bucket_centers[bucket_idx]
             half = self._delta_phase_half_width
@@ -1056,12 +1160,8 @@ class PhaseMatchedStudySampler:
         # per hard-neg retry with O(1) dict lookups.
         by_view_map = self._study_to_rows_by_view.get(group_key, {})
         by_fam_map = self._study_to_rows_by_family.get(group_key, {})
-        cand_same_view_raw = (
-            by_view_map.get(clip_b_pos_view, []) if clip_b_pos_view is not None else []
-        )
-        cand_same_family_raw = (
-            by_fam_map.get(pos_fam, []) if pos_fam in _CARDIAC_FAMILIES else []
-        )
+        cand_same_view_raw = by_view_map.get(clip_b_pos_view, []) if clip_b_pos_view is not None else []
+        cand_same_family_raw = by_fam_map.get(pos_fam, []) if pos_fam in _CARDIAC_FAMILIES else []
         # cand_any is the fallback tier for ``any_same_study`` — build it
         # lazily only if that strategy is active, since it's the
         # largest list and rarely used in production.
@@ -1105,19 +1205,18 @@ class PhaseMatchedStudySampler:
             if self.delta_phase_mode == "controlled_buckets" and n_buckets > 1:
                 # Re-draw a bucket whose center differs from Δφ_pos by ≥ min_delta.
                 eligible = [
-                    bi for bi in range(n_buckets)
-                    if circular_phase_distance(
-                        self.delta_phase_bucket_centers[bi], delta_pos
-                    ) >= self.wrong_phase_min_delta
+                    bi
+                    for bi in range(n_buckets)
+                    if circular_phase_distance(self.delta_phase_bucket_centers[bi], delta_pos)
+                    >= self.wrong_phase_min_delta
                 ]
                 if not eligible:
                     eligible = list(range(n_buckets))
                 bucket_idx_neg = int(
                     rng.choice(
                         eligible,
-                        p=np.asarray(
-                            [self.delta_phase_bucket_probs[bi] for bi in eligible]
-                        ) / sum(self.delta_phase_bucket_probs[bi] for bi in eligible),
+                        p=np.asarray([self.delta_phase_bucket_probs[bi] for bi in eligible])
+                        / sum(self.delta_phase_bucket_probs[bi] for bi in eligible),
                     )
                 )
                 center = self.delta_phase_bucket_centers[bucket_idx_neg]
@@ -1154,16 +1253,13 @@ class PhaseMatchedStudySampler:
                     # wrong-view rows).
                     r = self._df.loc[ri]
                     ph_r, c_r = _decode_phase(r)
-                    hit = nearest_confident_frame(
-                        ph_r, c_r, target_phi_b_neg, tolerance=self.phase_tolerance
-                    )
+                    hit = nearest_confident_frame(ph_r, c_r, target_phi_b_neg, tolerance=self.phase_tolerance)
                     if hit is None:
                         continue
                     fb, pb, err_b = hit
                     # Final-check: the actual landed phase must still be far
                     # enough from Δφ_pos (anchor shifts can move it).
-                    got_delta = ((float(pb) if np.isfinite(pb) else target_phi_b_neg)
-                                 - target_phi_a) % 1.0
+                    got_delta = ((float(pb) if np.isfinite(pb) else target_phi_b_neg) - target_phi_a) % 1.0
                     if circular_phase_distance(got_delta, delta_pos) < self.wrong_phase_min_delta:
                         continue
                     # Use cached numpy columns for metadata (fps, hr,
@@ -1190,6 +1286,207 @@ class PhaseMatchedStudySampler:
                     return anchor, target_phi_b_neg, bucket_idx_neg, attempt
 
         return None, None, None, self.max_hard_neg_attempts
+
+    # ---------------------------------------------------------------- #
+    # MV2SV target + fused sampling (Fix 1)
+    # ---------------------------------------------------------------- #
+
+    def _mv2sv_allowed_target_views(self, source_view: Optional[str]) -> tuple[str, ...]:
+        """Stage-dependent allowed target-view set.
+
+        Stage 1: A4C source → {A2C, A5C}; other sources → full allowed set.
+        Stage 2+: full allowed set regardless of source.
+        """
+        if self.mv2sv_target_stage == "stage1" and source_view == "A4C":
+            return self.mv2sv_target_a4c_sources
+        return self.mv2sv_target_allowed
+
+    def _mv2sv_pick_candidate(
+        self,
+        group_key: str,
+        clip_a_row_idx: int,
+        clip_a_dicom: str,
+        clip_a_view: Optional[str],
+        exclude_row_idxs: set[int],
+        allowed_views: tuple[str, ...],
+        rng: np.random.Generator,
+    ) -> Optional[int]:
+        """Pick a same-study candidate row whose view is in ``allowed_views``,
+        distinct from the anchor row+dicom and any already-picked exclusions.
+
+        Returns the row_idx, or None if no candidate exists.
+        """
+        by_view_map = self._study_to_rows_by_view.get(group_key, {})
+        # Gather candidate rows across allowed views.
+        cands: list[int] = []
+        for v in allowed_views:
+            if self.mv2sv_target_require_diff_view and v == clip_a_view:
+                # Target must be a different view than the anchor.
+                continue
+            cands.extend(by_view_map.get(v, []))
+        # Filter out excluded rows and the anchor's own dicom.
+        cands = [
+            ri
+            for ri in cands
+            if ri != clip_a_row_idx and ri not in exclude_row_idxs and str(self._dicom_by_row[ri]) != clip_a_dicom
+        ]
+        if not cands:
+            return None
+        return int(rng.choice(cands))
+
+    def _mv2sv_build_anchor(
+        self,
+        row_idx: int,
+        target_phi: float,
+        rng: np.random.Generator,
+    ) -> Optional[tuple[ClipAnchor, float]]:
+        """Given a candidate row + desired phase, draw an anchor frame and
+        build a ClipAnchor. Returns (anchor, realized_phi) or None if no
+        confident frame at the target phase.
+        """
+        row = self._df.loc[row_idx]
+        ph, c = _decode_phase(row)
+        hit = self._draw_anchor(ph, c, target_phi, rng)
+        if hit is None:
+            return None
+        frame, realized_phi, err = hit
+        fps = self._fps_by_row[row_idx]
+        hr = self._hr_by_row[row_idx]
+        fps_v = float(fps) if fps and fps > 0 else float("nan")
+        hr_v = float(hr) if hr and hr > 0 else float("nan")
+        view_c = self._view_by_row[row_idx]
+        anchor = ClipAnchor(
+            row_idx=int(row_idx),
+            dicom_id=str(self._dicom_by_row[row_idx]),
+            n_frames=int(self._n_frames_by_row[row_idx]),
+            anchor_frame=int(frame),
+            phase_at_anchor=float(realized_phi) if np.isfinite(realized_phi) else float("nan"),
+            phase_error=float(err),
+            view=(view_c if isinstance(view_c, str) else None),
+            hr_metadata=hr_v if np.isfinite(hr_v) else None,
+            fps_video=fps_v if np.isfinite(fps_v) else None,
+            quality_tier=str(self._quality_tier_by_row[row_idx]),
+            rr_consistent=(None if not self.require_rr_consistent else True),
+        )
+        return anchor, float(realized_phi) if np.isfinite(realized_phi) else float(target_phi)
+
+    def _draw_mv2sv_targets(
+        self,
+        group_key: str,
+        clip_a: ClipAnchor,
+        target_phi_a: float,
+        rng: np.random.Generator,
+    ) -> tuple[
+        Optional[ClipAnchor],
+        Optional[str],
+        Optional[float],
+        tuple[ClipAnchor, ...],
+        tuple[str, ...],
+        tuple[float, ...],
+    ]:
+        """Build the MV2SV target_clip + fused_clips additions.
+
+        Returns (target_clip, target_view, target_delta_phase, fused_clips,
+        fused_views, fused_phases). If sampling fails for a given path, that
+        field is returned as None / empty tuple so the caller can decide
+        whether to skip or continue with a partial record.
+
+        Called only when self.mv2sv_enabled is True.
+        """
+        allowed_views = self._mv2sv_allowed_target_views(clip_a.view)
+        # --- Target clip ---
+        target_clip: Optional[ClipAnchor] = None
+        target_view: Optional[str] = None
+        target_delta_phase: Optional[float] = None
+        # Optional target_dropout (Stage 3+).
+        skip_target = self.mv2sv_target_dropout > 0.0 and rng.random() < self.mv2sv_target_dropout
+        picked_rows: set[int] = {clip_a.row_idx}
+        if not skip_target:
+            tgt_phi = float(rng.random())  # uniform in [0, 1)
+            # Try a few candidate rows before giving up.
+            for _ in range(6):
+                tgt_row = self._mv2sv_pick_candidate(
+                    group_key=group_key,
+                    clip_a_row_idx=clip_a.row_idx,
+                    clip_a_dicom=clip_a.dicom_id,
+                    clip_a_view=clip_a.view,
+                    exclude_row_idxs=picked_rows,
+                    allowed_views=allowed_views,
+                    rng=rng,
+                )
+                if tgt_row is None:
+                    break
+                built = self._mv2sv_build_anchor(tgt_row, tgt_phi, rng)
+                if built is None:
+                    picked_rows.add(tgt_row)
+                    continue
+                anchor, realized = built
+                target_clip = anchor
+                target_view = anchor.view
+                # Target Δφ = (target_phi - target_phi_a) mod 1.
+                target_delta_phase = float((realized - float(target_phi_a)) % 1.0)
+                picked_rows.add(tgt_row)
+                break
+            if target_clip is None:
+                self.mv2sv_diag_target_miss += 1
+
+        # --- Fused pool ---
+        fused_clips: list[ClipAnchor] = []
+        fused_views: list[str] = []
+        fused_phases: list[float] = []
+        if self.mv2sv_fused_enabled and self.mv2sv_fused_n_max > 0:
+            seen_views: set[str] = set()
+            if target_clip is not None and target_view is not None:
+                # Include the target_clip at position 0 of the fused pool,
+                # so n_fused counts include the target.
+                fused_clips.append(target_clip)
+                fused_views.append(target_view)
+                fused_phases.append(target_delta_phase or 0.0)
+                seen_views.add(target_view)
+            while len(fused_clips) < self.mv2sv_fused_n_max:
+                # For subsequent fused clips, require distinct views if set.
+                if self.mv2sv_fused_require_distinct_views:
+                    allowed_for_fused = tuple(v for v in allowed_views if v not in seen_views)
+                else:
+                    allowed_for_fused = allowed_views
+                if not allowed_for_fused:
+                    break
+                f_phi = float(rng.random())
+                row = self._mv2sv_pick_candidate(
+                    group_key=group_key,
+                    clip_a_row_idx=clip_a.row_idx,
+                    clip_a_dicom=clip_a.dicom_id,
+                    clip_a_view=clip_a.view,
+                    exclude_row_idxs=picked_rows,
+                    allowed_views=allowed_for_fused,
+                    rng=rng,
+                )
+                if row is None:
+                    break
+                picked_rows.add(row)
+                built = self._mv2sv_build_anchor(row, f_phi, rng)
+                if built is None:
+                    continue
+                anchor, realized = built
+                if anchor.view is not None and anchor.view in seen_views:
+                    # Lost the distinct-view race (allowed_for_fused filter
+                    # can be fooled by view label inconsistency); skip.
+                    continue
+                fused_clips.append(anchor)
+                fused_views.append(anchor.view or "UNKNOWN")
+                fused_phases.append(float((realized - float(target_phi_a)) % 1.0))
+                if anchor.view is not None:
+                    seen_views.add(anchor.view)
+            self.mv2sv_diag_fused_pool_sizes.append(len(fused_clips))
+
+        return (
+            target_clip,
+            target_view,
+            target_delta_phase,
+            tuple(fused_clips),
+            tuple(fused_views),
+            tuple(fused_phases),
+        )
 
     def _draw_anchor(
         self,
@@ -1273,8 +1570,7 @@ class PhaseMatchedStudySampler:
                 quality_tier=str(row_b.quality_tier),
                 rr_consistent=(None if not self.require_rr_consistent else True),
             )
-            circ_diff = circular_phase_distance(pa if np.isfinite(pa) else 0.0,
-                                                 pb if np.isfinite(pb) else 0.0)
+            circ_diff = circular_phase_distance(pa if np.isfinite(pa) else 0.0, pb if np.isfinite(pb) else 0.0)
             # Curriculum diagnostics (only populated in phase_curriculum mode)
             if self.sampling_mode == "phase_curriculum":
                 bucket = view_distance_bucket(clip_a.view, clip_b.view)
@@ -1300,15 +1596,13 @@ class PhaseMatchedStudySampler:
             hn_available = False
             hn_resample_count = 0
             if self.require_same_study_wrong_phase_negative:
-                clip_b_neg, target_phi_b_neg_out, bucket_idx_neg, hn_resample_count = (
-                    self._draw_hard_negative_clip(
-                        group_key=group_key,
-                        clip_a=clip_a,
-                        clip_b_pos=clip_b,
-                        target_phi_a=float(phi_a),
-                        target_phi_b_pos=float(phi_b),
-                        rng=rng,
-                    )
+                clip_b_neg, target_phi_b_neg_out, bucket_idx_neg, hn_resample_count = self._draw_hard_negative_clip(
+                    group_key=group_key,
+                    clip_a=clip_a,
+                    clip_b_pos=clip_b,
+                    target_phi_a=float(phi_a),
+                    target_phi_b_pos=float(phi_b),
+                    rng=rng,
                 )
                 self._hard_neg_resample_count_total += hn_resample_count
                 if clip_b_neg is None:
@@ -1329,11 +1623,38 @@ class PhaseMatchedStudySampler:
                     hn_available = True
                     vp_class_neg = view_pair_class(clip_a.view, clip_b_neg.view)
 
+            # --- MV2SV target + fused sampling (Fix 1) ---
+            # Only runs when mv2sv_enabled; otherwise fields stay as defaults.
+            mv2sv_target: Optional[ClipAnchor] = None
+            mv2sv_target_view: Optional[str] = None
+            mv2sv_target_dphi: Optional[float] = None
+            mv2sv_fused_clips: tuple[ClipAnchor, ...] = ()
+            mv2sv_fused_views: tuple[str, ...] = ()
+            mv2sv_fused_phases: tuple[float, ...] = ()
+            if self.mv2sv_enabled:
+                (
+                    mv2sv_target,
+                    mv2sv_target_view,
+                    mv2sv_target_dphi,
+                    mv2sv_fused_clips,
+                    mv2sv_fused_views,
+                    mv2sv_fused_phases,
+                ) = self._draw_mv2sv_targets(
+                    group_key=group_key,
+                    clip_a=clip_a,
+                    target_phi_a=float(phi_a),
+                    rng=rng,
+                )
+
             return MatchRecord(
                 study_id=study_id_val,
                 subject_id=(None if subj is None or (isinstance(subj, float) and math.isnan(subj)) else str(subj)),
-                acquisition_datetime_a=(None if pd.isna(row_a.acquisition_datetime) else str(row_a.acquisition_datetime)),
-                acquisition_datetime_b=(None if pd.isna(row_b.acquisition_datetime) else str(row_b.acquisition_datetime)),
+                acquisition_datetime_a=(
+                    None if pd.isna(row_a.acquisition_datetime) else str(row_a.acquisition_datetime)
+                ),
+                acquisition_datetime_b=(
+                    None if pd.isna(row_b.acquisition_datetime) else str(row_b.acquisition_datetime)
+                ),
                 clip_a=clip_a,
                 clip_b=clip_b,
                 target_phi_a=float(phi_a),
@@ -1354,20 +1675,22 @@ class PhaseMatchedStudySampler:
                 curriculum_epoch_frac=cur_frac,
                 curriculum_bucket_probs=probs_str,
                 clip_b_neg_phase=clip_b_neg,
-                target_phi_b_neg=(
-                    float(target_phi_b_neg_out) if target_phi_b_neg_out is not None else None
-                ),
+                target_phi_b_neg=(float(target_phi_b_neg_out) if target_phi_b_neg_out is not None else None),
                 delta_phase_bucket_pos=(
-                    int(self._last_bucket_idx_pos)
-                    if self._last_bucket_idx_pos is not None else None
+                    int(self._last_bucket_idx_pos) if self._last_bucket_idx_pos is not None else None
                 ),
-                delta_phase_bucket_neg=(
-                    int(bucket_idx_neg) if bucket_idx_neg is not None else None
-                ),
+                delta_phase_bucket_neg=(int(bucket_idx_neg) if bucket_idx_neg is not None else None),
                 view_pair_class_pos=vp_class_pos,
                 view_pair_class_neg=vp_class_neg,
                 hard_neg_available=bool(hn_available),
                 hard_neg_resample_count=int(hn_resample_count),
+                # MV2SV extensions (Fix 1). Default None/() when disabled.
+                target_clip=mv2sv_target,
+                target_view=mv2sv_target_view,
+                target_delta_phase=mv2sv_target_dphi,
+                fused_clips=mv2sv_fused_clips,
+                fused_views=mv2sv_fused_views,
+                fused_phases=mv2sv_fused_phases,
             )
         return None
 
@@ -1392,10 +1715,7 @@ class PhaseMatchedStudySampler:
             p = np.array([probs[b] for b in buckets], dtype=np.float64)
             p = p / p.sum()
         # View-pair policy: set up target distribution if enabled.
-        use_viewpair_policy = (
-            self.view_pair_policy is not None
-            and self.view_pair_policy.get("enabled", False)
-        )
+        use_viewpair_policy = self.view_pair_policy is not None and self.view_pair_policy.get("enabled", False)
         if use_viewpair_policy:
             classes = ("same_view", "same_family", "cross_family")
             vp = self.view_pair_policy["probs"]
@@ -1408,9 +1728,11 @@ class PhaseMatchedStudySampler:
                     # Sample a bucket; if study has no eligible pair in that
                     # bucket, try each other bucket in probability order once
                     # more before giving up.
-                    bucket_order = list(np.random.default_rng(
-                        int(rng.integers(0, 2**31 - 1))
-                    ).choice(len(buckets), size=len(buckets), replace=False, p=p))
+                    bucket_order = list(
+                        np.random.default_rng(int(rng.integers(0, 2**31 - 1))).choice(
+                            len(buckets), size=len(buckets), replace=False, p=p
+                        )
+                    )
                     r = None
                     for i in bucket_order:
                         tgt = buckets[int(i)]
@@ -1418,25 +1740,23 @@ class PhaseMatchedStudySampler:
                         if r is not None:
                             break
                         # Record the skipped attempt
-                        self._last_curriculum_skipped[tgt] = (
-                            self._last_curriculum_skipped.get(tgt, 0) + 1
-                        )
+                        self._last_curriculum_skipped[tgt] = self._last_curriculum_skipped.get(tgt, 0) + 1
                 elif use_viewpair_policy:
                     # Sample a view-pair class; if study has no eligible
                     # pair in that class, try each other class in probability
                     # order.
-                    cls_order = list(np.random.default_rng(
-                        int(rng.integers(0, 2**31 - 1))
-                    ).choice(len(classes), size=len(classes), replace=False, p=vp_p))
+                    cls_order = list(
+                        np.random.default_rng(int(rng.integers(0, 2**31 - 1))).choice(
+                            len(classes), size=len(classes), replace=False, p=vp_p
+                        )
+                    )
                     r = None
                     for i in cls_order:
                         tgt = classes[int(i)]
                         r = self._draw_pair(key, rng, target_viewpair_class=tgt)
                         if r is not None:
                             break
-                        self._last_view_pair_skipped[tgt] = (
-                            self._last_view_pair_skipped.get(tgt, 0) + 1
-                        )
+                        self._last_view_pair_skipped[tgt] = self._last_view_pair_skipped.get(tgt, 0) + 1
                 else:
                     r = self._draw_pair(key, rng)
                 if r is None:
@@ -1615,7 +1935,8 @@ class PhaseMatchedStudySampler:
                     "source_span_cycles p90 = %.2f > 1.5 for phase-matched mode — "
                     "same-shape tensors span different fractions of the cardiac cycle. "
                     "Consider frame_step=1 (source_span_frames=%d) if currently higher.",
-                    p90, self.source_span_frames,
+                    p90,
+                    self.source_span_frames,
                 )
         return d
 
@@ -1624,6 +1945,7 @@ class PhaseMatchedStudySampler:
 # CLI dry-run
 # --------------------------------------------------------------------------- #
 
+
 def _pretty(d: dict, indent: int = 2) -> None:
     def _json_default(o):
         if isinstance(o, (np.integer,)):
@@ -1631,6 +1953,7 @@ def _pretty(d: dict, indent: int = 2) -> None:
         if isinstance(o, (np.floating,)):
             return float(o)
         return str(o)
+
     print(json.dumps(d, indent=indent, default=_json_default))
 
 
@@ -1648,11 +1971,13 @@ def main() -> None:
     ap.add_argument("--pairs-per-study", type=int, default=1)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--epoch", type=int, default=0)
-    ap.add_argument("--view-predictions", type=Path, default=None,
-                    help="CSV with dicom_id,view,view_confidence (optional).")
+    ap.add_argument(
+        "--view-predictions", type=Path, default=None, help="CSV with dicom_id,view,view_confidence (optional)."
+    )
     ap.add_argument("--same-session-only", action="store_true")
-    ap.add_argument("--dry-run", action="store_true", default=True,
-                    help="Default on; kept for call-site compatibility.")
+    ap.add_argument(
+        "--dry-run", action="store_true", default=True, help="Default on; kept for call-site compatibility."
+    )
     ap.add_argument("--require-span-fits", action="store_true")
     ap.add_argument("--min-frames", type=int, default=None)
     args = ap.parse_args()
@@ -1695,16 +2020,18 @@ def main() -> None:
     # Show a few sample records for eyeballing.
     print("\n-- first 3 records --")
     for r in records[:3]:
-        _pretty({
-            "study": r.study_id,
-            "phi_a": r.target_phi_a,
-            "phi_b": r.target_phi_b,
-            "circ_diff": r.circular_phase_diff,
-            "a": asdict(r.clip_a),
-            "b": asdict(r.clip_b),
-            "source_span_cycles_a": r.source_span_cycles_a,
-            "source_span_cycles_b": r.source_span_cycles_b,
-        })
+        _pretty(
+            {
+                "study": r.study_id,
+                "phi_a": r.target_phi_a,
+                "phi_b": r.target_phi_b,
+                "circ_diff": r.circular_phase_diff,
+                "a": asdict(r.clip_a),
+                "b": asdict(r.clip_b),
+                "source_span_cycles_a": r.source_span_cycles_a,
+                "source_span_cycles_b": r.source_span_cycles_b,
+            }
+        )
 
 
 if __name__ == "__main__":

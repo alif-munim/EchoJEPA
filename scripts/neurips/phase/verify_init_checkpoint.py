@@ -52,6 +52,22 @@ KNOWN_INIT_CHECKPOINTS = {
         "expected_sha256_prefix": "cdf0fabefe83e21e",
         "expected_epoch": 100,
     },
+    "mimic_lk_jepa_e100": {
+        "description": (
+            "EchoJEPA-L-K e100 (Kinetics-400 → MIMIC, runs/11 lineage). "
+            "Byte-identical to `runs/11/training_folder/e100.pt`; "
+            "canonical copy at:\n"
+            "  s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/"
+            "vjepa2-artifacts/checkpoints/echojepa_l_k_pretrain_k400_to_mimic/e100.pt\n"
+            "  (5,127,746,365 bytes, 2026-01-20 on S3). See "
+            "claude/architecture/echojepa-l-k-pretrain-checkpoints.md for lineage proof."
+        ),
+        # SHA256 prefix pinned on first run via the sbatch preflight; the
+        # initial invocation runs with --strict disabled, prints the prefix,
+        # and the operator commits it here so subsequent jobs gate on it.
+        "expected_sha256_prefix": "TBD",
+        "expected_epoch": 100,
+    },
 }
 
 

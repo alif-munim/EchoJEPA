@@ -12,6 +12,7 @@ dicom ID. This is a structural guard against metadata-shortcut leakage —
 the smoke test asserts `_build_predictor_inputs` returns exactly 3
 tensors and this head's `.query` cannot accept anything else.
 """
+
 from __future__ import annotations
 
 import math
@@ -19,16 +20,53 @@ import math
 import torch
 import torch.nn as nn
 
-
 VIEW_ID_MAP: dict[str, int] = {
-    "A2C": 0, "A3C": 1, "A4C": 2, "A5C": 3,
+    "A2C": 0,
+    "A3C": 1,
+    "A4C": 2,
+    "A5C": 3,
     "PLAX": 4,
-    "PSAX-AV": 5, "PSAX-MV": 6, "PSAX-PM": 7, "PSAX-AP": 8,
+    "PSAX-AV": 5,
+    "PSAX-MV": 6,
+    "PSAX-PM": 7,
+    "PSAX-AP": 8,
     "Subcostal": 9,
-    "IVC": 10, "SSN": 11, "TEE": 12,
+    "IVC": 10,
+    "SSN": 11,
+    "TEE": 12,
     "UNKNOWN": 13,
 }
 NUM_VIEWS: int = 14
+
+# Coarse view family integer IDs. Mirrors classifier/phase/sampler's
+# VIEW_FAMILIES but expressed as int IDs so contrastive / retrieval
+# code can vectorize family membership without string lookup.
+#   0 = apical       (A2C, A3C, A4C, A5C)
+#   1 = parasternal_long  (PLAX)
+#   2 = parasternal_short (PSAX-AV, PSAX-MV, PSAX-PM, PSAX-AP)
+#   3 = other        (Subcostal, IVC, SSN, TEE)
+#   4 = unknown      (UNKNOWN)
+VIEW_FAMILY_ID: dict[int, int] = {
+    VIEW_ID_MAP["A2C"]: 0,
+    VIEW_ID_MAP["A3C"]: 0,
+    VIEW_ID_MAP["A4C"]: 0,
+    VIEW_ID_MAP["A5C"]: 0,
+    VIEW_ID_MAP["PLAX"]: 1,
+    VIEW_ID_MAP["PSAX-AV"]: 2,
+    VIEW_ID_MAP["PSAX-MV"]: 2,
+    VIEW_ID_MAP["PSAX-PM"]: 2,
+    VIEW_ID_MAP["PSAX-AP"]: 2,
+    VIEW_ID_MAP["Subcostal"]: 3,
+    VIEW_ID_MAP["IVC"]: 3,
+    VIEW_ID_MAP["SSN"]: 3,
+    VIEW_ID_MAP["TEE"]: 3,
+    VIEW_ID_MAP["UNKNOWN"]: 4,
+}
+
+
+def family_of(view_id: int) -> int:
+    """Integer family ID for a view integer ID. Unknown family = 4."""
+    return VIEW_FAMILY_ID.get(int(view_id), 4)
 
 
 def view_to_id(v) -> int:
@@ -200,15 +238,13 @@ class PhaseRelationalHead(nn.Module):
         Returns [B, rel_dim]. Caller applies F.normalize.
         """
         if c_a_pool.dim() != 2:
-            raise ValueError(
-                f"c_a_pool must be [B, D]; got {tuple(c_a_pool.shape)}"
-            )
-        src = self.source_proj(c_a_pool)                           # [B, rel_dim]
-        emb_a = self.view_embed_a(view_a_ids)                       # [B, V]
-        emb_b = self.view_embed_b_pos(view_b_pos_ids)               # [B, V]
+            raise ValueError(f"c_a_pool must be [B, D]; got {tuple(c_a_pool.shape)}")
+        src = self.source_proj(c_a_pool)  # [B, rel_dim]
+        emb_a = self.view_embed_a(view_a_ids)  # [B, V]
+        emb_b = self.view_embed_b_pos(view_b_pos_ids)  # [B, V]
         phase = self.phase_mlp(delta_phase_pos.to(c_a_pool.dtype))  # [B, 2V]
         fused = torch.cat([src, emb_a, emb_b, phase], dim=-1)
-        return self.relation_mlp(fused)                             # [B, rel_dim]
+        return self.relation_mlp(fused)  # [B, rel_dim]
 
     def target(self, pool_detached: torch.Tensor) -> torch.Tensor:
         """Project a detached pooled teacher latent.
@@ -218,7 +254,5 @@ class PhaseRelationalHead(nn.Module):
         F.normalize.
         """
         if pool_detached.dim() != 2:
-            raise ValueError(
-                f"pool_detached must be [B, D]; got {tuple(pool_detached.shape)}"
-            )
+            raise ValueError(f"pool_detached must be [B, D]; got {tuple(pool_detached.shape)}")
         return self.target_proj(pool_detached)
