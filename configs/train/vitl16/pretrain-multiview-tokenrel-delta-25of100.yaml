@@ -1,0 +1,179 @@
+# EchoJEPA-TokenRel + MotionDelta — Run 2 — 25 of 100 continuation epochs.
+#
+# Run 1 + same-view-only latent motion-delta prediction. MotionDelta
+# supplies local-amplitude supervision that V4's pooled phase-InfoNCE
+# cannot — targeted at TAPSE mechanism.
+#
+# Init: same as Run 1. Scheduler horizon 100; stops at 25.
+
+app: vjepa_multiview
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 12
+mem_per_gpu: 100G
+folder: /opt/dlami/nvme/checkpoints/echojepa_tokenrel_delta_run2_25ep
+
+data:
+  dataset_type: VideoGroupDataset
+  datasets:
+    - /opt/dlami/nvme/probe/phase_annotations.parquet
+  placeholder_csv: /opt/dlami/nvme/tmp/phase_multiview_placeholder.csv
+  batch_size: 32
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs:
+    - 16
+  fps: 8
+  tubelet_size: 2
+  num_workers: 4
+  persistent_workers: false
+  pin_mem: true
+
+phase_multiview:
+  enabled: true
+  sampler_type: phase_matched
+  phase_annotations_path: /opt/dlami/nvme/probe/phase_annotations.parquet
+  sampler_dir: /opt/dlami/nvme/src/vjepa2/classifier/phase/sampler
+  multiview_objective: token_phase_relational
+  use_intraview_loss: true
+  use_crossview_loss: false
+  quality_tiers: ["high", "medium"]
+  rr_filter_mode: strict
+  require_rr_consistent: true
+  frames_per_clip: 16
+  frame_step: 1
+  allow_frame_step_gt1: false
+  sampling_mode: uniform_phase
+  phase_tolerance: 0.15
+  pairs_per_study: 24
+  same_session_only: false
+  log_every_steps: 20
+  video_uri_mode: mp4
+  raw_bucket_prefix: s3://echodata25/mimic-raw-staging
+  mp4_bucket_prefix: s3://echodata25/mimic-echo-224px
+  view_pair_policy:
+    enabled: true
+    same_view_prob: 0.35
+    same_family_prob: 0.45
+    cross_family_prob: 0.20
+    require_different_dicom: true
+    allow_same_view: true
+    resample_attempts: 8
+  debug_verify_frame_count: false
+  debug_verify_n: 4
+  debug_csv_path: null
+  view_labels_path: /opt/dlami/nvme/data/view_labels/mimic_view_predictions.csv
+  view_label_column: view
+  view_confidence_column: view_confidence
+  min_view_confidence: 0.60
+  delta_phase_mode: controlled_buckets
+  delta_phase_buckets: [0.0, 0.125, 0.25, 0.5]
+  delta_phase_bucket_probs: [0.40, 0.30, 0.20, 0.10]
+  rel_require_same_study_wrong_phase_negative: true
+  rel_wrong_phase_min_delta: 0.25
+  rel_wrong_phase_strategy: same_view_then_same_family
+  rel_allow_missing_hard_negative: false
+  rel_hard_negative_fallback: resample_anchor
+  rel_max_hard_neg_attempts: 16
+  rel_use_confidence_weight: false
+  rel_use_distributed_negatives: false
+  token_relational:
+    enabled: true
+    embed_dim: 1024
+    rel_dim: 256
+    hidden_dim: 1024
+    view_embedding_dim: 64
+    n_phase_freqs: 4
+    token_subsample_k: 64
+    tau_token: 0.10
+    lambda_token_rel: 0.02
+    lambda_pool_rel: 0.005
+    lambda_delta: 0.01
+    warmup_epochs: 5.0
+    mask_same_study_batch_negatives: true
+    pool_rel_temperature: 0.10
+  motion_delta:
+    enabled: true
+    delta_dim: 256
+    hidden_dim: 1024
+    tau_delta: 0.10
+    lambda_delta_l1: 1.0
+    lambda_delta_nce: 1.0
+    same_view_only: true
+  privileged_multiview:
+    lambda_pair_shared: 0.0
+    lambda_pair_view: 0.0
+    lambda_view_nce: 0.0
+    lambda_shared: 0.0
+    lambda_phase: 0.0
+    lambda_fused: 0.0
+    p_fused: 0.0
+  total_epochs: 100
+  predictor_phase_token:
+    enabled: false
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 9999
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 5
+  save_at_end: true
+  seed: 457
+  use_sdpa: true
+  expected_init_checkpoint_tag: mimic_standard_jepa_e100
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true
+  zero_init_mask_tokens: true
+
+optimization:
+  is_anneal: false
+  force_load_pretrain: true
+  anneal_ckpt: /opt/dlami/nvme/checkpoints/jepa_in21k_vitl_e100.pt
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  ipe: 650
+  ipe_scale: 1.0
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  warmup: 5
+  epochs: 25
+  scheduler_total_epochs: 100
+  stop_after_epochs: 25

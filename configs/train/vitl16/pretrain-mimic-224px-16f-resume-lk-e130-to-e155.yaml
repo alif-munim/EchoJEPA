@@ -1,0 +1,119 @@
+# EchoJEPA-L-K resume: e130 -> e155 (Kinetics-400 -> MIMIC continuation).
+#
+# Source: s3://.../checkpoints/echojepa_l_k_pretrain_k400_to_mimic/e130.pt
+#   (originally runs/11/e130.pt, HyperPod job 11, 2026-01-20)
+# Init lineage: Meta V-JEPA 2 ViT-L K400 -> MIMIC, 240-epoch cosine horizon.
+# See: claude/architecture/echojepa-l-k-pretrain-checkpoints.md
+#
+# Resume semantics (mirrors app/vjepa/train.py:468-507):
+#   - load_checkpoint: true            -> resume flow
+#   - read_checkpoint: latest.pt       -> read <folder>/latest.pt (staged from e130 by the sbatch)
+#   - force_load_pretrain: false       -> do NOT reload Meta vitl.pt on top of the resumed state
+#   - epochs / scheduler_total_epochs: 240 (unchanged from the original run)
+#   - stop_after_epochs: 155           -> advance 25 more epochs (e130 -> e155) then exit
+#   - start_epoch / start_itr / completed_steps / scheduler replay are
+#     restored from the checkpoint; optimizer + LR + WD + EMA momentum
+#     pick up exactly where e130 left off.
+#
+# Motive: match V-JEPA†-e155 FLOPs budget (~35.5 EFLOPs post-e100).
+# L-K per-epoch cost is identical (same ViT-L/16 + 16f + 224px + bs=1024-global
+# + IPE=300 + ipe_scale=1.25) so +25 epochs from e130 lands at ~35 EFLOPs
+# of continuation, matching the V-JEPA† budget at the "canonical e155"
+# comparison point referenced in claude/neurips/flops-matched-probe-results.md.
+app: vjepa
+nodes: 1
+tasks_per_node: 8
+cpus_per_task: 16
+mem_per_gpu: 220G
+folder: /opt/dlami/nvme/echojepa_l_k_resume_e155
+
+data:
+  dataset_type: VideoDataset
+  datasets:
+    - /opt/dlami/nvme/data/csv/mimic_annotations_s3.csv
+  datasets_weights:
+    - 1.0
+  batch_size: 128
+  crop_size: 224
+  patch_size: 16
+  dataset_fpcs:
+    - 16
+  fps: 8
+  tubelet_size: 2
+  num_workers: 8
+  persistent_workers: true
+  pin_mem: true
+
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio: [0.9, 1.1]
+  random_resize_scale: [0.5, 1.0]
+  reprob: 0.0
+
+loss:
+  loss_exp: 1.0
+
+mask:
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 8
+    spatial_scale: [0.15, 0.15]
+    temporal_scale: [1.0, 1.0]
+  - aspect_ratio: [0.75, 1.5]
+    full_complement: false
+    max_keep: null
+    max_temporal_keep: 1.0
+    num_blocks: 2
+    spatial_scale: [0.7, 0.7]
+    temporal_scale: [1.0, 1.0]
+
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  # RESUME: read <folder>/latest.pt (staged from e130.pt by the sbatch).
+  load_checkpoint: true
+  read_checkpoint: latest.pt
+  # Save each continuation epoch so e145 / e150 / e155 are available.
+  save_every_freq: 5
+  seed: 239
+  use_sdpa: true
+
+model:
+  model_name: vit_large
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  num_mask_tokens: 10
+  use_rope: true
+  zero_init_mask_tokens: true
+
+optimization:
+  is_anneal: false
+  # Do NOT force-load; the resumed checkpoint already has encoder/predictor/
+  # target_encoder/opt/scaler and must not be overwritten by the Meta init.
+  force_load_pretrain: false
+  anneal_ckpt: null
+  ema: [0.99925, 0.99925]
+  weight_decay: 0.04
+  final_weight_decay: 0.04
+  # Same scheduler geometry as runs/11 original params-pretrain.yaml.
+  # T_max = ipe_scale * epochs * ipe = 1.25 * 240 * 300 = 90,000 steps.
+  # At e130 the schedule is ~43% through; at e155 it will be ~52% through.
+  # load_checkpoint restores optimizer state + replays scheduler to the
+  # exact post-e130 step, then advances naturally through e155.
+  ipe: 300
+  ipe_scale: 1.25
+  start_lr: 3.33e-5
+  lr: 1.75e-4
+  final_lr: 1.75e-4
+  warmup: 40
+  # Same scheduler horizon (240); stop after e155 (25 continuation epochs from e130).
+  epochs: 240
+  scheduler_total_epochs: 240
+  stop_after_epochs: 155
