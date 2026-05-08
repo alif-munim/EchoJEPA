@@ -1,0 +1,117 @@
+# Full-Joint Global Study-Token EchoMV-JEPA — smoke (225 steps).
+#
+# Trains the V-JEPA clip encoder online alongside a study transformer
+# and projector. Global [STUDY]-token JEPA is the primary objective.
+# Anchor loss vs frozen e100 keeps the clip encoder from drifting.
+#
+# Start conservative: K=4, batch_studies_per_gpu=4. If smoke memory is
+# healthy, the overnight config bumps to K=8 + batch=4.
+
+app: echomv_jepa
+trainer: full_joint
+
+experiment:
+  objective: study
+  seed: 0
+
+  clip_encoder:
+    source: online_trainable
+    init_ckpt: /opt/dlami/nvme/checkpoints/jepa_in21k_vitl_e100.pt
+    model_name: vit_large
+    pred_depth: 12
+    pred_embed_dim: 384
+    pred_num_heads: 12
+    use_mask_tokens: true
+    num_mask_tokens: 10
+    use_rope: true
+    use_sdpa: true
+    use_activation_checkpointing: true
+    uniform_power: true
+    zero_init_mask_tokens: true
+    token_spatial_pool: 2    # 1568 → 392 tokens per clip at ViT-L/224
+
+  data:
+    k_sample_manifest: /opt/dlami/nvme/echomv_cache/k8_train.parquet
+    frames_per_clip: 16
+    frame_step: 2
+    crop_size: 224
+    patch_size: 16
+    tubelet_size: 2
+    fps: 8
+    num_workers: 4
+
+  study_transformer:
+    d_model: 512
+    depth: 4
+    num_heads: 8
+
+  projector:
+    hidden: 1024
+    out: 256
+
+  study_corruption:
+    random_element_dropout: 0.30
+    whole_view_family_dropout: 0.25
+    whole_modality_dropout: 0.15
+    no_dropout: 0.30
+
+  single_view_branch:
+    prob: 0.25
+
+  lambdas:
+    clip: 1.0
+    study: 0.1
+    nce: 0.005
+    cov: 0.001
+    anchor: 0.05
+    sv: 0.02
+    # No ramping in smoke
+    study_warmup_steps: 0
+    sv_warmup_steps: 0
+
+  loss:
+    tau_nce: 0.1
+    var_floor: 0.0
+    anchor_subsample: 4
+
+  ema:
+    clip_tau_start: 0.999
+    clip_tau_end: 0.99995
+    study_tau_start: 0.996
+    study_tau_end: 0.9999
+
+  optim:
+    base_lr: 2.0e-4
+    clip_base_lr: 3.0e-5
+    clip_min_scale: 0.1
+    clip_mid_scale: 0.3
+    clip_top_scale: 1.0
+    weight_decay: 0.04
+    betas: [0.9, 0.95]
+    batch_studies_per_gpu: 4
+    total_steps: 225
+    warmup_steps: 50
+    dtype: bfloat16
+    grad_clip: 1.0
+    save_at_steps: []
+
+  mask:
+    - aspect_ratio: [0.75, 1.5]
+      full_complement: false
+      max_keep: null
+      max_temporal_keep: 1.0
+      num_blocks: 8
+      spatial_scale: [0.15, 0.15]
+      temporal_scale: [1.0, 1.0]
+    - aspect_ratio: [0.75, 1.5]
+      full_complement: false
+      max_keep: null
+      max_temporal_keep: 1.0
+      num_blocks: 2
+      spatial_scale: [0.7, 0.7]
+      temporal_scale: [1.0, 1.0]
+
+  logging:
+    log_every: 10
+
+folder: /opt/dlami/nvme/checkpoints/full_joint_global_study_smoke

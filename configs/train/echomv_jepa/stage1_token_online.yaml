@@ -1,0 +1,146 @@
+# EchoMV-JEPA Stage-1 Option A — token-level, on-the-fly encoding.
+#
+# No c_clip cache. Raw MP4s are decoded per step via VideoDataset
+# (boto3 + Decord), passed through a frozen V-JEPA ViT-L, and the resulting
+# (T=392, d_clip=1024) token tensors per clip are fed directly to the study
+# transformer at token granularity via TokenStudyTransformer.
+#
+# Key knobs:
+#   clip_encoder.source: online
+#   clip_encoder.config_path: path to an inference YAML with model_kwargs +
+#     experiment.data (reuses the echoset v1 cache recipe)
+#   clip_encoder.token_spatial_pool: 2  → 196 spatial tokens → 49 (7x7) × 8 tubelets
+#     = 392 tokens per clip (down from 1568)
+#   optim.batch_studies_per_gpu: 8  (down from 32 — attention over
+#     M × T_tok = 6 × 392 = 2352 tokens per study)
+#
+# The smoke budget is shortened to 800 total steps (~40 min on 8×H100) so we
+# can read the §20.2.a contextualization gate before committing to the
+# 27 000-step full run.
+#
+# See docs/echomv_jepa_architecture_plan.md §18 and
+# reports/echomv_jepa/stage1_context_debug.md for why Option A is needed.
+
+app: echomv_jepa
+
+experiment:
+  study_transformer:
+    d_clip: 1024
+    d_model: 512
+    n_layers: 4
+    n_heads: 8
+    ffn_mult: 4
+    dropout_ffn: 0.1
+    dropout_attn: 0.0
+    max_M: 64          # keep — M is the element count, not token count
+
+  elements:
+    element_agg: mean
+    tau_quality: 0.5
+
+  meta_dropout:
+    view: 0.15
+    modality: 0.10
+    phase: 0.30
+    quality: 0.30
+
+  target_meta:
+    include_target_phase: true
+    target_quality_token_ablation: false
+
+  projector:
+    num_modalities: 1
+    d_hidden: 1024
+    d_proj: 256
+
+  modality_cohort: ["b_mode", "color_doppler"]
+
+  masking:
+    strategy_weights:
+      random_element: 0.55
+      whole_view_family: 0.25
+      whole_modality: 0.10
+      apical_holdout: 0.05
+      doppler_holdout: 0.025
+      bmode_holdout: 0.025
+    mask_ratio_cap: 0.6
+    min_context: 1
+    min_target: 1
+
+  sampler:
+    K_clips: 8
+    seed: 0
+    policy: mixed_modality
+    bmode_budget: 6
+    color_budget: 2
+    spectral_budget: 0
+    sample_manifest: s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/echoset_jepa/study_clip_sample_K8_seed0_train.parquet
+
+  loss:
+    lambda_nce: 0.0
+    tau_nce: 0.1
+
+  ema:
+    tau_start: 0.996
+    tau_end: 0.9999
+    schedule: cosine
+
+  clip_encoder:
+    source: online                    # Option A: on-the-fly encoding
+    frozen: true
+    # Reuse the v1 cache-cclip inference config — same V-JEPA + transforms.
+    # Rendered on the fly by the sbatch into $WORKDIR/echomv_encoder.yaml.
+    config_path: /opt/dlami/nvme/echomv_cache/encoder.yaml
+    token_spatial_pool: 2             # 14x14 → 7x7 spatial; 8x7x7 = 392 tokens/clip
+    spatial_hw: 14
+    temporal_tubelets: 8
+
+  optim:
+    lr: 5.0e-4
+    weight_decay: 0.05
+    betas: [0.9, 0.95]
+    # Smoke budget: 225 total steps at ~3 s/step = ~11 min GPU-time
+    # + startup/sync ≈ 15 min wall. Enough to read §20.2.a gates; promote
+    # to 800 or 27k only after this shows z_cosine_vs_isolated < 0.90 trend.
+    warmup_steps: 50
+    main_steps: 150
+    cooldown_steps: 25
+    batch_studies_per_gpu: 8          # down from 32 — token sequence is 49x longer
+
+  ddp:
+    nodes: 1
+    tasks_per_node: 8
+    backend: nccl
+
+  diagnostics:
+    peer_drop_every_n_steps: 25
+    halt_z_cosine_vs_v1_threshold: 0.98
+    halt_z_cosine_vs_v1_consec_steps: 5000
+
+  logging:
+    log_every_steps: 10
+    csv_schema:
+      - step
+      - loss
+      - loss_regress
+      - loss_nce
+      - var_t
+      - cov_off
+      - z_cosine_vs_v1
+      - z_cosine_vs_isolated
+      - z_cosine_vs_peer_drop
+      - valid_neg_count_same_view_mean
+      - valid_neg_count_same_view_min
+      - valid_neg_count_same_modality_mean
+      - fallback_fraction
+      - mask_strategy
+      - M_elements_mean
+
+  collapse_monitor:
+    var_t_floor: 0.3
+    halt_if_below_for_steps: 500
+
+folder: /tmp/echomv_jepa/stage1_token_online
+seed: 0
+checkpoint_every_steps: 200
+num_workers: 4

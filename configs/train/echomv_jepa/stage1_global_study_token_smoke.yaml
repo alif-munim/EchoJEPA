@@ -1,0 +1,131 @@
+# Arm C — global study-token JEPA (pooled path).
+#
+# Predicts the teacher's [STUDY]-token readout instead of per-element targets.
+# No per-element masking; the student sees a *corruption-masked* study and
+# must reconstruct the study-level summary. Forces self-attention to do
+# useful aggregation, since you cannot predict a [STUDY] summary by echoing
+# any one element's content.
+
+app: echomv_jepa
+
+experiment:
+  objective: study                  # Arm C selector
+
+  study_transformer:
+    d_clip: 1024
+    d_model: 512
+    n_layers: 4
+    n_heads: 8
+    ffn_mult: 4
+    dropout_ffn: 0.1
+    dropout_attn: 0.0
+    max_M: 64
+
+  elements:
+    element_agg: mean
+    tau_quality: 0.5
+
+  meta_dropout:
+    view: 0.15
+    modality: 0.10
+    phase: 0.30
+    quality: 0.30
+
+  target_meta:
+    include_target_phase: true
+    target_quality_token_ablation: false
+
+  projector:
+    num_modalities: 1
+    d_hidden: 1024
+    d_proj: 256
+
+  modality_cohort: ["b_mode", "color_doppler"]
+
+  masking:
+    # Not used by Arm C (no per-element masking), but retained so the pooled
+    # collate produces the standard batch contract.
+    strategy_weights:
+      random_element: 1.0
+    mask_ratio_cap: 0.6
+    min_context: 1
+    min_target: 1
+
+  # Arm C corruption mix (study-level) — this is what actually matters.
+  study_corruption:
+    random_element_dropout: 0.30
+    whole_view_family_dropout: 0.25
+    whole_modality_dropout: 0.15
+    no_dropout: 0.30
+
+  sampler:
+    K_clips: 8
+    seed: 0
+    policy: mixed_modality
+    bmode_budget: 6
+    color_budget: 2
+    spectral_budget: 0
+    sample_manifest: s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/echoset_jepa/study_clip_sample_K8_seed0_train.parquet
+
+  loss:
+    lambda_nce: 0.01       # study-level NCE across batch (B negatives)
+    tau_nce: 0.1
+    lambda_cov: 0.001
+    var_floor: 0.0
+
+  ema:
+    tau_start: 0.996
+    tau_end: 0.9999
+    schedule: cosine
+
+  # Pooled clip encoder — Arm C uses the existing c_clip cache (no new data pipe).
+  clip_encoder:
+    source: cached
+    frozen: true
+    cache_s3_prefix: s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/echoset_jepa/cclip/
+    cache_local_prefix: /opt/dlami/nvme/echoset_cache/
+
+  optim:
+    lr: 5.0e-4
+    weight_decay: 0.05
+    betas: [0.9, 0.95]
+    warmup_steps: 50
+    main_steps: 150
+    cooldown_steps: 25
+    batch_studies_per_gpu: 32
+
+  ddp:
+    nodes: 1
+    tasks_per_node: 8
+    backend: nccl
+
+  diagnostics:
+    peer_drop_every_n_steps: 25
+    extra_every_n_steps: 25
+
+  logging:
+    log_every_steps: 10
+    csv_schema:
+      - step
+      - loss
+      - loss_regress
+      - loss_nce
+      - loss_cov
+      - var_t
+      - cov_off
+      - study_context_delta
+      - metadata_only_study_gap
+      - study_matched_rank_top1
+      - study_matched_rank_top5
+      - study_nce_pool_size
+      - mask_strategy
+      - M_elements_mean
+
+  collapse_monitor:
+    var_t_floor: 0.3
+    halt_if_below_for_steps: 500
+
+folder: /tmp/echomv_jepa/arm_c_global_study
+seed: 0
+checkpoint_every_steps: 200
+num_workers: 4

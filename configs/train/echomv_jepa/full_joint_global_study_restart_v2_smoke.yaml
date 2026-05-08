@@ -1,0 +1,152 @@
+# Full-Joint Global Study-Token EchoMV-JEPA — RESTART v2 SMOKE (500 steps).
+#
+# v2 upgrades over v1 smoke (job 771):
+#   * True V-JEPA clip loss via MaskCollator + predictor (not random-token L1).
+#   * Decayed anchor (cosine from 0.05 → 0.005 over 10k steps).
+#   * DDP-safe single-view branch with deterministic p_rows=0.25.
+#   * Cross-rank study InfoNCE with all-gather.
+#   * Layer-wise drift diagnostics (block 0/6/12/18/23 cosine to e100).
+#   * K=8 target with batch_studies_per_gpu=2 + grad_accum=2.
+#
+# Smoke pass gates (checked in reports/echomv_jepa/full_joint_restart_v2_smoke_results.md):
+#   no NaNs; loss_clip_vjepa_true finite; loss_study trending; rank_top1_global
+#   > chance; metadata_only_study_gap > 0.05; cov_off bounded; sv_valid_fraction > 0;
+#   a4c_sv_count > 0; anchor_cosine_to_e100 > 0.95; ema_c/s both nonzero; grad_clip
+#   + grad_study both nonzero; fits K=8 batch=2 grad_accum=2 in 80 GB H100.
+
+app: echomv_jepa
+trainer: full_joint
+
+experiment:
+  objective: study
+  seed: 0
+
+  clip_encoder:
+    source: online_trainable
+    init_ckpt: /opt/dlami/nvme/checkpoints/jepa_in21k_vitl_e100.pt
+    model_name: vit_large
+    pred_depth: 12
+    pred_embed_dim: 384
+    pred_num_heads: 12
+    use_mask_tokens: true
+    num_mask_tokens: 10
+    use_rope: true
+    use_sdpa: true
+    use_activation_checkpointing: true
+    uniform_power: true
+    zero_init_mask_tokens: true
+    token_spatial_pool: 2
+
+  data:
+    k_sample_manifest: /opt/dlami/nvme/echomv_cache/k8_train.parquet
+    frames_per_clip: 16
+    frame_step: 2
+    crop_size: 224
+    patch_size: 16
+    tubelet_size: 2
+    fps: 8
+    num_workers: 4
+
+  study_transformer:
+    d_model: 512
+    depth: 4
+    num_heads: 8
+
+  projector:
+    hidden: 1024
+    out: 256
+
+  study_corruption:
+    random_element_dropout: 0.30
+    whole_view_family_dropout: 0.25
+    whole_modality_dropout: 0.15
+    no_dropout: 0.30
+
+  single_view_branch:
+    enabled: true
+    p_rows: 0.25
+    prefer_view_families: [apical, parasternal_long, parasternal_short, subcostal]
+    min_valid_rows_per_batch: 1
+
+  clip_vjepa:
+    enabled: true
+    n_clips_per_study: 1
+    sample_policy: random_valid
+
+  clip_consistency:
+    enabled: true
+
+  study_nce:
+    enabled: true
+    tau: 0.1
+    cross_rank: true
+    match_view_count_bucket: false    # same bucket for all in this manifest
+    match_modality_count_bucket: false
+    match_clip_count_bucket: true
+    exclude_same_patient: true
+
+  lambdas:
+    clip: 1.0                  # legacy back-compat (unused when vjepa_true enabled)
+    clip_vjepa_true: 1.0
+    clip_consistency: 0.1
+    study: 0.1
+    nce: 0.005
+    cov: 0.001
+    anchor: 0.05               # unused when anchor_decay_steps > 0
+    sv: 0.02
+    # Ramps / decay (decay_steps=0 disables)
+    study_target: 0.1
+    study_warmup_steps: 0
+    sv_target: 0.02
+    sv_warmup_steps: 0
+    anchor_start: 0.05
+    anchor_final: 0.005
+    anchor_decay_steps: 10000
+    anchor_schedule: cosine
+
+  loss:
+    tau_nce: 0.1
+    var_floor: 0.0
+    anchor_subsample: 4
+
+  ema:
+    clip_tau_start: 0.999
+    clip_tau_end: 0.99995
+    study_tau_start: 0.996
+    study_tau_end: 0.9999
+
+  optim:
+    base_lr: 2.0e-4
+    clip_base_lr: 3.0e-5
+    clip_min_scale: 0.1
+    clip_mid_scale: 0.3
+    clip_top_scale: 1.0
+    weight_decay: 0.04
+    betas: [0.9, 0.95]
+    batch_studies_per_gpu: 2
+    total_steps: 500
+    warmup_steps: 50
+    dtype: bfloat16
+    grad_clip: 1.0
+    save_at_steps: []
+
+  mask:
+    - aspect_ratio: [0.75, 1.5]
+      full_complement: false
+      max_keep: null
+      max_temporal_keep: 1.0
+      num_blocks: 8
+      spatial_scale: [0.15, 0.15]
+      temporal_scale: [1.0, 1.0]
+    - aspect_ratio: [0.75, 1.5]
+      full_complement: false
+      max_keep: null
+      max_temporal_keep: 1.0
+      num_blocks: 2
+      spatial_scale: [0.7, 0.7]
+      temporal_scale: [1.0, 1.0]
+
+  logging:
+    log_every: 20
+
+folder: /opt/dlami/nvme/checkpoints/full_joint_restart_v2_smoke

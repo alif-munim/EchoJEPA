@@ -1,0 +1,129 @@
+# EchoMV-JEPA ablation H — no EMA at the study-encoder level.
+# Tests whether EMA co-evolution matters at the study level (plan §17 A8, §20).
+#
+# Implementation: tau_start == tau_end == 1.0 → both EMA updates are no-ops.
+# The teacher study transformer stays at its initial copy of the student's
+# weights (deep-copied at construction) and the projector teacher stays at its
+# initial copy. The student still trains normally, so any gain vs Stage-1
+# attributable to EMA co-evolution should vanish here.
+#
+# Null prediction: this config should be STRICTLY WORSE than Stage-1 on the
+# downstream gates (§20.2.b). If it is not, the EMA co-evolution claim is
+# falsified and Stage-1's core design needs to be re-examined.
+
+app: echomv_jepa
+
+experiment:
+  study_transformer:
+    d_clip: 1024
+    d_model: 512
+    n_layers: 4
+    n_heads: 8
+    ffn_mult: 4
+    dropout_ffn: 0.1
+    dropout_attn: 0.0
+    max_M: 64
+
+  elements:
+    element_agg: mean
+    tau_quality: 0.5
+
+  meta_dropout:
+    view: 0.15
+    modality: 0.10
+    phase: 0.30
+    quality: 0.30
+
+  target_meta:
+    include_target_phase: true
+    target_quality_token_ablation: false
+
+  projector:
+    num_modalities: 1
+    d_hidden: 1024
+    d_proj: 256
+
+  modality_cohort: ["b_mode", "color_doppler"]
+
+  masking:
+    strategy_weights:
+      random_element: 0.55
+      whole_view_family: 0.25
+      whole_modality: 0.10
+      apical_holdout: 0.05
+      doppler_holdout: 0.025
+      bmode_holdout: 0.025
+    mask_ratio_cap: 0.6
+    min_context: 1
+    min_target: 1
+
+  sampler:
+    K_clips: 8
+    seed: 0
+    policy: mixed_modality
+    bmode_budget: 6
+    color_budget: 2
+    spectral_budget: 0
+    sample_manifest: s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/echoset_jepa/study_clip_sample_K8_seed0_train.parquet
+
+  loss:
+    lambda_nce: 0.0
+    tau_nce: 0.1
+
+  ema:
+    tau_start: 1.0                       # no-op EMA: teacher never updates
+    tau_end:   1.0
+    schedule: cosine
+
+  clip_encoder:
+    source: cached
+    frozen: true
+    cache_s3_prefix: s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts/echoset_jepa/cclip/
+    cache_local_prefix: /opt/dlami/nvme/echoset_cache/   # HyperPod NVMe mirror — populated by `aws s3 sync` in the training sbatch
+
+  optim:
+    lr: 5.0e-4
+    weight_decay: 0.05
+    betas: [0.9, 0.95]
+    warmup_steps: 5000
+    main_steps: 20000
+    cooldown_steps: 2000
+    batch_studies_per_gpu: 32
+
+  ddp:
+    nodes: 1
+    tasks_per_node: 8
+    backend: nccl
+
+  diagnostics:
+    peer_drop_every_n_steps: 50
+    halt_z_cosine_vs_v1_threshold: 0.98
+    halt_z_cosine_vs_v1_consec_steps: 5000
+
+  logging:
+    log_every_steps: 50
+    csv_schema:
+      - step
+      - loss
+      - loss_regress
+      - loss_nce
+      - var_t
+      - cov_off
+      - z_cosine_vs_v1
+      - z_cosine_vs_isolated
+      - z_cosine_vs_peer_drop
+      - valid_neg_count_same_view_mean
+      - valid_neg_count_same_view_min
+      - valid_neg_count_same_modality_mean
+      - fallback_fraction
+      - mask_strategy
+      - M_elements_mean
+
+  collapse_monitor:
+    var_t_floor: 0.3
+    halt_if_below_for_steps: 500
+
+folder: /tmp/echomv_jepa/ablation_no_ema
+seed: 0
+checkpoint_every_steps: 2500
+num_workers: 4
