@@ -1,0 +1,27 @@
+
+\section{Implementation of VL-JEPA}
+\label{sec:implementation-details}
+
+\subsection{Model Architecture}
+
+
+
+\textbf{{X-Encoder}.} Unless otherwise specified, we use a frozen \texttt{V-JEPA~2 ViT-L} \citep{assran2025v} with 304M parameters, a self-supervised vision model that excels at both image and video tasks. Each video input is uniformly sampled into frames at 256$^2$ resolution. For image inputs, the same image is duplicated to match the input shape. 
+
+
+\textbf{{Predictor}.} The predictor is initialized with the last 8 Transformer layers of \texttt{Llama-3.2-1B}, resulting in 490M trainable parameters. The text tokenizer and token embedding are also from \texttt{Llama-3.2-1B}. We allow maximum 512 query tokens, and put \texttt{[PAD]} tokens for short queries. We disable the causal attention mask so that both vision and query embeddings can be jointly attended. Linear projections connect the predictor with the vision and text embeddings, and average pooling on non-\texttt{[PAD]} tokens is applied to obtain the predicted target embedding.
+
+
+\textbf{{Y-Encoder}.} {We use \texttt{EmbeddingGemma-300M}~\citep{vera2025embeddinggemma} as the initialization of the \texttt{Y-Encoder}. We set maximum context length of 512 to handle detailed captions. We found that setting a learning rate multiplier of $\times$0.05 to all text encoder parameters improves performance, since the quality of embedding prediction would be suboptimal in the beginning of training.} Linear projection head is applied to both \texttt{Predictor} and \texttt{Y-Encoder}, obtaining a shared embedding space with 1,536 dimensions, where the loss is calculated.
+
+{\subsection{Two-stage Training}}
+
+\textbf{Large-scale Pretraining.} VL-JEPA is trained with two stages. The first query-free pretraining stage aims to establish robust vision-language alignment using massive caption data. We use Datacomp \citep{gadre2023datacomp} and YFCC-100M \citep{thomee2016yfcc100m} for image-text data. For video-text data, we use \textsc{Action100M} \citep{chen2026action100m}, which consists action description and video captions generated on HowTo100M videos \citep{chen2025planning}.
+
+We first do image-only training on Datacomp and YFCC-100M with only 1 frame per visual input, which allows us to use a large batch size of 24k. After 100k iterations, the model has seen 2B samples and achieved 61.6\% ImageNet zero-shot accuracy (without prompt ensembling). Then, we continue with video pretraining with 8 frames per input for 60k iterations and 32 frames for 10k iterations in the end. The pretraining takes 4 weeks using 24 nodes with 8$\times$NVIDIA H200 GPUs each. We adopt a constant learning rate of $5{\times}10^{-5}$ to facilitate extended training. We refer the readers to the Action100M paper \citep{chen2026action100m} for more details. We call the resulting model \textbf{VL-JEPA$_\texttt{BASE}$} and measure \textit{zero-shot} classification and retrieval performance with this model. 
+
+
+\textbf{Supervised Finetuning.} The second query-conditioned supervised finetuning (SFT) stage empowers VL-JEPA VQA capabilities while maintaining the pretrained vision-language alignment for classification and retrieval. The training data is selected from the PLM data mixture \citep{cho2025perceptionlm}, including 25M VQA samples, 2.8M captioning samples, 1.8M classification samples, and downsampled pretraining stage data to avoid catastrophic forgetting.
+
+We train the model for 83k steps with a batch size of 3,072 ($\sim$2.5s days with 24 nodes), with cosine learning rate annealing applied to improve convergence. Since excessive human labeled data is included in this SFT data mixture, we no longer emphasize \textit{zero-shot} evaluation for the resulting \textbf{VL-JEPA$_\texttt{SFT}$} from this stage. Instead, we evaluate VQA capabilities and compare it with state-of-the-art \textit{specialist} models.
+

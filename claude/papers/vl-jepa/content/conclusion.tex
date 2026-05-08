@@ -1,0 +1,11 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We have presented VL-JEPA, a new vision–language model built upon the joint embedding predictive architecture. By shifting supervision from discrete token space to continuous semantic embedding space, VL-JEPA simplifies the learning target, avoids redundant modeling of surface linguistic variability, and enables non-autoregressive prediction. Through controlled experiments, we show that VL-JEPA outperforms generative VLMs trained with cross-entropy loss under matched training data budget, while achieving superior training efficiency and significantly lower inference latency. Beyond generation tasks, the embedding-based design further allows VL-JEPA to handle open-vocabulary classification and cross-modal retrieval within a single unified architecture. Its ability to emit continuous semantic embeddings also makes it particularly well suited for real-time video applications, where selective decoding can improve both responsiveness and efficiency. 
+% 
+In this work, we demonstrated the advantages of VL-JEPA over standard VLMs, particularly in computational efficiency, streaming applications, and video-language tasks. Our goal at this stage, is not to propose a universal alternative to VLMs, as this would require broader evaluation on tasks such as reasoning, tool use, and agentic behaviors where current token generative VLMs excel. Finally, although our results show clear benefits from scaling parameters and dataset size, we did not fully explore this direction, leaving it for future work.
+
+
+\section*{Acknowledgments}
+
+We would like to thank Loïc Barrault, Lucas Beyer, Quentin Garrido, João Maria Janeiro, Yifu Qiu, Koustuv Sinha, Basile Terver, and François Yvon for providing valuable feedback and support to this work. We thank Adrien Bardes for detailed V-JEPA 2 baseline performance on EK-100 action anticipation. We acknowledge Alejandro Castillejo Muñoz for his efforts on real-time demonstration and qualitative evaluation of VL-JEPA.

@@ -1,0 +1,51 @@
+
+
+\medskip
+\section{Introduction}
+\label{sec:intro}
+
+
+One of the most important aspects of advanced machine intelligence is the ability to understand the physical world that surrounds us. This ability enables AI systems to learn, reason, plan and act in the real world in order to assist humans \citep{lecun2022path}. Intelligent systems that need to act in the real world includes wearable devices and robots \citep{fung2025embodied}. Machine learning tasks that make up for this ability include captioning, retrieval, visual question answering, action tracking, reasoning and planning etc \citep{bordes2024introduction, chen2025planning}. Systems for such real-world applications must have real-time response with low latency and inference cost. 
+
+
+Currently, the common approach to achieve these tasks is to use large token-generative Vision Language Models (VLMs) \citep{liu2023visual, dai2023instructblip, alayrac2022flamingo, chen2024visual, cho2025perceptionlm, chen2022pali}, which takes visual input $X_V$, textual query $X_Q$ to generate desired textual response $Y$ autoregressively in token space, \textit{i.e.,} $(X_V, X_Q) \mapsto Y$. This is straightforward but inadequate for two main reasons. First, VLMs are expensive to develop, because they are trained to generate responses $Y$ to queries by capturing both task-relevant semantics with task-irrelevant surface linguistic features such as words choice, style or paraphrasing. During training, VLMs must model both aspects, which results in unnecessary computing effort spent producing diverse token sequences that ultimately do not impact the correctness of the output. Second, real-time tasks involving live streaming video (\textit{e.g.,} live action tracking) require sparse and selective decoding (\textit{e.g.,}, emitting a description only when a new event occurs) \citep{zhou2024streaming}. However, VLMs rely on autoregressive token-by-token decoding, which must be completed before revealing the underlying semantics of $Y$. This process introduces unnecessary latency and hampers the ability to update semantics dynamically in real time.
+
+
+
+\begin{figure}[t!]
+    \centering
+    \vspace{+20pt}
+    \includegraphics[width=0.55\linewidth]{figures/vl_jepa_small.pdf}
+    \caption{\centering{VL-JEPA model architecture}}
+    \label{fig:vl_jepa_small}
+    \vspace{-15pt}
+\end{figure}
+
+
+This paper introduces the Joint Embedding Predictive Architecture for Vision-Language (VL-JEPA), turning expensive learning of data-space token generation into more efficient latent-space semantic prediction. As illustrated in Fig.~\ref{fig:vl_jepa_small}, the model employs \textbf{x-encoder} to map vision inputs $X_V$ into embedding $S_V$, a \textbf{y-encoder} to map the textual target $Y$ into an embedding $S_Y$, and a \textbf{predictor} that learns the mapping $(S_V, X_Q) \mapsto S_Y$ where $X_Q$ is a textual query (\textit{i.e.,} the prompt). The training objective is defined in the embedding space $\mathcal{L}_\texttt{VL-JEPA} = D(\hat{S}_Y, S_Y)$ instead of the data space $\mathcal{L}_\texttt{VLM} = D(\hat{Y}, Y)$. During inference, a \textbf{y-decoder} reads out the predicted embedding $\hat{S}_Y$ to text space $\hat{Y}$ when needed.
+
+
+Thanks to its \textbf{non-generative} nature, VL-JEPA is not forced to reconstruct every surface detail of $Y$ in the token space. Instead, it only needs to predict the abstract representation $S_Y$ in the embedding space. In the raw one-hot token space, different plausible $Y$ outputs for the same input often appear nearly orthogonal if they don't share overlapping tokens. However, in the embedding space, these diverse targets can be mapped to nearby points that share similar semantics. This simplifies the target distribution thus makes the learning process more efficient. In addition, unlike VLMs, this approach eliminates the need for learning language generation with a heavy decoder during training, resulting in significant efficiency gains.
+
+Thanks to its \textbf{non-autoregressive} nature, VL-JEPA can produce continuous streams of target semantic embeddings within sliding windows with minimal latency as it only require a single forward pass without autoregressive decoding. This is particularly advantageous for real-time online applications such as live action tracking, scene recognition, or planning, where the embedding stream can be selectively decoded by a lightweight y-decoder, enabling efficient and prompt updates.
+
+In this work, we empirically validate the advantages of VL-JEPA. We conduct a strictly controlled comparison against classical token-generative VLM \citep{liu2023visual, cho2025perceptionlm}: both setups use the same vision encoder, spatial resolution, frame rate, training data, batch size, and number of iterations, etc., with the \emph{only} difference being the objective in token space or embedding space. Under this matched training condition, VL-JEPA delivers consistently higher performance on zero-shot captioning and classification while using roughly half the trainable parameters, indicating that embedding-space supervision improves learning efficiency. 
+
+Beyond the training phase, VL-JEPA also delivers substantial inference-time efficiency improvement through \emph{selective decoding}, where decoding happens only due to significant change in the predicted embedding stream. Empirically, this strategy reduces the number of decoding operations by $\sim$2.85$\times$ while preserving overall output quality measured by average CIDEr scores.
+
+
+{Our final VL-JEPA models are trained in two stages: 1) a pretraining stage using caption data to establish robust vision-language alignment, and 2) a supervised finetuning (SFT) stage that equips the model with VQA capabilities. The model resulting from the first stage, denoted as \textbf{VL-JEPA$_\texttt{BASE}$},} is evaluated on \textit{zero-shot} classification and text-to-video retrieval. VL-JEPA$_\texttt{BASE}$ outperforms CLIP \citep{radford2021learning}, SigLIP2 \citep{tschannen2025siglip}, and Perception Encoder \citep{bolya2025perception} models in terms of average classification accuracy (across 8 datasets) and retrieval recall@1 (across 8 datasets). {Following the second stage, the resulting \textbf{VL-JEPA$_\texttt{SFT}$} demonstrates significantly improved classification performance due to its exposure to in-domain training data. As a unified \textit{generalist} model, VL-JEPA$_\texttt{SFT}$ approaches the performance of \textit{specialist} models optimized for individual benchmarks. Simultaneously, VL-JEPA$_\texttt{SFT}$ exhibits effective VQA capabilities, achieving performance on par with established VLM families}, such as InstructBLIP \citep{dai2023instructblip} and Qwen-VL \citep{bai2023qwen}, across four datasets covering compositional visual reasoning \citep{hudson2019gqa}, complex object counting \citep{acharya2019tallyqa}, and object hallucination \citep{li2023evaluating, li2025analyzing}. 
+
+In summary, the contributions of this paper are as follows:
+
+\begin{itemize}
+
+    \item We introduce VL-JEPA, the first non-generative model that can perform general-domain vision-language tasks in real-time, built on a joint embedding predictive architecture. 
+    
+    \item We demonstrate in controlled experiments that VL-JEPA, trained with latent space embedding prediction, outperforms VLMs that rely on data space token prediction.
+    
+    \item We show that VL-JEPA delivers significant efficiency gains over VLMs for online video streaming applications, thanks to its non-autoregressive design and native support for selective decoding.
+    
+    \item {We highlight that our VL-JEPA$_\texttt{SFT}$ model, with an unified model architecture, can effectively handle a wide range of classification, retrieval, and VQA tasks at the same time.}
+
+\end{itemize}

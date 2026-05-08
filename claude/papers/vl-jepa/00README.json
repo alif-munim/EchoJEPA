@@ -1,0 +1,45 @@
+{
+   "sources" : [
+      {
+         "usage" : "toplevel",
+         "filename" : "main.tex"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "bibliography.bib"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figures/accuracy_plot.pdf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figures/decoding_time.png"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figures/retrieval_plot.pdf"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figures/scalibility.png"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figures/vl_jepa_small.png"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "figures/vljepa_overview.png"
+      },
+      {
+         "usage" : "ignore",
+         "filename" : "main.bbl"
+      }
+   ],
+   "spec_version" : 1,
+   "texlive_version" : "2025",
+   "process" : {
+      "compiler" : "pdflatex"
+   }
+}

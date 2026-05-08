@@ -1,0 +1,47 @@
+
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=\linewidth]{figures/vl_jepa.png}
+    \caption{
+        \textbf{Left: VL-JEPA Architecture}. It learns to predict the target embedding $S_Y$, instead of reconstructing the raw target $Y$ in token space as in classical VLMs. 
+        \textbf{Right: VL-JEPA Applications}: It handles vision-text-to-text generation tasks (\textit{e.g.,} captioning) with selective decoding mechanism natively supported. Furthermore, VL-JEPA's embedding space facilitates {discriminative VQA}, open-vocabulary classification and text-to-video retrieval tasks using a single unified model architecture.
+    }
+    \label{fig:vl_jepa}
+\end{figure*}
+
+\section{Methodology}
+\label{sec:method}
+
+We propose \textbf{VL-JEPA} (Fig.~\ref{fig:vl_jepa_small}), a model with the joint embedding predictive architecture (JEPA) for vision-language tasks. VL-JEPA is trained with triplets $\langle X_V, X_Q, Y \rangle$, where $X_V$ denotes the \textbf{visual input} (a single image or a sequence of video frames), $X_Q$ is a \textbf{textual query} (\textit{i.e.,} a question) and $Y$ is the \textbf{textual target} (\textit{i.e.,} the answer) to be predicted. The VL-JEPA comprises of four components:
+
+\begin{enumerate}[leftmargin=3em, itemsep=2pt]
+    \item \textbf{\texttt{X-Encoder}} $(X_V \mapsto S_V)$ compresses high-volume visual inputs to compact visual embeddings--a sequence of continuous vectors analogous to ``visual tokens'' in classical VLMs.  
+    
+
+    \item \textbf{\texttt{Predictor}} $(\langle S_V, X_Q\rangle \mapsto \hat{S}_Y)$ is the core component of VL-JEPA. It maps visual embeddings to a prediction of target embedding, with a textual query as conditioning. 
+
+    \item \textbf{\texttt{Y-Encoder}} $(Y \mapsto S_Y)$ embeds the textual target into a continuous latent space as the prediction target. The target embedding is expected to abstract away task irrelevant information. 
+    
+    \item \textbf{\texttt{Y-Decoder}} $(\hat{S}_Y \mapsto \hat{Y})$ is not involved during the main training phrase of VL-JEPA. At inference time, it translates the predicted embedding as human-readable text when necessary. 
+\end{enumerate}
+
+
+% Fig.~\ref{fig:vl_jepa} illustrates how we instantiate the VL-JEPA architecture in this paper. For the \texttt{X-Encoder}, we chose V-JEPA~2 \citep{assran2025v}, a self-supervised vision model that excels at both image and video tasks. It is a Vision Transformer that outputs a sequence of visual tokens, which are then projected and fed into the \texttt{Predictor}. The \texttt{Predictor} is initialized using Llama 3 Transformer layers. Query conditioning is achieved by tokenizing and embedding the textual query and feeding the resulting textual token embeddings into the \texttt{Predictor} along with the visual embeddings. The outputs of the Llama 3 Transformer layers are pooled and projected into the target embedding space produced by the \texttt{Y-Encoder}, {which is initialized by EmbeddingGemma-300M}~\citep{vera2025embeddinggemma}. We provide more details in \S\ref{sec:implementation details}.
+
+Fig.~\ref{fig:vl_jepa} illustrates how we instantiate the VL-JEPA architecture in this paper. For the \texttt{X-Encoder}, we chose V-JEPA~2 \citep{assran2025v}, a Vision Transformer that outputs a sequence of visual tokens, which are then projected and fed into the \texttt{Predictor} initialized using Llama 3 Transformer layers. Query conditioning is achieved by tokenizing and embedding the textual query and feeding the resulting textual token embeddings into the \texttt{Predictor} along with the visual embeddings. The outputs of the Llama 3 Transformer layers are pooled and projected into the target embedding space produced by the \texttt{Y-Encoder}, {which is initialized by EmbeddingGemma-300M}~\citep{vera2025embeddinggemma}. We provide more technical details in \S\ref{sec:implementation-details}.
+ 
+\textbf{Training Objective.} JEPA models typically optimize two objectives jointly: 1) prediction error in the embedding space, and 2) additional regularization that avoids representation collapse \citep{bardes2021vicreg, balestriero2025lejepa}. Any loss that implements these two properties can be applied to VL-JEPA. Alternatively, the regularization term can be replaced by other anti-collapse strategies, such as using an exponential moving average (EMA) for the \texttt{Y-Encoder} \citep{assran2025v} or freezing the \texttt{Y-Encoder} \citep{zhou2025dino}.
+
+In this work, {we adopt the \textbf{InfoNCE loss} \citep{radford2021learning} due to its maturity in the vision-language domain.} More advanced non-sample-contrastive regularization, such as VICReg \citep{bardes2021vicreg} and SIGReg \citep{balestriero2025lejepa} can also be applied but we leave the exploration to future works. {InfoNCE loss can be mathematically divided \citep{wang2020understanding} into: 1) a representation \textit{alignment} term that minimizes the distance between normalized prediction and target embeddings, and 2) a \textit{uniformity} regularization term that pushes embeddings in a batch apart from each other, thus avoiding representation collapse. We train the \texttt{Predictor} and the \texttt{Y-Encoder} jointly with bi-directional InfoNCE loss, enabling them to mutually learn from each other.}
+
+Compared to the token-space loss used by generative VLMs, calculating the training loss in the embedding space is beneficial due to the \textbf{simplified target distribution}. Specifically, many real-world prediction tasks are inherently ill-posed: for the same input $X$, there may exist multiple plausible targets $Y$ that are all acceptable. For example, given the query \textit{``What will happen here if I flip this light switch down?''}, both \textit{``the lamp is turned off''} and \textit{``room will go dark''} are valid answers. In the raw one-hot token space, however, the two sequences are orthogonal since they share no overlapping tokens. But when VL-JEPA’s \texttt{Y-Encoder} embeds them into nearby points (ideally yielding a compact unimodal distribution), the learning task becomes much easier: the model no longer needs to fit multiple disjoint high-density regions in sparse token space, but only a single coherent mode in a continuous embedding space.
+
+\textbf{Multi-tasking.} VL-JEPA supports diverse tasks using a \textit{single}, \textit{unified} architecture (Fig.~\ref{fig:vl_jepa}). For vision-text-to-text generation tasks, such as captioning or open-ended VQA, the query $X_Q$ is a captioning prompt or a question, and the predictor learns to predict the embedding of the target output, $\hat S_Y$, which is then decoded into text. {VL-JEPA also supports CLIP-style open-vocabulary classification and discriminative VQA}, where candidate label texts are encoded into embeddings and compared with prediction $\hat S_Y$ to select the nearest match. For text-to-video retrieval, candidate videos are mapped to their predicted embeddings $\hat S_Y$ using a retrieval a captioning prompt, and then ranked by similarity to the encoded textual retrieval query.
+
+\textbf{Selective Decoding.} Real-world video applications often require online streaming inference, such as tracking user actions in smart glasses for procedural assistance \citep{chen2024videollm}, monitoring world states for online planning, navigation and robotics \citep{shukor2025smolvla, black2025real,song2025accelerating}. A central challenge is balancing two competing needs: the model must continuously update semantics as new frames arrive, but  computational efficiency and latency are critical. 
+
+Existing VLMs typically rely on explicit memory mechanisms \citep{zhou2024streaming,qian2024streaming} to decide when to decode or complex KV-cache optimizations \citep{di2025streaming} for efficiency, since autoregressive language models are expensive to run continuously. 
+% 
+VL-JEPA, in contrast, natively supports selective decoding. Since it predicts a semantic answer embedding non-autoregressively, the model provides a continuous semantic stream of $\hat S_Y$ that can be monitored in real time. This stream can be stabilized with simple smoothing (\textit{e.g.,} average pooling) and decoded only when a significant semantic shift is detected, such as when the local window variance exceeds a threshold. In this way, VL-JEPA maintains always-on semantic monitoring while avoiding unnecessary decoding, achieving both responsiveness and efficiency.
+

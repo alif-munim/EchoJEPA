@@ -1,0 +1,76 @@
+\section{Related Works}
+\label{sec:related-works}
+
+% Our proposed VL-JEPA is the first designed for general-purpose vision–language tasks.
+\textbf{JEPA Models.}  JEPA model learns by predicting the representation of a target input $Y$ from the representation of a context input $X$. Early instantiations include I-JEPA for image encoding \citep{assran2023self} and V-JEPA for video encoding \citep{bardes2023v}, which demonstrated the effectiveness of this objective over pixel reconstruction approach in their respective modality.
+% lei2025m3 -> not foundation model pretraining, no multimodal conditioning 
+Recent JEPA work falls into two categories. One category of work emphasizes better unimodal representation learning \citep{assran2023self, bardes2023v, fei2023jepa} or cross-modal alignment \citep{lei2025m3, jose2025dinotxt}. 
+% While effective, these approaches give up JEPA’s core advantage: alignment reduces use cases to retrieval, and early fusion still learn in token space. 
+The other direction targets world modeling, where pretrained encoders are frozen and action-conditioned predictors are trained for conditional prediction of state representations \citep{zhou2025dino,baldassarre2025back,assran2025v,terver2025drives}. This has shown good results but remains limited to narrow domains like mazes or robotic pick-and-place. 
+Our proposed VL-JEPA is the first designed for general-purpose vision–language tasks. It performs conditional latent prediction over vision and text, and preserves efficiency while enabling flexible, multitask architecture.
+
+
+\textbf{Vision Language Models.} Existing vision-language models largely fall into two families: (1) CLIP-style models with a non-predictive joint-embedding architecture (JEA) \citep{radford2021learning, zhai2023sigmoid, bolya2025perception, liu2024remoteclip, chen2023protoclip} encode images and texts independently into a common latent space, $X_V \!\mapsto\! S_V$ and $Y \!\mapsto\! S_Y$. By minimizing $\mathcal{L}_\texttt{CLIP} = D(S_V, S_Y)$ with a contrastive loss (\textit{e.g.,} InfoNCE), CLIP learns aligned \textit{representations} that support zero-shot classification and vision–language retrieval; (2) Generative VLMs \citep{liu2023visual, chen2022pali, dai2023instructblip, alayrac2022flamingo, chen2024visual, cho2025perceptionlm, beyer2024paligemma} connect a vision encoder \citep{radford2021learning,fini2025multimodal} with a language model (\textit{e.g.,} LLM). They are typically trained with $\mathcal{L}_\texttt{VLM} = D(\hat{Y}, Y)$, \textit{i.e.,} next token prediction with cross-entropy loss, and can learn to handle various vision-text-to-text generation tasks such as VQA. 
+
+
+
+% part of the model \citep{tsimpoukelli2021multimodal,alayrac2022flamingo,laurenccon2023obelics}
+% only predictor \citep{vallaeys2024improved,shukor2023ep,koh2023groundingfromage,merullo2023linearlylimber}
+% prompt tuning \citep{jia2022visualprompttuning,zhou2022conditional,zhou2022learning,jia2022visualprompttuning}
+% efficient vlms. 
+
+% \citep{shukor2024skipping,cao2023pumer,vasu2025fastvlm},
+
+% \citep{yao2024minicpm,marafioti2025smolvlm}
+
+% \begin{wraptable}{r}{0.3\linewidth}
+%     \vspace{-10pt}
+%     \centering
+%     \resizebox{\linewidth}{!}{%
+%     \begin{tabular}{cccc}
+%     \toprule
+%      & CLIP & VLM & VL-JEPA \\
+%     \midrule
+%     Generation       & \xmark & \cmark & \cmark \\
+%     % Classification   & \cmark & \cmark & \cmark \\
+%     Retrieval        & \cmark & \xmark & \cmark \\
+%     \bottomrule
+%     \end{tabular}
+%     }
+%     \caption{Task coverage comparison.}
+%     \vspace{-10pt}
+%     \label{tab:task_coverage}
+% \end{wraptable}
+
+\begin{table}[h!]
+    \centering
+    \caption{Task coverage comparison.}
+    \label{tab:task_coverage}
+    \resizebox{0.65\linewidth}{!}{%
+    \begin{tabular}{cccc}
+    \toprule
+     & CLIP & VLM & VL-JEPA \\
+    \midrule
+    Generation       & \xmark & \cmark & \cmark \\
+    % Classification   & \cmark & \cmark & \cmark \\
+    Retrieval        & \cmark & \xmark & \cmark \\
+    \bottomrule
+    \end{tabular}}
+\end{table}
+
+Our proposed VL-JEPA integrates the architectural advantages and task coverage of both CLIPs and VLMs (Table~\ref{tab:task_coverage}). Since VL-JEPA learns in embedding space, it can leverage web-scale noisy image–text pairs \citep{jia2021scaling}, yielding strong open-domain features. On the other hand, VL-JEPA supports conditional generation tasks with a readout text decoder. Meanwhile, compared to generative VLMs that optimize directly in data space, VL-JEPA is more efficient at learning in the latent space. In addition, it is also more efficient for online inference, as it allows naturally selective decoding.
+
+
+\textbf{Efficient Vision Language Models.} The growing size and training cost of VLMs has motivated efforts to improve efficiency. On the training side, strong performance can be achieved by updating only a subset of parameters, such as the vision–language connector \citep{tsimpoukelli2021multimodal,alayrac2022flamingo,vallaeys2024improved,shukor2023ep,koh2023groundingfromage,merullo2023linearlylimber,dai2023instructblip}. At inference, efficiency is pursued through pruning parameters or visual tokens \citep{cao2023pumer,shukor2024skipping,vasu2025fastvlm}. For real-time use cases, recent work explores small VLMs \citep{yao2024minicpm,marafioti2025smolvlm} and heuristics to reduce query frequency in asynchronous inference \citep{shukor2025smolvla}.
+
+{
+\textbf{Latent-space Language Modeling.}
+Current state-of-the-art LLMs are trained to decode and reason in text space using autoregressive generation and chain-of-thought prompting \citep{wei2023chainofthoughtpromptingelicitsreasoning}.
+Text-space LLMs have rapidly improved and now achieve strong results on a wide range of benchmarks.
+However, the discrete nature of their reasoning trace may limit both speed and performance in the long term.
+Several works have explored latent-space LLMs that process or reason in latent space, such as Large Concept Models \citep{lcmteam2024largeconceptmodelslanguage} and COCONUT \citep{hao2025traininglargelanguagemodels}.
+These models focus on unimodal latent-space reasoning.
+With VL-JEPA, our goal is to align vision and text representations in a shared multi-modal latent space.
+This approach aims to enable better abstractions and improve both the performance and speed of vision-language models (VLMs).
+We hope VL-JEPA will serve as a foundation for future work on multi-modal latent space reasoning, including visual chain-of-thought methods \citep{li2025imaginereasoningspacemultimodal}.
+}
