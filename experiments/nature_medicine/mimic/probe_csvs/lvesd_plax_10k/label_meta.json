@@ -1,0 +1,113 @@
+{
+  "built_at": "2026-05-04T19:33:43+00:00",
+  "task_type": "regression",
+  "target": "lvesd",
+  "display_name": "LVIDs (LV end-systolic internal dimension)",
+  "label_source": "echo_structured_measurement",
+  "test_type": "tte",
+  "matching_window_days": 1,
+  "value_range": [
+    1.0,
+    7.5
+  ],
+  "unit": "cm",
+  "view_manifest": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/mimic_view_predictions.csv",
+  "view_filter": [
+    "PLAX"
+  ],
+  "view_status_filter": "OK",
+  "cohort_skeleton": "experiments/nature_medicine/mimic/probe_csvs/disease_hf_v4.1",
+  "splits": {
+    "train": {
+      "clips_in": 366156,
+      "clips_plax": 55689,
+      "clips_out": 44045,
+      "studies_in": 5040,
+      "studies_out": 3768,
+      "studies_unlabelled": 1159,
+      "label_stats": {
+        "n": 44045,
+        "min": 1.1,
+        "p5": 2.0,
+        "p25": 2.5,
+        "median": 2.9,
+        "p75": 3.4,
+        "p95": 4.6,
+        "max": 7.5,
+        "mean": 3.0339,
+        "std": 0.8121
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 12.0,
+        "max": 47,
+        "mean": 11.69
+      }
+    },
+    "val": {
+      "clips_in": 80096,
+      "clips_plax": 12027,
+      "clips_out": 9338,
+      "studies_in": 1116,
+      "studies_out": 808,
+      "studies_unlabelled": 271,
+      "label_stats": {
+        "n": 9338,
+        "min": 1.1,
+        "p5": 2.0,
+        "p25": 2.5,
+        "median": 2.9,
+        "p75": 3.3,
+        "p95": 4.5,
+        "max": 6.6,
+        "mean": 2.9931,
+        "std": 0.7698
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 12.0,
+        "max": 28,
+        "mean": 11.56
+      }
+    },
+    "test": {
+      "clips_in": 79060,
+      "clips_plax": 12026,
+      "clips_out": 9575,
+      "studies_in": 1087,
+      "studies_out": 829,
+      "studies_unlabelled": 233,
+      "label_stats": {
+        "n": 9575,
+        "min": 1.5,
+        "p5": 2.0,
+        "p25": 2.5,
+        "median": 2.9,
+        "p75": 3.4,
+        "p95": 4.9,
+        "max": 7.0,
+        "mean": 3.0726,
+        "std": 0.9081
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 11,
+        "max": 27,
+        "mean": 11.55
+      }
+    }
+  },
+  "zscore_params": {
+    "target_mean": 3.0339312052037686,
+    "target_std": 0.8121027987839394,
+    "computed_from": "PLAX-filtered train clips"
+  },
+  "subset_of": "experiments/nature_medicine/mimic/probe_csvs/lvesd_plax",
+  "subset_train_size_target": 10000,
+  "subset_train_size_actual": 10000,
+  "subset_scale_factor": 0.22704052673402203,
+  "subset_seed": 42,
+  "subset_method": "quantile-stratified on label (10 bins), proportional allocation",
+  "subset_val_size_actual": 2120,
+  "subset_test_size_actual": 2174
+}

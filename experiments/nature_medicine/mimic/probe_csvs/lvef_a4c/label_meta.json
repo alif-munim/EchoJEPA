@@ -1,0 +1,103 @@
+{
+  "built_at": "2026-05-04T02:03:30+00:00",
+  "task_type": "regression",
+  "target": "lvef_percent",
+  "source_splits": "experiments/nature_medicine/mimic/probe_csvs/lvef_structured",
+  "source_task_meta": {
+    "measurement": "lvef",
+    "test_type": "tte",
+    "view_filter": [
+      "A2C",
+      "A4C"
+    ],
+    "color_filter": "No",
+    "task_type": "regression",
+    "matching_window_days": 1,
+    "value_range": [
+      10.0,
+      85.0
+    ],
+    "unit": "%"
+  },
+  "view_manifest": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/mimic_view_predictions.csv",
+  "view_filter": [
+    "A4C"
+  ],
+  "view_status_filter": "OK",
+  "splits": {
+    "train": {
+      "clips_in": 27771,
+      "clips_out": 19138,
+      "studies_in": 3084,
+      "studies_out": 3065,
+      "studies_dropped_no_a4c": 19,
+      "lvef_stats": {
+        "n": 19138,
+        "min": 10.0,
+        "p25": 50.0,
+        "median": 55.0,
+        "p75": 64.0,
+        "max": 82.0,
+        "mean": 54.6569,
+        "std": 13.1159
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 6,
+        "max": 23,
+        "mean": 6.24
+      }
+    },
+    "val": {
+      "clips_in": 6256,
+      "clips_out": 4350,
+      "studies_in": 688,
+      "studies_out": 683,
+      "studies_dropped_no_a4c": 5,
+      "lvef_stats": {
+        "n": 4350,
+        "min": 10.0,
+        "p25": 50.0,
+        "median": 55.0,
+        "p75": 65.0,
+        "max": 80.0,
+        "mean": 54.9938,
+        "std": 12.9835
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 6,
+        "max": 17,
+        "mean": 6.37
+      }
+    },
+    "test": {
+      "clips_in": 5797,
+      "clips_out": 3961,
+      "studies_in": 659,
+      "studies_out": 653,
+      "studies_dropped_no_a4c": 6,
+      "lvef_stats": {
+        "n": 3961,
+        "min": 10.0,
+        "p25": 50.0,
+        "median": 55.0,
+        "p75": 65.0,
+        "max": 85.0,
+        "mean": 55.099,
+        "std": 13.3934
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 6,
+        "max": 18,
+        "mean": 6.07
+      }
+    }
+  },
+  "zscore_params": {
+    "target_mean": 54.656860695997494,
+    "target_std": 13.115939993774578,
+    "computed_from": "train clips (A4C-filtered)"
+  }
+}

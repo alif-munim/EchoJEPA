@@ -1,0 +1,80 @@
+{
+  "built_at": "2026-05-04T01:59:18+00:00",
+  "label_definition": {
+    "positive": "HF admission (ICD-10 I50.x or ICD-9 428.x) with admittime in (study_datetime, study_datetime + 365d]",
+    "negative": "eligible AND no HF admission within window",
+    "ineligible": "prior HF admission with admittime <= study_datetime",
+    "window_days": 365
+  },
+  "source_splits": "experiments/nature_medicine/mimic/probe_csvs/disease_hf_v4.1",
+  "source_db": "uhn_echo/nature_medicine/data_exploration/mimic/mimic.db",
+  "view_manifest": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/mimic_view_predictions.csv",
+  "view_filter": [
+    "A4C"
+  ],
+  "view_status_filter": "OK",
+  "cohort_counts": {
+    "total_echo_studies": 7243,
+    "eligible_studies": 4493,
+    "positive_studies_pre_split": 352
+  },
+  "splits": {
+    "train": {
+      "clips_in": 366156,
+      "clips_a4c": 33579,
+      "clips_out": 33579,
+      "studies_in": 5040,
+      "studies_out": 3112,
+      "studies_ineligible_prior_hf": 1867,
+      "studies_unmapped": 0,
+      "pos_studies": 246,
+      "neg_studies": 2866,
+      "pos_clips": 2675,
+      "neg_clips": 30904,
+      "clips_per_study": {
+        "min": 1,
+        "median": 11.0,
+        "max": 30,
+        "mean": 10.79
+      }
+    },
+    "val": {
+      "clips_in": 80096,
+      "clips_a4c": 7276,
+      "clips_out": 7276,
+      "studies_in": 1116,
+      "studies_out": 670,
+      "studies_ineligible_prior_hf": 427,
+      "studies_unmapped": 0,
+      "pos_studies": 62,
+      "neg_studies": 608,
+      "pos_clips": 713,
+      "neg_clips": 6563,
+      "clips_per_study": {
+        "min": 1,
+        "median": 11.0,
+        "max": 26,
+        "mean": 10.86
+      }
+    },
+    "test": {
+      "clips_in": 79060,
+      "clips_a4c": 6487,
+      "clips_out": 6487,
+      "studies_in": 1087,
+      "studies_out": 618,
+      "studies_ineligible_prior_hf": 456,
+      "studies_unmapped": 0,
+      "pos_studies": 37,
+      "neg_studies": 581,
+      "pos_clips": 375,
+      "neg_clips": 6112,
+      "clips_per_study": {
+        "min": 1,
+        "median": 10.0,
+        "max": 25,
+        "mean": 10.5
+      }
+    }
+  }
+}

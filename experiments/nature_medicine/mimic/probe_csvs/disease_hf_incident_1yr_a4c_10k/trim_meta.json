@@ -1,0 +1,14 @@
+{
+  "strategy": "classification_study_stratified",
+  "target": 10000,
+  "clip_cap": 4,
+  "pos_studies_kept": 246,
+  "neg_studies_kept": 2311,
+  "pos_clips_kept": 957,
+  "neg_clips_kept": 9043,
+  "total_clips": 10000,
+  "source_csv": "probe_csvs/disease_hf_incident_1yr_a4c/train.csv",
+  "output_csv": "probe_csvs/disease_hf_incident_1yr_a4c_10k/train.csv",
+  "input_clips": 33579,
+  "seed": 42
+}

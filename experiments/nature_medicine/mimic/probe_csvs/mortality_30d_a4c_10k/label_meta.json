@@ -1,0 +1,46 @@
+{
+  "built_at": "2026-05-04T14:45:05+00:00",
+  "task_type": "classification",
+  "num_classes": 2,
+  "class_labels": [
+    "alive_at_30d",
+    "dead_within_30d"
+  ],
+  "subset_of": "experiments/nature_medicine/mimic/probe_csvs/mortality_30d_a4c",
+  "seed": 42,
+  "train_target": 10000,
+  "scale_factor": 0.18880749188127785,
+  "method": "stratified random sample by binary class, proportional allocation; val/test scaled by same factor",
+  "splits": {
+    "train": {
+      "clips": 10000,
+      "class_distribution_clips": {
+        "0": 9467,
+        "1": 533
+      },
+      "n_studies": 4158,
+      "n_pos_studies": 225,
+      "n_neg_studies": 3933
+    },
+    "val": {
+      "clips": 2219,
+      "class_distribution_clips": {
+        "0": 2133,
+        "1": 86
+      },
+      "n_studies": 903,
+      "n_pos_studies": 37,
+      "n_neg_studies": 866
+    },
+    "test": {
+      "clips": 2109,
+      "class_distribution_clips": {
+        "0": 2032,
+        "1": 77
+      },
+      "n_studies": 903,
+      "n_pos_studies": 39,
+      "n_neg_studies": 864
+    }
+  }
+}

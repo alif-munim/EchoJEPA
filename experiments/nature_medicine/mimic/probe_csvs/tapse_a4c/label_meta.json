@@ -1,0 +1,87 @@
+{
+  "built_at": "2026-05-07T09:12:01+00:00",
+  "task_type": "regression",
+  "target": "tapse_cm",
+  "source_splits": "experiments/nature_medicine/mimic/probe_csvs/tapse",
+  "view_manifest": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/mimic_view_predictions.csv",
+  "view_filter": [
+    "A4C"
+  ],
+  "view_status_filter": "OK",
+  "splits": {
+    "train": {
+      "clips_in": 101490,
+      "clips_out": 14745,
+      "studies_in": 1289,
+      "studies_out": 1264,
+      "studies_dropped_no_a4c": 25,
+      "tapse_stats": {
+        "n": 14745,
+        "min": 0.5,
+        "p25": 1.7,
+        "median": 2.0,
+        "p75": 2.3,
+        "max": 3.5,
+        "mean": 1.9888,
+        "std": 0.5021
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 12.0,
+        "max": 28,
+        "mean": 11.67
+      }
+    },
+    "val": {
+      "clips_in": 21327,
+      "clips_out": 3118,
+      "studies_in": 268,
+      "studies_out": 263,
+      "studies_dropped_no_a4c": 5,
+      "tapse_stats": {
+        "n": 3118,
+        "min": 0.7,
+        "p25": 1.7,
+        "median": 2.0,
+        "p75": 2.3,
+        "max": 3.5,
+        "mean": 2.0257,
+        "std": 0.5291
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 12,
+        "max": 24,
+        "mean": 11.86
+      }
+    },
+    "test": {
+      "clips_in": 20041,
+      "clips_out": 2872,
+      "studies_in": 256,
+      "studies_out": 247,
+      "studies_dropped_no_a4c": 9,
+      "tapse_stats": {
+        "n": 2872,
+        "min": 0.7,
+        "p25": 1.6,
+        "median": 1.9,
+        "p75": 2.2,
+        "max": 3.4,
+        "mean": 1.9018,
+        "std": 0.4916
+      },
+      "clips_per_study": {
+        "min": 1,
+        "median": 12,
+        "max": 22,
+        "mean": 11.63
+      }
+    }
+  },
+  "zscore_params": {
+    "target_mean": 1.9888029840623942,
+    "target_std": 0.5021109303865148,
+    "computed_from": "train clips (A4C-filtered)"
+  }
+}

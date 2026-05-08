@@ -1,0 +1,78 @@
+{
+  "strategy": "regression_quantile_stratified",
+  "target": 10000,
+  "clip_cap": 6,
+  "n_bins_requested": 10,
+  "n_bins_effective": 8,
+  "per_bin": {
+    "bin_0": {
+      "label_range": [
+        10.0,
+        35.0
+      ],
+      "studies_available": 241,
+      "clips_kept": 1201
+    },
+    "bin_1": {
+      "label_range": [
+        35.0,
+        45.0
+      ],
+      "studies_available": 284,
+      "clips_kept": 1250
+    },
+    "bin_2": {
+      "label_range": [
+        45.0,
+        52.0
+      ],
+      "studies_available": 384,
+      "clips_kept": 1250
+    },
+    "bin_3": {
+      "label_range": [
+        52.0,
+        55.0
+      ],
+      "studies_available": 29,
+      "clips_kept": 161
+    },
+    "bin_4": {
+      "label_range": [
+        55.0,
+        60.0
+      ],
+      "studies_available": 792,
+      "clips_kept": 2388
+    },
+    "bin_5": {
+      "label_range": [
+        60.0,
+        65.0
+      ],
+      "studies_available": 600,
+      "clips_kept": 1250
+    },
+    "bin_6": {
+      "label_range": [
+        65.0,
+        70.0
+      ],
+      "studies_available": 357,
+      "clips_kept": 1250
+    },
+    "bin_7": {
+      "label_range": [
+        70.0,
+        82.000002
+      ],
+      "studies_available": 378,
+      "clips_kept": 1250
+    }
+  },
+  "total_clips": 10000,
+  "source_csv": "probe_csvs/lvef_a4c/train.csv",
+  "output_csv": "probe_csvs/lvef_a4c_10k/train.csv",
+  "input_clips": 19138,
+  "seed": 42
+}

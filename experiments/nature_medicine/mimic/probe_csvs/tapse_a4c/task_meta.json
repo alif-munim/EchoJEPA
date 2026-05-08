@@ -1,0 +1,15 @@
+{
+  "measurement": "tapse",
+  "test_type": "tte",
+  "view_filter": [
+    "A4C"
+  ],
+  "color_filter": "No",
+  "task_type": "regression",
+  "matching_window_days": 1,
+  "value_range": [
+    0.5,
+    3.5
+  ],
+  "unit": "cm"
+}

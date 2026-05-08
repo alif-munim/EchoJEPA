@@ -1,0 +1,77 @@
+{
+  "built_at": "2026-05-04T14:40:57+00:00",
+  "task_type": "classification",
+  "num_classes": 2,
+  "class_labels": [
+    "alive_at_30d",
+    "dead_within_30d"
+  ],
+  "target": "mortality_30d",
+  "label_source": "uhn_echo/nature_medicine/data_exploration/mimic/csv/mortality_30d.csv",
+  "cohort_skeleton": "experiments/nature_medicine/mimic/probe_csvs/disease_hf_v4.1",
+  "view_manifest": "/home/sagemaker-user/user-default-efs/vjepa2/classifier/output/mimic_view_predictions.csv",
+  "view_filter": [
+    "A4C"
+  ],
+  "view_status_filter": "OK",
+  "label_distribution_full_cohort": {
+    "0": 6832,
+    "1": 411
+  },
+  "splits": {
+    "train": {
+      "clips_in": 366156,
+      "clips_a4c": 52964,
+      "clips_out": 52964,
+      "studies_in": 5040,
+      "studies_out": 4910,
+      "studies_unlabelled": 0,
+      "pos_studies": 285,
+      "neg_studies": 4625,
+      "pos_clips": 2823,
+      "neg_clips": 50141,
+      "clips_per_study": {
+        "min": 1,
+        "median": 11.0,
+        "max": 30,
+        "mean": 10.79
+      }
+    },
+    "val": {
+      "clips_in": 80096,
+      "clips_a4c": 11751,
+      "clips_out": 11751,
+      "studies_in": 1116,
+      "studies_out": 1078,
+      "studies_unlabelled": 0,
+      "pos_studies": 52,
+      "neg_studies": 1026,
+      "pos_clips": 454,
+      "neg_clips": 11297,
+      "clips_per_study": {
+        "min": 1,
+        "median": 11.0,
+        "max": 27,
+        "mean": 10.9
+      }
+    },
+    "test": {
+      "clips_in": 79060,
+      "clips_a4c": 11170,
+      "clips_out": 11170,
+      "studies_in": 1087,
+      "studies_out": 1053,
+      "studies_unlabelled": 0,
+      "pos_studies": 42,
+      "neg_studies": 1011,
+      "pos_clips": 410,
+      "neg_clips": 10760,
+      "clips_per_study": {
+        "min": 1,
+        "median": 11,
+        "max": 25,
+        "mean": 10.61
+      }
+    }
+  }
+}
