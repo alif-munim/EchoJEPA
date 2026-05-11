@@ -1,73 +1,71 @@
 #!/bin/bash
-#SBATCH --job-name=uhn_mr_g
+#SBATCH --job-name=uhn_valve_g
 #SBATCH --partition=dev
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:8
 #SBATCH --time=10:00:00
-#SBATCH --output=/tmp/uhn_mr_g.out
-#SBATCH --error=/tmp/uhn_mr_g.err
+#SBATCH --output=/tmp/uhn_valve_g.out
+#SBATCH --error=/tmp/uhn_valve_g.err
 
-# UHN view-filtered MR severity clip-level embedding extraction for
-# EchoJEPA-G, intended for CY-style sklearn probe reproduction.
+# UHN view-filtered valve severity clip-level embedding extraction for
+# EchoJEPA-G (MR + TR + AR + AS union — one NPZ covers all 4 valve tasks).
 #
-# Input CSVs live under experiments/nature_medicine/uhn/probe_csvs/mr_severity/
-# but the clip-level master NPZ only needs ONE deduplicated S3 URI per row.
-# We build that CSV inline at the top of this script by taking the union of
-# train_vf + val_vf + test_vf across the four valve tasks — so the resulting
-# NPZ is reusable for MR, TR, AR, AS probes without re-extraction.
-#
-# Output: $MASTER_NPZ (clip-level embeddings, paths, placeholder labels).
-# Per-task sklearn probes later map labels by study_id via the same
-# pipeline used in scripts/cy_reproduction/cy_repro_task.py.
+# Compute node has neither EFS nor the encoder checkpoint locally; both
+# are pulled from S3 at job start.
 
-set -euo pipefail
+set -eo pipefail
 
-PYTHON=/home/sagemaker-user/.conda/envs/vjepa2-312/bin/python
+PYTHON=/opt/vjepa2-312/bin/python
 VJEPA=/opt/vjepa2
-PROBE_CSVS=$VJEPA/experiments/nature_medicine/uhn/probe_csvs
-OUT_DIR=$VJEPA/experiments/nature_medicine/uhn/valve_extractions
-MASTER_CSV=$OUT_DIR/uhn_valve_union_vf.csv
-MASTER_NPZ=$OUT_DIR/echojepa_g_uhn_valve_vf_embeddings.npz
+S3_ARTIFACTS=s3://sagemaker-hyperpod-lifecycle-495467399120-usw2/vjepa2-artifacts
 
-mkdir -p $OUT_DIR
+# Compute-node-local working directory (NVMe; 26 TB free on /opt/dlami/nvme)
+WORK=/opt/dlami/nvme/uhn_valve_extract
+CKPT_DIR=$WORK/checkpoints
+MASTER_CSV=$WORK/uhn_valve_union_vf.csv
+MASTER_NPZ=$WORK/echojepa_g_uhn_valve_vf_embeddings.npz
+
+# The inference config has an EFS path hardcoded for the encoder
+# checkpoint. Copy the config to a local copy and patch the path.
+ORIG_CONFIG=configs/inference/vitg-384/view/echojepa_224px.yaml
+LOCAL_CONFIG=$WORK/echojepa_224px_valve.yaml
+ENCODER_CKPT=$CKPT_DIR/pt-280-an81.pt
+
+S3_OUTPUT=$S3_ARTIFACTS/valve_extractions/echojepa_g_uhn_valve_vf_embeddings.npz
+
+mkdir -p $WORK $CKPT_DIR
 
 cd $VJEPA
 
-# Build the deduplicated union CSV once (skip if it already exists)
-if [ ! -f "$MASTER_CSV" ]; then
-    echo "[$(date)] Building deduplicated union CSV from valve VF splits..."
-    cat \
-        $PROBE_CSVS/mr_severity/train_vf.csv \
-        $PROBE_CSVS/mr_severity/val_vf.csv \
-        $PROBE_CSVS/mr_severity/test_vf.csv \
-        $PROBE_CSVS/tr_severity/train_vf.csv \
-        $PROBE_CSVS/tr_severity/val_vf.csv \
-        $PROBE_CSVS/tr_severity/test_vf.csv \
-        $PROBE_CSVS/ar_severity/train_vf.csv \
-        $PROBE_CSVS/ar_severity/val_vf.csv \
-        $PROBE_CSVS/ar_severity/test_vf.csv \
-        $PROBE_CSVS/as_severity/train_vf.csv \
-        $PROBE_CSVS/as_severity/val_vf.csv \
-        $PROBE_CSVS/as_severity/test_vf.csv \
-        | awk '{print $1" 0"}' \
-        | sort -u > $MASTER_CSV
-    echo "[$(date)] Union CSV size: $(wc -l < $MASTER_CSV) clips"
-else
-    echo "[$(date)] Reusing existing union CSV: $MASTER_CSV ($(wc -l < $MASTER_CSV) clips)"
-fi
+echo "[$(date)] Downloading union CSV from S3..."
+aws s3 cp $S3_ARTIFACTS/setup/uhn_valve_union_vf.csv $MASTER_CSV --quiet
+echo "[$(date)] Union CSV: $(wc -l < $MASTER_CSV) clips, $(ls -lh $MASTER_CSV | awk '{print $5}')"
+
+echo ""
+echo "[$(date)] Downloading encoder checkpoint (~16 GB) from S3..."
+aws s3 cp $S3_ARTIFACTS/checkpoints/anneal/keep/pt-280-an81.pt $ENCODER_CKPT --quiet
+echo "[$(date)] Checkpoint: $(ls -lh $ENCODER_CKPT | awk '{print $5}')"
+
+echo ""
+echo "[$(date)] Patching inference config to use local checkpoint path..."
+# Replace the EFS checkpoint path with the local one
+sed "s|/mnt/custom-file-systems/efs/fs-0049217cdf69186d7_fsap-0fa7145b64eaa046b/vjepa2/checkpoints/anneal/keep/pt-280-an81.pt|$ENCODER_CKPT|g" $ORIG_CONFIG > $LOCAL_CONFIG
+echo "[$(date)] Patched config: $LOCAL_CONFIG"
+grep "checkpoint:" $LOCAL_CONFIG | head -3
 
 echo ""
 echo "============================================================"
 echo "UHN valve extraction: EchoJEPA-G"
 echo "Data: $MASTER_CSV"
 echo "Output: $MASTER_NPZ"
+echo "Config: $LOCAL_CONFIG"
 echo "Devices: cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7"
 echo "============================================================"
 echo ""
 
 PYTHONUNBUFFERED=1 $PYTHON -m evals.extract_embeddings \
-    --config configs/inference/vitg-384/view/echojepa_224px.yaml \
+    --config "$LOCAL_CONFIG" \
     --data "$MASTER_CSV" \
     --output "$MASTER_NPZ" \
     --devices cuda:0 cuda:1 cuda:2 cuda:3 cuda:4 cuda:5 cuda:6 cuda:7 \
@@ -75,5 +73,9 @@ PYTHONUNBUFFERED=1 $PYTHON -m evals.extract_embeddings \
     --num_workers 8
 
 echo ""
-echo "[$(date)] EchoJEPA-G UHN valve extraction DONE"
-echo "Output size: $(ls -la $MASTER_NPZ | awk '{print $5}')"
+echo "[$(date)] Extraction done. NPZ size: $(ls -lh $MASTER_NPZ | awk '{print $5}')"
+
+echo ""
+echo "[$(date)] Syncing NPZ to S3 for SageMaker-side retrieval..."
+aws s3 cp $MASTER_NPZ $S3_OUTPUT --quiet
+echo "[$(date)] Uploaded to $S3_OUTPUT"
