@@ -109,7 +109,7 @@ experiment:
     study_sampling: true
   optimization:
     batch_size: 1
-    num_epochs: 20
+    num_epochs: 35
     use_bfloat16: true
     use_pos_embed: false
     multihead_kwargs:
