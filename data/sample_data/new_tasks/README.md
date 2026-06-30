@@ -95,3 +95,90 @@ Clip counts (training): mechanical 48K / bio 24K / repair 51K / native 45K, tota
 - UID mapping: `data/aws/aws_syngo.csv`, `data/aws/aws_heartlab_0806.csv`
 - View classifier: `classifier/output/view_inference_18m/master_predictions.csv`
 - Random seed: 42 (used for both native subsampling and patient split)
+
+---
+
+# Other Build Scripts in This Directory
+
+The remaining scripts produce probe CSVs for individual UHN tasks and zero-shot MIMIC test sets. They share architectural conventions:
+
+- **Path → study UID extraction**: UHN uses the regex `1.2.276.*.3.1.2.<uid>` on the S3 path; MIMIC uses `/s<study_id>/` from the `s12345678` directory naming.
+- **View filtering**: all scripts intersect clips with the 18M-clip view classifier (`classifier/output/view_inference_18m/master_predictions.csv` for UHN, `classifier/output/mimic_view_predictions.csv` for MIMIC) and keep only the views appropriate to the measurement.
+- **B-mode filtering**: when set, intersects with the color classifier and keeps only clips classified as B-mode (no color Doppler overlay).
+- **Plausibility filtering**: every regression task applies a `VALID_RANGE` to drop outliers and unit-confused entries (e.g. mm vs cm).
+- **±1 day matching (MIMIC only)**: structured measurements live on a separate timeline from echo studies; the build matches each measurement to the nearest study within ±1 day for the same `subject_id`.
+
+## UHN regression tasks
+
+### `build_mv_e_prime_medial_dataset.py` — MV E' medial (regression)
+
+Predicts mitral annular tissue Doppler e' velocity (medial/septal site) from B-mode A4C video. Pulls per-study `MV E prime medial` from `syngo_measures`, averages duplicates, and applies a `[0.02, 0.25]` cm/s plausibility window. Views: A4C only. B-mode only. Patient-level 70/15/15 split (seed 42). Writes `train_vf.csv` / `val_vf.csv` / `test_vf.csv`, `viewfilter_meta.json`, and a `zscore_params.json` (training-set mean/std for normalization at probe-time).
+
+This is the cross-modal counterpart to MV E/A — the tissue Doppler equivalent measured at the septal corner of the mitral annulus. Predicting it from B-mode tests whether the model has internalized myocardial relaxation dynamics from structural motion alone.
+
+### `build_data_efficiency_subsets.py` — VSD and RV basal diameter at 50/25/12.5/6.25/3.125%
+
+Builds nested, stratified subsamples of two UHN tasks for the data-efficiency curves:
+
+- **VSD** (binary classification): stratified by class so positive/negative ratios are preserved at every fraction.
+- **RV basal diameter** (regression): stratified by label quantile bins so the distribution shape is preserved.
+
+Fractions form a log₂ halving series (50%, 25%, 12.5%, 6.25%, 3.125%). Each smaller subset is a strict subset of the next larger one — same studies, just fewer. Writes `train_vf_{50pct,25pct,12pct,6pct,3pct}.csv` to each task directory. Val and test sets are not subsampled.
+
+## MIMIC zero-shot test sets
+
+These scripts produce MIMIC-IV-Echo test CSVs for tasks where the probe was trained on UHN. They are not patient-split (no `train_vf.csv`); they are pure test sets used to measure cross-institution transfer. Most write to `…_all/all.csv` rather than `test.csv` to mark this. At inference, UHN-derived `zscore_params.json` is supplied, not MIMIC-derived (so the probe sees inputs on the same scale it was trained on).
+
+### `build_mimic_biplane_lvef.py` — Simpson's biplane LVEF
+
+Extracts the `biplane_lvef` measurement from `echo_structured_measurement` (TTE only) and matches to MIMIC echo studies via `subject_id` + ±1 day window. Filters to A2C and A4C views (the two views Simpson's biplane uses) and plausibility range `[10, 85]`%. Writes a split `(train.csv / val.csv / test.csv)` plus `all.csv`, `zscore_params.json`, and `task_meta.json`.
+
+The script also computes overlap and label-difference statistics against the existing `lvef_structured` splits (which use the rounded visual-estimate `lvef` field). Biplane LVEF is the clinical reference standard; the visual-estimate field is rounded to 5% increments and is less precise — so this build script lets you swap the noisier label for the precise one.
+
+### `build_mimic_dimensions.py` — LA AP / Ao Root / RV Basal diameter
+
+Builds three B-mode-only regression test sets in one pass:
+
+| Task | DB measurement | View | Range (cm) |
+|---|---|---|---|
+| LA AP diam | `la_dimen` | PLAX | [1.5, 7.0] |
+| Ao Root diam | `ascending_diam` | PLAX | [1.5, 6.0] |
+| RV Basal diam | `rv_diam` | A4C | [1.0, 7.0] |
+
+All write to `…_all/all.csv` with the raw float label (the probe applies its UHN-trained z-score at runtime).
+
+### `build_mimic_eprime_ea.py` — E' medial and MV E/A
+
+Two related diastolic tasks. E' medial uses MIMIC's `sept_e_prime` measurement (septal = medial in echo terminology), A4C only, B-mode only, range `[0.02, 0.25]` cm/s. MV E/A uses `mv_peak_e_a`, views A4C+A2C, range `[0.3, 5.0]`. Because MV E/A was a color-trained probe at UHN, this script produces two MIMIC test sets — `all_color.csv` (B-mode + color Doppler clips, matching training conditions) and `all_bmode.csv` (B-mode only, the cross-modal stress test).
+
+### `build_mimic_mortality.py` — 30d / 90d / 1yr mortality
+
+Joins `echo_study_list` with `hosp_patients.dod` (date of death). For each study: label = 1 if patient died within `window_days` of the echo, label = 0 if alive at last observation (or if `dod` is null, treated as alive). Three tasks produced: `mortality_30d_v2`, `mortality_90d_v2`, `mortality_1yr_v2`. The `_v2` suffix marks these as rebuilt directly from `mimic.db` for verification; the script also cross-checks against the prebuilt CSVs in `data_exploration/mimic/csv/mortality_*.csv` and reports label agreement.
+
+### `build_mimic_tr_vmax.py` — TR Vmax
+
+Single-task script: extracts `tr_velocity` measurements, matches to studies within ±1 day, filters to A4C only. Color is allowed (TR Vmax probes at UHN were trained with color Doppler clips; the regurgitant jet is the diagnostic signal). Range `[0.5, 5.0]` m/s. Writes `tr_vmax_a4c/all.csv`. Note that this uses CW Doppler Vmax labels at MIMIC but the probe sees only 2D / color Doppler clips — predicting the velocity from the visual jet alone.
+
+### `build_mimic_valve_status.py` — MV Status and AV Status (zero-shot)
+
+The MIMIC counterpart to the UHN MV/AV Status tasks documented above. Uses `mv_leaflets` and `av_leaflets` fields from `echo_structured_measurement` and maps free-text values to the same 4-class schemas. MV: mechanical (Bileaflet, Mechanical, Ball and cage, …) / bioprosthetic (Bioprosthesis, Sapien 3 TMVR, …) / repair (Annular ring, MitraClip, PASCAL) / native (Normal, Myxomatous, Mild/Mod/Severe thick, …). AV: mechanical (Bileaflet mechanical, Single tilting disk) / surgical bioprosthetic (Bioprosthesis, AVR homograft, …) / TAVR (Sapien 3, CoreValve, Evolut, Lotus) / native (Nl, Bicuspid, Unicuspid, Quadricuspid, …). "Not well seen" values are excluded. Views match the UHN training views (MV: PLAX+A4C, AV: PLAX+A4C+A3C). Color allowed for both. Writes `…_all/all.csv` per task.
+
+This is the most direct cross-institution test of the prosthetic valve classifier: same 4-class schema, same training-view filter, different institution and different label vocabulary (MIMIC uses freer text than UHN's controlled vocabulary).
+
+## Reproducibility paths (other tasks)
+
+| Task | Build script | Output dir |
+|---|---|---|
+| UHN MV E' medial | `build_mv_e_prime_medial_dataset.py` | `experiments/nature_medicine/uhn/probe_csvs/mv_e_prime_medial/` |
+| UHN data efficiency | `build_data_efficiency_subsets.py` | `experiments/nature_medicine/uhn/probe_csvs/{vsd,rv_basal_diam}/train_vf_{50,25,12,6,3}pct.csv` |
+| MIMIC biplane LVEF | `build_mimic_biplane_lvef.py` | `experiments/nature_medicine/mimic/probe_csvs/biplane_lvef_structured/` |
+| MIMIC LA/Ao/RV diam | `build_mimic_dimensions.py` | `experiments/nature_medicine/mimic/probe_csvs/{la_ap_diam,ao_root_diam,rv_basal_diam}_all/` |
+| MIMIC E' medial & E/A | `build_mimic_eprime_ea.py` | `experiments/nature_medicine/mimic/probe_csvs/{e_prime_medial,mv_ea_ratio}_all/` |
+| MIMIC mortality | `build_mimic_mortality.py` | `experiments/nature_medicine/mimic/probe_csvs/mortality_{30d,90d,1yr}_v2/` |
+| MIMIC TR Vmax | `build_mimic_tr_vmax.py` | `experiments/nature_medicine/mimic/probe_csvs/tr_vmax_a4c/` |
+| MIMIC MV/AV Status | `build_mimic_valve_status.py` | `experiments/nature_medicine/mimic/probe_csvs/{mv_status,av_status}_all/` |
+
+Common reference paths:
+- MIMIC source DB: `uhn_echo/nature_medicine/data_exploration/mimic/mimic.db`
+- MIMIC view manifest: `classifier/output/mimic_view_predictions.csv`
+- MIMIC color manifest: `classifier/output/mimic_color_predictions.csv`
