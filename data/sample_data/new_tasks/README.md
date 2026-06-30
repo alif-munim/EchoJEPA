@@ -84,7 +84,14 @@ For AV Status, the queries hit several structured observation fields:
 - `AoV_Bioprosthetictype-ASE_obs` — backup bio signal, with keyword check for TAVR (Sapien / CoreValve / Evolut / TAVI / TAVR) to route into the TAVR class
 - `AoV_structure_uhn_obs` and `AoV_Normal_obs` — native signal (any value indicates a non-prosthetic AV)
 
-MV Status uses the analogous fields: `MV_Prosthetic_type_sD_obs`, `Type_of_MV_Surgery_obs`, `MV_annular_repair_obs`, `MV_Structure_functionuhn_obs`, `MV_Normal_obs`. The "repair" class is the MV-specific replacement for TAVR — annuloplasty rings, MitraClip, surgical repair.
+MV Status uses analogous fields, but the value vocabulary is different (mitral observations don't carry manufacturer strings the same way aortic does). The mappings:
+
+- `MV_Prosthetic_type_sD_obs` — prosthetic type. Mechanical values: `mechanical`, `bileaflet`, `tilting_disk`, `ball_and_cage`. Bioprosthetic values: `tissue`, `porcine`, `bovine`, `bioprosthetic`, `bioprosthesis`, `pericardial`, `mosaic`, `CE Perimount`, `Porcine`, `unknown tissue`. (No transcatheter MV class for Syngo — TMVR is rare and falls under bioprosthetic when present.)
+- `Type_of_MV_Surgery_obs` — surgery type free-text. Mechanical: `MVRm`, `mecMVR and TV annuloplasty`, `mMVR and tTVR`, plus a handful of phrasings like `Mechanical MVR and tricuspid valve repair`. Bioprosthetic: `MVRt`, `tMVReplacement and TV repair`, `tMVR and TV repair`, `Tissue MVR and ACB`, and similar tissue-MVR variants. Repair: `MVRepair`, `MV repair and TV repair`, `Re-Do MV repair`, `MVRepair and ACB`, `Mitral valve repair with annuloplasty`, `Mitral valve repair with artificial cordae and mitral valve annylosplasty band`, and many surgical-text variants — the full string list lives in `SYNGO_SURGERY_REPAIR` in `build_mv_status_dataset.py`.
+- `MV_annular_repair_obs` — repair signal. Recognized values: `annuloplasty band`, `band`, `Simplici T Band`, `clip` (the `clip` value covers MitraClip).
+- `MV_Structure_functionuhn_obs` and `MV_Normal_obs` — native signal (any value indicates a non-prosthetic, non-repaired MV).
+
+The "repair" class is the MV-specific replacement for the AV-TAVR class — annuloplasty rings, MitraClip, surgical leaflet repair.
 
 ## HeartLab label sources (the 2002–2014 era)
 
@@ -95,7 +102,14 @@ HeartLab uses a coded finding system. The build script joins `heartlab_finding_i
 - AV TAVR: group 100179 (IDs 100762, 100763, 100764) + post-op TAVR finding 100766
 - AV native (tricuspid/trileaflet/normal): IDs 100439, 243, 100460, 242, 310, 100445 from groups 68 and 83
 
-MV findings follow the same pattern: mechanical (group 100), bioprosthetic (group 102), repair (annuloplasty ring 100267, MitraClip 100383), native (Group 85 IDs 316, 100467). Manufacturer-specific codes from group 100026 distinguish mechanical vs bioprosthetic when the primary finding is ambiguous.
+For MV Status the HeartLab structure is symmetric but the IDs differ:
+
+- MV mechanical: group 100 — finding IDs 387, 383, 384, 386. Augmented by manufacturer model group 100026 entries SJM, Bjork-Shiley, Starr-Edwards, Medtronic Hall (these mechanical manufacturer codes route to the mechanical class even when the primary finding ID is ambiguous).
+- MV bioprosthetic: group 102 — finding IDs 402, 399, 401. Augmented by model group 100026 entries Hancock II, Mosaic, CE (these tissue-valve manufacturer codes route to bioprosthetic).
+- MV repair: finding IDs 100267 (annuloplasty ring, model group 100034), 385 (legacy ring), 100130 (post-op repair finding), 100383 (MitraClip), with the prosthetic classes taking precedence on conflict.
+- MV native: group 85 — finding IDs 316 and 100467.
+
+The model-group 100026 codes are the disambiguation mechanism — when a study has both a generic prosthetic finding and a manufacturer code, the manufacturer code wins because it's specific.
 
 ## Native subsampling — the key design choice
 
