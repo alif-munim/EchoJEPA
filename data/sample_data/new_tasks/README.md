@@ -1,3 +1,54 @@
+# Nature Medicine New-Tasks Build Scripts
+
+Build scripts and documentation for the new Nature Medicine probe tasks: AV/MV Status, MV E' medial, data-efficiency subsets, and the MIMIC zero-shot test sets. The bulk of this document covers AV Status and MV Status; per-script summaries for the others appear in the second half.
+
+## Task summary table
+
+| Task | Type | Views | Color/B-mode | Classes / Range |
+|------|------|-------|--------------|-----------------|
+| **RV Basal Diam** | Regression | A4C | B-mode only | cm (1.0–7.0) |
+| **VSD** | Binary | PLAX, PSAX-AV, A4C | Includes color | 0=No VSD, 1=VSD (active or repaired) |
+| **MV Status** | 4-class | PLAX, A4C | Both | 0=mechanical, 1=bioprosthetic, 2=repair, 3=native |
+| **AV Status** | 4-class | PLAX, A4C, A3C | Both | 0=mechanical, 1=surgical bio, 2=TAVR, 3=native |
+| **MV E/A** | Regression | A4C, A2C | Color-trained | ratio (0.3–5.0) |
+| **LA AP Diam** | Regression | PLAX | B-mode only | cm (1.5–7.0) |
+| **Ao Root Diam** | Regression | PLAX | B-mode only | cm (2.0–6.0)¹ |
+| **E' Medial** | Regression | A4C | B-mode only | cm/s (0.02–0.25) |
+
+¹ Sinus of Valsalva diameter (true aortic root, `sinus_diam` in MIMIC). Earlier builds used `ascending_diam` at a different anatomical level; the corrected build uses `sinus_diam` with a 2.0 cm lower bound.
+
+## Chicago (UCMC) probe artifacts
+
+Trained probes for these tasks are mirrored on Google Drive at `gdrive:echo_foundation/nature_medicine/chicago/probes/new/`. One subdirectory per (task, model) with a single `best.pt` checkpoint inside. Use `rclone copy gdrive:echo_foundation/nature_medicine/chicago/probes/new/<dir> <local>` to pull.
+
+### Probes covered by the build scripts in this directory
+
+| Task | EchoJEPA-G | EchoJEPA-L-K | EchoPrime | PanEcho |
+|---|---|---|---|---|
+| AV Status | `av_status-echojepa-g/` | `av_status-echojepa-l-k/` | `av_status-echoprime/` | `av_status-panecho/` |
+| MV Status | `mv_status-echojepa-g/` | `mv_status-echojepa-l-k/` | `mv_status-echoprime/` | `mv_status-panecho/` |
+| MV E' medial | `mv_e_prime_medial-echojepa-g/` | `mv_e_prime_medial-echojepa-l-k/` | `mv_e_prime_medial-echoprime/` | `mv_e_prime_medial-panecho/` |
+| MV E/A ratio | `mv_ea_ratio-echojepa-g/` | `mv_ea_ratio-echojepa-l-k/` | `mv_ea_ratio-echoprime/` | `mv_ea_ratio-panecho/` |
+| LA AP Diam | `la_ap_diam-echojepa-g/` | `la_ap_diam-echojepa-l-k/` | `la_ap_diam-echoprime/` | `la_ap_diam-panecho/` |
+| Ao Root Diam | `ao_root_diam-echojepa-g/` | `ao_root_diam-echojepa-l-k/` | `ao_root_diam-echoprime/` | `ao_root_diam-panecho/` |
+| RV Basal Diam | `rv_basal_diam-echojepa-g/` | `rv_basal_diam-echojepa-l-k/` | `rv_basal_diam-echoprime/` | `rv_basal_diam-panecho/` |
+| Disease VSD | `disease_vsd-echojepa-g/` | `disease_vsd-echojepa-l-k/` | `disease_vsd-echoprime/` | `disease_vsd-panecho/` |
+| TR Vmax | `tr_vmax/echojepa-g/` | `tr_vmax/echojepa-l-k/` | `tr_vmax/echoprime/` | `tr_vmax/panecho/` |
+
+### Related probes also under `chicago/probes/new/` (not built from this directory but commonly used alongside)
+
+| Task | Path layout |
+|---|---|
+| AR / AS / MR / TR severity (color-trained) | `{ar,as,mr,tr}_severity_color/{echojepa-g,echojepa-l-k,echoprime,panecho}/best.pt` |
+| Pericardial effusion | `pericardial_effusion_{echojepa-g,echojepa-l-k,echoprime,panecho}/best.pt` |
+| RV function | `rv_function_{echojepa-g,echojepa-l-k,echoprime,panecho}/best.pt` |
+| RVSP B-mode (multilevel) | `rv_sp_bmode_d4_multilevel/echojepa-g/best.pt` |
+| RVSP B-mode (singlelayer) | `rv_sp_bmode_d4_singlelayer/echojepa-g/best.pt` |
+| RVSP B-mode (multi) | `rv_sp_bmode_multi/echoprime/best.pt` |
+| TAPSE B-mode (multi) | `tapse_bmode_multi/panecho/best.pt` |
+
+---
+
 # AV Status & MV Status — Prosthetic Valve Classification Datasets
 
 Quick summary of how the AV Status and MV Status datasets were constructed for the prosthetic valve classification tasks.
