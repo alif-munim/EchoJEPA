@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "echobench"
+version = "0.1.0"
+description = "Acoustic robustness benchmark for echocardiography foundation models"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.0",
+    "torchvision",
+    "numpy",
+    "scipy",
+    "scikit-image",
+    "decord",
+]
+
+[project.optional-dependencies]
+camus = ["nibabel"]
+reporting = ["matplotlib"]
+adapters = ["timm", "transformers"]
+all = ["nibabel", "matplotlib", "timm", "transformers"]
+
+[project.scripts]
+echobench = "echobench.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["echobench*"]
